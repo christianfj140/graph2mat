@@ -103,6 +103,14 @@ class MatrixDataProcessor:
     out_matrix: Optional[PhysicsMatrixType] = None
     node_attr_getters: List[Any] = dataclasses.field(default_factory=list)
 
+    def __post_init__(self):
+        if self.sub_point_matrix and self.out_matrix not in (None, "density_matrix"):
+            warnings.warn(
+                "sub_point_matrix is only supported for density_matrix targets. "
+                f"Disabling it for out_matrix={self.out_matrix!r}."
+            )
+            object.__setattr__(self, "sub_point_matrix", False)
+
     def copy(self, **kwargs):
         """Create a copy of the object with the given attributes replaced."""
         return dataclasses.replace(self, **kwargs)

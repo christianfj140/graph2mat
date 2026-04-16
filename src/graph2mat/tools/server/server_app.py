@@ -232,6 +232,12 @@ def create_server_app(
             model["prediction_function"], geometry
         )
 
+    out_matrix_to_suffix = {
+        "density_matrix": ".DM",
+        "hamiltonian": ".TSHS",
+        "energy_density_matrix": ".EDM",
+    }
+
     @api.post("/models/{model_name}/predict", response_class=FileResponse)
     async def predict(
         model_name: ModelName,
@@ -256,7 +262,8 @@ def create_server_app(
         matrix = predict_from_geometry(model, geometry)
 
         # WRITE THE MATRIX TO A TEMPORARY FILE
-        tmp_file = tempfile.NamedTemporaryFile(suffix=".DM", delete=False)
+        matrix_suffix = out_matrix_to_suffix.get(model["data_processor"].out_matrix, ".mtx")
+        tmp_file = tempfile.NamedTemporaryFile(suffix=matrix_suffix, delete=False)
         file_path = Path(tmp_file.name)
         matrix.write(file_path)
 
