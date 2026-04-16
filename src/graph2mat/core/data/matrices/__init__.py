@@ -25,6 +25,8 @@ __all__ = ["BasisMatrix", "OrbitalMatrix", "DensityMatrix", "get_matrix_cls"]
 _KEY_TO_MATRIX_CLS = {
     "density_matrix": DensityMatrix,
     sisl.DensityMatrix: DensityMatrix,
+    "hamiltonian": OrbitalMatrix,
+    sisl.Hamiltonian: OrbitalMatrix,
 }
 
 

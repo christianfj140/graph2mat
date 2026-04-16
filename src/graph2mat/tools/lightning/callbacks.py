@@ -239,6 +239,12 @@ class SamplewiseMetricsLogger(Callback):
         # Compute all the metrics
         metrics = []
         for metric in self.metrics:
+            if (
+                trainer.datamodule.out_matrix != "density_matrix"
+                and metric.__class__.__name__ == "normalized_density_error"
+            ):
+                metrics.append(np.full(len(batch), np.nan))
+                continue
             try:
                 metrics.append(
                     metric(

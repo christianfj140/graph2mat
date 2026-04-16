@@ -581,7 +581,9 @@ def create_extrapolation_app(
                 m = m + this_series.last_matrix_ref
 
         if m_0 is not None:
-            mat_0 = sisl.get_sile(m_0).read_density_matrix(geometry=m.geometry)
+            mat_0 = getattr(
+                sisl.get_sile(m_0), f"read_{this_series.processor.out_matrix}"
+            )(geometry=m.geometry)
             m = mat_0 + m
 
         m.write(out)

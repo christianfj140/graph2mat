@@ -1,6 +1,7 @@
 import pytest
 
 import numpy as np
+import warnings
 
 from graph2mat import (
     PointBasis,
@@ -65,3 +66,17 @@ def test_init_data(
         assert np.all(data.positions == positions)
     else:
         assert (data.positions != positions).sum() == n_ats * 2
+
+
+def test_sub_point_matrix_disabled_for_hamiltonian(basis_table):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        processor = MatrixDataProcessor(
+            basis_table=basis_table,
+            symmetric_matrix=True,
+            sub_point_matrix=True,
+            out_matrix="hamiltonian",
+        )
+
+    assert processor.sub_point_matrix is False
+    assert any("sub_point_matrix is only supported for density_matrix" in str(w.message) for w in caught)
