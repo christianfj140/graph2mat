@@ -375,9 +375,24 @@ class PlotMatrixError(Callback):
         # Get the values for the edge blocks and the pointer to the start of each block.
         edge_index = batch.edge_index.numpy(force=True)
         if symmetric_matrix:
-            edge_index = edge_index[:, ::2]
-            edge_types = edge_types[::2]
-            edge_ptr = edge_ptr // 2
+            full_edge_ptr = edge_ptr
+            n_edges = batch.n_edges.numpy(force=True)
+
+            edge_ptr = np.zeros_like(atom_ptr)
+            np.cumsum((n_edges + 1) // 2, out=edge_ptr[1:])
+
+            edge_slices = [
+                slice(start, end, 2)
+                for start, end in zip(full_edge_ptr[:-1], full_edge_ptr[1:])
+            ]
+            selected_edge_types = [edge_types[s] for s in edge_slices]
+            selected_edge_indices = [edge_index[:, s] for s in edge_slices]
+            if len(selected_edge_types) > 0:
+                edge_types = np.concatenate(selected_edge_types)
+                edge_index = np.concatenate(selected_edge_indices, axis=1)
+            else:
+                edge_types = np.empty(0, dtype=edge_types.dtype)
+                edge_index = np.empty((2, 0), dtype=edge_index.dtype)
 
         edge_labels = outputs["edge_labels"].numpy(force=True)
         edge_labels_ptr = basis_table.edge_block_pointer(edge_types)

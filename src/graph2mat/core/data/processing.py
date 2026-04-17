@@ -282,8 +282,19 @@ class MatrixDataProcessor:
 
             # Get the values for the edge blocks and the pointer to the start of each block.
             if self.symmetric_matrix:
-                edge_types = edge_types[::2]
-                edge_ptr = edge_ptr // 2
+                full_edge_ptr = edge_ptr
+                edge_ptr = np.zeros_like(atom_ptr)
+                np.cumsum((arrays.n_edges + 1) // 2, out=edge_ptr[1:])
+
+                edge_types = [
+                    edge_types[start:end:2]
+                    for start, end in zip(full_edge_ptr[:-1], full_edge_ptr[1:])
+                ]
+                edge_types = (
+                    np.concatenate(edge_types)
+                    if len(edge_types) > 0
+                    else np.empty(0, dtype=arrays.edge_types.dtype)
+                )
 
             edge_labels_ptr = self.basis_table.edge_block_pointer(edge_types)
 

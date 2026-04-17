@@ -2,6 +2,7 @@ import pytest
 
 import numpy as np
 import warnings
+from types import SimpleNamespace
 
 from graph2mat import (
     PointBasis,
@@ -80,3 +81,44 @@ def test_sub_point_matrix_disabled_for_hamiltonian(basis_table):
 
     assert processor.sub_point_matrix is False
     assert any("sub_point_matrix is only supported for density_matrix" in str(w.message) for w in caught)
+
+
+def test_yield_from_batch_with_symmetric_matrix_handles_odd_edges_per_graph():
+    basis_table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1])])
+    processor = MatrixDataProcessor(
+        basis_table=basis_table,
+        symmetric_matrix=True,
+        sub_point_matrix=False,
+    )
+
+    class FakeBatch:
+        num_graphs = 2
+
+        def __init__(self):
+            self._arrays = SimpleNamespace(
+                ptr=np.array([0, 1, 2]),
+                n_edges=np.array([3, 3]),
+                point_types=np.array([0, 0]),
+                edge_types=np.array([1, -1, 1, 1, -1, 1]),
+            )
+            self._examples = [SimpleNamespace(), SimpleNamespace()]
+
+        def numpy_arrays(self):
+            return self._arrays
+
+        def get_example(self, index):
+            return self._examples[index]
+
+    batch = FakeBatch()
+    predictions = {
+        "node_labels": np.array([10.0, 20.0]),
+        "edge_labels": np.array([1.0, 2.0, 3.0, 4.0]),
+    }
+
+    outputs = list(processor.yield_from_batch(batch, predictions=predictions, as_matrix=False))
+
+    assert len(outputs) == 2
+    np.testing.assert_array_equal(outputs[0].point_labels, np.array([10.0]))
+    np.testing.assert_array_equal(outputs[1].point_labels, np.array([20.0]))
+    np.testing.assert_array_equal(outputs[0].edge_labels, np.array([1.0, 2.0]))
+    np.testing.assert_array_equal(outputs[1].edge_labels, np.array([3.0, 4.0]))
