@@ -99,7 +99,7 @@ def test_yield_from_batch_with_symmetric_matrix_handles_odd_edges_per_graph():
                 ptr=np.array([0, 1, 2]),
                 n_edges=np.array([3, 3]),
                 point_types=np.array([0, 0]),
-                edge_types=np.array([1, -1, 1, 1, -1, 1]),
+                edge_types=np.array([0, 0, 0, 0, 0, 0]),
             )
             self._examples = [SimpleNamespace(), SimpleNamespace()]
 
@@ -122,3 +122,24 @@ def test_yield_from_batch_with_symmetric_matrix_handles_odd_edges_per_graph():
     np.testing.assert_array_equal(outputs[1].point_labels, np.array([20.0]))
     np.testing.assert_array_equal(outputs[0].edge_labels, np.array([1.0, 2.0]))
     np.testing.assert_array_equal(outputs[1].edge_labels, np.array([3.0, 4.0]))
+
+
+def test_symmetric_unique_edge_mask_matches_label_count_not_only_position():
+    basis_table = BasisTableWithEdges(
+        [
+            PointBasis("A", R=2, basis=[1]),
+            PointBasis("B", R=2, basis=[2]),
+        ]
+    )
+    processor = MatrixDataProcessor(
+        basis_table=basis_table,
+        symmetric_matrix=True,
+        sub_point_matrix=False,
+    )
+
+    mask = processor._get_symmetric_unique_edge_mask(
+        edge_types=np.array([0, 1, 0]),
+        expected_nlabels=3,
+    )
+
+    np.testing.assert_array_equal(mask, np.array([True, True, False]))

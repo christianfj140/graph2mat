@@ -267,6 +267,9 @@ class MatrixDataProcessor:
                     yield example
         else:
             arrays = data.numpy_arrays()
+            basis_sizes = np.array(
+                [point.basis_size for point in self.basis_table.basis], dtype=np.int64
+            )
 
             # Pointer arrays to understand where the data for each structure starts in the batch.
             atom_ptr = arrays.ptr
@@ -280,23 +283,30 @@ class MatrixDataProcessor:
             # Get the values for the node blocks and the pointer to the start of each block.
             node_labels_ptr = self.basis_table.point_block_pointer(point_types)
 
-            # Get the values for the edge blocks and the pointer to the start of each block.
             if self.symmetric_matrix:
                 full_edge_ptr = edge_ptr
-                edge_ptr = np.zeros_like(atom_ptr)
-                np.cumsum((arrays.n_edges + 1) // 2, out=edge_ptr[1:])
+                compact_edge_ptr = np.zeros_like(atom_ptr)
+                np.cumsum((arrays.n_edges + 1) // 2, out=compact_edge_ptr[1:])
 
-                edge_types = [
+                compact_edge_types = [
                     edge_types[start:end:2]
                     for start, end in zip(full_edge_ptr[:-1], full_edge_ptr[1:])
                 ]
-                edge_types = (
-                    np.concatenate(edge_types)
-                    if len(edge_types) > 0
+                compact_edge_types = (
+                    np.concatenate(compact_edge_types)
+                    if len(compact_edge_types) > 0
                     else np.empty(0, dtype=arrays.edge_types.dtype)
                 )
+                fallback_edge_labels_ptr = self.basis_table.edge_block_pointer(
+                    compact_edge_types
+                )
+            else:
+                fallback_edge_labels_ptr = self.basis_table.edge_block_pointer(edge_types)
 
-            edge_labels_ptr = self.basis_table.edge_block_pointer(edge_types)
+            # Keep a rolling pointer over the flattened edge predictions. This is more
+            # robust than relying on batch-level edge pointers, because get_example(i)
+            # may expose a local edge ordering/count that differs from the global batch view.
+            edge_label_offset = 0
 
             # Loop through structures in the batch
             for i, (atom_start, edge_start) in enumerate(
@@ -313,9 +323,45 @@ class MatrixDataProcessor:
                 new_atom_label = node_labels[
                     node_labels_ptr[atom_start] : node_labels_ptr[atom_end]
                 ]
-                new_edge_label = edge_labels[
-                    edge_labels_ptr[edge_start] : edge_labels_ptr[edge_end]
-                ]
+
+                if hasattr(example, "numpy_arrays"):
+                    example_arrays = example.numpy_arrays()
+
+                    example_point_types = example_arrays["point_types"]
+                    example_edge_index = example_arrays["edge_index"]
+                    example_edge_types = example_arrays["edge_types"]
+
+                    if self.symmetric_matrix:
+                        unique_edge_mask = self._get_symmetric_unique_edge_mask(
+                            example_edge_types,
+                            edge_index=example_edge_index,
+                            point_types=example_point_types,
+                        )
+                        example_edge_index = example_edge_index[:, unique_edge_mask]
+
+                    example_edge_sizes = (
+                        basis_sizes[example_point_types[example_edge_index[0]]]
+                        * basis_sizes[example_point_types[example_edge_index[1]]]
+                    )
+                    expected_edge_label_len = int(np.sum(example_edge_sizes))
+
+                    new_edge_label = edge_labels[
+                        edge_label_offset : edge_label_offset + expected_edge_label_len
+                    ]
+                    edge_label_offset += expected_edge_label_len
+                else:
+                    if self.symmetric_matrix:
+                        fallback_edge_start = compact_edge_ptr[i]
+                        fallback_edge_end = compact_edge_ptr[i + 1]
+                    else:
+                        fallback_edge_start = edge_start
+                        fallback_edge_end = edge_end
+
+                    new_edge_label = edge_labels[
+                        fallback_edge_labels_ptr[fallback_edge_start] : fallback_edge_labels_ptr[
+                            fallback_edge_end
+                        ]
+                    ]
 
                 if getattr(example, "point_labels", None) is not None:
                     assert len(new_atom_label) == len(example.point_labels)
@@ -331,6 +377,12 @@ class MatrixDataProcessor:
                     )
                 else:
                     yield example
+
+            if edge_label_offset != 0 and edge_label_offset != len(predictions["edge_labels"]):
+                raise ValueError(
+                    "Predicted edge labels were not fully consumed by yield_from_batch: "
+                    f"consumed={edge_label_offset}, total={len(predictions['edge_labels'])}."
+                )
 
     def compute_metrics(
         self,
@@ -776,6 +828,95 @@ class MatrixDataProcessor:
 
         return np.eye(num_classes)[point_types]
 
+    def _get_symmetric_unique_edge_mask(
+        self,
+        edge_types: np.ndarray,
+        expected_nlabels: Optional[int] = None,
+        edge_index: Optional[np.ndarray] = None,
+        point_types: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """Selects the edge representatives that correspond to symmetric edge labels.
+
+        There are two conventions in the current codebase for choosing the unique
+        edge blocks of a symmetric matrix:
+        - the non-negative edge type (`edge_types >= 0`)
+        - the first edge in each local pair (`::2`)
+
+        Most datasets generated by ``sort_edge_index`` satisfy both conventions, but
+        batched/unbatched examples can break the positional assumption while still
+        preserving the label count. In that case we prefer the convention whose total
+        number of edge labels matches the provided flattened edge-label array.
+        """
+
+        n_edges = len(edge_types)
+        positive_mask = edge_types >= 0
+        even_mask = np.zeros(n_edges, dtype=bool)
+        even_mask[::2] = True
+
+        if expected_nlabels is None:
+            return positive_mask if positive_mask.any() else even_mask
+
+        def _nlabels(mask: np.ndarray) -> int:
+            if not mask.any():
+                return 0
+
+            if edge_index is not None and point_types is not None:
+                basis_sizes = np.array(
+                    [point.basis_size for point in self.basis_table.basis], dtype=np.int64
+                )
+                selected_edges = edge_index[:, mask]
+                selected_point_types = point_types[selected_edges]
+                selected_sizes = basis_sizes[selected_point_types]
+                return int(np.sum(selected_sizes[0] * selected_sizes[1]))
+
+            selected_types = edge_types[mask]
+            return int(self.basis_table.edge_block_pointer(np.abs(selected_types))[-1])
+
+        positive_nlabels = _nlabels(positive_mask)
+        if positive_nlabels == expected_nlabels:
+            return positive_mask
+
+        even_nlabels = _nlabels(even_mask)
+        if even_nlabels == expected_nlabels:
+            return even_mask
+
+        if edge_index is not None and point_types is not None:
+            basis_sizes = np.array(
+                [point.basis_size for point in self.basis_table.basis], dtype=np.int64
+            )
+            edge_point_types = point_types[edge_index]
+            edge_sizes = basis_sizes[edge_point_types[0]] * basis_sizes[edge_point_types[1]]
+        else:
+            edge_sizes = self.basis_table.edge_block_size[np.abs(edge_types)]
+        reachable = np.zeros(expected_nlabels + 1, dtype=bool)
+        prev_sum = np.full(expected_nlabels + 1, -1, dtype=np.int32)
+        prev_edge = np.full(expected_nlabels + 1, -1, dtype=np.int32)
+        reachable[0] = True
+
+        for i, size in enumerate(edge_sizes):
+            size = int(size)
+            for total in range(expected_nlabels, size - 1, -1):
+                if reachable[total] or not reachable[total - size]:
+                    continue
+                reachable[total] = True
+                prev_sum[total] = total - size
+                prev_edge[total] = i
+
+        if reachable[expected_nlabels]:
+            subset_mask = np.zeros(n_edges, dtype=bool)
+            total = expected_nlabels
+            while total > 0:
+                edge_i = prev_edge[total]
+                subset_mask[edge_i] = True
+                total = prev_sum[total]
+            return subset_mask
+
+        raise ValueError(
+            "Could not match symmetric edge labels to edge representatives. "
+            f"Expected {expected_nlabels} labels, but edge_types>=0 gives "
+            f"{positive_nlabels} and ::2 gives {even_nlabels}."
+        )
+
     def labels_to(
         self,
         out_format: str,
@@ -838,9 +979,15 @@ class MatrixDataProcessor:
 
         # Get the values for the edge blocks and the pointer to the start of each block.
         if self.symmetric_matrix:
-            edge_index = edge_index[:, ::2]
-            edge_types = edge_types[::2]
-            neigh_isc = neigh_isc[::2]
+            unique_edge_mask = self._get_symmetric_unique_edge_mask(
+                edge_types,
+                expected_nlabels=len(edge_labels),
+                edge_index=edge_index,
+                point_types=point_types,
+            )
+            edge_index = edge_index[:, unique_edge_mask]
+            edge_types = edge_types[unique_edge_mask]
+            neigh_isc = neigh_isc[unique_edge_mask]
 
         # Construct the matrix.
         matrix = conversions.get_converter(data_format, out_format)(

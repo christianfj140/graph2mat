@@ -64,6 +64,27 @@ class MatrixWriter(Callback):
         self.splits = splits
         self.output_file = output_file
         self.out_is_absolute = Path(output_file).is_absolute()
+        self.out_has_suffix = Path(output_file).suffix != ""
+
+    def _matrix_suffix(self, out_matrix: str) -> str:
+        return {
+            "density_matrix": ".DM",
+            "hamiltonian": ".HSX",
+            "energy_density_matrix": ".EDM",
+        }.get(out_matrix, ".mtx")
+
+    def _get_out_file(self, matrix_data, trainer: "pl.Trainer") -> Path:
+        path = Path(matrix_data.metadata.get("path", Path()))
+        out_file = Path(self.output_file.replace("$name$", path.parent.name))
+        if not self.out_is_absolute:
+            out_file = path.parent / out_file
+
+        if self.out_has_suffix:
+            return out_file
+
+        suffix = self._matrix_suffix(getattr(trainer.datamodule, "out_matrix", None))
+        file_stem = path.parent.name or "matrix"
+        return out_file / f"{file_stem}{suffix}"
 
     def _on_batch_end(
         self,
@@ -87,11 +108,7 @@ class MatrixWriter(Callback):
                 data_processor.default_out_format
             )
 
-            # Get the path from which this structure was read.
-            path = Path(matrix_data.metadata.get("path", Path()))
-            out_file = Path(self.output_file.replace("$name$", path.parent.name))
-            if not self.out_is_absolute:
-                out_file = path.parent / out_file
+            out_file = self._get_out_file(matrix_data, trainer)
 
             if not out_file.parent.exists():
                 out_file.parent.mkdir(parents=True)

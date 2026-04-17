@@ -334,6 +334,18 @@ def _nodes_and_edges_to_coo(
     else:
         sparse_data = concatenate([node_vals, edge_vals])
 
+    if len(rows) != len(sparse_data):
+        edge_block_sizes = orbitals[edge_index[0]] * orbitals[edge_index[1]]
+        raise ValueError(
+            "Mismatch between COO coordinates and matrix values in "
+            "_nodes_and_edges_to_coo: "
+            f"len(rows)={len(rows)}, len(sparse_data)={len(sparse_data)}, "
+            f"len(node_vals)={len(node_vals)}, len(edge_vals)={len(edge_vals)}, "
+            f"n_edges={edge_index.shape[1]}, symmetrize_edges={symmetrize_edges}, "
+            f"sum(edge_block_sizes)={int(np.sum(edge_block_sizes))}, "
+            f"sum(node_block_sizes)={int(np.sum(np.square(orbitals)))}."
+        )
+
     if threshold is not None:
         mask = abs(sparse_data) > threshold
     else:
