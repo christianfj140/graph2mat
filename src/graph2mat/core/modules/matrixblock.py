@@ -78,7 +78,7 @@ class MatrixBlock:
         return self.operation(*args, **kwargs)
 
     def _transpose_block(self, block):
-        if getattr(self, "n_matrix_components", 1) > 1 and block.ndim >= 4:
+        if block.ndim >= 4:
             return block.transpose(-3, -2)
 
         return block.transpose(-1, -2)

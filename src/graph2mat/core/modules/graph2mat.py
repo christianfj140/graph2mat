@@ -380,9 +380,20 @@ class Graph2Mat(Generic[ArrayType]):
         self.interactions = self._interactions_dict(interactions)
 
     def _supports_n_matrix_components(self, matrix_block_cls: Type[MatrixBlock]) -> bool:
-        """Whether the matrix block class explicitly supports n_matrix_components."""
+        """Whether the matrix block class can receive n_matrix_components.
+
+        This includes classes that either explicitly declare the keyword or accept
+        arbitrary keyword arguments (``**kwargs``), so that forwarding remains
+        backward compatible with block wrappers like :class:`MatrixBlock`.
+        """
         init_sig = inspect.signature(matrix_block_cls.__init__)
-        return "n_matrix_components" in init_sig.parameters
+        if "n_matrix_components" in init_sig.parameters:
+            return True
+
+        return any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in init_sig.parameters.values()
+        )
 
     def _get_matrix_block_init_kwargs(self) -> dict:
         kwargs = {}

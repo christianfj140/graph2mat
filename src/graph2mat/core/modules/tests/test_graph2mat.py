@@ -345,14 +345,15 @@ def test_graph2mat_init_multicomponent_with_default_matrixblock():
     g2m = Graph2Mat(
         unique_basis=table,
         symmetric=True,
-        node_operation=DummyNodeOp,
-        node_operation_kwargs={"symmetric": True},
-        edge_operation=DummyEdgeOp,
+        node_operation=DummyNodeCompOp,
+        edge_operation=DummyEdgeCompOp,
         n_matrix_components=2,
     )
 
-    assert isinstance(g2m.self_interactions[0].operation, DummyNodeOp)
-    assert isinstance(g2m.interactions["(0, 0, 0)"].operation, DummyEdgeOp)
+    assert isinstance(g2m.self_interactions[0].operation, DummyNodeCompOp)
+    assert g2m.self_interactions[0].operation.n_matrix_components == 2
+    assert isinstance(g2m.interactions["(0, 0, 0)"].operation, DummyEdgeCompOp)
+    assert g2m.interactions["(0, 0, 0)"].operation.n_matrix_components == 2
 
 
 class DummySymmNodeCompOp(DummyNodeCompOp):
