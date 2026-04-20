@@ -55,6 +55,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         node_block_readout: Type[torch.nn.Module] = E3nnSimpleNodeBlock,
         edge_block_readout: Type[torch.nn.Module] = E3nnSimpleEdgeBlock,
         readout_per_interaction: bool = False,
+        n_matrix_components: int = 1,
         optim_wdecay: float = 5e-7,
         optim_amsgrad: bool = True,
         optim_lr: float = 1e-3,
@@ -111,6 +112,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 node_operation=node_block_readout,
                 edge_operation=edge_block_readout,
                 basis_grouping=basis_grouping,
+                n_matrix_components=n_matrix_components,
             )
 
         else:

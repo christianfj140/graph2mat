@@ -46,13 +46,29 @@ def get_predictions_error(
     node_error = nodes_pred - nodes_ref
 
     if remove_nan:
-        notnan = ~_isnan(edges_ref)
-
-        edge_error = edges_ref[notnan] - edges_pred[notnan]
+        if getattr(edges_ref, "ndim", 1) == 2:
+            notnan = ~_isnan(edges_ref).any(axis=1)
+            edge_error = edges_ref[notnan] - edges_pred[notnan]
+        else:
+            notnan = ~_isnan(edges_ref)
+            edge_error = edges_ref[notnan] - edges_pred[notnan]
     else:
         edge_error = edges_ref - edges_pred
 
     return node_error, edge_error
+
+
+def _spin_channel_stats(node_error, edge_error):
+    if getattr(node_error, "ndim", 1) != 2:
+        return {}
+
+    stats = {}
+    for i in range(node_error.shape[1]):
+        stats[f"node_rmse_spin{i}"] = (node_error[:, i] ** 2).mean() ** (1 / 2)
+    if getattr(edge_error, "ndim", 1) == 2:
+        for i in range(edge_error.shape[1]):
+            stats[f"edge_rmse_spin{i}"] = (edge_error[:, i] ** 2).mean() ** (1 / 2)
+    return stats
 
 
 class Meta(type):
@@ -173,6 +189,7 @@ def block_type_mse(
         "node_rmse": node_loss ** (1 / 2),
         "edge_rmse": edge_loss ** (1 / 2),
     }
+    stats.update(_spin_channel_stats(node_error, edge_error))
 
     if log_verbose:
         abs_node_error = abs(node_error)

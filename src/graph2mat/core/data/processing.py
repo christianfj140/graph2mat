@@ -101,6 +101,7 @@ class MatrixDataProcessor:
     symmetric_matrix: bool = False
     sub_point_matrix: bool = True
     out_matrix: Optional[PhysicsMatrixType] = None
+    n_matrix_components: int = 1
     node_attr_getters: List[Any] = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
@@ -110,6 +111,9 @@ class MatrixDataProcessor:
                 f"Disabling it for out_matrix={self.out_matrix!r}."
             )
             object.__setattr__(self, "sub_point_matrix", False)
+
+        if self.n_matrix_components < 1:
+            raise ValueError("n_matrix_components must be >= 1")
 
     def copy(self, **kwargs):
         """Create a copy of the object with the given attributes replaced."""
@@ -970,12 +974,16 @@ class MatrixDataProcessor:
         # Add back atomic contributions to the node blocks in case they were removed
         if self.sub_point_matrix:
             assert self.basis_table.point_matrix is not None, "Point matrices"
-            node_labels = node_labels + np.concatenate(
+            point_matrix_flat = np.concatenate(
                 [
                     self.basis_table.point_matrix[atom_type].ravel()
                     for atom_type in point_types
                 ]
             )
+            if getattr(node_labels, "ndim", 1) == 2:
+                node_labels = node_labels + point_matrix_flat[:, None]
+            else:
+                node_labels = node_labels + point_matrix_flat
 
         # Get the values for the edge blocks and the pointer to the start of each block.
         if self.symmetric_matrix:
@@ -1294,6 +1302,14 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         assert shifts is None or shifts.shape[1] == 3
         assert node_attrs is None or len(node_attrs.shape) == 2
         assert cell is None or cell.shape == (3, 3)
+        assert point_labels is None or point_labels.ndim in (1, 2)
+        assert edge_labels is None or edge_labels.ndim in (1, 2)
+        if point_labels is not None and edge_labels is not None:
+            point_components = point_labels.shape[1] if point_labels.ndim == 2 else 1
+            edge_components = edge_labels.shape[1] if edge_labels.ndim == 2 else 1
+            assert (
+                point_components == edge_components
+            ), "point_labels and edge_labels must have the same number of components"
 
         # Aggregate data
         data = {

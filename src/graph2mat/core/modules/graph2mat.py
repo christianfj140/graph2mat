@@ -305,6 +305,7 @@ class Graph2Mat(Generic[ArrayType]):
         blocks_symmetry: str = "ij",
         self_blocks_symmetry: Union[str, None] = None,
         matrix_block_cls: Type[MatrixBlock] = MatrixBlock,
+        n_matrix_components: int = 1,
         numpy: Optional[ModuleType] = None,
         self_interactions_list: Callable = list,
         interactions_dict: Callable = dict,
@@ -330,6 +331,7 @@ class Graph2Mat(Generic[ArrayType]):
         self.node_operation_cls = node_operation
         self._interactions_dict = interactions_dict
         self.edge_operation_cls = edge_operation
+        self.n_matrix_components = n_matrix_components
 
         if preprocessing_nodes is None:
             self.preprocessing_nodes = None
@@ -357,6 +359,7 @@ class Graph2Mat(Generic[ArrayType]):
             symmetry=self_blocks_symmetry,
             operation_cls=node_operation,
             preprocessor=self.preprocessing_nodes,
+            n_matrix_components=n_matrix_components,
             **node_operation_kwargs,
         )
         self.self_interactions = self._self_interactions_list(self_interactions)
@@ -365,6 +368,7 @@ class Graph2Mat(Generic[ArrayType]):
             symmetry=blocks_symmetry,
             operation_cls=edge_operation,
             preprocessor=self.preprocessing_edges,
+            n_matrix_components=n_matrix_components,
             **edge_operation_kwargs,
         )
         self.interactions = self._interactions_dict(interactions)
@@ -726,9 +730,12 @@ class Graph2Mat(Generic[ArrayType]):
             # If there are, compute the blocks.
             output = func(**filtered_kwargs, **global_kwargs)
             # Flatten the blocks
-            outputs.append(output.ravel())
+            if output.ndim == 4:
+                outputs.append(output.reshape(-1, output.shape[-1]))
+            else:
+                outputs.append(output.ravel())
 
-        unsorted_node_labels = self.numpy.concatenate(outputs)
+        unsorted_node_labels = self.numpy.concatenate(outputs, axis=0)
 
         sort_indices = self._get_nodelabels_resort_index(
             graph2mat_node_types, original_types=node_types
@@ -819,12 +826,15 @@ class Graph2Mat(Generic[ArrayType]):
 
             # Since each edge type has a different block shape, we need to flatten the blocks (and even
             # the n_edges dimension) to put them all in a single array.
-            output = output.ravel()
+            if output.ndim == 4:
+                output = output.reshape(-1, output.shape[-1])
+            else:
+                output = output.ravel()
 
             outputs.append(output)
 
         # Concatenate all the outputs.
-        unsorted_edge_labels = self.numpy.concatenate(outputs)
+        unsorted_edge_labels = self.numpy.concatenate(outputs, axis=0)
 
         # Get the indices that will resort the edge outputs to produce
         # the target. (i.e. go back to the order the edges came in).
@@ -932,7 +942,7 @@ class Graph2Mat(Generic[ArrayType]):
             This is only used when ``basis_grouping != "max"``.
         """
         if self.basis_grouping == "max":
-            return filters[original_types].ravel()
+            indices = filters[original_types].ravel()
         else:
             indices = get_labels_resorting_array(
                 types,

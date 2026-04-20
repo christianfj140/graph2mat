@@ -42,6 +42,7 @@ class MatrixDataModule(pl.LightningDataModule):
         runs_json: Optional[str] = None,
         symmetric_matrix: bool = False,
         sub_point_matrix: bool = True,
+        n_matrix_components: int = 1,
         batch_size: int = 5,
         loader_threads: int = 1,
         copy_root_to_tmp: bool = False,
@@ -107,6 +108,7 @@ class MatrixDataModule(pl.LightningDataModule):
 
         self.predict_runs = predict_structs
         self.sub_point_matrix = sub_point_matrix
+        self.n_matrix_components = n_matrix_components
 
         self.batch_size = batch_size
         self.copy_root_to_tmp = copy_root_to_tmp
@@ -166,6 +168,7 @@ class MatrixDataModule(pl.LightningDataModule):
             out_matrix=self.out_matrix,
             symmetric_matrix=self.symmetric_matrix,
             sub_point_matrix=self.sub_point_matrix,
+            n_matrix_components=self.n_matrix_components,
             node_attr_getters=self.initial_node_feats,
         )
 

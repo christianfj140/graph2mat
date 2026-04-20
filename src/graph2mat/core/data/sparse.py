@@ -3,7 +3,7 @@
 Different sparse representations of a matrix are required during the different
 steps of a typical workflow using `graph2mat`.
 """
-from typing import Dict, Tuple, Type, Optional, Callable, Any
+from typing import Dict, Tuple, Type, Optional, Callable, Any, Sequence, Union
 
 import itertools
 from functools import partial
@@ -99,15 +99,26 @@ def csr_to_block_dict(
     """
     orbitals = atoms.orbitals
 
-    block_dict = _csr_to_block_dict(
-        data=spmat.data[:, 0],
-        ptr=spmat.ptr,
-        cols=spmat.col,
-        atom_first_orb=atoms.firsto,
-        orbitals=orbitals,
-        n_atoms=len(atoms.species),
-        fill_value=fill_value,
-    )
+    if spmat.data.shape[1] == 1:
+        block_dict = _csr_to_block_dict(
+            data=spmat.data[:, 0],
+            ptr=spmat.ptr,
+            cols=spmat.col,
+            atom_first_orb=atoms.firsto,
+            orbitals=orbitals,
+            n_atoms=len(atoms.species),
+            fill_value=fill_value,
+        )
+    else:
+        block_dict = _csr_to_block_dict_components(
+            data=spmat.data,
+            ptr=spmat.ptr,
+            cols=spmat.col,
+            atom_first_orb=atoms.firsto,
+            orbitals=orbitals,
+            n_atoms=len(atoms.species),
+            fill_value=fill_value,
+        )
 
     orbitals = geometry_atoms.orbitals if geometry_atoms is not None else atoms.orbitals
 
@@ -400,6 +411,12 @@ def nodes_and_edges_to_coo(
         opposite direction is then created as the transpose.
     """
 
+    if np.asarray(node_vals).ndim == 2 or np.asarray(edge_vals).ndim == 2:
+        raise ValueError(
+            "Multi-component node/edge values cannot be represented in scipy COO/CSR. "
+            "Convert directly to a sisl matrix format instead."
+        )
+
     def _init_coo(data, rows, cols, shape):
         return coo_array((data, (rows, cols)), shape)
 
@@ -419,11 +436,24 @@ def nodes_and_edges_to_coo(
 
 @converter(Formats.SCIPY_CSR, Formats.SISL)
 def csr_to_sisl_sparse_orbital(
-    csr: csr_array,
+    csr: Union[csr_array, Sequence[csr_array]],
     geometry: sisl.Geometry,
     sp_class: Type[SparseOrbital] = SparseOrbital,
 ) -> SparseOrbital:
     """Converts a scipy CSR array to a sisl sparse orbital matrix."""
+    if isinstance(csr, (list, tuple)):
+        if len(csr) == 1:
+            return sp_class.fromsp(geometry, csr[0])
+
+        if issubclass(sp_class, sisl.Hamiltonian):
+            matrix = sp_class(geometry, spin=sisl.Spin("polarized"))
+            matrix._csr = matrix._csr.fromsp(list(csr))
+            return matrix
+
+        raise ValueError(
+            f"Multi-component CSR conversion is only supported for Hamiltonian. Got {sp_class.__name__}."
+        )
+
     return sp_class.fromsp(geometry, csr)
 
 
@@ -438,18 +468,127 @@ def nodes_and_edges_to_sparse_orbital(
     threshold: float = 1e-8,
     symmetrize_edges: bool = False,
 ) -> SparseOrbital:
-    new_csr = conversions.get_converter(Formats.NODESEDGES, Formats.SCIPY_CSR)(
+    node_vals = np.asarray(node_vals)
+    edge_vals = np.asarray(edge_vals)
+
+    node_components = node_vals.shape[1] if node_vals.ndim == 2 else 1
+    edge_components = edge_vals.shape[1] if edge_vals.ndim == 2 else 1
+    n_components = max(node_components, edge_components)
+
+    if n_components == 1:
+        new_csr = conversions.get_converter(Formats.NODESEDGES, Formats.SCIPY_CSR)(
+            node_vals=node_vals,
+            edge_vals=edge_vals,
+            edge_index=edge_index,
+            edge_neigh_isc=edge_neigh_isc,
+            orbitals=geometry.orbitals,
+            n_supercells=geometry.n_s,
+            threshold=threshold,
+            symmetrize_edges=symmetrize_edges,
+        )
+
+        new_csr.indices = new_csr.indices.astype(np.int32)
+        new_csr.indptr = new_csr.indptr.astype(np.int32)
+        return csr_to_sisl_sparse_orbital(new_csr, geometry=geometry, sp_class=sp_class)
+
+    values = _concatenate_nodes_and_edges_multicomponent(
         node_vals=node_vals,
         edge_vals=edge_vals,
-        edge_index=edge_index,
-        edge_neigh_isc=edge_neigh_isc,
+        symmetrize_edges=symmetrize_edges,
+    )
+    rows, cols, shape = _blockmatrix_coo_coords(
         orbitals=geometry.orbitals,
+        edge_index=edge_index,
         n_supercells=geometry.n_s,
-        threshold=threshold,
+        edge_neigh_isc=edge_neigh_isc,
         symmetrize_edges=symmetrize_edges,
     )
 
-    new_csr.indices = new_csr.indices.astype(np.int32)
-    new_csr.indptr = new_csr.indptr.astype(np.int32)
+    if threshold is not None:
+        mask = np.any(np.abs(values) > threshold, axis=1)
+    else:
+        mask = np.any(values == values, axis=1)
 
-    return csr_to_sisl_sparse_orbital(new_csr, geometry=geometry, sp_class=sp_class)
+    rows = rows[mask]
+    cols = cols[mask]
+    values = values[mask]
+
+    csr_components: list[csr_array] = [
+        coo_array((values[:, i], (rows, cols)), shape).tocsr()
+        for i in range(n_components)
+    ]
+    for csr in csr_components:
+        csr.indices = csr.indices.astype(np.int32)
+        csr.indptr = csr.indptr.astype(np.int32)
+
+    return csr_to_sisl_sparse_orbital(
+        csr_components, geometry=geometry, sp_class=sp_class
+    )
+
+
+def _concatenate_nodes_and_edges_multicomponent(
+    node_vals: np.ndarray,
+    edge_vals: np.ndarray,
+    symmetrize_edges: bool,
+) -> np.ndarray:
+    if node_vals.ndim == 1:
+        node_vals = node_vals[:, None]
+    if edge_vals.ndim == 1:
+        edge_vals = edge_vals[:, None]
+
+    if symmetrize_edges:
+        return np.concatenate([node_vals, edge_vals, edge_vals], axis=0)
+    return np.concatenate([node_vals, edge_vals], axis=0)
+def _csr_to_block_dict_components(
+    data: np.ndarray,
+    ptr: np.ndarray,
+    cols: np.ndarray,
+    atom_first_orb: np.ndarray,
+    orbitals: np.ndarray,
+    n_atoms: int,
+    fill_value: float = 0.0,
+) -> Dict[Tuple[int, int, int], np.ndarray]:
+    """Converts multi-component SparseCSR data into block_dict.
+
+    Each block has shape ``(n_orb_i, n_orb_j, n_components)``.
+    """
+    rc_to_atom_index = np.concatenate(
+        [np.ones(o, dtype=np.int32) * i for i, o in enumerate(orbitals)]
+    )
+    rc_to_orbital_index = np.concatenate(
+        [np.arange(o) for o in orbitals], dtype=np.int32
+    )
+
+    no = atom_first_orb[n_atoms]
+    n_components = data.shape[1]
+    block_dict: Dict[Tuple[int, int, int], np.ndarray] = {}
+
+    for atom_i in range(n_atoms):
+        atomi_firsto = atom_first_orb[atom_i]
+        atomi_lasto = atom_first_orb[atom_i + 1]
+        atomi_norbs = atomi_lasto - atomi_firsto
+
+        for orbital_i in range(atomi_norbs):
+            row = atomi_firsto + orbital_i
+
+            for ival in range(ptr[row], ptr[row + 1]):
+                sc_col = cols[ival]
+                if sc_col < 0:
+                    break
+
+                col = sc_col % no
+                i_sc = sc_col // no
+
+                atom_j = rc_to_atom_index[col]
+                orbital_j = rc_to_orbital_index[col]
+
+                key = (atom_i, atom_j, i_sc)
+                if key not in block_dict:
+                    block_dict[key] = np.full(
+                        (orbitals[atom_i], orbitals[atom_j], n_components),
+                        fill_value,
+                    )
+
+                block_dict[key][orbital_i, orbital_j, :] = data[ival, :]
+
+    return block_dict

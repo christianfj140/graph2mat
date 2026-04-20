@@ -23,6 +23,7 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         symm_transpose: bool = False,
         preprocessor=None,
         irreps: Dict[str, o3.Irreps] = {},
+        n_matrix_components: int = 1,
         **operation_kwargs,
     ):
         torch.nn.Module.__init__(self)
@@ -33,6 +34,7 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         self.i_irreps = i_irreps
         self.j_irreps = j_irreps
 
+        self.n_matrix_components = n_matrix_components
         self.setup_reduced_tp(i_irreps=i_irreps, j_irreps=j_irreps, symmetry=symmetry)
         self.symm_transpose = symm_transpose
 
@@ -48,16 +50,20 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
 
     def setup_reduced_tp(self, i_irreps: o3.Irreps, j_irreps: o3.Irreps, symmetry: str):
         # Store the shape of the block.
-        self.block_shape = (i_irreps.dim, j_irreps.dim)
+        if self.n_matrix_components == 1:
+            self.block_shape = (i_irreps.dim, j_irreps.dim)
+        else:
+            self.block_shape = (i_irreps.dim, j_irreps.dim, self.n_matrix_components)
         # And number of elements in the block.
-        self.block_size = i_irreps.dim * j_irreps.dim
+        self.block_size = i_irreps.dim * j_irreps.dim * self.n_matrix_components
 
         # Understand the irreps out that we need in order to create the block.
         # The block is a i_irreps.dim X j_irreps.dim matrix, with possible symmetries that can
         # reduce the number of degrees of freedom. We indicate this to the ReducedTensorProducts,
         # which we only use as a helper.
         reduced_tp = ReducedTensorProducts(symmetry, i=i_irreps, j=j_irreps)
-        self._irreps_out = reduced_tp.irreps_out
+        self._single_irreps_out = reduced_tp.irreps_out
+        self._irreps_out = self._single_irreps_out * self.n_matrix_components
 
         # We also store the change of basis, a matrix that will bring us from the irreps_out
         # to the actual matrix block that we want to calculate.
@@ -66,6 +72,16 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
     def _compute_block(self, *args, **kwargs):
         # Get the irreducible output
         irreducible_out = self.operation(*args, **kwargs)
+
+        if self.n_matrix_components > 1:
+            irreducible_out = irreducible_out.reshape(
+                irreducible_out.shape[0],
+                self.n_matrix_components,
+                self._single_irreps_out.dim,
+            )
+            return self.numpy.einsum(
+                "nci,ixy->nxyc", irreducible_out, self.change_of_basis
+            )
 
         # And convert it to the actual block of the matrix, using the change of basis
         # matrix stored on initialization.

@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 
 from scipy.sparse import csr_matrix
 
@@ -101,6 +102,62 @@ def test_init_graph2mat(basis_table, symmetric, B_nobasis):
         )
         print(g2m.interactions)
         assert isinstance(g2m.interactions["(0, 0, 0)"].operation, DummyEdgeOp)
+
+
+class DummyNodeCompOp:
+    def __init__(self, i_basis, j_basis, n_matrix_components=1, **kwargs):
+        self.i_basis = i_basis
+        self.j_basis = j_basis
+        self.n_matrix_components = n_matrix_components
+
+    def __call__(self, **kwargs):
+        n = len(next(iter(kwargs.values())))
+        return np.zeros(
+            (
+                n,
+                self.i_basis.basis_size,
+                self.j_basis.basis_size,
+                self.n_matrix_components,
+            )
+        )
+
+
+class DummyEdgeCompOp(DummyNodeCompOp):
+    def __call__(self, **kwargs):
+        n = len(next(iter(kwargs.values()))[0])
+        return np.zeros(
+            (
+                n,
+                self.i_basis.basis_size,
+                self.j_basis.basis_size,
+                self.n_matrix_components,
+            )
+        )
+
+
+def test_graph2mat_outputs_multicomponent_labels():
+    basis = [PointBasis("A", R=2, basis=[1], basis_convention="cartesian")]
+    table = BasisTableWithEdges(basis)
+
+    g2m = Graph2Mat(
+        unique_basis=table,
+        symmetric=True,
+        node_operation=DummyNodeCompOp,
+        edge_operation=DummyEdgeCompOp,
+        n_matrix_components=2,
+    )
+
+    data = {
+        "point_types": np.array([0]),
+        "edge_types": np.array([], dtype=np.int64),
+        "edge_index": np.empty((2, 0), dtype=np.int64),
+    }
+    node_feats = np.zeros((1, 1))
+
+    node_labels, edge_labels = g2m(data=data, node_feats=node_feats)
+
+    assert node_labels.shape == (1, 2)
+    assert edge_labels.shape == (0, 2)
 
 
 # @pytest.mark.parametrize("symmetric", [True, False])
