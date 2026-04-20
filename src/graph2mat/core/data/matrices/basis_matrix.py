@@ -35,6 +35,15 @@ class BasisMatrix:
     # Array containing the number of basis functions for each point
     basis_count: BasisCount
 
+    @staticmethod
+    def _flatten_block(block: np.ndarray) -> np.ndarray:
+        if block.ndim == 2:
+            return block.reshape(-1)
+        elif block.ndim == 3:
+            return block.reshape(-1, block.shape[-1])
+        else:
+            raise ValueError(f"Unsupported block dimensions: {block.ndim}")
+
     def to_flat_nodes_and_edges(
         self,
         edge_index: np.ndarray,
@@ -76,13 +85,15 @@ class BasisMatrix:
             assert basis_table is not None and point_types is not None
             point_matrices = self.get_point_matrices(basis_table)
             blocks = [
-                (self.block_dict[i, i, 0] - point_matrices[point_types[i]]).flatten()
+                self._flatten_block(
+                    self.block_dict[i, i, 0] - point_matrices[point_types[i]]
+                )
                 for i in order
                 if self.basis_count[i] > 0
             ]
         else:
             blocks = [
-                self.block_dict[i, i, 0].flatten()
+                self._flatten_block(self.block_dict[i, i, 0])
                 for i in order
                 if self.basis_count[i] > 0
             ]
@@ -91,7 +102,7 @@ class BasisMatrix:
 
         assert edge_index.shape[0] == 2, "edge_index is assumed to be [2, n_edges]"
         blocks = [
-            self.block_dict[edge[0], edge[1], sc_shift].flatten()
+            self._flatten_block(self.block_dict[edge[0], edge[1], sc_shift])
             for edge, sc_shift in zip(edge_index.transpose(), edge_sc_shifts)
             if self.basis_count[edge[0]] > 0 and self.basis_count[edge[1]] > 0
         ]
