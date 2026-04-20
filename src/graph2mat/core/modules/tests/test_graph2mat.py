@@ -336,3 +336,57 @@ def test_graph2mat_outputs_multicomponent_labels():
 #     assert isinstance(matrix, csr_matrix)
 #     assert matrix.shape == (5, 5) if basis_type != "nobasis_A" else (3, 3)
 #     assert matrix.nnz == {"normal": 23, "long_A": 25, "nobasis_A": 9}[basis_type]
+
+
+def test_graph2mat_init_multicomponent_with_default_matrixblock():
+    basis = [PointBasis("A", R=2, basis=[1], basis_convention="cartesian")]
+    table = BasisTableWithEdges(basis)
+
+    g2m = Graph2Mat(
+        unique_basis=table,
+        symmetric=True,
+        node_operation=DummyNodeOp,
+        node_operation_kwargs={"symmetric": True},
+        edge_operation=DummyEdgeOp,
+        n_matrix_components=2,
+    )
+
+    assert isinstance(g2m.self_interactions[0].operation, DummyNodeOp)
+    assert isinstance(g2m.interactions["(0, 0, 0)"].operation, DummyEdgeOp)
+
+
+class DummySymmNodeCompOp(DummyNodeCompOp):
+    def __call__(self, **kwargs):
+        return np.array(
+            [
+                [
+                    [[1.0, 10.0], [2.0, 20.0]],
+                    [[3.0, 30.0], [4.0, 40.0]],
+                ]
+            ]
+        )
+
+
+def test_graph2mat_symm_transpose_multicomponent_keeps_components_axis():
+    basis = [PointBasis("A", R=2, basis=[1], basis_convention="cartesian")]
+    table = BasisTableWithEdges(basis)
+
+    g2m = Graph2Mat(
+        unique_basis=table,
+        symmetric=True,
+        node_operation=DummySymmNodeCompOp,
+        edge_operation=DummyEdgeCompOp,
+        n_matrix_components=2,
+    )
+
+    block = g2m.self_interactions[0]()
+
+    expected = np.array(
+        [
+            [
+                [[1.0, 10.0], [2.5, 25.0]],
+                [[2.5, 25.0], [4.0, 40.0]],
+            ]
+        ]
+    )
+    np.testing.assert_allclose(block, expected)

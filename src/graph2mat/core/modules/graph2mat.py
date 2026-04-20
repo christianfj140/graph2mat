@@ -1,5 +1,6 @@
 """Graph2Mat, the models' skeleton."""
 
+import inspect
 import itertools
 from types import ModuleType
 from typing import (
@@ -332,6 +333,9 @@ class Graph2Mat(Generic[ArrayType]):
         self._interactions_dict = interactions_dict
         self.edge_operation_cls = edge_operation
         self.n_matrix_components = n_matrix_components
+        self._matrix_block_accepts_n_matrix_components = (
+            self._supports_n_matrix_components(self._matrix_block_cls)
+        )
 
         if preprocessing_nodes is None:
             self.preprocessing_nodes = None
@@ -354,12 +358,14 @@ class Graph2Mat(Generic[ArrayType]):
         # Initialize the basis grouping
         self._init_center_types(basis_grouping)
 
+        block_init_kwargs = self._get_matrix_block_init_kwargs()
+
         # Build all the unique self-interaction functions (interactions of a point with itself)
         self_interactions = self._init_self_interactions(
             symmetry=self_blocks_symmetry,
             operation_cls=node_operation,
             preprocessor=self.preprocessing_nodes,
-            n_matrix_components=n_matrix_components,
+            **block_init_kwargs,
             **node_operation_kwargs,
         )
         self.self_interactions = self._self_interactions_list(self_interactions)
@@ -368,10 +374,22 @@ class Graph2Mat(Generic[ArrayType]):
             symmetry=blocks_symmetry,
             operation_cls=edge_operation,
             preprocessor=self.preprocessing_edges,
-            n_matrix_components=n_matrix_components,
+            **block_init_kwargs,
             **edge_operation_kwargs,
         )
         self.interactions = self._interactions_dict(interactions)
+
+    def _supports_n_matrix_components(self, matrix_block_cls: Type[MatrixBlock]) -> bool:
+        """Whether the matrix block class explicitly supports n_matrix_components."""
+        init_sig = inspect.signature(matrix_block_cls.__init__)
+        return "n_matrix_components" in init_sig.parameters
+
+    def _get_matrix_block_init_kwargs(self) -> dict:
+        kwargs = {}
+        if self._matrix_block_accepts_n_matrix_components:
+            kwargs["n_matrix_components"] = self.n_matrix_components
+
+        return kwargs
 
     def _init_center_types(self, basis_grouping):
         self.basis_grouping = basis_grouping

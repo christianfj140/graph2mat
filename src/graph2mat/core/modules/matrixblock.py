@@ -77,6 +77,12 @@ class MatrixBlock:
     def _compute_block(self, *args, **kwargs):
         return self.operation(*args, **kwargs)
 
+    def _transpose_block(self, block):
+        if getattr(self, "n_matrix_components", 1) > 1 and block.ndim >= 4:
+            return block.transpose(-3, -2)
+
+        return block.transpose(-1, -2)
+
     def forward(self, *args, **kwargs):
         if self.symm_transpose == False:
             return self._compute_block(*args, **kwargs)
@@ -95,7 +101,7 @@ class MatrixBlock:
             }
             backward = self._compute_block(*back_args, **back_kwargs)
 
-            return (forward + backward.transpose(-1, -2)) / 2
+            return (forward + self._transpose_block(backward)) / 2
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
