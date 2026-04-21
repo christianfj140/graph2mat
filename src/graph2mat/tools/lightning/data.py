@@ -204,6 +204,8 @@ class MatrixDataModule(pl.LightningDataModule):
 
                 setattr(self, "%s_dataset" % split, dataset)
 
+        self._validate_n_matrix_components()
+
         # Now check if we should take some data out of the training data to use it for
         # validation.
         if self.val_dataset is None and self.train_dataset is not None:
@@ -234,6 +236,35 @@ class MatrixDataModule(pl.LightningDataModule):
         if self.rotating_pool_size:
             self.train_dataset = RotatingPoolData(
                 self.train_dataset, self.rotating_pool_size
+            )
+
+    def _infer_dataset_matrix_components(self) -> Optional[int]:
+        """Infer matrix components from the first labeled sample available."""
+        for dataset in (self.train_dataset, self.val_dataset, self.test_dataset):
+            if dataset is None:
+                continue
+
+            sample = dataset[0]
+            point_labels = getattr(sample, "point_labels", None)
+            if point_labels is None:
+                continue
+
+            return point_labels.shape[1] if point_labels.ndim == 2 else 1
+
+        return None
+
+    def _validate_n_matrix_components(self) -> None:
+        inferred = self._infer_dataset_matrix_components()
+        if inferred is None:
+            return
+
+        if inferred != self.n_matrix_components:
+            raise ValueError(
+                "n_matrix_components mismatch: datamodule is configured with "
+                f"n_matrix_components={self.n_matrix_components}, but loaded labels "
+                f"have {inferred} component(s). Set data.n_matrix_components={inferred}. "
+                "If using the Lightning CLI, this value is linked to "
+                "model.n_matrix_components."
             )
 
     def train_dataloader(self):
