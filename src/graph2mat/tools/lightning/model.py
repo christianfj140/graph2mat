@@ -75,8 +75,35 @@ class LitBasisMatrixModel(pl.LightningModule):
     def forward(self, x):
         return self.model(x)
 
+    @staticmethod
+    def _validate_pred_ref_shapes(out, batch):
+        pairs = (
+            ("node_labels", "point_labels"),
+            ("edge_labels", "edge_labels"),
+        )
+
+        for pred_key, ref_key in pairs:
+            pred = out[pred_key]
+            ref = batch[ref_key]
+
+            if pred.ndim != ref.ndim:
+                raise ValueError(
+                    f"Shape mismatch for {pred_key}/{ref_key}: "
+                    f"pred.ndim={pred.ndim}, ref.ndim={ref.ndim}, "
+                    f"pred.shape={tuple(pred.shape)}, ref.shape={tuple(ref.shape)}. "
+                    "This usually means n_matrix_components is misconfigured."
+                )
+
+            if pred.shape != ref.shape:
+                raise ValueError(
+                    f"Shape mismatch for {pred_key}/{ref_key}: "
+                    f"pred.shape={tuple(pred.shape)}, ref.shape={tuple(ref.shape)}. "
+                    "Ensure data.n_matrix_components equals model.n_matrix_components."
+                )
+
     def training_step(self, batch, batch_idx):
         out = self.model(batch)
+        self._validate_pred_ref_shapes(out, batch)
 
         loss, stats = self.loss_fn(
             nodes_pred=out["node_labels"],
@@ -105,6 +132,7 @@ class LitBasisMatrixModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         out = self.model(batch)
+        self._validate_pred_ref_shapes(out, batch)
 
         loss, stats = self.loss_fn(
             nodes_pred=out["node_labels"],
@@ -127,6 +155,7 @@ class LitBasisMatrixModel(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         out = self.model(batch)
+        self._validate_pred_ref_shapes(out, batch)
 
         loss, stats = self.loss_fn(
             nodes_pred=out["node_labels"],

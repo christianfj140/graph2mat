@@ -37,6 +37,9 @@ class OrbitalMatrixCLI(LightningCLI):
         parser.link_arguments("data.basis_table", "model.basis_table")
         parser.link_arguments("data.no_basis", "model.no_basis")
         parser.link_arguments("data.symmetric_matrix", "model.symmetric_matrix")
+        parser.link_arguments(
+            "data.n_matrix_components", "model.n_matrix_components"
+        )
         parser.link_arguments("data.initial_node_feats", "model.initial_node_feats")
 
         defaults = {}
