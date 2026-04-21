@@ -16,6 +16,39 @@ from jsonargparse import Namespace
 from jsonargparse._typehints import ActionTypeHint
 
 from graph2mat.bindings.torch.load import sanitize_checkpoint
+from graph2mat.tools.lightning.data import infer_n_matrix_components_from_data_inputs
+
+
+def _autoconfigure_n_matrix_components(config_ns: Namespace) -> None:
+    """Infer matrix components from the dataset when config still uses the default."""
+    data_cfg = getattr(config_ns, "data", None)
+    model_cfg = getattr(config_ns, "model", None)
+    if data_cfg is None or model_cfg is None:
+        return
+
+    configured = getattr(data_cfg, "n_matrix_components", None)
+    if configured != 1:
+        return
+
+    inferred = infer_n_matrix_components_from_data_inputs(
+        root_dir=getattr(data_cfg, "root_dir", "."),
+        basis_files=getattr(data_cfg, "basis_files", None),
+        no_basis=getattr(data_cfg, "no_basis", None),
+        basis_table=getattr(data_cfg, "basis_table", None),
+        out_matrix=getattr(data_cfg, "out_matrix", None),
+        symmetric_matrix=getattr(data_cfg, "symmetric_matrix", False),
+        sub_point_matrix=getattr(data_cfg, "sub_point_matrix", True),
+        initial_node_feats=getattr(data_cfg, "initial_node_feats", "OneHotZ"),
+        train_runs=getattr(data_cfg, "train_runs", None),
+        val_runs=getattr(data_cfg, "val_runs", None),
+        test_runs=getattr(data_cfg, "test_runs", None),
+        runs_json=getattr(data_cfg, "runs_json", None),
+    )
+    if inferred is None or inferred == configured:
+        return
+
+    data_cfg.n_matrix_components = inferred
+    model_cfg.n_matrix_components = inferred
 
 
 class OrbitalMatrixCLI(LightningCLI):
@@ -138,6 +171,7 @@ class OrbitalMatrixCLI(LightningCLI):
         import torch.multiprocessing
 
         config_ns = getattr(self.config, self.config.subcommand)
+        _autoconfigure_n_matrix_components(config_ns)
         if config_ns.multiprocessing_sharing_strategy:
             assert (
                 config_ns.multiprocessing_sharing_strategy

@@ -446,9 +446,24 @@ def csr_to_sisl_sparse_orbital(
             return sp_class.fromsp(geometry, csr[0])
 
         if issubclass(sp_class, sisl.Hamiltonian):
-            matrix = sp_class(geometry, spin=sisl.Spin("polarized"))
-            matrix._csr = matrix._csr.fromsp(list(csr))
-            return matrix
+            if len(csr) < 2:
+                raise ValueError(
+                    "Hamiltonian multi-component conversion requires at least two components."
+                )
+
+            if len(csr) == 2:
+                return sp_class.fromsp(
+                    geometry,
+                    list(csr),
+                    spin=sisl.Spin("polarized"),
+                )
+
+            return sp_class.fromsp(
+                geometry,
+                list(csr[:-1]),
+                S=csr[-1],
+                spin=sisl.Spin("polarized"),
+            )
 
         raise ValueError(
             f"Multi-component CSR conversion is only supported for Hamiltonian. Got {sp_class.__name__}."

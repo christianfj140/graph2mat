@@ -27,6 +27,80 @@ from graph2mat.core.data.node_feats import NodeFeature
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
 
 
+def infer_n_matrix_components_from_data_inputs(
+    *,
+    root_dir: str = ".",
+    basis_files: Optional[str] = None,
+    no_basis: Optional[dict] = None,
+    basis_table: Optional[BasisTableWithEdges] = None,
+    out_matrix: Optional[PhysicsMatrixType] = None,
+    symmetric_matrix: bool = False,
+    sub_point_matrix: bool = True,
+    initial_node_feats: str = "OneHotZ",
+    train_runs: Optional[Union[str, List]] = None,
+    val_runs: Optional[Union[str, List]] = None,
+    test_runs: Optional[Union[str, List]] = None,
+    runs_json: Optional[str] = None,
+) -> Optional[int]:
+    """Infer the number of matrix components from the first labeled sample."""
+    root = maybe_zip_path(root_dir)
+
+    if basis_table is None:
+        if basis_files is None:
+            return None
+        basis_table = AtomicTableWithEdges.from_basis_glob(
+            glob(root, basis_files), no_basis_atoms=no_basis
+        )
+
+    if runs_json is not None:
+        json_path = Path(runs_json)
+        if not json_path.is_absolute():
+            json_path = maybe_clean_zip_path(root / json_path)
+
+        with json_path.open("r") as f:
+            runs_dict = json.load(f)
+    else:
+        runs_dict = {}
+
+    data_processor = MatrixDataProcessor(
+        basis_table=basis_table,
+        out_matrix=out_matrix,
+        symmetric_matrix=symmetric_matrix,
+        sub_point_matrix=sub_point_matrix,
+        n_matrix_components=1,
+        node_attr_getters=[
+            NodeFeature.registry[k] for k in initial_node_feats.split(" ")
+        ],
+    )
+
+    for split, runs in (
+        ("train", train_runs),
+        ("val", val_runs),
+        ("test", test_runs),
+    ):
+        if isinstance(runs, str):
+            runs = glob(root, runs)
+        elif runs is None and split in runs_dict:
+            runs = [maybe_clean_zip_path(root / p) for p in runs_dict[split]]
+
+        first_run = next(iter(runs), None)
+        if first_run is None:
+            continue
+
+        sample = TorchBasisMatrixData.new(
+            first_run, data_processor=data_processor, labels=True
+        )
+        point_labels = getattr(sample, "point_labels", None)
+        edge_labels = getattr(sample, "edge_labels", None)
+
+        if point_labels is not None:
+            return point_labels.shape[1] if point_labels.ndim == 2 else 1
+        if edge_labels is not None:
+            return edge_labels.shape[1] if edge_labels.ndim == 2 else 1
+
+    return None
+
+
 class MatrixDataModule(pl.LightningDataModule):
     def __init__(
         self,
