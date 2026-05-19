@@ -36,6 +36,7 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace) -> None:
         no_basis=getattr(data_cfg, "no_basis", None),
         basis_table=getattr(data_cfg, "basis_table", None),
         out_matrix=getattr(data_cfg, "out_matrix", None),
+        matrix_component_policy=getattr(data_cfg, "matrix_component_policy", "h_only"),
         symmetric_matrix=getattr(data_cfg, "symmetric_matrix", False),
         sub_point_matrix=getattr(data_cfg, "sub_point_matrix", True),
         initial_node_feats=getattr(data_cfg, "initial_node_feats", "OneHotZ"),

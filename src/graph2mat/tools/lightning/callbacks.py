@@ -10,6 +10,7 @@ for the matrix learning process.
 """
 import csv
 import io
+import json
 from pathlib import Path
 from typing import Any, Dict, Literal, Sequence, Type, Union
 
@@ -105,7 +106,10 @@ class MatrixWriter(Callback):
         # Loop through structures in the batch
         for matrix_data in matrix_iter:
             sparse_orbital_matrix = matrix_data.convert_to(
-                data_processor.default_out_format
+                data_processor.default_out_format,
+                matrix_component_policy=getattr(
+                    data_processor, "matrix_component_policy", None
+                ),
             )
 
             out_file = self._get_out_file(matrix_data, trainer)
@@ -115,6 +119,45 @@ class MatrixWriter(Callback):
 
             # And write the matrix to it.
             sparse_orbital_matrix.write(out_file)
+            self._write_metadata(
+                out_file=out_file,
+                sparse_orbital_matrix=sparse_orbital_matrix,
+                data_processor=data_processor,
+                trainer=trainer,
+            )
+
+    def _write_metadata(
+        self,
+        out_file: Path,
+        sparse_orbital_matrix,
+        data_processor: MatrixDataProcessor,
+        trainer: "pl.Trainer",
+    ) -> None:
+        if getattr(trainer.datamodule, "out_matrix", None) != "hamiltonian":
+            return
+
+        policy = getattr(data_processor, "matrix_component_policy", None)
+        is_polarized = bool(
+            getattr(getattr(sparse_orbital_matrix, "spin", None), "is_polarized", False)
+        )
+        is_orthogonal = bool(getattr(sparse_orbital_matrix, "orthogonal", True))
+
+        metadata = {
+            "out_matrix": "hamiltonian",
+            "matrix_component_policy": policy,
+            "n_matrix_components": getattr(data_processor, "n_matrix_components", None),
+            "serialized_spin_polarized": is_polarized,
+            "serialized_orthogonal": is_orthogonal,
+        }
+        if policy in ("h_only", "spin_h_only") and is_orthogonal:
+            metadata["note"] = (
+                "Hamiltonian-only prediction written without an overlap matrix. "
+                "For non-orthogonal reference data this output is not a "
+                "self-contained generalized-eigenproblem Hamiltonian+S file."
+            )
+
+        metadata_file = out_file.with_suffix(out_file.suffix + ".metadata.json")
+        metadata_file.write_text(json.dumps(metadata, indent=2, sort_keys=True))
 
     def on_train_batch_end(
         self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=None
@@ -510,6 +553,9 @@ class PlotMatrixError(Callback):
                 geometry=geometry,
                 sp_class=matrix_cls,
                 symmetrize_edges=trainer.datamodule.symmetric_matrix,
+                matrix_component_policy=getattr(
+                    trainer.datamodule, "matrix_component_policy", None
+                ),
             ).tocsr()
 
             # Plot image to figure object

@@ -54,7 +54,12 @@ except ImportError:
         pass
 
 
-from .configuration import BasisConfiguration, OrbitalConfiguration, PhysicsMatrixType
+from .configuration import (
+    BasisConfiguration,
+    MatrixComponentPolicy,
+    OrbitalConfiguration,
+    PhysicsMatrixType,
+)
 from .formats import Formats, conversions
 from .neighborhood import get_neighborhood
 from .node_feats import OneHotZ
@@ -95,6 +100,8 @@ class MatrixDataProcessor:
         case where all points are isolated.
     out_matrix :
         Type of matrix to output. If None, the matrix is output as a `scipy` CSR matrix.
+    matrix_component_policy :
+        Component policy for multi-component Hamiltonian matrices.
     """
 
     basis_table: BasisTableWithEdges
@@ -102,9 +109,21 @@ class MatrixDataProcessor:
     sub_point_matrix: bool = True
     out_matrix: Optional[PhysicsMatrixType] = None
     n_matrix_components: int = 1
+    matrix_component_policy: MatrixComponentPolicy = "h_only"
     node_attr_getters: List[Any] = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
+        if self.matrix_component_policy not in (
+            "h_only",
+            "spin_h_only",
+            "h_and_overlap",
+            "raw_components",
+        ):
+            raise ValueError(
+                "matrix_component_policy must be one of 'h_only', "
+                "'spin_h_only', 'h_and_overlap', or 'raw_components'."
+            )
+
         if self.sub_point_matrix and self.out_matrix not in (None, "density_matrix"):
             warnings.warn(
                 "sub_point_matrix is only supported for density_matrix targets. "
@@ -130,9 +149,13 @@ class MatrixDataProcessor:
     def get_config_kwargs(self, obj: Any) -> Dict[str, Any]:
         if isinstance(obj, (str, Path, zipfile.Path)):
             kwargs = {"out_matrix": self.out_matrix}
+            if self.out_matrix == "hamiltonian":
+                kwargs["matrix_component_policy"] = self.matrix_component_policy
             if hasattr(self.basis_table, "atoms"):
                 kwargs["basis"] = self.basis_table.atoms
             return kwargs
+        elif isinstance(obj, sisl.Hamiltonian):
+            return {"matrix_component_policy": self.matrix_component_policy}
         else:
             return {}
 
@@ -998,6 +1021,9 @@ class MatrixDataProcessor:
             neigh_isc = neigh_isc[unique_edge_mask]
 
         # Construct the matrix.
+        if out_format == Formats.SISL_H:
+            kwargs.setdefault("matrix_component_policy", self.matrix_component_policy)
+
         matrix = conversions.get_converter(data_format, out_format)(
             node_vals=node_labels,
             edge_vals=edge_labels,

@@ -1,11 +1,13 @@
 import numpy as np
 import sisl
+from scipy.sparse import csr_array
 
 from graph2mat import (
     MatrixDataProcessor,
     PointBasis,
     BasisTableWithEdges,
     OrbitalConfiguration,
+    BasisMatrixData,
     conversions,
     Formats,
 )
@@ -16,9 +18,28 @@ def _single_orbital_geometry():
     return sisl.Geometry([[0.0, 0.0, 0.0]], atoms=[atom], lattice=[10, 10, 10])
 
 
-def test_hamiltonian_collinear_read_preserves_two_components():
-    from scipy.sparse import csr_array
+def _two_atom_single_orbital_geometry():
+    atom = sisl.Atom(1, orbitals=[sisl.AtomicOrbital("1s")])
+    return sisl.Geometry(
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+        atoms=[atom, atom.copy()],
+        lattice=[10, 10, 10],
+    )
 
+
+def _single_orbital_basis_table():
+    return BasisTableWithEdges([PointBasis(1, R=np.array([2.0]), basis=[1])])
+
+
+def _nonspin_nonorthogonal_hamiltonian():
+    geometry = _two_atom_single_orbital_geometry()
+    h_csr = csr_array([[1.0, 0.1], [0.2, 2.0]])
+    s_csr = csr_array([[10.0, 0.3], [0.4, 20.0]])
+    hamiltonian = sisl.Hamiltonian.fromsp(geometry, h_csr, S=s_csr)
+    return hamiltonian, h_csr, s_csr
+
+
+def test_hamiltonian_collinear_read_preserves_two_components():
     geometry = _single_orbital_geometry()
     h = sisl.Hamiltonian(geometry, spin=sisl.Spin("polarized"))
     h._csr = h._csr.fromsp([csr_array([[1.0]]), csr_array([[2.0]])])
@@ -29,6 +50,144 @@ def test_hamiltonian_collinear_read_preserves_two_components():
     assert block.shape == (1, 1, 2)
     np.testing.assert_allclose(block[0, 0, 0], 1.0)
     np.testing.assert_allclose(block[0, 0, 1], 2.0)
+
+
+def test_nonspin_nonorthogonal_hamiltonian_h_only_filters_overlap():
+    hamiltonian, h_csr, s_csr = _nonspin_nonorthogonal_hamiltonian()
+
+    assert not hamiltonian.spin.is_polarized
+    assert not hamiltonian.orthogonal
+    assert hamiltonian.S_idx == 1
+
+    config = OrbitalConfiguration.from_matrix(
+        hamiltonian, labels=True, matrix_component_policy="h_only"
+    )
+
+    np.testing.assert_allclose(config.matrix.block_dict[0, 0, 0], [[h_csr[0, 0]]])
+    np.testing.assert_allclose(config.matrix.block_dict[1, 1, 0], [[h_csr[1, 1]]])
+    np.testing.assert_allclose(config.matrix.block_dict[0, 1, 0], [[h_csr[0, 1]]])
+    np.testing.assert_allclose(config.matrix.block_dict[1, 0, 0], [[h_csr[1, 0]]])
+    assert config.matrix.block_dict[0, 0, 0].ndim == 2
+    assert config.matrix.block_dict[0, 0, 0][0, 0] != s_csr[0, 0]
+
+
+def test_nonspin_nonorthogonal_hamiltonian_h_only_flat_labels_and_roundtrip():
+    hamiltonian, h_csr, _ = _nonspin_nonorthogonal_hamiltonian()
+    processor = MatrixDataProcessor(
+        basis_table=_single_orbital_basis_table(),
+        out_matrix="hamiltonian",
+        symmetric_matrix=False,
+        sub_point_matrix=False,
+        n_matrix_components=1,
+        matrix_component_policy="h_only",
+    )
+
+    data = BasisMatrixData.new(hamiltonian, data_processor=processor, labels=True)
+
+    assert data.point_labels.ndim == 1
+    assert data.edge_labels.ndim == 1
+    np.testing.assert_allclose(data.point_labels, np.array([1.0, 2.0]))
+    np.testing.assert_allclose(np.sort(data.edge_labels), np.array([0.1, 0.2]))
+
+    roundtrip = data.convert_to(Formats.SISL_H)
+    assert not roundtrip.spin.is_polarized
+    assert roundtrip._csr.data.shape[1] == 1
+    np.testing.assert_allclose(
+        roundtrip.tocsr().toarray(),
+        h_csr.toarray(),
+    )
+
+
+def test_nonspin_nonorthogonal_hamiltonian_raw_components_preserved():
+    hamiltonian, h_csr, s_csr = _nonspin_nonorthogonal_hamiltonian()
+    processor = MatrixDataProcessor(
+        basis_table=_single_orbital_basis_table(),
+        out_matrix="hamiltonian",
+        symmetric_matrix=False,
+        sub_point_matrix=False,
+        n_matrix_components=2,
+        matrix_component_policy="raw_components",
+    )
+
+    config = OrbitalConfiguration.from_matrix(
+        hamiltonian, labels=True, matrix_component_policy="raw_components"
+    )
+    block = config.matrix.block_dict[0, 0, 0]
+
+    assert block.shape == (1, 1, 2)
+    np.testing.assert_allclose(block[0, 0], np.array([h_csr[0, 0], s_csr[0, 0]]))
+
+    data = BasisMatrixData.new(hamiltonian, data_processor=processor, labels=True)
+
+    assert data.point_labels.shape == (2, 2)
+    np.testing.assert_allclose(
+        data.point_labels,
+        np.array([[h_csr[0, 0], s_csr[0, 0]], [h_csr[1, 1], s_csr[1, 1]]]),
+    )
+
+
+def test_nonspin_nonorthogonal_hamiltonian_h_and_overlap_serializes_explicit_overlap():
+    hamiltonian, h_csr, s_csr = _nonspin_nonorthogonal_hamiltonian()
+    processor = MatrixDataProcessor(
+        basis_table=_single_orbital_basis_table(),
+        out_matrix="hamiltonian",
+        symmetric_matrix=False,
+        sub_point_matrix=False,
+        n_matrix_components=2,
+        matrix_component_policy="h_and_overlap",
+    )
+
+    data = BasisMatrixData.new(hamiltonian, data_processor=processor, labels=True)
+    matrix = data.convert_to(Formats.SISL_H)
+
+    assert not matrix.spin.is_polarized
+    assert not matrix.orthogonal
+    assert matrix.S_idx == 1
+    np.testing.assert_allclose(matrix.tocsr(0).toarray(), h_csr.toarray())
+    np.testing.assert_allclose(matrix.tocsr(matrix.S_idx).toarray(), s_csr.toarray())
+
+
+def test_raw_hamiltonian_components_do_not_serialize_as_spin():
+    hamiltonian, _, _ = _nonspin_nonorthogonal_hamiltonian()
+    processor = MatrixDataProcessor(
+        basis_table=_single_orbital_basis_table(),
+        out_matrix="hamiltonian",
+        symmetric_matrix=False,
+        sub_point_matrix=False,
+        n_matrix_components=2,
+        matrix_component_policy="raw_components",
+    )
+
+    data = BasisMatrixData.new(hamiltonian, data_processor=processor, labels=True)
+
+    try:
+        data.convert_to(Formats.SISL_H)
+    except ValueError as exc:
+        assert "raw_components" in str(exc)
+    else:
+        raise AssertionError("raw_components should not serialize as spin implicitly")
+
+
+def test_spin_nonorthogonal_hamiltonian_h_only_excludes_overlap():
+    geometry = _single_orbital_geometry()
+    h = sisl.Hamiltonian.fromsp(
+        geometry,
+        [csr_array([[1.0]]), csr_array([[2.0]])],
+        S=csr_array([[3.0]]),
+        spin=sisl.Spin("polarized"),
+    )
+
+    assert h.spin.is_polarized
+    assert not h.orthogonal
+    assert h.S_idx == 2
+
+    config = OrbitalConfiguration.from_matrix(
+        h, labels=True, matrix_component_policy="h_only"
+    )
+    block = config.matrix.block_dict[(0, 0, 0)]
+
+    assert block.shape == (1, 1, 2)
+    np.testing.assert_allclose(block[0, 0], np.array([1.0, 2.0]))
 
 
 def test_flatten_nodes_and_edges_multicomponent():
@@ -87,7 +246,9 @@ def test_yield_from_batch_multicomponent_labels():
         "edge_labels": np.array([[1.0, 1.1], [2.0, 2.1], [3.0, 3.1], [4.0, 4.1]]),
     }
 
-    outputs = list(processor.yield_from_batch(batch, predictions=predictions, as_matrix=False))
+    outputs = list(
+        processor.yield_from_batch(batch, predictions=predictions, as_matrix=False)
+    )
     assert outputs[0].point_labels.shape == (1, 2)
     assert outputs[1].edge_labels.shape == (2, 2)
 
@@ -101,6 +262,7 @@ def test_nodes_edges_to_polarized_hamiltonian():
         edge_vals=np.empty((0, 2)),
         edge_index=np.empty((2, 0), dtype=np.int64),
         geometry=geometry,
+        matrix_component_policy="spin_h_only",
     )
 
     assert isinstance(h, sisl.Hamiltonian)

@@ -74,6 +74,9 @@ def load_from_lit_ckpt(
         n_matrix_components=ckpt["datamodule_hyper_parameters"].get(
             "n_matrix_components", 1
         ),
+        matrix_component_policy=ckpt["datamodule_hyper_parameters"].get(
+            "matrix_component_policy", "h_only"
+        ),
         basis_table=ckpt["basis_table"],
         node_attr_getters=model.initial_node_feats,
     )

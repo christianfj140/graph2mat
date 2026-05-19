@@ -21,7 +21,7 @@ from graph2mat.bindings.torch import (
     TorchBasisMatrixDataset,
 )
 from graph2mat.bindings.torch.data import TorchBasisMatrixData
-from graph2mat.core.data.configuration import PhysicsMatrixType
+from graph2mat.core.data.configuration import MatrixComponentPolicy, PhysicsMatrixType
 from graph2mat.core.data.node_feats import NodeFeature
 
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
@@ -34,6 +34,7 @@ def infer_n_matrix_components_from_data_inputs(
     no_basis: Optional[dict] = None,
     basis_table: Optional[BasisTableWithEdges] = None,
     out_matrix: Optional[PhysicsMatrixType] = None,
+    matrix_component_policy: MatrixComponentPolicy = "h_only",
     symmetric_matrix: bool = False,
     sub_point_matrix: bool = True,
     initial_node_feats: str = "OneHotZ",
@@ -65,6 +66,7 @@ def infer_n_matrix_components_from_data_inputs(
     data_processor = MatrixDataProcessor(
         basis_table=basis_table,
         out_matrix=out_matrix,
+        matrix_component_policy=matrix_component_policy,
         symmetric_matrix=symmetric_matrix,
         sub_point_matrix=sub_point_matrix,
         n_matrix_components=1,
@@ -117,6 +119,7 @@ class MatrixDataModule(pl.LightningDataModule):
         symmetric_matrix: bool = False,
         sub_point_matrix: bool = True,
         n_matrix_components: int = 1,
+        matrix_component_policy: MatrixComponentPolicy = "h_only",
         batch_size: int = 5,
         loader_threads: int = 1,
         copy_root_to_tmp: bool = False,
@@ -148,6 +151,8 @@ class MatrixDataModule(pl.LightningDataModule):
                 The paths will be overwritten by train_runs/val_runs/test_runs/predict_structs if given.
             symmetric_matrix : bool
             sub_point_matrix : bool
+            matrix_component_policy : str
+                Component policy for multi-component Hamiltonian matrices.
             batch_size : int
             loader_threads : int
             copy_root_to_tmp: bool
@@ -183,6 +188,7 @@ class MatrixDataModule(pl.LightningDataModule):
         self.predict_runs = predict_structs
         self.sub_point_matrix = sub_point_matrix
         self.n_matrix_components = n_matrix_components
+        self.matrix_component_policy = matrix_component_policy
 
         self.batch_size = batch_size
         self.copy_root_to_tmp = copy_root_to_tmp
@@ -240,6 +246,7 @@ class MatrixDataModule(pl.LightningDataModule):
         self.data_processor = MatrixDataProcessor(
             basis_table=self.basis_table,
             out_matrix=self.out_matrix,
+            matrix_component_policy=self.matrix_component_policy,
             symmetric_matrix=self.symmetric_matrix,
             sub_point_matrix=self.sub_point_matrix,
             n_matrix_components=self.n_matrix_components,
@@ -336,7 +343,9 @@ class MatrixDataModule(pl.LightningDataModule):
             raise ValueError(
                 "n_matrix_components mismatch: datamodule is configured with "
                 f"n_matrix_components={self.n_matrix_components}, but loaded labels "
-                f"have {inferred} component(s). Set data.n_matrix_components={inferred}. "
+                f"have {inferred} component(s) after matrix_component_policy="
+                f"{self.matrix_component_policy!r}. Set "
+                f"data.n_matrix_components={inferred}. "
                 "If using the Lightning CLI, this value is linked to "
                 "model.n_matrix_components."
             )

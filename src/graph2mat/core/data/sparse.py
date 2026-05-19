@@ -74,6 +74,7 @@ def csr_to_block_dict(
     geometry_atoms: Optional[sisl.Atoms] = None,
     matrix_cls: Type[BasisMatrix] = OrbitalMatrix,
     fill_value: float = 0,
+    component_indices: Optional[Sequence[int]] = None,
 ) -> BasisMatrix:
     """Creates a BasisMatrix object from a SparseCSR matrix
 
@@ -96,12 +97,30 @@ def csr_to_block_dict(
         matrix is not really sparse (empty elements are just elements that you don't
         want to fit) like the density matrix. Models will not attempt to fit the
         `np.nan` values.
+    component_indices
+        Optional component indices to preserve from ``spmat.data`` before building
+        matrix blocks. If one component is selected, blocks use the regular 2D
+        representation and labels flatten to 1D.
     """
     orbitals = atoms.orbitals
+    data = spmat.data
 
-    if spmat.data.shape[1] == 1:
+    if component_indices is not None:
+        component_indices = np.asarray(component_indices, dtype=np.int64)
+        if component_indices.ndim != 1:
+            raise ValueError("component_indices must be a 1D sequence of integers.")
+        if component_indices.size == 0:
+            raise ValueError("component_indices must select at least one component.")
+        if component_indices.min() < 0 or component_indices.max() >= data.shape[1]:
+            raise ValueError(
+                "component_indices contains an out-of-range component index: "
+                f"indices={component_indices.tolist()}, n_components={data.shape[1]}."
+            )
+        data = data[:, component_indices]
+
+    if data.shape[1] == 1:
         block_dict = _csr_to_block_dict(
-            data=spmat.data[:, 0],
+            data=data[:, 0],
             ptr=spmat.ptr,
             cols=spmat.col,
             atom_first_orb=atoms.firsto,
@@ -111,7 +130,7 @@ def csr_to_block_dict(
         )
     else:
         block_dict = _csr_to_block_dict_components(
-            data=spmat.data,
+            data=data,
             ptr=spmat.ptr,
             cols=spmat.col,
             atom_first_orb=atoms.firsto,
@@ -439,6 +458,7 @@ def csr_to_sisl_sparse_orbital(
     csr: Union[csr_array, Sequence[csr_array]],
     geometry: sisl.Geometry,
     sp_class: Type[SparseOrbital] = SparseOrbital,
+    matrix_component_policy: Optional[str] = None,
 ) -> SparseOrbital:
     """Converts a scipy CSR array to a sisl sparse orbital matrix."""
     if isinstance(csr, (list, tuple)):
@@ -451,18 +471,51 @@ def csr_to_sisl_sparse_orbital(
                     "Hamiltonian multi-component conversion requires at least two components."
                 )
 
-            if len(csr) == 2:
+            if matrix_component_policy in ("h_only", "spin_h_only"):
+                if len(csr) != 2:
+                    raise ValueError(
+                        "Hamiltonian spin serialization with "
+                        f"matrix_component_policy={matrix_component_policy!r} "
+                        "requires exactly two Hamiltonian components."
+                    )
                 return sp_class.fromsp(
                     geometry,
                     list(csr),
                     spin=sisl.Spin("polarized"),
                 )
 
-            return sp_class.fromsp(
-                geometry,
-                list(csr[:-1]),
-                S=csr[-1],
-                spin=sisl.Spin("polarized"),
+            if matrix_component_policy == "h_and_overlap":
+                if len(csr) == 2:
+                    return sp_class.fromsp(geometry, csr[0], S=csr[1])
+                if len(csr) == 3:
+                    return sp_class.fromsp(
+                        geometry,
+                        list(csr[:-1]),
+                        S=csr[-1],
+                        spin=sisl.Spin("polarized"),
+                    )
+                raise ValueError(
+                    "Hamiltonian overlap serialization with "
+                    "matrix_component_policy='h_and_overlap' requires either "
+                    "two components (H, S) or three components "
+                    "(H_up, H_down, S)."
+                )
+
+            if matrix_component_policy == "raw_components":
+                raise ValueError(
+                    "Cannot serialize raw_components multi-component Hamiltonian "
+                    "labels as a physical sisl.Hamiltonian. Use 'h_only' or "
+                    "'spin_h_only' for spin Hamiltonian channels, or "
+                    "'h_and_overlap' when the final component is an explicit "
+                    "overlap matrix."
+                )
+
+            raise ValueError(
+                "Hamiltonian multi-component serialization requires an explicit "
+                "matrix_component_policy. Use 'spin_h_only' for two spin "
+                "Hamiltonian channels, 'h_and_overlap' for explicit overlap, "
+                "or 'raw_components' to preserve labels without writing a "
+                "physical Hamiltonian."
             )
 
         raise ValueError(
@@ -482,6 +535,7 @@ def nodes_and_edges_to_sparse_orbital(
     edge_neigh_isc: Optional[np.ndarray] = None,
     threshold: float = 1e-8,
     symmetrize_edges: bool = False,
+    matrix_component_policy: Optional[str] = None,
 ) -> SparseOrbital:
     node_vals = np.asarray(node_vals)
     edge_vals = np.asarray(edge_vals)
@@ -504,7 +558,12 @@ def nodes_and_edges_to_sparse_orbital(
 
         new_csr.indices = new_csr.indices.astype(np.int32)
         new_csr.indptr = new_csr.indptr.astype(np.int32)
-        return csr_to_sisl_sparse_orbital(new_csr, geometry=geometry, sp_class=sp_class)
+        return csr_to_sisl_sparse_orbital(
+            new_csr,
+            geometry=geometry,
+            sp_class=sp_class,
+            matrix_component_policy=matrix_component_policy,
+        )
 
     values = _concatenate_nodes_and_edges_multicomponent(
         node_vals=node_vals,
@@ -537,7 +596,10 @@ def nodes_and_edges_to_sparse_orbital(
         csr.indptr = csr.indptr.astype(np.int32)
 
     return csr_to_sisl_sparse_orbital(
-        csr_components, geometry=geometry, sp_class=sp_class
+        csr_components,
+        geometry=geometry,
+        sp_class=sp_class,
+        matrix_component_policy=matrix_component_policy,
     )
 
 

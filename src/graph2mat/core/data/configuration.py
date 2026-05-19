@@ -34,8 +34,12 @@ Pbc = tuple  # (3,)
 PhysicsMatrixType = Literal[
     "density_matrix", "hamiltonian", "energy_density_matrix", "dynamical_matrix"
 ]
+MatrixComponentPolicy = Literal[
+    "h_only", "spin_h_only", "raw_components", "h_and_overlap"
+]
 
 DEFAULT_CONFIG_TYPE = "Default"
+DEFAULT_HAMILTONIAN_COMPONENT_POLICY: MatrixComponentPolicy = "h_only"
 
 
 @dataclass
@@ -246,6 +250,7 @@ class BasisConfiguration:
         geometry_path: Optional[Union[str, Path]] = None,
         out_matrix: Optional[PhysicsMatrixType] = None,
         basis: Optional[sisl.Atoms] = None,
+        matrix_component_policy: Optional[MatrixComponentPolicy] = None,
     ) -> "BasisConfiguration":
         """Initializes configuration from the main input file of a run.
 
@@ -263,6 +268,8 @@ class BasisConfiguration:
         basis:
             The basis to use for the configuration. If None, the basis of the read geometry
             will be used.
+        matrix_component_policy:
+            Component policy for multi-component Hamiltonian matrices.
         """
         converter = conversions.get_converter(Formats.SISL_SILE, cls._cls_format)
         return converter(
@@ -270,6 +277,7 @@ class BasisConfiguration:
             geometry_path=geometry_path,
             out_matrix=out_matrix,
             basis=basis,
+            matrix_component_policy=matrix_component_policy,
             cls=cls,
         )
 
@@ -447,6 +455,7 @@ def _sisl_to_orbital_configuration(
     geometry: Union[sisl.Geometry, None] = None,
     labels: bool = True,
     cls: type[OrbitalConfiguration] = OrbitalConfiguration,
+    matrix_component_policy: Optional[MatrixComponentPolicy] = None,
     **kwargs,
 ) -> OrbitalConfiguration:
     """Initializes an OrbitalConfiguration object from a sisl matrix.
@@ -472,6 +481,8 @@ def _sisl_to_orbital_configuration(
         geometry = matrix.geometry
 
     if labels:
+        component_indices = _matrix_component_indices(matrix, matrix_component_policy)
+
         # Determine the dataclass that should store the matrix and build the block dict
         # sparse structure.
         matrix_cls = get_matrix_cls(matrix.__class__)
@@ -484,6 +495,7 @@ def _sisl_to_orbital_configuration(
             fill_value=np.nan
             if isinstance(matrix, (sisl.DensityMatrix, sisl.EnergyDensityMatrix))
             else 0.0,
+            component_indices=component_indices,
         )
 
         kwargs["matrix"] = matrix_block
@@ -502,6 +514,7 @@ def _sisl_run_to_orbitalconfiguration(
     out_matrix: Optional[PhysicsMatrixType] = None,
     cls: type[OrbitalConfiguration] = OrbitalConfiguration,
     basis: Optional[sisl.Atoms] = None,
+    matrix_component_policy: Optional[MatrixComponentPolicy] = None,
 ) -> OrbitalConfiguration:
     """Initializes an OrbitalConfiguration object from the main input file of a run.
 
@@ -521,6 +534,8 @@ def _sisl_run_to_orbitalconfiguration(
     basis:
         The basis to use for the configuration. If None, the basis of the read geometry
         will be used.
+    matrix_component_policy:
+        Component policy for multi-component Hamiltonian matrices.
     """
     # Initialize the file object for the main input file
     main_input = sisl.get_sile(runfilepath)
@@ -607,7 +622,13 @@ def _sisl_run_to_orbitalconfiguration(
         from_matrix = conversions.get_converter(
             Formats.SISL, Formats.ORBITALCONFIGURATION
         )
-        return from_matrix(matrix=matrix, metadata=metadata, cls=cls, **kwargs)
+        return from_matrix(
+            matrix=matrix,
+            metadata=metadata,
+            cls=cls,
+            matrix_component_policy=matrix_component_policy,
+            **kwargs,
+        )
     else:
         # We have no matrix to read, we will just read the geometry.
         geometry = _read_geometry(main_input, basis)
@@ -626,3 +647,126 @@ def _sisl_run_to_orbitalconfiguration(
             Formats.SISL_GEOMETRY, Formats.ORBITALCONFIGURATION
         )
         return from_geometry(geometry=geometry, metadata=metadata, cls=cls)
+
+
+def _matrix_component_indices(
+    matrix: sisl.SparseOrbital,
+    matrix_component_policy: Optional[MatrixComponentPolicy] = None,
+) -> Optional[list[int]]:
+    """Resolve which raw matrix components should become training labels."""
+    if not isinstance(matrix, sisl.Hamiltonian):
+        if matrix_component_policy not in (None, "raw_components"):
+            raise ValueError(
+                "matrix_component_policy is only supported for Hamiltonian matrices."
+            )
+        return None
+
+    policy = matrix_component_policy or DEFAULT_HAMILTONIAN_COMPONENT_POLICY
+    if policy == "raw_components":
+        return None
+    if policy not in ("h_only", "spin_h_only", "h_and_overlap"):
+        raise ValueError(
+            "Unsupported matrix_component_policy for Hamiltonian targets: "
+            f"{policy!r}. Supported values are 'h_only', 'spin_h_only', "
+            "'h_and_overlap', and 'raw_components'."
+        )
+
+    n_components = matrix._csr.data.shape[1]
+    if n_components == 1:
+        return None
+
+    spin = getattr(matrix, "spin", None)
+    is_polarized = bool(getattr(spin, "is_polarized", False))
+    if policy == "spin_h_only" and not is_polarized:
+        raise ValueError(
+            "matrix_component_policy='spin_h_only' requires a spin-polarized "
+            "Hamiltonian. Use 'h_only' for non-spin Hamiltonian targets."
+        )
+
+    if policy == "h_and_overlap":
+        s_idx = _hamiltonian_overlap_component_index(matrix)
+        if s_idx is None:
+            raise ValueError(
+                "Cannot apply matrix_component_policy='h_and_overlap' to a "
+                f"Hamiltonian with {n_components} raw components because the "
+                "overlap component could not be identified."
+            )
+
+        h_indices = [i for i in range(n_components) if i != s_idx]
+        _validate_hamiltonian_component_count(
+            matrix=matrix,
+            h_indices=h_indices,
+            matrix_component_policy=policy,
+        )
+        return [*h_indices, s_idx]
+
+    if is_polarized:
+        s_idx = _hamiltonian_overlap_component_index(matrix)
+        if s_idx is None:
+            h_indices = list(range(n_components))
+        else:
+            h_indices = [i for i in range(n_components) if i != s_idx]
+
+        _validate_hamiltonian_component_count(
+            matrix=matrix,
+            h_indices=h_indices,
+            matrix_component_policy=policy,
+        )
+        return h_indices
+
+    s_idx = _hamiltonian_overlap_component_index(matrix)
+    if s_idx is None:
+        raise ValueError(
+            "Cannot apply matrix_component_policy='h_only' to a non-spin "
+            f"Hamiltonian with {n_components} raw components because the overlap "
+            "component could not be identified. Use "
+            "matrix_component_policy='raw_components' to preserve raw labels."
+        )
+
+    h_indices = [i for i in range(n_components) if i != s_idx]
+    _validate_hamiltonian_component_count(
+        matrix=matrix,
+        h_indices=h_indices,
+        matrix_component_policy=policy,
+    )
+    return h_indices
+
+
+def _hamiltonian_overlap_component_index(matrix: sisl.Hamiltonian) -> Optional[int]:
+    """Return the raw overlap component index if sisl exposes one."""
+    if bool(getattr(matrix, "orthogonal", True)):
+        return None
+
+    s_idx = getattr(matrix, "S_idx", None)
+    if s_idx is None:
+        return None
+
+    try:
+        s_idx = int(s_idx)
+    except (TypeError, ValueError):
+        return None
+
+    if 0 <= s_idx < matrix._csr.data.shape[1]:
+        return s_idx
+    return None
+
+
+def _validate_hamiltonian_component_count(
+    matrix: sisl.Hamiltonian,
+    h_indices: list[int],
+    matrix_component_policy: MatrixComponentPolicy,
+) -> None:
+    spin = getattr(matrix, "spin", None)
+    is_polarized = bool(getattr(spin, "is_polarized", False))
+    expected = 2 if is_polarized else 1
+
+    if len(h_indices) != expected:
+        raise ValueError(
+            f"Unsupported Hamiltonian component layout for "
+            f"matrix_component_policy={matrix_component_policy!r}: expected "
+            f"{expected} Hamiltonian component(s) for "
+            f"{'spin-polarized' if is_polarized else 'non-spin'} Hamiltonian, "
+            f"got {len(h_indices)}. Use matrix_component_policy='raw_components' "
+            "to preserve raw labels without assigning physical serialization "
+            "semantics."
+        )
