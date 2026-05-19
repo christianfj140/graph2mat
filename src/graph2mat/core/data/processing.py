@@ -294,9 +294,6 @@ class MatrixDataProcessor:
                     yield example
         else:
             arrays = data.numpy_arrays()
-            basis_sizes = np.array(
-                [point.basis_size for point in self.basis_table.basis], dtype=np.int64
-            )
 
             # Pointer arrays to understand where the data for each structure starts in the batch.
             atom_ptr = arrays.ptr
@@ -351,31 +348,11 @@ class MatrixDataProcessor:
                     node_labels_ptr[atom_start] : node_labels_ptr[atom_end]
                 ]
 
-                if hasattr(example, "numpy_arrays"):
-                    example_arrays = example.numpy_arrays()
-
-                    example_point_types = example_arrays["point_types"]
-                    example_edge_index = example_arrays["edge_index"]
-                    example_edge_types = example_arrays["edge_types"]
-
-                    if self.symmetric_matrix:
-                        unique_edge_mask = self._get_symmetric_unique_edge_mask(
-                            example_edge_types,
-                            edge_index=example_edge_index,
-                            point_types=example_point_types,
-                        )
-                        example_edge_index = example_edge_index[:, unique_edge_mask]
-
-                    example_edge_sizes = (
-                        basis_sizes[example_point_types[example_edge_index[0]]]
-                        * basis_sizes[example_point_types[example_edge_index[1]]]
-                    )
-                    expected_edge_label_len = int(np.sum(example_edge_sizes))
-
-                    new_edge_label = edge_labels[
-                        edge_label_offset : edge_label_offset + expected_edge_label_len
-                    ]
-                    edge_label_offset += expected_edge_label_len
+                example_edge_labels = getattr(example, "edge_labels", None)
+                if example_edge_labels is not None:
+                    # The example labels are the output of the data pipeline, so they
+                    # encode the exact symmetric-edge convention used for this graph.
+                    expected_edge_label_len = len(example_edge_labels)
                 else:
                     if self.symmetric_matrix:
                         fallback_edge_start = compact_edge_ptr[i]
@@ -384,16 +361,32 @@ class MatrixDataProcessor:
                         fallback_edge_start = edge_start
                         fallback_edge_end = edge_end
 
-                    new_edge_label = edge_labels[
-                        fallback_edge_labels_ptr[fallback_edge_start] : fallback_edge_labels_ptr[
-                            fallback_edge_end
-                        ]
-                    ]
+                    expected_edge_label_len = int(
+                        fallback_edge_labels_ptr[fallback_edge_end]
+                        - fallback_edge_labels_ptr[fallback_edge_start]
+                    )
+
+                new_edge_label = edge_labels[
+                    edge_label_offset : edge_label_offset + expected_edge_label_len
+                ]
+                if len(new_edge_label) != expected_edge_label_len:
+                    raise ValueError(
+                        "Predicted edge labels ended while slicing yield_from_batch "
+                        f"example {i}: expected {expected_edge_label_len}, "
+                        f"got {len(new_edge_label)}."
+                    )
+                edge_label_offset += expected_edge_label_len
 
                 if getattr(example, "point_labels", None) is not None:
                     assert len(new_atom_label) == len(example.point_labels)
-                if getattr(example, "edge_labels", None) is not None:
-                    assert len(new_edge_label) == len(example.edge_labels)
+                if example_edge_labels is not None and len(new_edge_label) != len(
+                    example_edge_labels
+                ):
+                    raise ValueError(
+                        "Predicted edge labels do not match yield_from_batch example "
+                        f"{i}: expected {len(example_edge_labels)}, "
+                        f"got {len(new_edge_label)}."
+                    )
 
                 example.point_labels = new_atom_label
                 example.edge_labels = new_edge_label
@@ -405,11 +398,153 @@ class MatrixDataProcessor:
                 else:
                     yield example
 
-            if edge_label_offset != 0 and edge_label_offset != len(predictions["edge_labels"]):
+            if edge_label_offset != len(predictions["edge_labels"]):
+                debug_report = self._format_edge_label_accounting_debug(
+                    self._debug_edge_label_accounting(
+                        data, example_index=0, predictions=predictions
+                    )
+                )
                 raise ValueError(
                     "Predicted edge labels were not fully consumed by yield_from_batch: "
-                    f"consumed={edge_label_offset}, total={len(predictions['edge_labels'])}."
+                    f"consumed={edge_label_offset}, total={len(predictions['edge_labels'])}. "
+                    f"{debug_report}"
                 )
+
+    def _debug_edge_label_accounting(
+        self,
+        data: BasisMatrixData,
+        example_index: int = 0,
+        predictions: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
+        """Return edge-label accounting details for one example in a batch.
+
+        This is intentionally a private diagnostic helper. It mirrors the edge
+        slicing logic used by ``yield_from_batch`` without logging during normal
+        training.
+        """
+
+        def _field(arrays: Any, key: str):
+            try:
+                return arrays[key]
+            except (KeyError, TypeError):
+                return getattr(arrays, key)
+
+        arrays = data.numpy_arrays()
+        atom_ptr = np.asarray(_field(arrays, "ptr"))
+        edge_counts = np.asarray(_field(arrays, "n_edges"))
+        edge_ptr = np.zeros_like(atom_ptr)
+        np.cumsum(edge_counts, out=edge_ptr[1:])
+
+        atom_start = atom_ptr[example_index]
+        atom_end = atom_ptr[example_index + 1]
+        edge_start = edge_ptr[example_index]
+        edge_end = edge_ptr[example_index + 1]
+
+        batch_point_types = np.asarray(_field(arrays, "point_types"))
+        batch_edge_types = np.asarray(_field(arrays, "edge_types"))
+
+        example = data.get_example(example_index)
+        if hasattr(example, "numpy_arrays"):
+            example_arrays = example.numpy_arrays()
+            point_types = np.asarray(_field(example_arrays, "point_types"))
+            edge_types = np.asarray(_field(example_arrays, "edge_types"))
+            edge_index = np.asarray(_field(example_arrays, "edge_index"))
+        else:
+            point_types = batch_point_types[atom_start:atom_end]
+            edge_types = batch_edge_types[edge_start:edge_end]
+            edge_index = None
+
+        basis_sizes = np.array(
+            [point.basis_size for point in self.basis_table.basis], dtype=np.int64
+        )
+
+        if self.symmetric_matrix:
+            selected_unique_edge_mask = self._get_symmetric_unique_edge_mask(
+                edge_types,
+                edge_index=edge_index,
+                point_types=point_types,
+            )
+            fallback_edge_types = batch_edge_types[edge_start:edge_end:2]
+        else:
+            selected_unique_edge_mask = np.ones(len(edge_types), dtype=bool)
+            fallback_edge_types = batch_edge_types[edge_start:edge_end]
+
+        selected_edge_types = edge_types[selected_unique_edge_mask]
+        selected_edge_indices = np.flatnonzero(selected_unique_edge_mask)
+
+        if edge_index is not None:
+            selected_edge_index = edge_index[:, selected_unique_edge_mask]
+            selected_point_types = point_types[selected_edge_index]
+            per_selected_edge_block_sizes = (
+                basis_sizes[selected_point_types[0]]
+                * basis_sizes[selected_point_types[1]]
+            )
+            edge_index_shape = tuple(edge_index.shape)
+        else:
+            selected_edge_index = None
+            per_selected_edge_block_sizes = self.basis_table.edge_block_size[
+                np.abs(selected_edge_types)
+            ]
+            edge_index_shape = None
+
+        expected_edge_label_len = int(np.sum(per_selected_edge_block_sizes))
+        fallback_pointer = self.basis_table.edge_block_pointer(fallback_edge_types)
+        fallback_expected_edge_label_len = int(fallback_pointer[-1])
+
+        example_edge_labels = getattr(example, "edge_labels", None)
+        actual_edge_labels_len = (
+            None if example_edge_labels is None else len(example_edge_labels)
+        )
+        prediction_edge_labels = (
+            None if predictions is None else predictions.get("edge_labels")
+        )
+        actual_prediction_edge_labels_len = (
+            None if prediction_edge_labels is None else len(prediction_edge_labels)
+        )
+
+        return {
+            "symmetric_matrix": self.symmetric_matrix,
+            "n_edges": int(len(edge_types)),
+            "edge_index_shape": edge_index_shape,
+            "edge_types": edge_types,
+            "point_types": point_types,
+            "basis_sizes": basis_sizes,
+            "selected_unique_edge_mask": selected_unique_edge_mask,
+            "selected_edge_indices": selected_edge_indices,
+            "selected_edge_index": selected_edge_index,
+            "selected_edge_types": selected_edge_types,
+            "per_selected_edge_block_sizes": per_selected_edge_block_sizes,
+            "expected_edge_label_len": expected_edge_label_len,
+            "actual_edge_labels_len": actual_edge_labels_len,
+            "actual_prediction_edge_labels_len": actual_prediction_edge_labels_len,
+            "fallback_pointer_based_expected_len": fallback_expected_edge_label_len,
+            "expected_matches_example_edge_labels": (
+                None
+                if actual_edge_labels_len is None
+                else expected_edge_label_len == actual_edge_labels_len
+            ),
+        }
+
+    @staticmethod
+    def _format_edge_label_accounting_debug(report: Dict[str, Any]) -> str:
+        return (
+            "Edge label accounting debug: "
+            f"symmetric_matrix={report['symmetric_matrix']}, "
+            f"n_edges={report['n_edges']}, "
+            f"edge_index.shape={report['edge_index_shape']}, "
+            f"selected_edge_indices={report['selected_edge_indices'].tolist()}, "
+            f"selected_edge_types={report['selected_edge_types'].tolist()}, "
+            "per_selected_edge_block_sizes="
+            f"{report['per_selected_edge_block_sizes'].tolist()}, "
+            f"expected_edge_label_len={report['expected_edge_label_len']}, "
+            f"actual_edge_labels_len={report['actual_edge_labels_len']}, "
+            "actual_prediction_edge_labels_len="
+            f"{report['actual_prediction_edge_labels_len']}, "
+            "fallback_pointer_based_expected_len="
+            f"{report['fallback_pointer_based_expected_len']}, "
+            "expected_matches_example_edge_labels="
+            f"{report['expected_matches_example_edge_labels']}."
+        )
 
     def compute_metrics(
         self,

@@ -100,11 +100,23 @@ class MatrixWriter(Callback):
         # Get the data processor that the datamodule uses.
         data_processor: MatrixDataProcessor = trainer.datamodule.data_processor
 
-        # Get iterator to loop through matrices in batch
-        matrix_iter = data_processor.yield_from_batch(batch, predictions=prediction)
+        # Fully consume the batch before writing. ``yield_from_batch`` performs
+        # its strongest edge-label accounting check after yielding the examples,
+        # so writing inside the generator loop could leave invalid partial files.
+        try:
+            matrix_data_items = list(
+                data_processor.yield_from_batch(batch, predictions=prediction)
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "MatrixWriter refused to write predictions because label "
+                "accounting failed before any files were written "
+                f"(split={split!r}, batch_idx={batch_idx}, "
+                f"dataloader_idx={dataloader_idx}): {exc}"
+            ) from exc
 
-        # Loop through structures in the batch
-        for matrix_data in matrix_iter:
+        write_items = []
+        for matrix_data in matrix_data_items:
             sparse_orbital_matrix = matrix_data.convert_to(
                 data_processor.default_out_format,
                 matrix_component_policy=getattr(
@@ -113,7 +125,10 @@ class MatrixWriter(Callback):
             )
 
             out_file = self._get_out_file(matrix_data, trainer)
+            write_items.append((sparse_orbital_matrix, out_file))
 
+        # Loop through structures in the batch
+        for sparse_orbital_matrix, out_file in write_items:
             if not out_file.parent.exists():
                 out_file.parent.mkdir(parents=True)
 
