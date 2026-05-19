@@ -69,10 +69,10 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         # to the actual matrix block that we want to calculate.
         self.register_buffer("change_of_basis", reduced_tp.change_of_basis)
 
-    def _compute_block(self, *args, **kwargs):
-        # Get the irreducible output
-        irreducible_out = self.operation(*args, **kwargs)
+    def _compute_coefficients(self, *args, **kwargs):
+        return self.operation(*args, **kwargs)
 
+    def coefficients_to_block(self, irreducible_out: torch.Tensor) -> torch.Tensor:
         if self.n_matrix_components > 1:
             irreducible_out = irreducible_out.reshape(
                 irreducible_out.shape[0],
@@ -87,6 +87,30 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         # matrix stored on initialization.
         # n = number of nodes, i = dim of irreps, x = rows in block, y = cols in block
         return self.numpy.einsum("ni,ixy->nxy", irreducible_out, self.change_of_basis)
+
+    def block_to_coefficients(self, block: torch.Tensor) -> torch.Tensor:
+        """Project a matrix block back to its irreducible coefficients."""
+        if block.ndim == 2:
+            block = block.unsqueeze(0)
+
+        if self.n_matrix_components > 1:
+            coefficients = self.numpy.einsum(
+                "ixy,nxyc->nci", self.change_of_basis.to(block), block
+            )
+            return coefficients.reshape(coefficients.shape[0], -1)
+
+        return self.numpy.einsum("ixy,nxy->ni", self.change_of_basis.to(block), block)
+
+    def _compute_block(self, *args, **kwargs):
+        # Get the irreducible output
+        irreducible_out = self._compute_coefficients(*args, **kwargs)
+        return self.coefficients_to_block(irreducible_out)
+
+    def forward_coefficients(self, *args, **kwargs) -> torch.Tensor:
+        if self.symm_transpose == False:
+            return self._compute_coefficients(*args, **kwargs)
+
+        return self.block_to_coefficients(self.forward(*args, **kwargs))
 
     def get_init_kwargs(self, irreps: Dict[str, o3.Irreps], operation_cls) -> dict:
         kwargs = {}

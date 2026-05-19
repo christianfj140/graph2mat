@@ -245,7 +245,11 @@ class SamplewiseMetricsLogger(Callback):
 
         self.fail_ok = False
         if metrics is None:
-            metrics = OrbitalMatrixMetric.__subclasses__()
+            metrics = [
+                metric
+                for metric in OrbitalMatrixMetric.__subclasses__()
+                if not getattr(metric, "requires_model_output", False)
+            ]
             self.fail_ok = True
 
         self.splits = splits

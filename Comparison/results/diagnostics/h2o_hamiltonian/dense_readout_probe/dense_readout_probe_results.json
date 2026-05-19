@@ -1,0 +1,433 @@
+{
+  "source_workspace": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix",
+  "training_dir": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training",
+  "config_path": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/config.yaml",
+  "checkpoint_path": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt",
+  "reference_path": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/dataset/samples/md_94/siesta.TSHS",
+  "command": "PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_probe.py",
+  "readout_classes": {
+    "node_block_readout": "graph2mat.bindings.e3nn.E3nnDiagnosticDenseNodeBlock",
+    "edge_block_readout": "graph2mat.bindings.e3nn.E3nnDiagnosticDenseEdgeBlock"
+  },
+  "data_policy": {
+    "out_matrix": "hamiltonian",
+    "symmetric_matrix": true,
+    "matrix_component_policy": "h_only",
+    "n_matrix_components": 1
+  },
+  "coefficient_output_dim": 276,
+  "dense_readout_rank_sum_1e_8": 276,
+  "old_full_model_rank_1e_8": 190,
+  "old_readout_blocks_rank_1e_8": 190,
+  "lstsq_initialization": {
+    "node:0": {
+      "status": "fit",
+      "design_shape": [
+        2,
+        641
+      ],
+      "design_rank_1e_10": 2,
+      "target_shape": [
+        2,
+        15
+      ]
+    },
+    "node:1": {
+      "status": "fit",
+      "design_shape": [
+        1,
+        641
+      ],
+      "design_rank_1e_10": 1,
+      "target_shape": [
+        1,
+        91
+      ]
+    },
+    "edge:(0, 0, 0)": {
+      "status": "skipped",
+      "reason": "symm_transpose_uses_forward_backward_block_average"
+    },
+    "edge:(0, 1, 1)": {
+      "status": "fit",
+      "design_shape": [
+        2,
+        289
+      ],
+      "design_rank_1e_10": 2,
+      "target_shape": [
+        2,
+        65
+      ]
+    }
+  },
+  "dense_training": {
+    "schedule": [
+      0.01,
+      0.003,
+      0.001,
+      0.0003
+    ],
+    "steps_per_stage": 250,
+    "total_steps": 1000,
+    "runtime_sec": 43.42204685101751,
+    "best_coefficient_mae": 2.5237071099581954e-07,
+    "best_coefficient_mse": 1.8155895081632678e-13,
+    "final_coefficient_mae": 3.3203244242940855e-07,
+    "final_coefficient_mse": 3.269984109877111e-13,
+    "coefficient_errors": [
+      {
+        "op_key": "edge:(0, 0, 0)",
+        "status": "ok",
+        "prediction_shape": [
+          1,
+          25
+        ],
+        "target_shape": [
+          1,
+          25
+        ],
+        "n_coefficients": 25,
+        "mae": 5.815221379508006e-07,
+        "rmse": 7.579042459527326e-07,
+        "max_abs": 1.9073486328125e-06
+      },
+      {
+        "op_key": "edge:(0, 1, 1)",
+        "status": "ok",
+        "prediction_shape": [
+          2,
+          65
+        ],
+        "target_shape": [
+          2,
+          65
+        ],
+        "n_coefficients": 130,
+        "mae": 1.3766380456765894e-07,
+        "rmse": 2.404260506873577e-07,
+        "max_abs": 9.5367431640625e-07
+      },
+      {
+        "op_key": "node:0",
+        "status": "ok",
+        "prediction_shape": [
+          2,
+          15
+        ],
+        "target_shape": [
+          2,
+          15
+        ],
+        "n_coefficients": 30,
+        "mae": 4.6243270236403216e-07,
+        "rmse": 7.67395937006308e-07,
+        "max_abs": 1.9073486328125e-06
+      },
+      {
+        "op_key": "node:1",
+        "status": "ok",
+        "prediction_shape": [
+          1,
+          91
+        ],
+        "target_shape": [
+          1,
+          91
+        ],
+        "n_coefficients": 91,
+        "mae": 1.4651112041125177e-07,
+        "rmse": 2.94743454410594e-07,
+        "max_abs": 1.9073486328125e-06
+      }
+    ],
+    "history": [
+      {
+        "stage": 0,
+        "learning_rate": 0.01,
+        "steps": 250,
+        "stage_best_mae": 2.6198558771284297e-06,
+        "stage_best_mse": 1.7007565494830956e-11,
+        "stage_final_mae": 2.7965356821368914e-06,
+        "stage_final_mse": 1.8986076599780688e-11
+      },
+      {
+        "stage": 1,
+        "learning_rate": 0.003,
+        "steps": 250,
+        "stage_best_mae": 8.961546882346738e-07,
+        "stage_best_mse": 1.492772485484073e-12,
+        "stage_final_mae": 7.92004698269011e-07,
+        "stage_final_mse": 1.3018436155476376e-12
+      },
+      {
+        "stage": 2,
+        "learning_rate": 0.001,
+        "steps": 250,
+        "stage_best_mae": 6.546839017573802e-07,
+        "stage_best_mse": 1.2505669243212392e-12,
+        "stage_final_mae": 2.7694866730598733e-05,
+        "stage_final_mse": 2.274053088058281e-07
+      },
+      {
+        "stage": 3,
+        "learning_rate": 0.0003,
+        "steps": 250,
+        "stage_best_mae": 2.5237071099581954e-07,
+        "stage_best_mse": 1.8155895081632678e-13,
+        "stage_final_mae": 3.3203244242940855e-07,
+        "stage_final_mse": 3.269984109877111e-13
+      }
+    ]
+  },
+  "direct_node": {
+    "prediction_shape": [
+      219
+    ],
+    "reference_shape": [
+      219
+    ],
+    "shape_match": true,
+    "n_values": 219,
+    "mae": 3.2969997163405895e-07,
+    "rmse": 1.0018104842348765e-06,
+    "max_abs": 7.62939453125e-06
+  },
+  "direct_edge": {
+    "prediction_shape": [
+      155
+    ],
+    "reference_shape": [
+      155
+    ],
+    "shape_match": true,
+    "n_values": 155,
+    "mae": 2.2429991420281216e-07,
+    "rmse": 3.8313309888815357e-07,
+    "max_abs": 1.9073486328125e-06
+  },
+  "h_reconstruction": {
+    "comparable": true,
+    "support_threshold": 1e-05,
+    "mae_eV": 2.890360683773567e-07,
+    "mae_meV": 0.0002890360683773567,
+    "rmse_eV": 6.779498474472067e-07,
+    "rmse_meV": 0.0006779498474472067,
+    "max_abs_eV": 7.671703528444596e-06,
+    "relative_frobenius": 1.35927855962614e-07,
+    "allclose_1e_5": true,
+    "support_precision": 1.0,
+    "support_recall": 1.0,
+    "support_f1": 1.0
+  },
+  "dense_rank_by_operation": [
+    {
+      "op_key": "edge:(0, 0, 0)",
+      "operation_class": "E3nnDiagnosticDenseEdgeBlock",
+      "output_dim": 25,
+      "parameter_count": 90457,
+      "jacobian": {
+        "shape": [
+          25,
+          90457
+        ],
+        "rank_abs_tol": {
+          "1e-05": 25,
+          "1e-06": 25,
+          "1e-07": 25,
+          "1e-08": 25,
+          "1e-10": 25
+        },
+        "singular_value_max": 14.510058495328805,
+        "singular_value_min_effective_1e_8": 12.188908211705316,
+        "condition_estimate_1e_8": 1.1904313531046553,
+        "singular_values_top10": [
+          14.510058495328805,
+          13.60344884100026,
+          13.567963907684833,
+          13.56160734242229,
+          13.544887118406253,
+          13.539260664294417,
+          13.53223538481059,
+          13.525789910673991,
+          13.519672532277692,
+          13.50455326373267
+        ],
+        "singular_values_bottom10": [
+          12.284405450835498,
+          12.260542334498412,
+          12.255322714414627,
+          12.2338986882854,
+          12.232844777245031,
+          12.211517498995203,
+          12.207175140158649,
+          12.201877641574606,
+          12.196889757802538,
+          12.188908211705316
+        ]
+      },
+      "full_rank_1e_8": true,
+      "exact": true
+    },
+    {
+      "op_key": "edge:(0, 1, 1)",
+      "operation_class": "E3nnDiagnosticDenseEdgeBlock",
+      "output_dim": 130,
+      "parameter_count": 102017,
+      "jacobian": {
+        "shape": [
+          130,
+          102017
+        ],
+        "rank_abs_tol": {
+          "1e-05": 130,
+          "1e-06": 130,
+          "1e-07": 130,
+          "1e-08": 130,
+          "1e-10": 130
+        },
+        "singular_value_max": 52.11728829214159,
+        "singular_value_min_effective_1e_8": 13.64219532555569,
+        "condition_estimate_1e_8": 3.8203006956300625,
+        "singular_values_top10": [
+          52.11728829214159,
+          49.96066317824009,
+          29.37172986225727,
+          24.68090434365157,
+          15.657315324954052,
+          15.038776765198154,
+          14.774771605314145,
+          14.704085946736305,
+          14.661550711078121,
+          14.657610712031467
+        ],
+        "singular_values_bottom10": [
+          13.64220012344722,
+          13.64219872316658,
+          13.642198228726672,
+          13.642197817690233,
+          13.642197490666032,
+          13.642196935609533,
+          13.64219659263248,
+          13.642196327610975,
+          13.642196202922808,
+          13.64219532555569
+        ]
+      },
+      "full_rank_1e_8": true,
+      "exact": true
+    },
+    {
+      "op_key": "node:0",
+      "operation_class": "E3nnDiagnosticDenseNodeBlock",
+      "output_dim": 30,
+      "parameter_count": 419855,
+      "jacobian": {
+        "shape": [
+          30,
+          419855
+        ],
+        "rank_abs_tol": {
+          "1e-05": 30,
+          "1e-06": 30,
+          "1e-07": 30,
+          "1e-08": 30,
+          "1e-10": 30
+        },
+        "singular_value_max": 39.301453592403405,
+        "singular_value_min_effective_1e_8": 15.538051285773856,
+        "condition_estimate_1e_8": 2.529368250212082,
+        "singular_values_top10": [
+          39.301453592403405,
+          35.45747262252689,
+          31.66276610465335,
+          28.16348445981043,
+          28.152812275206987,
+          28.120092340925837,
+          28.113985942968984,
+          28.11200754706123,
+          28.111283099319344,
+          28.110835944057833
+        ],
+        "singular_values_bottom10": [
+          15.55593837371466,
+          15.539235956675533,
+          15.538955974420329,
+          15.538468257921517,
+          15.538299648069687,
+          15.53817583123271,
+          15.538101294461343,
+          15.538075494739688,
+          15.538062302308768,
+          15.538051285773856
+        ]
+      },
+      "full_rank_1e_8": true,
+      "exact": true
+    },
+    {
+      "op_key": "node:1",
+      "operation_class": "E3nnDiagnosticDenseNodeBlock",
+      "output_dim": 91,
+      "parameter_count": 468571,
+      "jacobian": {
+        "shape": [
+          91,
+          468571
+        ],
+        "rank_abs_tol": {
+          "1e-05": 91,
+          "1e-06": 91,
+          "1e-07": 91,
+          "1e-08": 91,
+          "1e-10": 91
+        },
+        "singular_value_max": 74.23746612746174,
+        "singular_value_min_effective_1e_8": 45.21323830515143,
+        "condition_estimate_1e_8": 1.6419409206308366,
+        "singular_values_top10": [
+          74.23746612746174,
+          45.43646085947788,
+          45.22072379781118,
+          45.21516136444562,
+          45.21378305382751,
+          45.21342136198098,
+          45.21331922172533,
+          45.213257963595694,
+          45.2132487943465,
+          45.21324201395944
+        ],
+        "singular_values_bottom10": [
+          45.21323830515144,
+          45.213238305151435,
+          45.213238305151435,
+          45.213238305151435,
+          45.213238305151435,
+          45.21323830515143,
+          45.21323830515143,
+          45.21323830515143,
+          45.21323830515143,
+          45.21323830515143
+        ]
+      },
+      "full_rank_1e_8": true,
+      "exact": true
+    }
+  ],
+  "repository_context": {
+    "graph2mat_branch": "hamiltonian-spin-colineal-support",
+    "graph2mat_commit": "9fb7f82f15425a9039b55fbc672b947a3afb224a",
+    "pipeline_branch": "main",
+    "pipeline_commit": "4dd1944648624d8f44d841d02348c26ce0e11439"
+  },
+  "verdict": {
+    "status": "A_DENSE_READOUT_MEMORIZES",
+    "summary": "The dense diagnostic readout reaches full independent coefficient rank and reconstructs the one-sample Hamiltonian to numerical accuracy."
+  },
+  "output_files": {
+    "json": "/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_probe_results.json",
+    "rank_csv": "/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_rank_by_operation.csv",
+    "errors_csv": "/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_coefficient_errors.csv",
+    "report": "/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/report.md"
+  }
+}

@@ -1,0 +1,5 @@
+operation,kind,module_key,sample_i,sample_j,label_i,label_j,euclidean,cosine,max_abs_delta,near_identical,note
+edge:H-H,edge,"(0, 0, 0)",0,,H1->H2,,,,,,single_sample_no_pairwise_distance
+edge:H-O,edge,"(0, 1, 1)",0,1,H2->O0,H1->O0,25.980864738420646,0.05328665619129781,7.525680065155029,False,
+node:H,node,0,0,1,H1,H2,22.074064875435273,0.385655719230108,5.239537239074707,False,
+node:O,node,1,0,,O0,,,,,,single_sample_no_pairwise_distance

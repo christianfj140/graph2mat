@@ -6,7 +6,11 @@ from graph2mat import OrbitalMatrixMetric
 # Test that all metrics run
 @pytest.mark.parametrize(
     "metric",
-    [metric() for metric in OrbitalMatrixMetric.__subclasses__()],
+    [
+        metric()
+        for metric in OrbitalMatrixMetric.__subclasses__()
+        if not getattr(metric, "requires_model_output", False)
+    ],
     ids=lambda x: x.__class__.__name__,
 )
 def test_metric_runs(density_data, density_z_table, metric):

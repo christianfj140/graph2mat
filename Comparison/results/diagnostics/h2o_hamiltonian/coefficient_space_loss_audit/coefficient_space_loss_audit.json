@@ -1,0 +1,317 @@
+{
+  "source_workspace": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix",
+  "checkpoint": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt",
+  "reference_path": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/dataset/samples/md_94/siesta.TSHS",
+  "command": "PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/coefficient_space_loss_audit.py",
+  "parity_rows": [
+    {
+      "name": "after_lstsq_before_optimizer",
+      "coefficient_mse": 2.92472505569458,
+      "coefficient_mae": 0.6139609217643738,
+      "label_mse": 1.886919379234314,
+      "label_mae": 0.4063791036605835,
+      "node_label_mae": 1.7601358768058148e-07,
+      "edge_label_mae": 0.40637895440863026,
+      "h_mae_meV": 238.1427722472759,
+      "h_rmse_meV": 1051.549410061322,
+      "h_allclose_1e_5": false,
+      "spectral_global_rmse_eV": 60.12795238176899,
+      "spectral_low_energy_rmse_eV": 87.57054164543493,
+      "support_f1": 0.975975975975976,
+      "relative_frobenius_union": 0.21083396845150518
+    },
+    {
+      "name": "after_coefficient_space_fit_same_model",
+      "coefficient_mse": 5.80192505150734e-10,
+      "coefficient_mae": 4.357725629233755e-06,
+      "label_mse": 1.3638162821294486e-09,
+      "label_mae": 9.135822438111063e-06,
+      "node_label_mae": 3.9531928937651534e-07,
+      "edge_label_mae": 8.740503273946934e-06,
+      "h_mae_meV": 0.005304594633387171,
+      "h_rmse_meV": 0.0282702865847776,
+      "h_allclose_1e_5": false,
+      "spectral_global_rmse_eV": 0.00022007718604065229,
+      "spectral_low_energy_rmse_eV": 1.0875050962369517e-05,
+      "support_f1": 0.7611241217798596,
+      "relative_frobenius_union": 5.668147072215185e-06
+    }
+  ],
+  "gradient_rows": [
+    {
+      "objective": "coefficient_mse",
+      "loss": 35.709598541259766,
+      "grad_norm": 8.672477896769802,
+      "grad_max_abs": 0.8242826461791992,
+      "nonzero_grad_values": 779841,
+      "parameter_count": 1212973
+    },
+    {
+      "objective": "coefficient_mae",
+      "loss": 2.9923110008239746,
+      "grad_norm": 0.6153488849882197,
+      "grad_max_abs": 0.01666666753590107,
+      "nonzero_grad_values": 779802,
+      "parameter_count": 1212973
+    },
+    {
+      "objective": "label_mse",
+      "loss": 53.271812438964844,
+      "grad_norm": 12.524320953615378,
+      "grad_max_abs": 1.3700401782989502,
+      "nonzero_grad_values": 779842,
+      "parameter_count": 1212973
+    },
+    {
+      "objective": "label_mae",
+      "loss": 5.021430969238281,
+      "grad_norm": 1.097238073894266,
+      "grad_max_abs": 0.029724514111876488,
+      "nonzero_grad_values": 764931,
+      "parameter_count": 1212973
+    }
+  ],
+  "gradient_cosines": {
+    "coefficient_mse_vs_label_mae": 0.3780352202117354,
+    "coefficient_mse_vs_label_mse": 0.8919979224399229,
+    "coefficient_mae_vs_label_mae": 0.7080178559498154
+  },
+  "training_rows": [
+    {
+      "experiment": "dense_readout_coefficient_space_mse",
+      "loss_class": "coefficient_space_mse",
+      "schedule": [
+        0.01,
+        0.003,
+        0.001,
+        0.0003
+      ],
+      "steps_per_stage": 250,
+      "total_steps": 1000,
+      "runtime_sec": 60.42872986604925,
+      "trainable_params": 1212973,
+      "history": [
+        {
+          "stage": 0,
+          "learning_rate": 0.01,
+          "stage_best_loss": 8.27246396384318e-11,
+          "stage_final_loss": 8.440467769155191e-11
+        },
+        {
+          "stage": 1,
+          "learning_rate": 0.003,
+          "stage_best_loss": 3.446540578974644e-12,
+          "stage_final_loss": 3.0517784480044163e-12
+        },
+        {
+          "stage": 2,
+          "learning_rate": 0.001,
+          "stage_best_loss": 8.745838797098726e-13,
+          "stage_final_loss": 5.204668727248896e-12
+        },
+        {
+          "stage": 3,
+          "learning_rate": 0.0003,
+          "stage_best_loss": 1.516779757348985e-12,
+          "stage_final_loss": 8.171599397144291e-09
+        }
+      ],
+      "name": "dense_readout_coefficient_space_mse",
+      "coefficient_mse": 8.171599397144291e-09,
+      "coefficient_mae": 1.3092943845549598e-05,
+      "label_mse": 2.7417561554443637e-08,
+      "label_mae": 5.0216771342093125e-05,
+      "node_label_mae": 4.6586794637904024e-07,
+      "edge_label_mae": 4.9750904374032994e-05,
+      "h_mae_meV": 0.02935275984940058,
+      "h_rmse_meV": 0.12675771955223578,
+      "h_allclose_1e_5": false,
+      "spectral_global_rmse_eV": 0.006364218142823123,
+      "spectral_low_energy_rmse_eV": 0.0008623616807822409,
+      "support_f1": 0.7611241217798596,
+      "relative_frobenius_union": 2.5414719260317173e-05
+    },
+    {
+      "experiment": "dense_readout_label_space_mse",
+      "loss_class": "block_type_mse",
+      "schedule": [
+        0.01,
+        0.003,
+        0.001,
+        0.0003
+      ],
+      "steps_per_stage": 250,
+      "total_steps": 1000,
+      "runtime_sec": 57.95918809808791,
+      "trainable_params": 1212973,
+      "history": [
+        {
+          "stage": 0,
+          "learning_rate": 0.01,
+          "stage_best_loss": 1.3687057043298978e-10,
+          "stage_final_loss": 1.2929363135683047e-10
+        },
+        {
+          "stage": 1,
+          "learning_rate": 0.003,
+          "stage_best_loss": 7.269961542488712e-12,
+          "stage_final_loss": 6.397056495632825e-12
+        },
+        {
+          "stage": 2,
+          "learning_rate": 0.001,
+          "stage_best_loss": 2.530729749025684e-12,
+          "stage_final_loss": 3.929203316876961e-12
+        },
+        {
+          "stage": 3,
+          "learning_rate": 0.0003,
+          "stage_best_loss": 7.067314398631619e-13,
+          "stage_final_loss": 1.777565247773616e-11
+        }
+      ],
+      "name": "dense_readout_label_space_mse",
+      "coefficient_mse": 5.6889714293573146e-12,
+      "coefficient_mae": 6.28702764515765e-07,
+      "label_mse": 1.777565247773616e-11,
+      "label_mae": 1.1661804819596e-06,
+      "node_label_mae": 4.653806326457568e-07,
+      "edge_label_mae": 7.007998845042071e-07,
+      "h_mae_meV": 0.0006385574685610014,
+      "h_rmse_meV": 0.0032259424459461995,
+      "h_allclose_1e_5": false,
+      "spectral_global_rmse_eV": 9.631375806961061e-05,
+      "spectral_low_energy_rmse_eV": 1.8690399956221624e-06,
+      "support_f1": 0.7629107981220657,
+      "relative_frobenius_union": 6.467962811503415e-07
+    },
+    {
+      "experiment": "dense_readout_block_type_mae",
+      "loss_class": "block_type_mae",
+      "schedule": [
+        0.01,
+        0.003,
+        0.001,
+        0.0003
+      ],
+      "steps_per_stage": 250,
+      "total_steps": 1000,
+      "runtime_sec": 75.2041520680068,
+      "trainable_params": 1212973,
+      "history": [
+        {
+          "stage": 0,
+          "learning_rate": 0.01,
+          "stage_best_loss": 0.2558218836784363,
+          "stage_final_loss": 0.2987252473831177
+        },
+        {
+          "stage": 1,
+          "learning_rate": 0.003,
+          "stage_best_loss": 0.06176617741584778,
+          "stage_final_loss": 0.0717257410287857
+        },
+        {
+          "stage": 2,
+          "learning_rate": 0.001,
+          "stage_best_loss": 0.020294111222028732,
+          "stage_final_loss": 0.028862353414297104
+        },
+        {
+          "stage": 3,
+          "learning_rate": 0.0003,
+          "stage_best_loss": 0.0060857306234538555,
+          "stage_final_loss": 0.008953077718615532
+        }
+      ],
+      "name": "dense_readout_block_type_mae",
+      "coefficient_mse": 0.00010584437404759228,
+      "coefficient_mae": 0.005765518173575401,
+      "label_mse": 0.0001358677400276065,
+      "label_mae": 0.008953077718615532,
+      "node_label_mae": 0.005950351521323896,
+      "edge_label_mae": 0.0030027270557418865,
+      "h_mae_meV": 4.223005905094715,
+      "h_rmse_meV": 7.667159765739295,
+      "h_allclose_1e_5": false,
+      "spectral_global_rmse_eV": 0.22347617802447078,
+      "spectral_low_energy_rmse_eV": 0.018696595530964352,
+      "support_f1": 0.7611241217798596,
+      "relative_frobenius_union": 0.0015372532233823048
+    },
+    {
+      "experiment": "default_readout_coefficient_space_mse",
+      "loss_class": "coefficient_space_mse",
+      "schedule": [
+        0.01,
+        0.003,
+        0.001,
+        0.0003
+      ],
+      "steps_per_stage": 250,
+      "total_steps": 1000,
+      "runtime_sec": 176.06170129799284,
+      "trainable_params": 406816,
+      "history": [
+        {
+          "stage": 0,
+          "learning_rate": 0.01,
+          "stage_best_loss": 0.00013649542233906686,
+          "stage_final_loss": 0.0001355763233732432
+        },
+        {
+          "stage": 1,
+          "learning_rate": 0.003,
+          "stage_best_loss": 6.021489389240742e-05,
+          "stage_final_loss": 6.00234379817266e-05
+        },
+        {
+          "stage": 2,
+          "learning_rate": 0.001,
+          "stage_best_loss": 3.815880336333066e-05,
+          "stage_final_loss": 3.8074875192251056e-05
+        },
+        {
+          "stage": 3,
+          "learning_rate": 0.0003,
+          "stage_best_loss": 2.8152044251328334e-05,
+          "stage_final_loss": 2.811277772707399e-05
+        }
+      ],
+      "name": "default_readout_coefficient_space_mse",
+      "coefficient_mse": 2.811277772707399e-05,
+      "coefficient_mae": 0.0014567130710929632,
+      "label_mse": 2.0561519704642706e-05,
+      "label_mae": 0.0016407094663009048,
+      "node_label_mae": 0.00024522371488084504,
+      "edge_label_mae": 0.0013954856102505531,
+      "h_mae_meV": 0.9193035037034956,
+      "h_rmse_meV": 3.4557034193548333,
+      "h_allclose_1e_5": false,
+      "spectral_global_rmse_eV": 0.007094746640101605,
+      "spectral_low_energy_rmse_eV": 0.0008442460369161134,
+      "support_f1": 1.0,
+      "relative_frobenius_union": 0.0006928629874382487
+    }
+  ],
+  "verdict": {
+    "status": "D_DEFAULT_RESCUED_BY_COEFF_LOSS",
+    "summary": "Coefficient-space loss also rescues the default readout; dense label-space MSE also converges, so the failure is specific to the current MAE-style objective/optimization."
+  },
+  "output_files": {
+    "json": "/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/coefficient_space_loss_audit.json",
+    "objective_csv": "/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/objective_gradient_comparison.csv",
+    "training_csv": "/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/controlled_training_comparison.csv",
+    "report": "/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/report.md"
+  },
+  "repository_context": {
+    "graph2mat_branch": "hamiltonian-spin-colineal-support",
+    "graph2mat_commit": "9fb7f82f15425a9039b55fbc672b947a3afb224a",
+    "pipeline_branch": "main",
+    "pipeline_commit": "4dd1944648624d8f44d841d02348c26ce0e11439"
+  },
+  "validation": [
+    "py_compile coefficient_space_loss_audit.py: passed",
+    "coefficient_space_loss_audit.py: passed"
+  ]
+}

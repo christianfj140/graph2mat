@@ -564,6 +564,7 @@ class Graph2Mat(Generic[ArrayType]):
         node_operation_global_kwargs: dict = {},
         edge_operation_node_kwargs: Dict[str, ArrayType] = {},
         edge_operation_global_kwargs: dict = {},
+        return_coefficients: bool = False,
     ) -> Tuple[ArrayType, ArrayType]:
         """Computes the matrix elements.
 
@@ -702,22 +703,39 @@ class Graph2Mat(Generic[ArrayType]):
         edge_operation_global_kwargs = {**global_kwargs, **edge_operation_global_kwargs}
 
         # Compute node blocks using the self interaction functions.
-        node_labels = self._forward_self_interactions(
+        node_result = self._forward_self_interactions(
             node_types=data["point_types"],
             node_kwargs=node_operation_node_kwargs,
             global_kwargs=node_operation_global_kwargs,
+            return_coefficients=return_coefficients,
         )
+        if return_coefficients:
+            node_labels, node_coefficients = node_result
+        else:
+            node_labels = node_result
 
         # Compute edge blocks using the interaction functions.
-        edge_labels = self._forward_interactions(
+        edge_result = self._forward_interactions(
             edge_types=data["edge_types"],
             edge_index=data["edge_index"],
             node_kwargs=edge_operation_node_kwargs,
             edge_kwargs=edge_kwargs,
             global_kwargs=edge_operation_global_kwargs,
+            return_coefficients=return_coefficients,
         )
+        if return_coefficients:
+            edge_labels, edge_coefficients = edge_result
+        else:
+            edge_labels = edge_result
 
         # Return both the node and edge labels.
+        if return_coefficients:
+            return (
+                node_labels,
+                edge_labels,
+                {"node": node_coefficients, "edge": edge_coefficients},
+            )
+
         return (node_labels, edge_labels)
 
     def _forward_self_interactions(
@@ -725,8 +743,10 @@ class Graph2Mat(Generic[ArrayType]):
         node_types: ArrayType,
         node_kwargs,
         global_kwargs,
+        return_coefficients: bool = False,
     ) -> ArrayType:
         outputs = []
+        coefficients = {}
 
         graph2mat_node_types = self.types_to_graph2mat[node_types]
 
@@ -747,6 +767,15 @@ class Graph2Mat(Generic[ArrayType]):
 
             # If there are, compute the blocks.
             output = func(**filtered_kwargs, **global_kwargs)
+            if return_coefficients:
+                if not hasattr(func, "forward_coefficients"):
+                    raise ValueError(
+                        "return_coefficients=True requires matrix blocks to expose "
+                        "forward_coefficients()."
+                    )
+                coefficients[f"node:{node_type}"] = func.forward_coefficients(
+                    **filtered_kwargs, **global_kwargs
+                )
             # Flatten the blocks
             if output.ndim == 4:
                 outputs.append(output.reshape(-1, output.shape[-1]))
@@ -759,7 +788,11 @@ class Graph2Mat(Generic[ArrayType]):
             graph2mat_node_types, original_types=node_types
         )
 
-        return unsorted_node_labels[sort_indices]
+        node_labels = unsorted_node_labels[sort_indices]
+        if return_coefficients:
+            return node_labels, coefficients
+
+        return node_labels
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
@@ -771,10 +804,12 @@ class Graph2Mat(Generic[ArrayType]):
         node_kwargs: Dict[str, ArrayType] = {},
         edge_kwargs: Dict[str, ArrayType] = {},
         global_kwargs: dict = {},
+        return_coefficients: bool = False,
     ) -> ArrayType:
         """Computation of edge blocks."""
 
         outputs = []
+        coefficients = {}
 
         graph2mat_edge_types = self.edge_types_to_graph2mat[edge_types]
 
@@ -841,6 +876,15 @@ class Graph2Mat(Generic[ArrayType]):
             output = func(
                 **filtered_edge_kwargs, **filtered_node_kwargs, **global_kwargs
             )
+            if return_coefficients:
+                if not hasattr(func, "forward_coefficients"):
+                    raise ValueError(
+                        "return_coefficients=True requires matrix blocks to expose "
+                        "forward_coefficients()."
+                    )
+                coefficients[f"edge:{module_key}"] = func.forward_coefficients(
+                    **filtered_edge_kwargs, **filtered_node_kwargs, **global_kwargs
+                )
 
             # Since each edge type has a different block shape, we need to flatten the blocks (and even
             # the n_edges dimension) to put them all in a single array.
@@ -861,7 +905,11 @@ class Graph2Mat(Generic[ArrayType]):
         )
 
         # Do the resorting and return the result.
-        return unsorted_edge_labels[sort_indices]
+        edge_labels = unsorted_edge_labels[sort_indices]
+        if return_coefficients:
+            return edge_labels, coefficients
+
+        return edge_labels
 
     def _get_nodelabels_resort_index(
         self, types: np.ndarray, original_types: ArrayType, **kwargs

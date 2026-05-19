@@ -55,11 +55,13 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         node_block_readout: Type[torch.nn.Module] = E3nnSimpleNodeBlock,
         edge_block_readout: Type[torch.nn.Module] = E3nnSimpleEdgeBlock,
         readout_per_interaction: bool = False,
+        return_coefficients: bool = False,
         n_matrix_components: int = 1,
         optim_wdecay: float = 5e-7,
         optim_amsgrad: bool = True,
         optim_lr: float = 1e-3,
         loss: Type[OrbitalMatrixMetric] = block_type_mse,
+        loss_kwargs: Optional[dict] = None,
         initial_node_feats: str = "OneHotZ",
         version: str = "new",
     ):
@@ -71,6 +73,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             basis_table=basis_table,
             no_basis=no_basis,
             loss=loss,
+            loss_kwargs=loss_kwargs,
             initial_node_feats="OneHotZ",
             model_cls=model_cls,
         )
@@ -103,6 +106,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             self.init_model(
                 mace=mace,
                 readout_per_interaction=readout_per_interaction,
+                return_coefficients=return_coefficients,
                 unique_basis=self.basis_table.basis,
                 edge_hidden_irreps=edge_hidden_irreps,
                 symmetric=symmetric_matrix,
@@ -131,6 +135,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 correlation=correlation,
                 unique_basis=self.basis_table.basis,
                 matrix_readout=E3nnGraph2Mat,
+                return_coefficients=return_coefficients,
                 symmetric_matrix=symmetric_matrix,
                 node_block_readout=node_block_readout,
                 edge_block_readout=edge_block_readout,

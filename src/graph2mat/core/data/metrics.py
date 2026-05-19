@@ -10,8 +10,9 @@ sure they share the same interface and that they are all registered.
 
 from copy import copy
 
-from typing import Any, Tuple, Dict, Type, Callable, Union
+from typing import Any, Tuple, Dict, Type, Callable, Union, Optional
 import numpy as np
+import torch
 
 from .formats import Formats
 from .processing import MatrixDataProcessor
@@ -19,6 +20,10 @@ from .processing import MatrixDataProcessor
 __all__ = [
     "OrbitalMatrixMetric",
     "block_type_mse",
+    "block_type_huber",
+    "block_type_smooth_l1",
+    "coefficient_space_mse",
+    "coefficient_space_mae",
     "block_type_mae",
     "block_type_mape",
     "block_type_mapemaemix",
@@ -58,6 +63,17 @@ def get_predictions_error(
     return node_error, edge_error
 
 
+def _smooth_l1(values, beta: float):
+    if beta <= 0:
+        raise ValueError(f"Smooth L1/Huber beta must be positive, got {beta!r}.")
+    abs_values = abs(values)
+    quadratic = 0.5 * values**2 / beta
+    linear = abs_values - 0.5 * beta
+    if torch.is_tensor(values):
+        return torch.where(abs_values < beta, quadratic, linear)
+    return np.where(abs_values < beta, quadratic, linear)
+
+
 def _spin_channel_stats(node_error, edge_error):
     if getattr(node_error, "ndim", 1) != 2:
         return {}
@@ -71,15 +87,147 @@ def _spin_channel_stats(node_error, edge_error):
     return stats
 
 
+def _project_block_to_coefficients(block, change_of_basis):
+    if block.ndim == 2:
+        block = block.unsqueeze(0)
+
+    if block.ndim == 4:
+        coefficients = torch.einsum(
+            "zij,nijc->ncz", change_of_basis.to(block), block
+        )
+        return coefficients.reshape(coefficients.shape[0], -1)
+
+    return torch.einsum("zij,nij->nz", change_of_basis.to(block), block)
+
+
+def _edge_module_for_unique_type(readout, edge_type: int):
+    graph_edge_type = int(
+        abs(readout.edge_types_to_graph2mat[torch.tensor([edge_type])][0].item())
+    )
+    for module_key, operation in readout.interactions.items():
+        _, _, op_edge_type = map(int, module_key[1:-1].split(","))
+        if abs(op_edge_type) == graph_edge_type:
+            return module_key, operation
+    raise KeyError(f"No readout edge operation found for edge type {edge_type}")
+
+
+def _target_coefficients_from_labels(readout, batch, basis_table, nodes_ref, edges_ref):
+    if nodes_ref.ndim != 1 or edges_ref.ndim != 1:
+        raise ValueError(
+            "coefficient-space metrics currently support only flat single-component "
+            "labels. Use n_matrix_components=1 with an H-only target."
+        )
+
+    point_types = batch.point_types.detach().cpu().numpy().astype(int)
+    point_labels = nodes_ref.reshape(-1)
+    point_pointers = basis_table.point_block_pointer(point_types)
+    graph_node_types = (
+        readout.types_to_graph2mat[batch.point_types].detach().cpu().numpy().astype(int)
+    )
+
+    node_coeffs = {}
+    for atom_index, point_type in enumerate(point_types):
+        op_key = f"node:{graph_node_types[atom_index]}"
+        operation = readout.self_interactions[int(graph_node_types[atom_index])]
+        shape = tuple(int(x) for x in basis_table.point_block_shape[:, point_type])
+        block = point_labels[
+            point_pointers[atom_index] : point_pointers[atom_index + 1]
+        ].reshape(shape)
+        coeff = _project_block_to_coefficients(block, operation.change_of_basis).squeeze(0)
+        node_coeffs.setdefault(op_key, []).append(coeff)
+
+    edge_types_full = batch.edge_types.detach().cpu().numpy().astype(int)
+    edge_types = edge_types_full[::2] if readout.symmetric else edge_types_full
+    edge_labels = edges_ref.reshape(-1)
+    edge_pointers = basis_table.edge_block_pointer(edge_types)
+    edge_coeffs = {}
+    for unique_edge_index, edge_type in enumerate(edge_types):
+        module_key, operation = _edge_module_for_unique_type(readout, int(edge_type))
+        op_key = f"edge:{module_key}"
+        shape = tuple(int(x) for x in basis_table.edge_block_shape[:, abs(edge_type)])
+        block = edge_labels[
+            edge_pointers[unique_edge_index] : edge_pointers[unique_edge_index + 1]
+        ].reshape(shape)
+        coeff = _project_block_to_coefficients(block, operation.change_of_basis).squeeze(0)
+        edge_coeffs.setdefault(op_key, []).append(coeff)
+
+    return {
+        "node": {key: torch.stack(value) for key, value in node_coeffs.items()},
+        "edge": {key: torch.stack(value) for key, value in edge_coeffs.items()},
+    }
+
+
+def _coefficient_space_metric(
+    nodes_ref,
+    edges_ref,
+    batch,
+    basis_table,
+    out,
+    model,
+    *,
+    reduction,
+):
+    if out is None or "node_coefficients" not in out or "edge_coefficients" not in out:
+        raise ValueError(
+            "coefficient-space loss requires model outputs to include "
+            "'node_coefficients' and 'edge_coefficients'. Instantiate the model with "
+            "return_coefficients=True."
+        )
+
+    readout = getattr(model, "matrix_readouts", None)
+    if readout is None:
+        raise ValueError(
+            "coefficient-space loss requires a model with a 'matrix_readouts' attribute."
+        )
+
+    target = _target_coefficients_from_labels(
+        readout=readout,
+        batch=batch,
+        basis_table=basis_table,
+        nodes_ref=nodes_ref,
+        edges_ref=edges_ref,
+    )
+    predicted = {"node": out["node_coefficients"], "edge": out["edge_coefficients"]}
+
+    losses = []
+    stats = {}
+    for kind in ("node", "edge"):
+        for key, target_value in target[kind].items():
+            if key not in predicted[kind]:
+                raise ValueError(f"Missing predicted {kind} coefficients for {key}.")
+            error = predicted[kind][key] - target_value.to(predicted[kind][key])
+            if reduction == "mse":
+                loss = (error**2).mean()
+                stats[f"{kind}_{key}_coeff_rmse"] = loss ** (1 / 2)
+            elif reduction == "mae":
+                loss = abs(error).mean()
+                stats[f"{kind}_{key}_coeff_mae"] = loss
+            else:
+                raise ValueError(f"Unknown coefficient reduction {reduction!r}")
+            losses.append(loss)
+
+    if not losses:
+        raise ValueError("No coefficient blocks were available for coefficient-space loss.")
+
+    loss = torch.stack(losses).mean()
+    stats["coefficient_blocks"] = torch.as_tensor(
+        len(losses), dtype=loss.dtype, device=loss.device
+    )
+    return loss, stats
+
+
 class Meta(type):
     def __call__(self, *args: Any, **kwds: Any) -> Any:
-        if len(args) == 0 and len(kwds) == 0:
-            return super().__call__()
+        metric_keys = {"nodes_pred", "nodes_ref", "edges_pred", "edges_ref"}
+        if len(args) == 0 and not (set(kwds) & metric_keys):
+            return super().__call__(*args, **kwds)
 
         return super().__call__().get_metric(*args, **kwds)
 
 
 class OrbitalMatrixMetric(metaclass=Meta):
+    requires_model_output = False
+
     def __call__(self, *args, **kwargs):
         return self.get_metric(*args, **kwargs)
 
@@ -210,6 +358,36 @@ def block_type_mse(
 
 
 @OrbitalMatrixMetric.from_metric_func
+def coefficient_space_mse(
+    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
+) -> Tuple[float, Dict[str, float]]:
+    return _coefficient_space_metric(
+        nodes_ref=nodes_ref,
+        edges_ref=edges_ref,
+        reduction="mse",
+        **kwargs,
+    )
+
+
+coefficient_space_mse.requires_model_output = True
+
+
+@OrbitalMatrixMetric.from_metric_func
+def coefficient_space_mae(
+    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
+) -> Tuple[float, Dict[str, float]]:
+    return _coefficient_space_metric(
+        nodes_ref=nodes_ref,
+        edges_ref=edges_ref,
+        reduction="mae",
+        **kwargs,
+    )
+
+
+coefficient_space_mae.requires_model_output = True
+
+
+@OrbitalMatrixMetric.from_metric_func
 def block_type_mae(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
@@ -241,6 +419,65 @@ def block_type_mae(
         )
 
     return node_loss + edge_loss, stats
+
+
+class block_type_huber(OrbitalMatrixMetric):
+    """Block-type Smooth L1/Huber loss for matrix labels.
+
+    This is an opt-in Hamiltonian training candidate between the current
+    block-type MAE and MSE objectives. ``beta`` is the Smooth L1 transition
+    width in label units; ``delta`` is accepted as an alias for Huber-style
+    configuration files.
+    """
+
+    def __init__(self, beta: float = 1.0, delta: Optional[float] = None):
+        if delta is not None:
+            beta = delta
+        beta = float(beta)
+        if not np.isfinite(beta) or beta <= 0:
+            raise ValueError(f"block_type_huber beta must be positive, got {beta!r}.")
+        self.beta = beta
+
+    def compute_metric(
+        self, nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
+    ) -> Tuple[float, Dict[str, float]]:
+        node_error, edge_error = get_predictions_error(
+            nodes_pred, nodes_ref, edges_pred, edges_ref
+        )
+
+        node_loss = _smooth_l1(node_error, self.beta).mean()
+        edge_loss = _smooth_l1(edge_error, self.beta).mean()
+
+        stats = {
+            "node_smooth_l1": node_loss,
+            "edge_smooth_l1": edge_loss,
+            "node_rmse": (node_error**2).mean() ** (1 / 2),
+            "edge_rmse": (edge_error**2).mean() ** (1 / 2),
+        }
+        stats.update(_spin_channel_stats(node_error, edge_error))
+
+        if log_verbose:
+            abs_node_error = abs(node_error)
+            abs_edge_error = abs(edge_error)
+            stats.update(
+                {
+                    "node_mean": abs_node_error.mean(),
+                    "edge_mean": abs_edge_error.mean(),
+                    "node_std": abs_node_error.std(),
+                    "edge_std": abs_edge_error.std(),
+                    "node_max": abs_node_error.max(),
+                    "edge_max": abs_edge_error.max(),
+                    "smooth_l1_beta": node_error.new_tensor(self.beta)
+                    if torch.is_tensor(node_error)
+                    else self.beta,
+                }
+            )
+
+        return node_loss + edge_loss, stats
+
+
+class block_type_smooth_l1(block_type_huber):
+    """Alias for ``block_type_huber`` using PyTorch Smooth L1 terminology."""
 
 
 # @OrbitalMatrixMetric.from_metric_func

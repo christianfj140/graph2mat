@@ -573,6 +573,7 @@ class MatrixDataProcessor:
         if metrics is None:
             metrics = [
                 metric_cls for metric_cls in OrbitalMatrixMetric.__subclasses__()
+                if not getattr(metric_cls, "requires_model_output", False)
             ]
 
         input_arrays = input.numpy_arrays()

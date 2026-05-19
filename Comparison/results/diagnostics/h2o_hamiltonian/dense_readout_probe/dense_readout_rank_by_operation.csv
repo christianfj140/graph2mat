@@ -1,0 +1,5 @@
+op_key,operation_class,output_dim,parameter_count,jacobian_shape,rank_1e-5,rank_1e-6,rank_1e-7,rank_1e-8,rank_1e-10,singular_value_max,singular_value_min_effective_1e_8,condition_estimate_1e_8,full_rank_1e_8,exact
+"edge:(0, 0, 0)",E3nnDiagnosticDenseEdgeBlock,25,90457,"[25, 90457]",25,25,25,25,25,14.510058495328805,12.188908211705316,1.1904313531046553,True,True
+"edge:(0, 1, 1)",E3nnDiagnosticDenseEdgeBlock,130,102017,"[130, 102017]",130,130,130,130,130,52.11728829214159,13.64219532555569,3.8203006956300625,True,True
+node:0,E3nnDiagnosticDenseNodeBlock,30,419855,"[30, 419855]",30,30,30,30,30,39.301453592403405,15.538051285773856,2.529368250212082,True,True
+node:1,E3nnDiagnosticDenseNodeBlock,91,468571,"[91, 468571]",91,91,91,91,91,74.23746612746174,45.21323830515143,1.6419409206308366,True,True

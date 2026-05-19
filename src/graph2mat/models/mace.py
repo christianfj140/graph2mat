@@ -34,6 +34,7 @@ class MatrixMACE(torch.nn.Module):
         mace: MACE,
         readout_per_interaction: bool = False,
         graph2mat_cls: type[Graph2Mat] = E3nnGraph2Mat,
+        return_coefficients: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -41,6 +42,7 @@ class MatrixMACE(torch.nn.Module):
         self.mace = mace
 
         self.readout_per_interaction = readout_per_interaction
+        self.return_coefficients = return_coefficients
 
         edge_hidden_irreps = kwargs.pop("edge_hidden_irreps", None)
 
@@ -131,11 +133,21 @@ class MatrixMACE(torch.nn.Module):
         # Apply the readouts.
         if not self.readout_per_interaction:
             # Readout from the whole set of features
-            node_labels, edge_labels = self.matrix_readouts(
+            readout_output = self.matrix_readouts(
                 data=data_for_readout,
                 node_feats=mace_out["node_feats"],
+                return_coefficients=self.return_coefficients,
             )
+            if self.return_coefficients:
+                node_labels, edge_labels, coefficients = readout_output
+            else:
+                node_labels, edge_labels = readout_output
         else:
+            if self.return_coefficients:
+                raise NotImplementedError(
+                    "return_coefficients=True is not implemented with "
+                    "readout_per_interaction=True."
+                )
             # Go interaction by interaction and grab the features that each one produced
             # Apply the readout to each interaction and then sum them all.
             used = 0
@@ -157,4 +169,9 @@ class MatrixMACE(torch.nn.Module):
             node_labels = torch.stack(node_labels_list).mean(axis=0)
             edge_labels = torch.stack(edge_labels_list).mean(axis=0)
 
-        return {**mace_out, "node_labels": node_labels, "edge_labels": edge_labels}
+        output = {**mace_out, "node_labels": node_labels, "edge_labels": edge_labels}
+        if self.return_coefficients:
+            output["node_coefficients"] = coefficients["node"]
+            output["edge_coefficients"] = coefficients["edge"]
+
+        return output

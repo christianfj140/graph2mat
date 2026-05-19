@@ -3,7 +3,7 @@
 import warnings
 import zipfile
 from pathlib import Path
-from typing import Optional, Type, Union
+from typing import Any, Optional, Type, Union
 
 import pytorch_lightning as pl
 import torch
@@ -34,6 +34,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         basis_table: Union[BasisTableWithEdges, None] = None,
         no_basis: Optional[dict] = None,
         loss: Type[OrbitalMatrixMetric] = block_type_mse,
+        loss_kwargs: Optional[dict[str, Any]] = None,
         initial_node_feats: str = "OneHotZ",
         **kwargs,
     ):
@@ -61,7 +62,7 @@ class LitBasisMatrixModel(pl.LightningModule):
             o3.Irreps(),
         ).simplify()
 
-        self.loss_fn = loss()
+        self.loss_fn = loss(**(loss_kwargs or {}))
 
         self.model_cls = model_cls
         self.model = None  # Subclasses are responsible for initializing the model by calling init_model.
@@ -112,6 +113,8 @@ class LitBasisMatrixModel(pl.LightningModule):
             edges_ref=batch["edge_labels"],
             batch=batch,
             basis_table=self.basis_table,
+            out=out,
+            model=self.model,
         )
 
         self.log(
@@ -142,6 +145,8 @@ class LitBasisMatrixModel(pl.LightningModule):
             batch=batch,
             basis_table=self.basis_table,
             log_verbose=True,
+            out=out,
+            model=self.model,
         )
 
         self.log("val_loss", loss, prog_bar=True, logger=True)
@@ -165,6 +170,8 @@ class LitBasisMatrixModel(pl.LightningModule):
             batch=batch,
             basis_table=self.basis_table,
             log_verbose=True,
+            out=out,
+            model=self.model,
         )
 
         self.log("test_loss", loss, prog_bar=True, logger=True)
