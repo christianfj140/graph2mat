@@ -1,0 +1,13 @@
+data:
+  out_matrix: hamiltonian
+  symmetric_matrix: true
+  sub_point_matrix: false
+  matrix_component_policy: h_only
+  n_matrix_components: 1
+  basis_files: ../dataset/material_basis/*.ion.xml
+  train_runs: ../dataset/MD_steps/0/RUN.fdf
+  val_runs: ../dataset/MD_steps/0/RUN.fdf
+  test_runs: ../dataset/MD_steps/0/RUN.fdf
+  batch_size: 1
+  store_in_memory: true
+  loader_threads: 0

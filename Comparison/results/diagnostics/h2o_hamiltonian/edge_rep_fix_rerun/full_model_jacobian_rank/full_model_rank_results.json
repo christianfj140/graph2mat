@@ -1,0 +1,561 @@
+{
+  "source_workspace": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view",
+  "training_dir": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view/training",
+  "config_path": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view/training/config.yaml",
+  "checkpoint_path": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
+  "command": "PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
+  "data_policy": {
+    "out_matrix": "hamiltonian",
+    "symmetric_matrix": true,
+    "matrix_component_policy": "h_only",
+    "n_matrix_components": 1
+  },
+  "outputs": {
+    "label_space": {
+      "output_name": "label_space",
+      "output_shape": [
+        374
+      ],
+      "output_dim": 374
+    },
+    "coefficient_space": {
+      "output_name": "coefficient_space",
+      "output_shape": [
+        276
+      ],
+      "output_dim": 276
+    }
+  },
+  "parameter_group_counts": {
+    "readout": 524048,
+    "readout_blocks": 413200,
+    "edge_preprocessing": 110848,
+    "mace": 214753,
+    "all_trainable": 738801
+  },
+  "results": [
+    {
+      "output_name": "label_space",
+      "parameter_group": "readout",
+      "output_dim": 374,
+      "parameter_count": 524048,
+      "jacobian": {
+        "shape": [
+          374,
+          524048
+        ],
+        "rank_abs_tol": {
+          "1e-05": 174,
+          "1e-06": 174,
+          "1e-07": 176,
+          "1e-08": 225,
+          "1e-10": 252
+        },
+        "singular_value_max": 25.153832647959504,
+        "singular_value_min_positive": 7.180166927136405e-40,
+        "singular_value_min_effective_1e_8": 1.0313818221533112e-08,
+        "condition_estimate_1e_8": 2438847777.5809083,
+        "singular_values_top10": [
+          25.153832647959504,
+          15.415173911778654,
+          13.683704578957036,
+          11.980059700409633,
+          11.509289396970534,
+          11.051847635096488,
+          10.847711266328085,
+          10.006346433729803,
+          9.650074575295866,
+          9.48350150026579
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/label_space_jac_vnbdn89w/label_space_readout.mmap"
+    },
+    {
+      "output_name": "label_space",
+      "parameter_group": "readout_blocks",
+      "output_dim": 374,
+      "parameter_count": 413200,
+      "jacobian": {
+        "shape": [
+          374,
+          413200
+        ],
+        "rank_abs_tol": {
+          "1e-05": 174,
+          "1e-06": 174,
+          "1e-07": 175,
+          "1e-08": 226,
+          "1e-10": 253
+        },
+        "singular_value_max": 10.436440592991834,
+        "singular_value_min_positive": 2.5477658376906106e-34,
+        "singular_value_min_effective_1e_8": 1.0017072487419066e-08,
+        "condition_estimate_1e_8": 1041865336.0150357,
+        "singular_values_top10": [
+          10.436440592991834,
+          8.456982291094254,
+          8.456982291094247,
+          8.456982122518843,
+          8.456982122518838,
+          8.22006760945614,
+          8.220067395013807,
+          8.220067395013801,
+          8.2200673950138,
+          8.220067395013798
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/label_space_jac_vnbdn89w/label_space_readout_blocks.mmap"
+    },
+    {
+      "output_name": "label_space",
+      "parameter_group": "edge_preprocessing",
+      "output_dim": 374,
+      "parameter_count": 110848,
+      "jacobian": {
+        "shape": [
+          374,
+          110848
+        ],
+        "rank_abs_tol": {
+          "1e-05": 97,
+          "1e-06": 97,
+          "1e-07": 97,
+          "1e-08": 103,
+          "1e-10": 116
+        },
+        "singular_value_max": 24.13295078020298,
+        "singular_value_min_positive": 2.4189013123312036e-40,
+        "singular_value_min_effective_1e_8": 1.0311907708025274e-08,
+        "condition_estimate_1e_8": 2340299337.76671,
+        "singular_values_top10": [
+          24.13295078020298,
+          14.778555348307199,
+          10.795992867561854,
+          8.249275539256326,
+          7.741897520350904,
+          7.587984160344236,
+          7.209078026185782,
+          5.987709190438646,
+          5.417271194545238,
+          4.934677884886517
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/label_space_jac_vnbdn89w/label_space_edge_preprocessing.mmap"
+    },
+    {
+      "output_name": "label_space",
+      "parameter_group": "mace",
+      "output_dim": 374,
+      "parameter_count": 214753,
+      "jacobian": {
+        "shape": [
+          374,
+          214753
+        ],
+        "rank_abs_tol": {
+          "1e-05": 174,
+          "1e-06": 175,
+          "1e-07": 192,
+          "1e-08": 216,
+          "1e-10": 239
+        },
+        "singular_value_max": 143.640147892504,
+        "singular_value_min_positive": 4.996518538696922e-41,
+        "singular_value_min_effective_1e_8": 1.0614737207569381e-08,
+        "condition_estimate_1e_8": 13532143573.943031,
+        "singular_values_top10": [
+          143.640147892504,
+          35.57353752929538,
+          31.795610369388587,
+          19.054017126887707,
+          15.185448656707054,
+          12.895511678396417,
+          11.870223727048536,
+          11.007736803300848,
+          9.793215344661553,
+          8.680703853842552
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/label_space_jac_vnbdn89w/label_space_mace.mmap"
+    },
+    {
+      "output_name": "label_space",
+      "parameter_group": "all_trainable",
+      "output_dim": 374,
+      "parameter_count": 738801,
+      "jacobian": {
+        "shape": [
+          374,
+          738801
+        ],
+        "rank_abs_tol": {
+          "1e-05": 174,
+          "1e-06": 175,
+          "1e-07": 192,
+          "1e-08": 225,
+          "1e-10": 242
+        },
+        "singular_value_max": 143.88738671042185,
+        "singular_value_min_positive": 2.1694323489739863e-48,
+        "singular_value_min_effective_1e_8": 1.0181231424870455e-08,
+        "condition_estimate_1e_8": 14132611341.977491,
+        "singular_values_top10": [
+          143.88738671042185,
+          39.914301264769975,
+          32.04196182457484,
+          22.96471495938085,
+          19.139866666189732,
+          16.162251406382296,
+          15.050582370119669,
+          14.359783900244263,
+          14.011803538048264,
+          12.728291964515424
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/label_space_jac_vnbdn89w/label_space_all_trainable.mmap"
+    },
+    {
+      "output_name": "coefficient_space",
+      "parameter_group": "readout",
+      "output_dim": 276,
+      "parameter_count": 524048,
+      "jacobian": {
+        "shape": [
+          276,
+          524048
+        ],
+        "rank_abs_tol": {
+          "1e-05": 174,
+          "1e-06": 174,
+          "1e-07": 176,
+          "1e-08": 194,
+          "1e-10": 199
+        },
+        "singular_value_max": 25.173283071386546,
+        "singular_value_min_positive": 1.756026909816133e-24,
+        "singular_value_min_effective_1e_8": 1.1201809593838125e-08,
+        "condition_estimate_1e_8": 2247251469.551297,
+        "singular_values_top10": [
+          25.173283071386546,
+          15.654155818191342,
+          13.685763828716095,
+          11.982998372339429,
+          11.51010343327874,
+          11.060712625860113,
+          10.853049236279748,
+          10.011109355548667,
+          9.65171203118957,
+          9.485490917007235
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/coefficient_space_jac_lk6uhpry/coefficient_space_readout.mmap"
+    },
+    {
+      "output_name": "coefficient_space",
+      "parameter_group": "readout_blocks",
+      "output_dim": 276,
+      "parameter_count": 413200,
+      "jacobian": {
+        "shape": [
+          276,
+          413200
+        ],
+        "rank_abs_tol": {
+          "1e-05": 174,
+          "1e-06": 174,
+          "1e-07": 178,
+          "1e-08": 194,
+          "1e-10": 206
+        },
+        "singular_value_max": 10.436440854146769,
+        "singular_value_min_positive": 3.907450371585248e-25,
+        "singular_value_min_effective_1e_8": 1.0152869581202238e-08,
+        "condition_estimate_1e_8": 1027930160.1066122,
+        "singular_values_top10": [
+          10.436440854146769,
+          8.45698229109426,
+          8.456982291094258,
+          8.456982291094256,
+          8.456982291094251,
+          8.220067395013803,
+          8.2200673950138,
+          8.2200673950138,
+          8.2200673950138,
+          8.220067395013798
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/coefficient_space_jac_lk6uhpry/coefficient_space_readout_blocks.mmap"
+    },
+    {
+      "output_name": "coefficient_space",
+      "parameter_group": "edge_preprocessing",
+      "output_dim": 276,
+      "parameter_count": 110848,
+      "jacobian": {
+        "shape": [
+          276,
+          110848
+        ],
+        "rank_abs_tol": {
+          "1e-05": 97,
+          "1e-06": 97,
+          "1e-07": 97,
+          "1e-08": 106,
+          "1e-10": 114
+        },
+        "singular_value_max": 24.155504017211232,
+        "singular_value_min_positive": 4.202589202755038e-32,
+        "singular_value_min_effective_1e_8": 1.0071309698113677e-08,
+        "condition_estimate_1e_8": 2398447147.5180116,
+        "singular_values_top10": [
+          24.155504017211232,
+          15.027814823684364,
+          10.799566412617919,
+          8.252576471120634,
+          7.753857138543397,
+          7.592204701641287,
+          7.223089384365438,
+          5.990128452900116,
+          5.461967036886532,
+          4.972884863909177
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/coefficient_space_jac_lk6uhpry/coefficient_space_edge_preprocessing.mmap"
+    },
+    {
+      "output_name": "coefficient_space",
+      "parameter_group": "mace",
+      "output_dim": 276,
+      "parameter_count": 214753,
+      "jacobian": {
+        "shape": [
+          276,
+          214753
+        ],
+        "rank_abs_tol": {
+          "1e-05": 174,
+          "1e-06": 174,
+          "1e-07": 178,
+          "1e-08": 191,
+          "1e-10": 211
+        },
+        "singular_value_max": 143.64037221236646,
+        "singular_value_min_positive": 4.748891807167175e-33,
+        "singular_value_min_effective_1e_8": 1.0410899793938585e-08,
+        "condition_estimate_1e_8": 13797114087.679193,
+        "singular_values_top10": [
+          143.64037221236646,
+          35.66953194299203,
+          31.79618558394841,
+          19.06477090696317,
+          15.254468767659334,
+          12.913780391182565,
+          11.878862911675963,
+          11.035612734830226,
+          9.918480874805788,
+          8.705554845363833
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/coefficient_space_jac_lk6uhpry/coefficient_space_mace.mmap"
+    },
+    {
+      "output_name": "coefficient_space",
+      "parameter_group": "all_trainable",
+      "output_dim": 276,
+      "parameter_count": 738801,
+      "jacobian": {
+        "shape": [
+          276,
+          738801
+        ],
+        "rank_abs_tol": {
+          "1e-05": 174,
+          "1e-06": 174,
+          "1e-07": 178,
+          "1e-08": 196,
+          "1e-10": 209
+        },
+        "singular_value_max": 143.8877016666448,
+        "singular_value_min_positive": 4.622231866529375e-33,
+        "singular_value_min_effective_1e_8": 1.123866101481839e-08,
+        "condition_estimate_1e_8": 12802922116.516026,
+        "singular_values_top10": [
+          143.8877016666448,
+          40.026883663536154,
+          32.04234504863674,
+          23.038103148976106,
+          19.16478658616774,
+          16.173767129136422,
+          15.120786414103174,
+          14.432061455087965,
+          14.061384230979364,
+          12.738567759349671
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "exact": true,
+      "storage_dtype": "float64",
+      "temporary_jacobian_file": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/coefficient_space_jac_lk6uhpry/coefficient_space_all_trainable.mmap"
+    }
+  ],
+  "verdict": {
+    "status": "B_MACE_FEATURE_MANIFOLD_LIMIT",
+    "summary": "The full trainable model remains rank-deficient even in independent coefficient space (196/276)."
+  },
+  "output_files": {
+    "json": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/full_model_rank_results.json",
+    "rank_csv": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/full_model_rank_by_parameter_group.csv",
+    "coefficient_rank_csv": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/coefficient_space_full_model_rank.csv",
+    "report": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/report.md"
+  },
+  "repository_context": {
+    "graph2mat_branch": "hamiltonian-spin-colineal-support",
+    "graph2mat_commit": "4efeb1a7e2151bdb8e2a30131a75c52b5ddb2bcd",
+    "pipeline_branch": "main",
+    "pipeline_commit": "dc921c15eb4cfad312b1dfaceb7b194611b775a9"
+  },
+  "validation_runs": [
+    {
+      "command": "PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
+      "result": "passed",
+      "notes": "Generated exact row-wise Jacobian ranks for label and coefficient spaces."
+    }
+  ]
+}

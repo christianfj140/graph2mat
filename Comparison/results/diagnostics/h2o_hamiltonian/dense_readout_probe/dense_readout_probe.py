@@ -134,6 +134,137 @@ def coefficient_mae(predicted: dict[str, torch.Tensor], target: dict[str, torch.
     return torch.stack(losses).mean()
 
 
+def _map_graph_types(type_map: Any, values: torch.Tensor | np.ndarray) -> np.ndarray:
+    if not torch.is_tensor(values):
+        values = torch.as_tensor(values, dtype=torch.long)
+    mapped = type_map[values]
+    if torch.is_tensor(mapped):
+        return mapped.detach().cpu().numpy().astype(int)
+    return np.asarray(mapped).astype(int)
+
+
+def _project_block_to_coefficients(
+    block: torch.Tensor, change_of_basis: torch.Tensor
+) -> torch.Tensor:
+    if block.ndim == 2:
+        block = block.unsqueeze(0)
+    return torch.einsum("zij,nij->nz", change_of_basis.to(block), block)
+
+
+def _coefficients_to_block(
+    coefficients: torch.Tensor, change_of_basis: torch.Tensor
+) -> torch.Tensor:
+    if coefficients.ndim == 1:
+        coefficients = coefficients.unsqueeze(0)
+    return torch.einsum("nz,zij->nij", coefficients, change_of_basis.to(coefficients))
+
+
+def _edge_module_for_unique_type(readout: Any, edge_type: int) -> tuple[str, Any]:
+    graph_edge_type = int(
+        abs(_map_graph_types(readout.edge_types_to_graph2mat, np.asarray([edge_type]))[0])
+    )
+    for module_key, operation in readout.interactions.items():
+        _, _, op_edge_type = map(int, module_key[1:-1].split(","))
+        if abs(op_edge_type) == graph_edge_type:
+            return module_key, operation
+    raise KeyError(f"No readout edge operation found for edge type {edge_type}")
+
+
+def robust_target_coefficients_and_reconstructed_labels(
+    readout: Any, processor: Any, batch: Any
+) -> dict[str, Any]:
+    table = processor.basis_table
+    point_types = batch.point_types.detach().cpu().numpy().astype(int)
+    point_labels = batch.point_labels.detach().cpu().reshape(-1)
+    point_pointers = table.point_block_pointer(point_types)
+    graph_node_types = _map_graph_types(readout.types_to_graph2mat, batch.point_types)
+
+    node_coeffs: dict[str, list[torch.Tensor]] = {}
+    node_reconstructed: list[torch.Tensor] = []
+    node_block_rows: list[dict[str, Any]] = []
+    for atom_index, point_type in enumerate(point_types):
+        op_key = f"node:{graph_node_types[atom_index]}"
+        operation = readout.self_interactions[int(graph_node_types[atom_index])]
+        shape = tuple(int(x) for x in table.point_block_shape[:, point_type])
+        block = point_labels[
+            point_pointers[atom_index] : point_pointers[atom_index + 1]
+        ].reshape(shape)
+        coeff = _project_block_to_coefficients(
+            block, operation.change_of_basis
+        ).squeeze(0)
+        reconstructed = _coefficients_to_block(
+            coeff, operation.change_of_basis
+        ).squeeze(0)
+        node_coeffs.setdefault(op_key, []).append(coeff)
+        node_reconstructed.append(reconstructed.reshape(-1))
+        node_block_rows.append(
+            {
+                "op_key": op_key,
+                "atom_index": int(atom_index),
+                "point_type": int(point_type),
+                "block_shape": list(shape),
+                "coefficients": int(coeff.numel()),
+                "reconstruction_max_abs_eV": float(
+                    (reconstructed - block).abs().max().item()
+                ),
+            }
+        )
+
+    edge_labels = batch.edge_labels.detach().cpu().reshape(-1)
+    edge_types_full = batch.edge_types.detach().cpu().numpy().astype(int)
+    edge_index = batch.edge_index.detach().cpu().numpy()
+    unique_edge_mask = processor._get_symmetric_unique_edge_mask(
+        edge_types_full,
+        expected_nlabels=int(edge_labels.numel()),
+        edge_index=edge_index,
+        point_types=point_types,
+    )
+    edge_types = edge_types_full[unique_edge_mask]
+    edge_pointers = table.edge_block_pointer(np.abs(edge_types))
+
+    edge_coeffs: dict[str, list[torch.Tensor]] = {}
+    edge_reconstructed: list[torch.Tensor] = []
+    edge_block_rows: list[dict[str, Any]] = []
+    for unique_edge_index, edge_type in enumerate(edge_types):
+        module_key, operation = _edge_module_for_unique_type(readout, int(edge_type))
+        op_key = f"edge:{module_key}"
+        shape = tuple(int(x) for x in table.edge_block_shape[:, abs(int(edge_type))])
+        block = edge_labels[
+            edge_pointers[unique_edge_index] : edge_pointers[unique_edge_index + 1]
+        ].reshape(shape)
+        coeff = _project_block_to_coefficients(
+            block, operation.change_of_basis
+        ).squeeze(0)
+        reconstructed = _coefficients_to_block(
+            coeff, operation.change_of_basis
+        ).squeeze(0)
+        edge_coeffs.setdefault(op_key, []).append(coeff)
+        edge_reconstructed.append(reconstructed.reshape(-1))
+        edge_block_rows.append(
+            {
+                "op_key": op_key,
+                "unique_edge_index": int(unique_edge_index),
+                "edge_type": int(edge_type),
+                "block_shape": list(shape),
+                "coefficients": int(coeff.numel()),
+                "reconstruction_max_abs_eV": float(
+                    (reconstructed - block).abs().max().item()
+                ),
+            }
+        )
+
+    return {
+        "node_coeffs": {key: torch.stack(value) for key, value in node_coeffs.items()},
+        "edge_coeffs": {key: torch.stack(value) for key, value in edge_coeffs.items()},
+        "node_labels": torch.cat(node_reconstructed),
+        "edge_labels": torch.cat(edge_reconstructed),
+        "node_blocks": node_block_rows,
+        "edge_blocks": edge_block_rows,
+        "edge_representative_indices": np.flatnonzero(unique_edge_mask).tolist(),
+        "edge_representative_types": edge_types.astype(int).tolist(),
+    }
+
+
 def dense_input_matrix(inputs: dict[str, Any]) -> torch.Tensor:
     pieces = []
     for value in inputs.values():
@@ -659,7 +790,6 @@ def main() -> int:
     from diagnose_h2o_coefficient_space_readout import (
         compare_coefficients,
         predicted_coefficients,
-        target_coefficients_and_reconstructed_labels,
     )
     from diagnose_h2o_readout_bottleneck import make_readout_inputs
     from evaluate_hamiltonian_metrics import read_matrix
@@ -701,12 +831,34 @@ def main() -> int:
 
         with torch.no_grad():
             data_for_readout, node_feats, edge_messages = make_readout_inputs(dense_lit, batch)
-            target_pack = target_coefficients_and_reconstructed_labels(
+            target_pack = robust_target_coefficients_and_reconstructed_labels(
                 dense_readout,
                 processor,
                 batch,
             )
             target_coeffs = {**target_pack["node_coeffs"], **target_pack["edge_coeffs"]}
+            target_projection = {
+                "direct_node": compare_tensors(target_pack["node_labels"], batch.point_labels),
+                "direct_edge": compare_tensors(target_pack["edge_labels"], batch.edge_labels),
+                "h_reconstruction": h_reconstruction_metrics(
+                    processor=processor,
+                    batch=batch,
+                    output={
+                        "node_labels": target_pack["node_labels"],
+                        "edge_labels": target_pack["edge_labels"],
+                    },
+                    reference_h=reference_h,
+                    threshold=args.threshold,
+                ),
+                "node_block_count": len(target_pack["node_blocks"]),
+                "edge_block_count": len(target_pack["edge_blocks"]),
+                "edge_representative_indices": target_pack[
+                    "edge_representative_indices"
+                ],
+                "edge_representative_types": target_pack[
+                    "edge_representative_types"
+                ],
+            }
 
         lstsq_results = {}
         if not args.skip_lstsq_init:
@@ -806,6 +958,7 @@ def main() -> int:
             **dense_training,
             "coefficient_errors": final_coeff_errors,
         },
+        "target_projection": target_projection,
         "direct_node": direct_node,
         "direct_edge": direct_edge,
         "h_reconstruction": h_metrics,

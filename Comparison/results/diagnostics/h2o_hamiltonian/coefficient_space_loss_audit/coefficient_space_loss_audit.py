@@ -194,7 +194,6 @@ def load_model(
     return_coefficients: bool,
 ) -> LitMACEMatrixModel:
     kwargs: dict[str, Any] = {
-        "loss": loss,
         "return_coefficients": return_coefficients,
     }
     if dense:
@@ -206,7 +205,12 @@ def load_model(
             }
         )
     with working_directory(training_dir):
-        return LitMACEMatrixModel.load_from_checkpoint(str(checkpoint), **kwargs)
+        lit = LitMACEMatrixModel.load_from_checkpoint(str(checkpoint), **kwargs)
+
+    metric = loss() if isinstance(loss, type) else loss
+    lit.default_loss_fn = metric
+    lit.loss_fn = metric
+    return lit
 
 
 def readout_operation_parameters(lit: LitMACEMatrixModel) -> list[torch.nn.Parameter]:

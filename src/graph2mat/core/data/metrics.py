@@ -21,7 +21,12 @@ __all__ = [
     "OrbitalMatrixMetric",
     "block_type_mse",
     "block_type_huber",
+    "block_normalized_huber",
     "block_type_smooth_l1",
+    "hamiltonian_composite_loss",
+    "project_block_to_coefficients",
+    "target_coefficients_from_labels",
+    "coefficients_to_labels",
     "coefficient_space_mse",
     "coefficient_space_mae",
     "block_type_mae",
@@ -87,7 +92,38 @@ def _spin_channel_stats(node_error, edge_error):
     return stats
 
 
-def _project_block_to_coefficients(block, change_of_basis):
+def _validate_nonnegative(value: float, name: str) -> float:
+    value = float(value)
+    if not np.isfinite(value) or value < 0:
+        raise ValueError(f"{name} must be non-negative, got {value!r}.")
+    return value
+
+
+def _as_stat_tensor(reference, value):
+    if torch.is_tensor(reference):
+        return reference.new_tensor(value)
+    return value
+
+
+def _as_numpy_int(values) -> np.ndarray:
+    if torch.is_tensor(values):
+        return values.detach().cpu().numpy().astype(int)
+    return np.asarray(values).astype(int)
+
+
+def _map_types(type_map, values) -> np.ndarray:
+    values = _as_numpy_int(values)
+    if torch.is_tensor(type_map):
+        mapped = type_map[
+            torch.as_tensor(values, dtype=torch.long, device=type_map.device)
+        ]
+        return mapped.detach().cpu().numpy().astype(int)
+
+    return np.asarray(type_map)[values].astype(int)
+
+
+def project_block_to_coefficients(block, change_of_basis):
+    """Project a dense block into irreducible coefficients."""
     if block.ndim == 2:
         block = block.unsqueeze(0)
 
@@ -100,9 +136,30 @@ def _project_block_to_coefficients(block, change_of_basis):
     return torch.einsum("zij,nij->nz", change_of_basis.to(block), block)
 
 
+_project_block_to_coefficients = project_block_to_coefficients
+
+
+def _coefficients_to_block(operation, coefficients):
+    if not hasattr(operation, "coefficients_to_block"):
+        raise ValueError(
+            "coefficient reconstruction requires matrix blocks to expose "
+            "coefficients_to_block()."
+        )
+
+    return operation.coefficients_to_block(coefficients)
+
+
+def _flatten_reconstructed_block(block):
+    if block.ndim == 3:
+        return block.reshape(-1)
+    if block.ndim == 4:
+        return block.reshape(-1, block.shape[-1])
+    raise ValueError(f"Unsupported reconstructed block dimensions: {block.ndim}.")
+
+
 def _edge_module_for_unique_type(readout, edge_type: int):
     graph_edge_type = int(
-        abs(readout.edge_types_to_graph2mat[torch.tensor([edge_type])][0].item())
+        abs(_map_types(readout.edge_types_to_graph2mat, [edge_type])[0])
     )
     for module_key, operation in readout.interactions.items():
         _, _, op_edge_type = map(int, module_key[1:-1].split(","))
@@ -111,19 +168,119 @@ def _edge_module_for_unique_type(readout, edge_type: int):
     raise KeyError(f"No readout edge operation found for edge type {edge_type}")
 
 
-def _target_coefficients_from_labels(readout, batch, basis_table, nodes_ref, edges_ref):
+def _readout_coefficient_metadata(readout) -> dict:
+    if hasattr(readout, "coefficient_metadata"):
+        return readout.coefficient_metadata()
+    return {}
+
+
+def _coefficient_values(coefficients: dict, kind: str) -> dict:
+    if kind not in coefficients:
+        raise ValueError(f"Missing {kind} coefficient outputs.")
+    values = coefficients[kind]
+    if not isinstance(values, dict):
+        raise TypeError(f"{kind} coefficient outputs must be a dictionary.")
+    return values
+
+
+def _batch_field(batch, name: str, default=None):
+    if batch is None:
+        return default
+    if isinstance(batch, dict):
+        return batch.get(name, default)
+    return getattr(batch, name, default)
+
+
+def _flat_length(values) -> int:
+    if torch.is_tensor(values):
+        return int(values.reshape(-1).shape[0])
+    return int(np.asarray(values).reshape(-1).shape[0])
+
+
+def _edge_label_count_from_coefficients(readout, coefficients: dict) -> int:
+    edge_coeffs = _coefficient_values(coefficients, "edge")
+    total = 0
+    for op_key, coeff in edge_coeffs.items():
+        module_key = op_key[len("edge:") :] if op_key.startswith("edge:") else op_key
+        if module_key not in readout.interactions:
+            raise ValueError(
+                f"Cannot infer edge label length from coefficients for {op_key}: "
+                "the readout has no matching edge operation."
+            )
+        operation = readout.interactions[module_key]
+        if not hasattr(operation, "change_of_basis"):
+            raise ValueError(
+                f"Cannot infer edge label length from coefficients for {op_key}: "
+                "the edge operation has no change_of_basis tensor."
+            )
+        total += int(coeff.shape[0]) * int(np.prod(operation.change_of_basis.shape[1:]))
+    return total
+
+
+def _symmetric_edge_types_for_labels(
+    *,
+    readout,
+    batch,
+    basis_table,
+    expected_nlabels: Optional[int],
+) -> np.ndarray:
+    edge_types = _as_numpy_int(_batch_field(batch, "edge_types"))
+    if not getattr(readout, "symmetric", False):
+        return edge_types
+
+    if expected_nlabels is None:
+        edge_labels = _batch_field(batch, "edge_labels")
+        if edge_labels is not None:
+            expected_nlabels = _flat_length(edge_labels)
+
+    if expected_nlabels is None:
+        raise ValueError(
+            "Cannot select symmetric edge representatives without the expected "
+            "flat edge-label length. Provide edge labels or coefficient outputs "
+            "with matching edge operations."
+        )
+
+    point_types = _batch_field(batch, "point_types")
+    point_types = None if point_types is None else _as_numpy_int(point_types)
+    edge_index = _batch_field(batch, "edge_index")
+    edge_index = None if edge_index is None else _as_numpy_int(edge_index)
+
+    selector = MatrixDataProcessor(
+        basis_table=basis_table,
+        symmetric_matrix=True,
+        sub_point_matrix=False,
+    )
+    unique_edge_mask = selector._get_symmetric_unique_edge_mask(
+        edge_types,
+        expected_nlabels=int(expected_nlabels),
+        edge_index=edge_index,
+        point_types=point_types,
+    )
+    return edge_types[unique_edge_mask]
+
+
+def target_coefficients_from_labels(
+    readout,
+    batch,
+    basis_table,
+    nodes_ref,
+    edges_ref,
+) -> dict:
+    """Project flat target labels into the readout coefficient space.
+
+    Returns a dictionary with ``node`` and ``edge`` coefficient tensors keyed by
+    readout operation, plus ``metadata`` describing those operations.
+    """
     if nodes_ref.ndim != 1 or edges_ref.ndim != 1:
         raise ValueError(
             "coefficient-space metrics currently support only flat single-component "
             "labels. Use n_matrix_components=1 with an H-only target."
         )
 
-    point_types = batch.point_types.detach().cpu().numpy().astype(int)
+    point_types = _as_numpy_int(batch.point_types)
     point_labels = nodes_ref.reshape(-1)
     point_pointers = basis_table.point_block_pointer(point_types)
-    graph_node_types = (
-        readout.types_to_graph2mat[batch.point_types].detach().cpu().numpy().astype(int)
-    )
+    graph_node_types = _map_types(readout.types_to_graph2mat, point_types)
 
     node_coeffs = {}
     for atom_index, point_type in enumerate(point_types):
@@ -133,13 +290,19 @@ def _target_coefficients_from_labels(readout, batch, basis_table, nodes_ref, edg
         block = point_labels[
             point_pointers[atom_index] : point_pointers[atom_index + 1]
         ].reshape(shape)
-        coeff = _project_block_to_coefficients(block, operation.change_of_basis).squeeze(0)
+        coeff = project_block_to_coefficients(
+            block, operation.change_of_basis
+        ).squeeze(0)
         node_coeffs.setdefault(op_key, []).append(coeff)
 
-    edge_types_full = batch.edge_types.detach().cpu().numpy().astype(int)
-    edge_types = edge_types_full[::2] if readout.symmetric else edge_types_full
     edge_labels = edges_ref.reshape(-1)
-    edge_pointers = basis_table.edge_block_pointer(edge_types)
+    edge_types = _symmetric_edge_types_for_labels(
+        readout=readout,
+        batch=batch,
+        basis_table=basis_table,
+        expected_nlabels=_flat_length(edge_labels),
+    )
+    edge_pointers = basis_table.edge_block_pointer(np.abs(edge_types))
     edge_coeffs = {}
     for unique_edge_index, edge_type in enumerate(edge_types):
         module_key, operation = _edge_module_for_unique_type(readout, int(edge_type))
@@ -148,13 +311,85 @@ def _target_coefficients_from_labels(readout, batch, basis_table, nodes_ref, edg
         block = edge_labels[
             edge_pointers[unique_edge_index] : edge_pointers[unique_edge_index + 1]
         ].reshape(shape)
-        coeff = _project_block_to_coefficients(block, operation.change_of_basis).squeeze(0)
+        coeff = project_block_to_coefficients(
+            block, operation.change_of_basis
+        ).squeeze(0)
         edge_coeffs.setdefault(op_key, []).append(coeff)
 
     return {
         "node": {key: torch.stack(value) for key, value in node_coeffs.items()},
         "edge": {key: torch.stack(value) for key, value in edge_coeffs.items()},
+        "metadata": _readout_coefficient_metadata(readout),
     }
+
+
+_target_coefficients_from_labels = target_coefficients_from_labels
+
+
+def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> dict:
+    """Map operation-wise coefficients back to flat node and edge labels."""
+
+    point_types = _as_numpy_int(batch.point_types)
+    graph_node_types = _map_types(readout.types_to_graph2mat, point_types)
+    node_coeffs = _coefficient_values(coefficients, "node")
+    node_offsets = {key: 0 for key in node_coeffs}
+    node_labels = []
+
+    for graph_node_type in graph_node_types:
+        op_key = f"node:{graph_node_type}"
+        if op_key not in node_coeffs:
+            raise ValueError(f"Missing predicted node coefficients for {op_key}.")
+
+        operation = readout.self_interactions[int(graph_node_type)]
+        offset = node_offsets[op_key]
+        coeff = node_coeffs[op_key][offset : offset + 1]
+        node_offsets[op_key] += 1
+        node_labels.append(
+            _flatten_reconstructed_block(_coefficients_to_block(operation, coeff))
+        )
+
+    edge_coeffs = _coefficient_values(coefficients, "edge")
+    edge_types = _symmetric_edge_types_for_labels(
+        readout=readout,
+        batch=batch,
+        basis_table=basis_table,
+        expected_nlabels=_edge_label_count_from_coefficients(readout, coefficients),
+    )
+    edge_offsets = {key: 0 for key in edge_coeffs}
+    edge_labels = []
+
+    for edge_type in edge_types:
+        module_key, operation = _edge_module_for_unique_type(readout, int(edge_type))
+        op_key = f"edge:{module_key}"
+        if op_key not in edge_coeffs:
+            raise ValueError(f"Missing predicted edge coefficients for {op_key}.")
+
+        offset = edge_offsets[op_key]
+        coeff = edge_coeffs[op_key][offset : offset + 1]
+        edge_offsets[op_key] += 1
+        edge_labels.append(
+            _flatten_reconstructed_block(_coefficients_to_block(operation, coeff))
+        )
+
+    for kind, offsets, values in (
+        ("node", node_offsets, node_coeffs),
+        ("edge", edge_offsets, edge_coeffs),
+    ):
+        for key, offset in offsets.items():
+            if offset != len(values[key]):
+                raise ValueError(
+                    f"Unused {kind} coefficients for {key}: consumed={offset}, "
+                    f"total={len(values[key])}."
+                )
+
+    node_labels = torch.cat(node_labels, dim=0) if node_labels else None
+    if edge_labels:
+        edge_labels = torch.cat(edge_labels, dim=0)
+    else:
+        device = node_labels.device if torch.is_tensor(node_labels) else None
+        edge_labels = torch.empty(0, dtype=node_labels.dtype, device=device)
+
+    return {"node_labels": node_labels, "edge_labels": edge_labels}
 
 
 def _coefficient_space_metric(
@@ -177,10 +412,11 @@ def _coefficient_space_metric(
     readout = getattr(model, "matrix_readouts", None)
     if readout is None:
         raise ValueError(
-            "coefficient-space loss requires a model with a 'matrix_readouts' attribute."
+            "coefficient-space loss requires a model with a "
+            "'matrix_readouts' attribute."
         )
 
-    target = _target_coefficients_from_labels(
+    target = target_coefficients_from_labels(
         readout=readout,
         batch=batch,
         basis_table=basis_table,
@@ -192,10 +428,11 @@ def _coefficient_space_metric(
     losses = []
     stats = {}
     for kind in ("node", "edge"):
-        for key, target_value in target[kind].items():
-            if key not in predicted[kind]:
+        predicted_values = _coefficient_values(predicted, kind)
+        for key, target_value in _coefficient_values(target, kind).items():
+            if key not in predicted_values:
                 raise ValueError(f"Missing predicted {kind} coefficients for {key}.")
-            error = predicted[kind][key] - target_value.to(predicted[kind][key])
+            error = predicted_values[key] - target_value.to(predicted_values[key])
             if reduction == "mse":
                 loss = (error**2).mean()
                 stats[f"{kind}_{key}_coeff_rmse"] = loss ** (1 / 2)
@@ -207,13 +444,133 @@ def _coefficient_space_metric(
             losses.append(loss)
 
     if not losses:
-        raise ValueError("No coefficient blocks were available for coefficient-space loss.")
+        raise ValueError(
+            "No coefficient blocks were available for coefficient-space loss."
+        )
 
     loss = torch.stack(losses).mean()
     stats["coefficient_blocks"] = torch.as_tensor(
         len(losses), dtype=loss.dtype, device=loss.device
     )
     return loss, stats
+
+
+def _loss_mean(values, pointers=None):
+    if pointers is None:
+        return values.mean()
+    losses = []
+    for start, end in zip(pointers[:-1], pointers[1:]):
+        start = int(start)
+        end = int(end)
+        if end <= start:
+            continue
+        losses.append(values[start:end].mean())
+    if not losses:
+        return values.mean()
+    if torch.is_tensor(values):
+        return torch.stack(losses).mean()
+    return np.stack(losses).mean()
+
+
+def _loss_blocks(values, pointers):
+    losses = []
+    total = int(values.shape[0])
+    if int(pointers[-1]) != total:
+        raise ValueError(
+            "Block-normalized loss pointer mismatch: "
+            f"last pointer is {int(pointers[-1])}, but labels have length {total}."
+        )
+    for start, end in zip(pointers[:-1], pointers[1:]):
+        start = int(start)
+        end = int(end)
+        if end <= start:
+            continue
+        losses.append(values[start:end].mean())
+    if not losses:
+        raise ValueError("Block-normalized loss received no non-empty blocks.")
+    return losses
+
+
+def _node_edge_block_pointers(
+    batch,
+    basis_table,
+    model=None,
+    expected_edge_nlabels: Optional[int] = None,
+):
+    if batch is None or basis_table is None:
+        raise ValueError(
+            "per_block_normalization requires both batch and basis_table."
+        )
+
+    point_types = _as_numpy_int(batch.point_types)
+    node_pointers = basis_table.point_block_pointer(point_types)
+
+    readout = getattr(model, "matrix_readouts", None)
+    edge_types = _symmetric_edge_types_for_labels(
+        readout=readout,
+        batch=batch,
+        basis_table=basis_table,
+        expected_nlabels=expected_edge_nlabels,
+    )
+    edge_pointers = basis_table.edge_block_pointer(np.abs(edge_types))
+    return node_pointers, edge_pointers
+
+
+def _single_component_labels_or_raise(nodes_ref, edges_ref, loss_name: str):
+    if getattr(nodes_ref, "ndim", 1) != 1 or getattr(edges_ref, "ndim", 1) != 1:
+        raise ValueError(
+            f"{loss_name} supports only flat single-component H-only labels. "
+            "Use matrix_component_policy='h_only' and n_matrix_components=1."
+        )
+
+
+def _block_type_stats(values, pointers, types, prefix: str):
+    if types is None or len(types) != len(pointers) - 1:
+        return {}
+
+    block_losses = _loss_blocks(values, pointers)
+    stats = {}
+    for type_id in sorted({int(type_value) for type_value in types}):
+        selected = [
+            loss
+            for loss, type_value in zip(block_losses, types)
+            if int(type_value) == type_id
+        ]
+        if not selected:
+            continue
+        if torch.is_tensor(values):
+            stats[f"{prefix}_type{type_id}_block_huber"] = torch.stack(selected).mean()
+        else:
+            stats[f"{prefix}_type{type_id}_block_huber"] = np.stack(selected).mean()
+    return stats
+
+
+def _weighted_label_huber(
+    node_error,
+    edge_error,
+    *,
+    beta: float,
+    node_weight: float,
+    edge_weight: float,
+    per_block_normalization: bool,
+    batch=None,
+    basis_table=None,
+    model=None,
+):
+    node_losses = _smooth_l1(node_error, beta)
+    edge_losses = _smooth_l1(edge_error, beta)
+    node_pointers = edge_pointers = None
+    if per_block_normalization:
+        node_pointers, edge_pointers = _node_edge_block_pointers(
+            batch=batch,
+            basis_table=basis_table,
+            model=model,
+            expected_edge_nlabels=_flat_length(edge_error),
+        )
+
+    node_loss = _loss_mean(node_losses, node_pointers)
+    edge_loss = _loss_mean(edge_losses, edge_pointers)
+    return node_weight * node_loss + edge_weight * edge_loss, node_loss, edge_loss
 
 
 class Meta(type):
@@ -478,6 +835,250 @@ class block_type_huber(OrbitalMatrixMetric):
 
 class block_type_smooth_l1(block_type_huber):
     """Alias for ``block_type_huber`` using PyTorch Smooth L1 terminology."""
+
+
+class block_normalized_huber(OrbitalMatrixMetric):
+    """Opt-in H-only Huber loss averaged by physical matrix blocks.
+
+    Unlike ``block_type_huber``, this objective first averages the Huber errors
+    inside each physical node/edge block and then averages those block losses.
+    This prevents large blocks from dominating only because they contain more
+    matrix elements. It currently supports only flat single-component H-only
+    labels.
+    """
+
+    def __init__(
+        self,
+        beta: float = 0.01,
+        delta: Optional[float] = None,
+        node_weight: float = 1.0,
+        edge_weight: float = 1.0,
+        log_type_stats: bool = True,
+    ):
+        if delta is not None:
+            beta = delta
+        beta = float(beta)
+        if not np.isfinite(beta) or beta <= 0:
+            raise ValueError(
+                f"block_normalized_huber beta must be positive, got {beta!r}."
+            )
+        self.beta = beta
+        self.node_weight = _validate_nonnegative(node_weight, "node_weight")
+        self.edge_weight = _validate_nonnegative(edge_weight, "edge_weight")
+        if self.node_weight == 0 and self.edge_weight == 0:
+            raise ValueError("At least one of node_weight or edge_weight must be > 0.")
+        self.log_type_stats = bool(log_type_stats)
+
+    def compute_metric(
+        self,
+        nodes_pred,
+        nodes_ref,
+        edges_pred,
+        edges_ref,
+        log_verbose=False,
+        **kwargs,
+    ) -> Tuple[float, Dict[str, float]]:
+        _single_component_labels_or_raise(
+            nodes_ref,
+            edges_ref,
+            "block_normalized_huber",
+        )
+        node_error, edge_error = get_predictions_error(
+            nodes_pred, nodes_ref, edges_pred, edges_ref
+        )
+        node_pointers, edge_pointers = _node_edge_block_pointers(
+            batch=kwargs.get("batch"),
+            basis_table=kwargs.get("basis_table"),
+            model=kwargs.get("model"),
+            expected_edge_nlabels=_flat_length(edge_error),
+        )
+
+        node_losses = _smooth_l1(node_error, self.beta)
+        edge_losses = _smooth_l1(edge_error, self.beta)
+        node_block_losses = _loss_blocks(node_losses, node_pointers)
+        edge_block_losses = _loss_blocks(edge_losses, edge_pointers)
+
+        if torch.is_tensor(node_losses):
+            node_loss = torch.stack(node_block_losses).mean()
+        else:
+            node_loss = np.stack(node_block_losses).mean()
+        if torch.is_tensor(edge_losses):
+            edge_loss = torch.stack(edge_block_losses).mean()
+        else:
+            edge_loss = np.stack(edge_block_losses).mean()
+        loss = self.node_weight * node_loss + self.edge_weight * edge_loss
+
+        stats = {
+            "node_block_huber": node_loss,
+            "edge_block_huber": edge_loss,
+            "node_rmse": (node_error**2).mean() ** (1 / 2),
+            "edge_rmse": (edge_error**2).mean() ** (1 / 2),
+            "block_huber_beta": _as_stat_tensor(node_error, self.beta),
+            "node_blocks": _as_stat_tensor(node_error, len(node_block_losses)),
+            "edge_blocks": _as_stat_tensor(edge_error, len(edge_block_losses)),
+        }
+        stats.update(_spin_channel_stats(node_error, edge_error))
+
+        if self.log_type_stats:
+            batch = kwargs.get("batch")
+            model = kwargs.get("model")
+            point_types = _as_numpy_int(batch.point_types) if batch is not None else None
+            edge_types = None
+            if batch is not None:
+                readout = getattr(model, "matrix_readouts", None)
+                edge_types = _symmetric_edge_types_for_labels(
+                    readout=readout,
+                    batch=batch,
+                    basis_table=kwargs.get("basis_table"),
+                    expected_nlabels=_flat_length(edge_error),
+                )
+                edge_types = np.abs(edge_types)
+            stats.update(
+                _block_type_stats(
+                    node_losses,
+                    node_pointers,
+                    point_types,
+                    "node",
+                )
+            )
+            stats.update(
+                _block_type_stats(
+                    edge_losses,
+                    edge_pointers,
+                    edge_types,
+                    "edge",
+                )
+            )
+
+        if log_verbose:
+            abs_node_error = abs(node_error)
+            abs_edge_error = abs(edge_error)
+            stats.update(
+                {
+                    "node_mean": abs_node_error.mean(),
+                    "edge_mean": abs_edge_error.mean(),
+                    "node_std": abs_node_error.std(),
+                    "edge_std": abs_edge_error.std(),
+                    "node_max": abs_node_error.max(),
+                    "edge_max": abs_edge_error.max(),
+                }
+            )
+
+        return loss, stats
+
+
+class hamiltonian_composite_loss(OrbitalMatrixMetric):
+    """Opt-in Hamiltonian loss combining label and coefficient objectives.
+
+    The label component defaults to Smooth L1/Huber with ``beta=0.01`` because
+    that was the strongest production-compatible candidate in the H2O loss
+    hardening sweep. The coefficient component is disabled by default and uses
+    the explicit coefficient-space API when ``coefficient_mse_weight > 0``.
+    """
+
+    requires_model_output = True
+
+    def __init__(
+        self,
+        label_loss: str = "huber",
+        beta: float = 0.01,
+        coefficient_mse_weight: float = 0.0,
+        node_weight: float = 1.0,
+        edge_weight: float = 1.0,
+        per_block_normalization: bool = False,
+    ):
+        if label_loss != "huber":
+            raise ValueError(
+                "hamiltonian_composite_loss currently supports only "
+                "label_loss='huber'."
+            )
+        beta = float(beta)
+        if not np.isfinite(beta) or beta <= 0:
+            raise ValueError(
+                f"hamiltonian_composite_loss beta must be positive, got {beta!r}."
+            )
+        self.label_loss = label_loss
+        self.beta = beta
+        self.coefficient_mse_weight = _validate_nonnegative(
+            coefficient_mse_weight,
+            "coefficient_mse_weight",
+        )
+        self.node_weight = _validate_nonnegative(node_weight, "node_weight")
+        self.edge_weight = _validate_nonnegative(edge_weight, "edge_weight")
+        if self.node_weight == 0 and self.edge_weight == 0:
+            raise ValueError("At least one of node_weight or edge_weight must be > 0.")
+        self.per_block_normalization = bool(per_block_normalization)
+
+    def compute_metric(
+        self,
+        nodes_pred,
+        nodes_ref,
+        edges_pred,
+        edges_ref,
+        log_verbose=False,
+        **kwargs,
+    ) -> Tuple[float, Dict[str, float]]:
+        node_error, edge_error = get_predictions_error(
+            nodes_pred, nodes_ref, edges_pred, edges_ref
+        )
+        label_loss, node_loss, edge_loss = _weighted_label_huber(
+            node_error,
+            edge_error,
+            beta=self.beta,
+            node_weight=self.node_weight,
+            edge_weight=self.edge_weight,
+            per_block_normalization=self.per_block_normalization,
+            batch=kwargs.get("batch"),
+            basis_table=kwargs.get("basis_table"),
+            model=kwargs.get("model"),
+        )
+
+        loss = label_loss
+        stats = {
+            "label_huber": label_loss,
+            "node_smooth_l1": node_loss,
+            "edge_smooth_l1": edge_loss,
+            "node_rmse": (node_error**2).mean() ** (1 / 2),
+            "edge_rmse": (edge_error**2).mean() ** (1 / 2),
+            "coefficient_mse_weight": _as_stat_tensor(
+                node_error,
+                self.coefficient_mse_weight,
+            ),
+        }
+        stats.update(_spin_channel_stats(node_error, edge_error))
+
+        if self.coefficient_mse_weight > 0:
+            coefficient_loss, coefficient_stats = _coefficient_space_metric(
+                nodes_ref=nodes_ref,
+                edges_ref=edges_ref,
+                reduction="mse",
+                **kwargs,
+            )
+            loss = loss + self.coefficient_mse_weight * coefficient_loss
+            stats["coefficient_mse"] = coefficient_loss
+            stats.update(
+                {
+                    f"coefficient_{key}": value
+                    for key, value in coefficient_stats.items()
+                }
+            )
+
+        if log_verbose:
+            abs_node_error = abs(node_error)
+            abs_edge_error = abs(edge_error)
+            stats.update(
+                {
+                    "node_mean": abs_node_error.mean(),
+                    "edge_mean": abs_edge_error.mean(),
+                    "node_std": abs_node_error.std(),
+                    "edge_std": abs_edge_error.std(),
+                    "node_max": abs_node_error.max(),
+                    "edge_max": abs_edge_error.max(),
+                    "smooth_l1_beta": _as_stat_tensor(node_error, self.beta),
+                }
+            )
+
+        return loss, stats
 
 
 # @OrbitalMatrixMetric.from_metric_func

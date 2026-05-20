@@ -1,0 +1,739 @@
+{
+  "source_workspace": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view",
+  "training_dir": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view/training",
+  "config_path": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view/training/config.yaml",
+  "checkpoint_path": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
+  "command": "PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
+  "repository_context": {
+    "graph2mat_branch": "hamiltonian-spin-colineal-support",
+    "graph2mat_commit": "4efeb1a7e2151bdb8e2a30131a75c52b5ddb2bcd",
+    "pipeline_branch": "main",
+    "pipeline_commit": "dc921c15eb4cfad312b1dfaceb7b194611b775a9"
+  },
+  "data_policy": {
+    "out_matrix": "hamiltonian",
+    "symmetric_matrix": true,
+    "matrix_component_policy": "h_only",
+    "n_matrix_components": 1
+  },
+  "dtype": "float64",
+  "tolerances": [
+    1e-05,
+    1e-06,
+    1e-07,
+    1e-08,
+    1e-10
+  ],
+  "results": [
+    {
+      "operation": "edge:H-H",
+      "kind": "edge",
+      "module_key": "(0, 0, 0)",
+      "operation_class": "E3nnSimpleEdgeBlock",
+      "sample_labels": [
+        "H1->H2"
+      ],
+      "selected_edge_indices": [
+        0
+      ],
+      "n_blocks_using_operation": 1,
+      "per_block_output_dim": 25,
+      "joint_output_shape": [
+        1,
+        25
+      ],
+      "joint_output_dim": 25,
+      "block_shape": [
+        5,
+        5
+      ],
+      "block_output_dim": 25,
+      "irreps_out": "5x0e+4x1o+1x1e+1x2e",
+      "parameter_count": 592,
+      "local_input_dim": 72,
+      "local_input_shapes": {
+        "edge_messages": [
+          [
+            1,
+            36
+          ],
+          [
+            1,
+            36
+          ]
+        ]
+      },
+      "parameter_jacobian": {
+        "shape": [
+          25,
+          592
+        ],
+        "rank_abs_tol": {
+          "1e-05": 17,
+          "1e-06": 17,
+          "1e-07": 17,
+          "1e-08": 17,
+          "1e-10": 17
+        },
+        "singular_value_max": 5.321121153318227,
+        "singular_value_min_positive": 0.5024893550974808,
+        "singular_value_min_effective_1e_8": 0.5024893550974808,
+        "condition_estimate_1e_8": 10.589520154682583,
+        "singular_values_top10": [
+          5.321121153318227,
+          4.288011005303968,
+          4.288011005303968,
+          4.288011005303968,
+          4.288011005303968,
+          3.689687043046024,
+          3.689687043046024,
+          3.689687043046024,
+          3.689687043046024,
+          3.689687043046024
+        ],
+        "singular_values_bottom10": [
+          1.2073951764796271,
+          0.5024893550974808,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "input_jacobian": {
+        "shape": [
+          25,
+          72
+        ],
+        "rank_abs_tol": {
+          "1e-05": 25,
+          "1e-06": 25,
+          "1e-07": 25,
+          "1e-08": 25,
+          "1e-10": 25
+        },
+        "singular_value_max": 4.4368487716559,
+        "singular_value_min_positive": 0.5660403227368443,
+        "singular_value_min_effective_1e_8": 0.5660403227368443,
+        "condition_estimate_1e_8": 7.8383970071309195,
+        "singular_values_top10": [
+          4.4368487716559,
+          3.3414821281118714,
+          3.215711485337191,
+          3.1771663786632103,
+          2.9262199361897285,
+          2.7425129687693426,
+          2.4670524190810843,
+          2.204888118673643,
+          2.135831722938246,
+          2.1196293162605753
+        ],
+        "singular_values_bottom10": [
+          1.744812103339529,
+          1.6155604826315233,
+          1.545113392110085,
+          1.4212577305162866,
+          1.3897198002218014,
+          1.203436578941655,
+          1.01912330272401,
+          0.9750696924021194,
+          0.8764833851545409,
+          0.5660403227368443
+        ]
+      },
+      "combined_parameter_input_jacobian": {
+        "shape": [
+          25,
+          664
+        ],
+        "rank_abs_tol": {
+          "1e-05": 25,
+          "1e-06": 25,
+          "1e-07": 25,
+          "1e-08": 25,
+          "1e-10": 25
+        },
+        "singular_value_max": 6.244065347289628,
+        "singular_value_min_positive": 0.566040322736844,
+        "singular_value_min_effective_1e_8": 0.566040322736844,
+        "condition_estimate_1e_8": 11.031131699415232,
+        "singular_values_top10": [
+          6.244065347289628,
+          5.856197640259622,
+          5.341021348587745,
+          4.857982060360097,
+          4.703426350043533,
+          4.538070297349609,
+          4.276324062527615,
+          4.1889518532708125,
+          3.9546720472513064,
+          3.8955969783704076
+        ],
+        "singular_values_bottom10": [
+          2.1095707999499727,
+          2.0834970478067465,
+          2.076564926306179,
+          1.998540338009469,
+          1.7476695726701277,
+          1.6411137416861987,
+          1.5451133921100844,
+          1.421257730516285,
+          0.9750696924021196,
+          0.566040322736844
+        ]
+      }
+    },
+    {
+      "operation": "edge:H-O",
+      "kind": "edge",
+      "module_key": "(0, 1, 1)",
+      "operation_class": "E3nnSimpleEdgeBlock",
+      "sample_labels": [
+        "H1->O0",
+        "H2->O0"
+      ],
+      "selected_edge_indices": [
+        2,
+        4
+      ],
+      "n_blocks_using_operation": 2,
+      "per_block_output_dim": 65,
+      "joint_output_shape": [
+        2,
+        65
+      ],
+      "joint_output_dim": 130,
+      "block_shape": [
+        5,
+        13
+      ],
+      "block_output_dim": 65,
+      "irreps_out": "6x0e+7x1o+2x1e+1x2o+4x2e+1x3o",
+      "parameter_count": 1120,
+      "local_input_dim": 144,
+      "local_input_shapes": {
+        "edge_messages": [
+          [
+            2,
+            36
+          ],
+          [
+            2,
+            36
+          ]
+        ]
+      },
+      "parameter_jacobian": {
+        "shape": [
+          130,
+          1120
+        ],
+        "rank_abs_tol": {
+          "1e-05": 80,
+          "1e-06": 80,
+          "1e-07": 80,
+          "1e-08": 80,
+          "1e-10": 80
+        },
+        "singular_value_max": 10.43644054240254,
+        "singular_value_min_positive": 5.034335895121596e-63,
+        "singular_value_min_effective_1e_8": 0.010993436008512028,
+        "condition_estimate_1e_8": 949.3338146801221,
+        "singular_values_top10": [
+          10.43644054240254,
+          8.4569822650637,
+          8.456982265063695,
+          8.456982265063695,
+          8.456982265063692,
+          8.220067731707298,
+          8.220067731707296,
+          8.220067731707296,
+          8.220067731707294,
+          8.220067731707294
+        ],
+        "singular_values_bottom10": [
+          1.1908640881601656e-31,
+          1.146232867364809e-31,
+          7.91448062719082e-32,
+          1.1990526605664361e-33,
+          6.303704679262467e-47,
+          1.8251469970352053e-47,
+          1.7547326632951812e-47,
+          5.034335895121596e-63,
+          0.0,
+          0.0
+        ]
+      },
+      "input_jacobian": {
+        "shape": [
+          130,
+          144
+        ],
+        "rank_abs_tol": {
+          "1e-05": 128,
+          "1e-06": 128,
+          "1e-07": 128,
+          "1e-08": 128,
+          "1e-10": 128
+        },
+        "singular_value_max": 7.718478462177804,
+        "singular_value_min_positive": 4.4104434614878064e-16,
+        "singular_value_min_effective_1e_8": 0.027440012720143382,
+        "condition_estimate_1e_8": 281.28552784932793,
+        "singular_values_top10": [
+          7.718478462177804,
+          7.525064063555842,
+          5.1179891107808055,
+          4.936971587000703,
+          4.395279376177214,
+          4.262403814812261,
+          4.236842459540732,
+          4.2168827887525415,
+          4.214065071985128,
+          4.130329503720986
+        ],
+        "singular_values_bottom10": [
+          0.2062179747743295,
+          0.20395511363980454,
+          0.19807859783268175,
+          0.18686050474260318,
+          0.16924197419090414,
+          0.15613221574993602,
+          0.05385901913161715,
+          0.027440012720143382,
+          5.07504443657879e-16,
+          4.4104434614878064e-16
+        ]
+      },
+      "combined_parameter_input_jacobian": {
+        "shape": [
+          130,
+          1264
+        ],
+        "rank_abs_tol": {
+          "1e-05": 128,
+          "1e-06": 128,
+          "1e-07": 128,
+          "1e-08": 128,
+          "1e-10": 128
+        },
+        "singular_value_max": 11.337172566065737,
+        "singular_value_min_positive": 8.389429937560955e-16,
+        "singular_value_min_effective_1e_8": 0.027440012720143247,
+        "condition_estimate_1e_8": 413.16207400091,
+        "singular_values_top10": [
+          11.337172566065737,
+          10.668089824356393,
+          9.357718083065448,
+          9.190093078214092,
+          9.06843004042833,
+          8.847269317033623,
+          8.766784045906757,
+          8.711866947055428,
+          8.586690123724681,
+          8.485886780954035
+        ],
+        "singular_values_bottom10": [
+          0.26730234997697916,
+          0.24013505048114464,
+          0.20395511363980467,
+          0.1980785978326818,
+          0.16924197419090437,
+          0.15613221574993608,
+          0.053859019131617066,
+          0.027440012720143247,
+          1.8089249195681035e-15,
+          8.389429937560955e-16
+        ]
+      }
+    },
+    {
+      "operation": "node:H",
+      "kind": "node",
+      "module_key": "0",
+      "operation_class": "E3nnSimpleNodeBlock",
+      "sample_labels": [
+        "H1",
+        "H2"
+      ],
+      "selected_edge_indices": [],
+      "n_blocks_using_operation": 2,
+      "per_block_output_dim": 15,
+      "joint_output_shape": [
+        2,
+        15
+      ],
+      "joint_output_dim": 30,
+      "block_shape": [
+        5,
+        5
+      ],
+      "block_output_dim": 25,
+      "irreps_out": "4x0e+2x1o+1x2e",
+      "parameter_count": 88736,
+      "local_input_dim": 2112,
+      "local_input_shapes": {
+        "node_feats": [
+          2,
+          1056
+        ]
+      },
+      "parameter_jacobian": {
+        "shape": [
+          30,
+          88736
+        ],
+        "rank_abs_tol": {
+          "1e-05": 22,
+          "1e-06": 22,
+          "1e-07": 22,
+          "1e-08": 22,
+          "1e-10": 22
+        },
+        "singular_value_max": 1.7930535332631266,
+        "singular_value_min_positive": 1.9605061592873936e-54,
+        "singular_value_min_effective_1e_8": 0.06528719453915001,
+        "condition_estimate_1e_8": 27.464092245346936,
+        "singular_values_top10": [
+          1.7930535332631266,
+          1.7930535332631221,
+          1.7930535332631221,
+          1.7930535332631221,
+          1.2483652299489834,
+          1.2483652299489831,
+          0.8504568352530147,
+          0.6031347540052427,
+          0.4511471813218322,
+          0.4511471813218321
+        ],
+        "singular_values_bottom10": [
+          0.10119858659700696,
+          0.06528719453915001,
+          9.77079037649719e-17,
+          3.153736413461946e-17,
+          2.7439911694999256e-17,
+          4.865097506014982e-18,
+          2.389853809412632e-19,
+          8.883104117348436e-34,
+          4.523936197947149e-36,
+          1.9605061592873936e-54
+        ]
+      },
+      "input_jacobian": {
+        "shape": [
+          30,
+          2112
+        ],
+        "rank_abs_tol": {
+          "1e-05": 30,
+          "1e-06": 30,
+          "1e-07": 30,
+          "1e-08": 30,
+          "1e-10": 30
+        },
+        "singular_value_max": 4.025392803141944,
+        "singular_value_min_positive": 0.8603895136024832,
+        "singular_value_min_effective_1e_8": 0.8603895136024832,
+        "condition_estimate_1e_8": 4.678570274860131,
+        "singular_values_top10": [
+          4.025392803141944,
+          3.881991017286596,
+          2.2768321893703964,
+          2.2299591895586115,
+          1.9830454164934948,
+          1.9591945645978368,
+          1.9339298435024321,
+          1.8957531669482652,
+          1.8320139264636084,
+          1.8008143134802057
+        ],
+        "singular_values_bottom10": [
+          1.1592928409911425,
+          1.1259708328748999,
+          1.110802066806882,
+          1.0926836872928616,
+          1.076744073851653,
+          1.0002570382063412,
+          0.9722480853057757,
+          0.9373300152614014,
+          0.9071990848430026,
+          0.8603895136024832
+        ]
+      },
+      "combined_parameter_input_jacobian": {
+        "shape": [
+          30,
+          90848
+        ],
+        "rank_abs_tol": {
+          "1e-05": 30,
+          "1e-06": 30,
+          "1e-07": 30,
+          "1e-08": 30,
+          "1e-10": 30
+        },
+        "singular_value_max": 4.317341664451799,
+        "singular_value_min_positive": 0.8603895136024834,
+        "singular_value_min_effective_1e_8": 0.8603895136024834,
+        "condition_estimate_1e_8": 5.017892008440371,
+        "singular_values_top10": [
+          4.317341664451799,
+          3.939603856655141,
+          2.6434949984406675,
+          2.5355190868298565,
+          2.260825558903868,
+          2.18482079240103,
+          2.087567271405975,
+          2.0177414780741945,
+          1.959194564597839,
+          1.950819547848846
+        ],
+        "singular_values_bottom10": [
+          1.2012150441806553,
+          1.1624723904556309,
+          1.1569360597482325,
+          1.1409749523607648,
+          1.110802066806881,
+          1.0619865942923774,
+          1.0534085295274056,
+          0.9373300152614008,
+          0.9366343775656886,
+          0.8603895136024834
+        ]
+      }
+    },
+    {
+      "operation": "node:O",
+      "kind": "node",
+      "module_key": "1",
+      "operation_class": "E3nnSimpleNodeBlock",
+      "sample_labels": [
+        "O0"
+      ],
+      "selected_edge_indices": [],
+      "n_blocks_using_operation": 1,
+      "per_block_output_dim": 91,
+      "joint_output_shape": [
+        1,
+        91
+      ],
+      "joint_output_dim": 91,
+      "block_shape": [
+        13,
+        13
+      ],
+      "block_output_dim": 169,
+      "irreps_out": "7x0e+6x1o+1x1e+2x2o+6x2e+2x3o+1x4e",
+      "parameter_count": 320528,
+      "local_input_dim": 1056,
+      "local_input_shapes": {
+        "node_feats": [
+          1,
+          1056
+        ]
+      },
+      "parameter_jacobian": {
+        "shape": [
+          91,
+          320528
+        ],
+        "rank_abs_tol": {
+          "1e-05": 55,
+          "1e-06": 55,
+          "1e-07": 55,
+          "1e-08": 55,
+          "1e-10": 55
+        },
+        "singular_value_max": 3.424413924962428,
+        "singular_value_min_positive": 2.6603808570576086e-48,
+        "singular_value_min_effective_1e_8": 0.04607892667750212,
+        "condition_estimate_1e_8": 74.31626932044809,
+        "singular_values_top10": [
+          3.424413924962428,
+          3.424413924962428,
+          3.424413924962428,
+          3.424413924962428,
+          3.424413924962428,
+          3.424413924962428,
+          3.424413924962428,
+          1.2587380303456885,
+          1.2587380303456885,
+          1.2587380303456885
+        ],
+        "singular_values_bottom10": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "input_jacobian": {
+        "shape": [
+          91,
+          1056
+        ],
+        "rank_abs_tol": {
+          "1e-05": 91,
+          "1e-06": 91,
+          "1e-07": 91,
+          "1e-08": 91,
+          "1e-10": 91
+        },
+        "singular_value_max": 8.18988951129931,
+        "singular_value_min_positive": 0.27500263700067423,
+        "singular_value_min_effective_1e_8": 0.27500263700067423,
+        "condition_estimate_1e_8": 29.781130830680834,
+        "singular_values_top10": [
+          8.18988951129931,
+          2.920210732533283,
+          2.835164138155824,
+          2.805403250454641,
+          2.7461994873209625,
+          2.3777155752817585,
+          2.353463540106542,
+          2.3244144122911106,
+          2.276575347741595,
+          2.256907669224442
+        ],
+        "singular_values_bottom10": [
+          0.490653742995919,
+          0.44333226080900967,
+          0.38936282512023884,
+          0.3354920043649074,
+          0.3273686892234437,
+          0.3104493142209144,
+          0.30364801254373547,
+          0.2954839983315545,
+          0.2817502721336783,
+          0.27500263700067423
+        ]
+      },
+      "combined_parameter_input_jacobian": {
+        "shape": [
+          91,
+          321584
+        ],
+        "rank_abs_tol": {
+          "1e-05": 91,
+          "1e-06": 91,
+          "1e-07": 91,
+          "1e-08": 91,
+          "1e-10": 91
+        },
+        "singular_value_max": 8.86379009593191,
+        "singular_value_min_positive": 0.2750026370006741,
+        "singular_value_min_effective_1e_8": 0.2750026370006741,
+        "condition_estimate_1e_8": 32.23165491285882,
+        "singular_values_top10": [
+          8.86379009593191,
+          4.426706711305765,
+          4.116588313538303,
+          4.066217697331177,
+          3.9708331064280267,
+          3.9116815755206753,
+          3.7062250461083384,
+          3.0644451059520916,
+          2.8907509535762625,
+          2.8054032504546433
+        ],
+        "singular_values_bottom10": [
+          0.5145350925369084,
+          0.4433322608090097,
+          0.38936282512023856,
+          0.3354920043649075,
+          0.3321295623235204,
+          0.31541642173913453,
+          0.3036480125437353,
+          0.29548399833155475,
+          0.28175027213367826,
+          0.2750026370006741
+        ]
+      }
+    }
+  ],
+  "input_feature_distances": [
+    {
+      "sample_i": 0,
+      "sample_j": null,
+      "label_i": "H1->H2",
+      "label_j": "",
+      "euclidean": null,
+      "cosine": null,
+      "max_abs_delta": null,
+      "near_identical": null,
+      "note": "single_sample_no_pairwise_distance",
+      "operation": "edge:H-H",
+      "kind": "edge",
+      "module_key": "(0, 0, 0)"
+    },
+    {
+      "sample_i": 0,
+      "sample_j": 1,
+      "label_i": "H1->O0",
+      "label_j": "H2->O0",
+      "euclidean": 20.724838855190832,
+      "cosine": -0.17264254990614944,
+      "max_abs_delta": 10.903398036956787,
+      "near_identical": false,
+      "note": "",
+      "operation": "edge:H-O",
+      "kind": "edge",
+      "module_key": "(0, 1, 1)"
+    },
+    {
+      "sample_i": 0,
+      "sample_j": 1,
+      "label_i": "H1",
+      "label_j": "H2",
+      "euclidean": 21.57125789551645,
+      "cosine": 0.365296307111566,
+      "max_abs_delta": 3.988045334815979,
+      "near_identical": false,
+      "note": "",
+      "operation": "node:H",
+      "kind": "node",
+      "module_key": "0"
+    },
+    {
+      "sample_i": 0,
+      "sample_j": null,
+      "label_i": "O0",
+      "label_j": "",
+      "euclidean": null,
+      "cosine": null,
+      "max_abs_delta": null,
+      "near_identical": null,
+      "note": "single_sample_no_pairwise_distance",
+      "operation": "node:O",
+      "kind": "node",
+      "module_key": "1"
+    }
+  ],
+  "verdict": {
+    "status": "B_SHARED_OPERATION_RANK_LIMIT",
+    "summary": "At least one shared readout operation has a parameter Jacobian rank below its concrete joint H2O coefficient dimension."
+  },
+  "output_files": {
+    "json": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/joint_rank_results.json",
+    "rank_csv": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/joint_rank_by_operation.csv",
+    "feature_distances_csv": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/input_feature_distances.csv",
+    "report": "/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/report.md"
+  },
+  "validation_runs": [
+    {
+      "command": "PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
+      "result": "passed",
+      "notes": "Generated joint_rank_results.json, joint_rank_by_operation.csv, input_feature_distances.csv, and report.md."
+    }
+  ]
+}

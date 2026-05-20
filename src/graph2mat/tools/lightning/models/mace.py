@@ -11,6 +11,9 @@ from graph2mat.bindings.e3nn import (
     E3nnSimpleEdgeBlock,
     E3nnSimpleNodeBlock,
 )
+from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
+    HamiltonianLocalContext,
+)
 
 # from context import mace
 from graph2mat.core.data.metrics import OrbitalMatrixMetric, block_type_mse
@@ -55,13 +58,17 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         node_block_readout: Type[torch.nn.Module] = E3nnSimpleNodeBlock,
         edge_block_readout: Type[torch.nn.Module] = E3nnSimpleEdgeBlock,
         readout_per_interaction: bool = False,
+        readout_interaction_aggregation: Literal["sum", "mean"] = "sum",
         return_coefficients: bool = False,
+        hamiltonian_local_context: bool = False,
+        hamiltonian_local_context_kwargs: Optional[dict] = None,
         n_matrix_components: int = 1,
         optim_wdecay: float = 5e-7,
         optim_amsgrad: bool = True,
         optim_lr: float = 1e-3,
         loss: Type[OrbitalMatrixMetric] = block_type_mse,
         loss_kwargs: Optional[dict] = None,
+        training_stages: Optional[list[dict]] = None,
         initial_node_feats: str = "OneHotZ",
         version: str = "new",
     ):
@@ -74,6 +81,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             no_basis=no_basis,
             loss=loss,
             loss_kwargs=loss_kwargs,
+            training_stages=training_stages,
             initial_node_feats="OneHotZ",
             model_cls=model_cls,
         )
@@ -106,7 +114,10 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             self.init_model(
                 mace=mace,
                 readout_per_interaction=readout_per_interaction,
+                readout_interaction_aggregation=readout_interaction_aggregation,
                 return_coefficients=return_coefficients,
+                hamiltonian_local_context=hamiltonian_local_context,
+                hamiltonian_local_context_kwargs=hamiltonian_local_context_kwargs,
                 unique_basis=self.basis_table.basis,
                 edge_hidden_irreps=edge_hidden_irreps,
                 symmetric=symmetric_matrix,
@@ -190,5 +201,15 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             lr=self.hparams.optim_lr,
             amsgrad=amsgrad,
         )
+        if isinstance(model.hamiltonian_local_context, HamiltonianLocalContext):
+            context_params = list(model.hamiltonian_local_context.parameters())
+            if context_params:
+                param_options["params"].append(
+                    {
+                        "name": "hamiltonian_local_context",
+                        "params": context_params,
+                        "weight_decay": 0.0,
+                    }
+                )
 
         return torch.optim.Adam(**param_options)

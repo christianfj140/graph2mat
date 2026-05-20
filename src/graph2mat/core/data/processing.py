@@ -652,7 +652,15 @@ class MatrixDataProcessor:
         point_labels = data.point_labels
         arrays = data.numpy_arrays()
 
-        point_types = arrays["point_types"]
+        def _array_value(name: str, default=None):
+            if isinstance(arrays, dict):
+                return arrays.get(name, default)
+            try:
+                return arrays[name]
+            except KeyError:
+                return default
+
+        point_types = np.asarray(_array_value("point_types"))
         point_pointers = self.basis_table.point_block_pointer(point_types)
 
         reduced_tensor_products = self.get_point_block_rtps()
@@ -675,8 +683,18 @@ class MatrixDataProcessor:
             point_values.append(irreps_values)
 
         edge_labels = data.edge_labels
-        edge_types = arrays["edge_types"][::2]
-        edge_pointers = self.basis_table.edge_block_pointer(edge_types)
+        edge_types_full = np.asarray(_array_value("edge_types"))
+        edge_index = _array_value("edge_index")
+        if edge_index is not None:
+            edge_index = np.asarray(edge_index)
+        unique_edge_mask = self._get_symmetric_unique_edge_mask(
+            edge_types_full,
+            expected_nlabels=len(edge_labels),
+            edge_index=edge_index,
+            point_types=point_types,
+        )
+        edge_types = edge_types_full[unique_edge_mask]
+        edge_pointers = self.basis_table.edge_block_pointer(np.abs(edge_types))
 
         reduced_tensor_products = self.get_edge_block_rtps()
 
@@ -684,13 +702,14 @@ class MatrixDataProcessor:
         edge_values = []
         for i in range(len(edge_types)):
             edge_type = edge_types[i]
+            canonical_edge_type = abs(int(edge_type))
 
-            rtp = reduced_tensor_products[edge_type]
+            rtp = reduced_tensor_products[canonical_edge_type]
             edge_irreps.extend(list(rtp.irreps_out))
 
             block = edge_labels[edge_pointers[i] : edge_pointers[i + 1]]
 
-            shape = self.basis_table.edge_block_shape[:, edge_type]
+            shape = self.basis_table.edge_block_shape[:, canonical_edge_type]
             block = block.reshape(tuple(shape))
 
             irreps_values = torch.einsum("zij, ij-> z", rtp.change_of_basis, block)

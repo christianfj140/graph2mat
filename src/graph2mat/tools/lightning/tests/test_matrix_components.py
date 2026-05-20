@@ -57,6 +57,21 @@ def _nonspin_nonorthogonal_hamiltonian():
     )
 
 
+def _symmetric_nonspin_nonorthogonal_hamiltonian():
+    atom = sisl.Atom(1, orbitals=[sisl.AtomicOrbital("1s")])
+    geometry = sisl.Geometry(
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+        atoms=[atom, atom.copy()],
+        lattice=[10, 10, 10],
+    )
+
+    return sisl.Hamiltonian.fromsp(
+        geometry,
+        csr_array([[1.0, 0.125], [0.125, 2.0]]),
+        S=csr_array([[10.0, 0.75], [0.75, 20.0]]),
+    )
+
+
 def _single_orbital_basis_table():
     return BasisTableWithEdges([PointBasis(1, R=np.array([2.0]), basis=[1])])
 
@@ -209,6 +224,19 @@ def test_infer_matrix_components_uses_hamiltonian_policy():
 
     assert inferred_h_only == 1
     assert inferred_raw == 2
+
+
+def test_infer_matrix_components_h_only_symmetric_hamiltonian_is_one():
+    inferred = infer_n_matrix_components_from_data_inputs(
+        basis_table=_single_orbital_basis_table(),
+        out_matrix="hamiltonian",
+        symmetric_matrix=True,
+        sub_point_matrix=False,
+        matrix_component_policy="h_only",
+        train_runs=[_symmetric_nonspin_nonorthogonal_hamiltonian()],
+    )
+
+    assert inferred == 1
 
 
 def test_torch_data_h_only_exposes_h_not_overlap():

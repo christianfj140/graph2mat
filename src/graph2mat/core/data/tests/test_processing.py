@@ -145,6 +145,69 @@ def test_symmetric_unique_edge_mask_matches_label_count_not_only_position():
     np.testing.assert_array_equal(mask, np.array([True, True, False]))
 
 
+def test_symmetric_unique_edge_mask_handles_same_species_by_label_length():
+    basis_table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1])])
+    processor = MatrixDataProcessor(
+        basis_table=basis_table,
+        symmetric_matrix=True,
+        sub_point_matrix=False,
+    )
+
+    mask = processor._get_symmetric_unique_edge_mask(
+        edge_types=np.array([0, 0]),
+        expected_nlabels=1,
+    )
+
+    np.testing.assert_array_equal(mask, np.array([True, False]))
+
+
+def test_irreps_from_data_uses_label_count_for_symmetric_edge_representatives():
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("e3nn")
+
+    basis_table = BasisTableWithEdges(
+        [
+            PointBasis("A", R=2, basis=[1]),
+            PointBasis("B", R=2, basis=[2]),
+        ]
+    )
+    processor = MatrixDataProcessor(
+        basis_table=basis_table,
+        symmetric_matrix=True,
+        sub_point_matrix=False,
+    )
+
+    point_types = np.array([1, 0, 0])
+    edge_index = np.array(
+        [
+            [0, 1, 1],
+            [1, 2, 0],
+        ]
+    )
+    edge_types = basis_table.point_type_to_edge_type(point_types[edge_index])
+    edge_labels = torch.arange(3, dtype=torch.float64)
+
+    class FakeData:
+        def __init__(self):
+            self.point_labels = torch.arange(
+                processor.basis_table.point_block_pointer(point_types)[-1],
+                dtype=torch.float64,
+            )
+            self.edge_labels = edge_labels
+
+        def numpy_arrays(self):
+            return {
+                "point_types": point_types,
+                "edge_index": edge_index,
+                "edge_types": edge_types,
+            }
+
+    result = processor.irreps_from_data(FakeData())
+
+    np.testing.assert_array_equal(edge_types, np.array([-1, 0, 1]))
+    assert result["edge_labels"].numel() == len(edge_labels)
+
+
 def _h2o_like_symmetric_mismatch_case():
     basis_table = BasisTableWithEdges(
         [
@@ -210,6 +273,41 @@ def _h2o_like_symmetric_mismatch_case():
         edge_labels,
         FakeBatch(),
     )
+
+
+def test_irreps_from_data_handles_h2o_like_symmetric_edge_label_length():
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("e3nn")
+
+    (
+        _basis_table,
+        processor,
+        point_types,
+        edge_index,
+        edge_types,
+        edge_labels,
+        _batch,
+    ) = _h2o_like_symmetric_mismatch_case()
+
+    class FakeData:
+        def __init__(self):
+            self.point_labels = torch.zeros(
+                processor.basis_table.point_block_pointer(point_types)[-1],
+                dtype=torch.float64,
+            )
+            self.edge_labels = torch.as_tensor(edge_labels, dtype=torch.float64)
+
+        def numpy_arrays(self):
+            return {
+                "point_types": point_types,
+                "edge_index": edge_index,
+                "edge_types": edge_types,
+            }
+
+    result = processor.irreps_from_data(FakeData())
+
+    assert len(edge_labels) == 155
+    assert result["edge_labels"].numel() == len(edge_labels)
 
 
 def test_debug_edge_label_accounting_reports_symmetric_prediction_mismatch():

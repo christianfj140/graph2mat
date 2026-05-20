@@ -1,5 +1,8 @@
+from types import SimpleNamespace
+
 import numpy as np
 import sisl
+import pytest
 from scipy.sparse import csr_array
 
 from graph2mat import (
@@ -37,6 +40,46 @@ def _nonspin_nonorthogonal_hamiltonian():
     s_csr = csr_array([[10.0, 0.3], [0.4, 20.0]])
     hamiltonian = sisl.Hamiltonian.fromsp(geometry, h_csr, S=s_csr)
     return hamiltonian, h_csr, s_csr
+
+
+def _symmetric_nonspin_nonorthogonal_hamiltonian():
+    geometry = _two_atom_single_orbital_geometry()
+    h_csr = csr_array([[1.0, 0.125], [0.125, 2.0]])
+    s_csr = csr_array([[10.0, 0.75], [0.75, 20.0]])
+    hamiltonian = sisl.Hamiltonian.fromsp(geometry, h_csr, S=s_csr)
+    return hamiltonian, h_csr, s_csr
+
+
+def _h_only_symmetric_processor():
+    return MatrixDataProcessor(
+        basis_table=_single_orbital_basis_table(),
+        out_matrix="hamiltonian",
+        symmetric_matrix=True,
+        sub_point_matrix=False,
+        n_matrix_components=1,
+        matrix_component_policy="h_only",
+    )
+
+
+def _single_item_batch(data):
+    arrays = data.numpy_arrays()
+
+    class SingleItemBatch:
+        num_graphs = 1
+
+        def numpy_arrays(self):
+            return SimpleNamespace(
+                ptr=np.array([0, len(arrays.point_types)]),
+                n_edges=np.array([arrays.edge_index.shape[1]]),
+                point_types=arrays.point_types,
+                edge_types=arrays.edge_types,
+            )
+
+        def get_example(self, index):
+            assert index == 0
+            return data
+
+    return SingleItemBatch()
 
 
 def test_hamiltonian_collinear_read_preserves_two_components():
@@ -96,6 +139,74 @@ def test_nonspin_nonorthogonal_hamiltonian_h_only_flat_labels_and_roundtrip():
         roundtrip.tocsr().toarray(),
         h_csr.toarray(),
     )
+
+
+def test_h_only_symmetric_nonorthogonal_labels_roundtrip_h_not_overlap():
+    hamiltonian, h_csr, s_csr = _symmetric_nonspin_nonorthogonal_hamiltonian()
+    processor = _h_only_symmetric_processor()
+
+    data = BasisMatrixData.new(hamiltonian, data_processor=processor, labels=True)
+
+    assert processor.n_matrix_components == 1
+    assert data.point_labels.ndim == 1
+    assert data.edge_labels.ndim == 1
+    np.testing.assert_allclose(data.point_labels, np.array([1.0, 2.0]))
+    assert not np.isin(data.point_labels, s_csr.diagonal()).any()
+    assert not np.isin(data.edge_labels, s_csr.data).any()
+
+    roundtrip = data.convert_to(Formats.SISL_H)
+
+    assert not roundtrip.spin.is_polarized
+    assert roundtrip._csr.data.shape[1] == 1
+    np.testing.assert_allclose(roundtrip.tocsr().toarray(), h_csr.toarray())
+    np.testing.assert_allclose(
+        roundtrip.tocsr().toarray(),
+        roundtrip.tocsr().toarray().T,
+    )
+
+
+def test_h_only_symmetric_yield_from_batch_reconstructs_exact_h_labels():
+    hamiltonian, h_csr, _ = _symmetric_nonspin_nonorthogonal_hamiltonian()
+    processor = _h_only_symmetric_processor()
+    data = BasisMatrixData.new(hamiltonian, data_processor=processor, labels=True)
+    batch = _single_item_batch(data)
+    predictions = {
+        "node_labels": data.point_labels.copy(),
+        "edge_labels": data.edge_labels.copy(),
+    }
+
+    reconstructed = next(
+        processor.yield_from_batch(
+            batch,
+            predictions=predictions,
+            as_matrix=True,
+            out_format=Formats.SISL_H,
+        )
+    )
+
+    np.testing.assert_allclose(reconstructed.tocsr().toarray(), h_csr.toarray())
+
+
+def test_h_only_symmetric_yield_from_batch_rejects_extra_edge_labels():
+    hamiltonian, _h_csr, _s_csr = _symmetric_nonspin_nonorthogonal_hamiltonian()
+    processor = _h_only_symmetric_processor()
+    data = BasisMatrixData.new(hamiltonian, data_processor=processor, labels=True)
+    batch = _single_item_batch(data)
+    predictions = {
+        "node_labels": data.point_labels.copy(),
+        "edge_labels": np.concatenate([data.edge_labels.copy(), np.array([999.0])]),
+    }
+
+    with pytest.raises(
+        ValueError, match="Predicted edge labels were not fully consumed"
+    ):
+        list(
+            processor.yield_from_batch(
+                batch,
+                predictions=predictions,
+                as_matrix=False,
+            )
+        )
 
 
 def test_nonspin_nonorthogonal_hamiltonian_raw_components_preserved():

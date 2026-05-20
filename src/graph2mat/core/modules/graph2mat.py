@@ -551,6 +551,75 @@ class Graph2Mat(Generic[ArrayType]):
 
         return s
 
+    def coefficient_metadata(self) -> Dict[str, Dict[str, dict]]:
+        """Return metadata for operation-wise coefficient outputs.
+
+        This method describes the opt-in coefficient tensors returned by
+        ``forward(..., return_coefficients=True)``. It is intentionally metadata
+        only; tensors are returned by the forward path.
+        """
+
+        metadata = {"node": {}, "edge": {}}
+
+        for node_type, operation in enumerate(self.self_interactions):
+            if operation is None:
+                continue
+
+            graph_basis = self.graph2mat_table.basis[node_type]
+            operation_key = f"node:{node_type}"
+            metadata["node"][operation_key] = {
+                "kind": "node",
+                "operation_key": operation_key,
+                "graph2mat_type": int(node_type),
+                "basis_type": graph_basis.type,
+                "block_shape": self._coefficient_block_shape(operation),
+                "coefficient_dim": self._coefficient_dim(operation),
+                "n_matrix_components": int(
+                    getattr(operation, "n_matrix_components", 1)
+                ),
+            }
+
+        for module_key, operation in self.interactions.items():
+            if operation is None:
+                continue
+
+            point_type, neigh_type, edge_type = map(
+                int, module_key[1:-1].split(",")
+            )
+            point_basis = self.graph2mat_table.basis[point_type]
+            neigh_basis = self.graph2mat_table.basis[neigh_type]
+            operation_key = f"edge:{module_key}"
+            metadata["edge"][operation_key] = {
+                "kind": "edge",
+                "operation_key": operation_key,
+                "graph2mat_type": int(edge_type),
+                "point_type": int(point_type),
+                "neighbor_type": int(neigh_type),
+                "point_basis_type": point_basis.type,
+                "neighbor_basis_type": neigh_basis.type,
+                "block_shape": self._coefficient_block_shape(operation),
+                "coefficient_dim": self._coefficient_dim(operation),
+                "n_matrix_components": int(
+                    getattr(operation, "n_matrix_components", 1)
+                ),
+            }
+
+        return metadata
+
+    @staticmethod
+    def _coefficient_block_shape(operation) -> tuple:
+        block_shape = getattr(operation, "block_shape", None)
+        if block_shape is None:
+            return ()
+        return tuple(int(dim) for dim in block_shape)
+
+    @staticmethod
+    def _coefficient_dim(operation) -> Optional[int]:
+        irreps_out = getattr(operation, "_irreps_out", None)
+        if irreps_out is None:
+            return None
+        return int(irreps_out.dim)
+
     def forward(
         self,
         data: BasisMatrixData,
@@ -640,6 +709,27 @@ class Graph2Mat(Generic[ArrayType]):
         edge_blocks:
             All the edge blocks, flattened and concatenated.
         """
+
+        requested_edge_data = getattr(
+            self.edge_operation_cls,
+            "_data_get_edge_args",
+            (),
+        )
+        if requested_edge_data:
+            edge_kwargs = {**edge_kwargs}
+            missing_edge_data = []
+            for key in requested_edge_data:
+                if key in edge_kwargs:
+                    continue
+                try:
+                    edge_kwargs[key] = data[key]
+                except (KeyError, TypeError):
+                    missing_edge_data.append(key)
+            if missing_edge_data:
+                raise KeyError(
+                    "Edge operation requested missing data fields: "
+                    + ", ".join(str(key) for key in missing_edge_data)
+                )
 
         # If there are preprocessing functions for the computation of nodes
         # or edges, apply them and overwrite the node_feats to be passed
@@ -733,7 +823,11 @@ class Graph2Mat(Generic[ArrayType]):
             return (
                 node_labels,
                 edge_labels,
-                {"node": node_coefficients, "edge": edge_coefficients},
+                {
+                    "node": node_coefficients,
+                    "edge": edge_coefficients,
+                    "metadata": self.coefficient_metadata(),
+                },
             )
 
         return (node_labels, edge_labels)
