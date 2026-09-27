@@ -174,3 +174,47 @@ def test_output_scaleshift_fit_keeps_equivariance():
 
     # big_R from get_rotation_matrix is built for basis (2x0e+1o, 0e+1o, 2x0e+1o) = A, B, A.
     assert abs(big_R @ get_mat(data) @ big_R.T - get_mat(data_rot)).max() < 1e-4
+
+
+@pytest.mark.parametrize("node_block", ["E3nnLinearTSQNodeBlock", "E3nnProjectedLinearTSQNodeBlock"])
+def test_linear_blocks_keep_equivariance(node_block):
+    """Linear + tensor product readouts, with random (nonzero) 0e biases."""
+    import graph2mat.bindings.e3nn as g2m_e3nn
+    from graph2mat.bindings.e3nn import E3nnLinearEdgeBlock
+
+    E3nnLinearTSQNodeBlock = getattr(g2m_e3nn, node_block)
+
+    torch.manual_seed(0)
+    basis = [
+        PointBasis("A", R=3, basis="2x0e + 1o", basis_convention="cartesian"),
+        PointBasis("B", R=3, basis="0e + 1o", basis_convention="cartesian"),
+    ]
+    table = BasisTableWithEdges(basis)
+    processor = MatrixDataProcessor(basis_table=table, symmetric_matrix=True, sub_point_matrix=False)
+    config = BasisConfiguration(
+        point_types=["A", "B", "A"],
+        positions=np.array([[1, 1, 1], [2.0, 1.3, 0.8], [1.2, 2.1, 1.4]]),
+        basis=basis, cell=np.eye(3) * 100, pbc=(False, False, False),
+    )
+    data = conversions.get_converter("basisconfiguration", "torch_basismatrixdata")(
+        config, data_processor=processor
+    )
+    g2m = E3nnGraph2Mat(
+        preprocessing_edges=None, unique_basis=table, irreps={"node_feats_irreps": o3.Irreps("0e + 1o")},
+        symmetric=True, node_operation=E3nnLinearTSQNodeBlock, edge_operation=E3nnLinearEdgeBlock,
+    )
+    with torch.no_grad():
+        for block in g2m.self_interactions:
+            block.operation.linear.bias.normal_()
+
+    def get_mat(d):
+        feats = torch.concatenate([d.point_types.reshape(-1, 1) + 1.0, d.positions], axis=1)
+        n, e = g2m(d, node_feats=feats)
+        return processor.matrix_from_data(d, predictions={"node_labels": n, "edge_labels": e}, out_format="numpy")
+
+    R1, big_R = get_rotation_matrix(data, table, torch.tensor(0.3), torch.tensor(1.1), torch.tensor(-0.7))
+    data_rot = copy.copy(data)
+    data_rot.positions = data.positions @ R1.T
+    pred, pred_rot = get_mat(data), get_mat(data_rot)
+    assert abs(pred).max() > 1e-3
+    assert abs(big_R @ pred @ big_R.T - pred_rot).max() < 1e-5

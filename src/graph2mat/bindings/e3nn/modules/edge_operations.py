@@ -17,8 +17,19 @@ from ._utils import tp_out_irreps_with_instructions
 
 __all__ = [
     "E3nnSimpleEdgeBlock",
+    "E3nnLinearEdgeBlock",
     "E3nnEdgeBlockNodeMix",
 ]
+
+
+# Order of the inputs in ``irreps_in`` (see E3nnIrrepsMatrixBlock.get_init_kwargs). Inputs
+# arrive as keyword arguments whose order depends on the caller, so they are matched by name.
+_INPUT_ORDER = ("node_feats", "edge_messages")
+
+
+def _ordered_inputs(tuple_kwargs: dict) -> list:
+    keys = sorted(tuple_kwargs, key=lambda k: _INPUT_ORDER.index(k) if k in _INPUT_ORDER else len(_INPUT_ORDER))
+    return [tuple_kwargs[k] for k in keys]
 
 
 class E3nnSimpleEdgeBlock(torch.nn.Module):
@@ -44,13 +55,36 @@ class E3nnSimpleEdgeBlock(torch.nn.Module):
             self.tensor_products
         ), f"Number of input tuples ({len(tuple_kwargs)}) must match number of tensor square operations ({len(self.tensor_products)})."
 
-        tensor_tuples = iter(tuple_kwargs.values())
+        tensor_tuples = iter(_ordered_inputs(tuple_kwargs))
 
         final_value = self.tensor_products[0](*next(tensor_tuples))
         for i, tensor_tuple in enumerate(tensor_tuples):
             final_value = final_value + self.tensor_products[i + 1](*tensor_tuple)
 
         return final_value
+
+
+class E3nnLinearEdgeBlock(E3nnSimpleEdgeBlock):
+    """E3nnSimpleEdgeBlock plus a linear term of the sum of the two inputs.
+
+    Without it the edge block is a homogeneous quadratic form of the messages.
+    There are no biases: edge blocks must decay to zero with distance, as the
+    messages do.
+    """
+
+    def __init__(self, irreps_in: o3.Irreps, irreps_out: o3.Irreps):
+        super().__init__(irreps_in, irreps_out)
+        self.linears = torch.nn.ModuleList(
+            [o3.Linear(tp.irreps_in1, irreps_out) for tp in self.tensor_products]
+        )
+
+    def forward(
+        self, **tuple_kwargs: Tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor:
+        out = super().forward(**tuple_kwargs)
+        for linear, (a, b) in zip(self.linears, _ordered_inputs(tuple_kwargs)):
+            out = out + linear(a + b)
+        return out
 
 
 class E3nnEdgeBlockNodeMix(torch.nn.Module):

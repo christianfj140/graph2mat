@@ -3,6 +3,8 @@ import torch
 
 __all__ = [
     "E3nnSimpleNodeBlock",
+    "E3nnLinearTSQNodeBlock",
+    "E3nnProjectedLinearTSQNodeBlock",
     "E3nnSeparateTSQNodeBlock",
 ]
 
@@ -53,6 +55,51 @@ class E3nnSimpleNodeBlock(torch.nn.Module):
             node_feats = node_feats + other_node_feats
 
         return self.tsq(node_feats)
+
+
+class E3nnLinearTSQNodeBlock(E3nnSimpleNodeBlock):
+    """E3nnSimpleNodeBlock plus a linear term with biases on the 0e outputs.
+
+    To first order the crystal field is linear in the neighbour density, and the
+    atomic on-site energies are a constant per species (one node operation per
+    species with ``basis_grouping="point_type"``). A tensor square alone can only
+    produce both indirectly.
+    """
+
+    def __init__(self, irreps_in: o3.Irreps, irreps_out: o3.Irreps):
+        super().__init__(irreps_in, irreps_out)
+        self.linear = o3.Linear(self.tsq.irreps_in, irreps_out, biases=True)
+
+    def forward(self, **node_kwargs: torch.Tensor) -> torch.Tensor:
+        node_feats = sum(node_kwargs.values())
+        return self.tsq(node_feats) + self.linear(node_feats)
+
+
+class E3nnProjectedLinearTSQNodeBlock(torch.nn.Module):
+    """E3nnLinearTSQNodeBlock with the tensor square on a projection of the features.
+
+    The tensor square costs (and has parameters) quadratic in the number of channels,
+    which with the concatenated features of several MACE interactions is most of the
+    readout time. Its input is first projected to ``mid_multiplicity`` channels per
+    irrep; the linear term (and the 0e biases) still see the full features.
+    """
+
+    mid_multiplicity = 16
+
+    def __init__(self, irreps_in: o3.Irreps, irreps_out: o3.Irreps):
+        super().__init__()
+        if isinstance(irreps_in, (list, tuple)) and not isinstance(irreps_in, o3.Irreps):
+            assert all(irreps == irreps_in[0] for irreps in irreps_in), "All input irreps must be the same."
+            irreps_in = irreps_in[0]
+        irreps_in = o3.Irreps(irreps_in)
+        mid = o3.Irreps([(self.mid_multiplicity, ir) for ir in sorted({ir for _, ir in irreps_in})])
+        self.project = o3.Linear(irreps_in, mid)
+        self.tsq = o3.TensorSquare(mid, irreps_out)
+        self.linear = o3.Linear(irreps_in, irreps_out, biases=True)
+
+    def forward(self, **node_kwargs: torch.Tensor) -> torch.Tensor:
+        node_feats = sum(node_kwargs.values())
+        return self.tsq(self.project(node_feats)) + self.linear(node_feats)
 
 
 class E3nnSeparateTSQNodeBlock(torch.nn.Module):
