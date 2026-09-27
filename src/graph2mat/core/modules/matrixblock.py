@@ -86,6 +86,21 @@ class MatrixBlock:
     def forward(self, *args, **kwargs):
         if self.symm_transpose == False:
             return self._compute_block(*args, **kwargs)
+
+        values = [*args, *kwargs.values()]
+        if values and all(isinstance(v, tuple) and len(v) == 2 for v in values):
+            # Both directions stacked along the edge axis: one call instead of two.
+            def both(pair):
+                return (
+                    self.numpy.concatenate([pair[0], pair[1]]),
+                    self.numpy.concatenate([pair[1], pair[0]]),
+                )
+
+            n = values[0][0].shape[0]
+            blocks = self._compute_block(
+                *map(both, args), **{key: both(value) for key, value in kwargs.items()}
+            )
+            return (blocks[:n] + self._transpose_block(blocks[n:])) / 2
         else:
             forward = self._compute_block(*args, **kwargs)
 

@@ -24,6 +24,14 @@ from graph2mat.tools.lightning import LitBasisMatrixModel
 # from graph2mat.models._mace.models import OrbitalMatrixMACE
 
 
+def _cueq_config():
+    from mace.modules.wrapper_ops import CUET_AVAILABLE, CuEquivarianceConfig
+
+    if not CUET_AVAILABLE:
+        raise ImportError("cueq=True needs cuequivariance-torch.")
+    return CuEquivarianceConfig(enabled=True, layout="mul_ir", group="O3_e3nn", optimize_all=True)
+
+
 class LitMACEMatrixModel(LitBasisMatrixModel):
     """Wrapper to use MACEMatrix in pytorch_lightning."""
 
@@ -67,6 +75,12 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         hamiltonian_local_context: bool = False,
         hamiltonian_local_context_kwargs: Optional[dict] = None,
         readout_fp32: bool = False,
+        # MACE node features only (no energy readouts, no position gradients): same
+        # matrices and gradients, ~10% fewer kernels and less memory (roadmap 2.2).
+        lean_mace: bool = True,
+        gradient_checkpointing: bool = False,
+        simplify_node_irreps: bool = False,
+        cueq: bool = False,
         output_scaleshift: bool = False,
         n_matrix_components: int = 1,
         optim_wdecay: float = 5e-7,
@@ -141,6 +155,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 atomic_numbers=torch.arange(len(self.basis_table.basis)),
                 correlation=correlation,
                 gate=None,
+                # cuEquivariance kernels for the MACE backbone (roadmap 6.9). mul_ir layout
+                # and e3nn conventions, so that the e3nn readout reads the same features.
+                **({"cueq_config": _cueq_config()} if cueq else {}),
             )
             if keep_last_layer_irreps:
                 mace = drop_last_mace_interaction(mace)
@@ -153,6 +170,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 hamiltonian_local_context=hamiltonian_local_context,
                 hamiltonian_local_context_kwargs=hamiltonian_local_context_kwargs,
                 readout_fp32=readout_fp32,
+                lean_mace=lean_mace,
+                gradient_checkpointing=gradient_checkpointing,
+                simplify_node_irreps=simplify_node_irreps,
                 mp_cutoff=mp_cutoff,
                 readout_radial_embedding=readout_radial_embedding,
                 unique_basis=self.basis_table.basis,
@@ -213,7 +233,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             params=[
                 {
                     "name": "embedding",
-                    "params": model.mace.node_embedding.parameters(),
+                    "params": list(model.mace.node_embedding.parameters()),
                     "weight_decay": 0.0,
                 },
                 {
@@ -228,12 +248,12 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 },
                 {
                     "name": "products",
-                    "params": model.mace.products.parameters(),
+                    "params": list(model.mace.products.parameters()),
                     "weight_decay": weight_decay,
                 },
                 {
                     "name": "readouts",
-                    "params": model.matrix_readouts.parameters(),
+                    "params": list(model.matrix_readouts.parameters()),
                     "weight_decay": 0.0,
                 },
             ],
@@ -250,5 +270,13 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                         "weight_decay": 0.0,
                     }
                 )
+
+        # A parameter outside every group would silently never be trained (e.g. a module
+        # added by a newer MACE). MACE's own energy readouts are the only unused ones.
+        covered = {id(p) for group in param_options["params"] for p in group["params"]}
+        covered |= {id(p) for p in model.mace.readouts.parameters()}
+        missing = [n for n, p in model.named_parameters() if p.requires_grad and id(p) not in covered]
+        if missing:
+            raise ValueError(f"Parameters in no optimizer group (never trained): {missing}")
 
         return torch.optim.Adam(**param_options)

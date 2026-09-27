@@ -3,6 +3,7 @@ from typing import Literal, Optional, Union
 
 import torch
 from e3nn import o3
+from torch.utils.checkpoint import checkpoint
 from mace.modules import MACE
 from mace.modules.utils import get_edge_vectors_and_lengths
 
@@ -32,6 +33,63 @@ def drop_last_mace_interaction(mace: MACE) -> MACE:
     mace.readouts = mace.readouts[:n]
     mace.num_interactions.fill_(n)
     return mace
+
+def mace_node_feats(mace: MACE, data, gradient_checkpointing: bool = False) -> torch.Tensor:
+    """Node features of all MACE interactions, as ``MACE.forward(data)["node_feats"]``.
+
+    ``MACE.forward`` always makes the positions require grad (for forces), so the
+    backward pass also differentiates the edge vectors, spherical harmonics and radial
+    features of every edge; it also computes the energy readouts. Neither is needed
+    for a matrix readout. With ``gradient_checkpointing`` each interaction is
+    recomputed in the backward pass instead of keeping its activations.
+    """
+    if hasattr(mace, "joint_embedding") or hasattr(mace, "pair_repulsion"):
+        raise ValueError("mace_node_feats does not support MACE joint embeddings or pair repulsion.")
+    node_attrs, edge_index = data["node_attrs"], data["edge_index"]
+    vectors, lengths = get_edge_vectors_and_lengths(
+        positions=data["positions"], edge_index=edge_index, shifts=data["shifts"]
+    )
+    edge_attrs = mace.spherical_harmonics(vectors)
+    edge_feats, cutoff = mace.radial_embedding(lengths, node_attrs, edge_index, mace.atomic_numbers)
+
+    node_feats = mace.node_embedding(node_attrs)
+    all_feats = []
+    for i, (interaction, product) in enumerate(zip(mace.interactions, mace.products)):
+
+        def layer(node_feats, edge_attrs, edge_feats, cutoff, interaction=interaction,
+                  product=product, first_layer=i == 0):
+            node_feats, sc = interaction(
+                node_attrs=node_attrs, node_feats=node_feats, edge_attrs=edge_attrs,
+                edge_feats=edge_feats, edge_index=edge_index, cutoff=cutoff,
+                first_layer=first_layer,
+            )
+            return product(node_feats=node_feats, sc=sc, node_attrs=node_attrs)
+
+        args = (node_feats, edge_attrs, edge_feats, cutoff)
+        if gradient_checkpointing and torch.is_grad_enabled():
+            # Reentrant: e3nn's TorchScript modules do not recompute the exact same
+            # saved tensors, which the non-reentrant checkpoint requires. Every tensor
+            # is an explicit argument so that gradients reach whatever produced it.
+            node_feats = checkpoint(layer, *args, use_reentrant=True)
+        else:
+            node_feats = layer(*args)
+        all_feats.append(node_feats)
+    return torch.cat(all_feats, dim=-1)
+
+
+def simplified_irreps_index(irreps: o3.Irreps) -> tuple[o3.Irreps, torch.Tensor]:
+    """Irreps with equal irreps merged, and the feature index that reorders to them.
+
+    Concatenated per-interaction features (e.g. ``20x0e+20x1o+20x0e+20x1o``) make every
+    tensor product and linear layer work segment pair by segment pair. Grouping the
+    segments of each irrep gives the same function class with far fewer instructions.
+    """
+    irreps = o3.Irreps(irreps)
+    starts = [s.start for s in irreps.slices()]
+    order = sorted(range(len(irreps)), key=lambda i: (irreps[i].ir, i))
+    index = torch.cat([torch.arange(starts[i], starts[i] + irreps[i].dim) for i in order])
+    return o3.Irreps([irreps[i] for i in order]).simplify(), index
+
 
 class MatrixMACE(torch.nn.Module):
     """Model that wraps a MACE model to produce a matrix output.
@@ -68,6 +126,18 @@ class MatrixMACE(torch.nn.Module):
     readout_fp32 :
         If ``True``, the Graph2Mat readout runs in fp32 even when the model runs
         under mixed precision (e.g. ``bf16-mixed``). MACE keeps the reduced precision.
+    lean_mace :
+        If ``True``, MACE only computes node features (see ``mace_node_feats``):
+        no energy readouts and no gradients w.r.t. positions. Same output, less work.
+        The output then has no MACE energy keys.
+    gradient_checkpointing :
+        If ``True``, MACE interactions and the matrix readout are recomputed in the
+        backward pass instead of storing their activations (less VRAM, more time).
+        Implies ``lean_mace``.
+    simplify_node_irreps :
+        If ``True``, the concatenated node features of all interactions are reordered so
+        that equal irreps are contiguous (see ``simplified_irreps_index``). Same function
+        class, fewer tensor-product instructions; only with a single readout.
     hamiltonian_local_context_kwargs :
         Keyword arguments passed to ``HamiltonianLocalContext`` when
         ``hamiltonian_local_context=True``.
@@ -88,11 +158,21 @@ class MatrixMACE(torch.nn.Module):
         readout_fp32: bool = False,
         mp_cutoff: Optional[float] = None,
         readout_radial_embedding: Optional[torch.nn.Module] = None,
+        lean_mace: bool = False,
+        gradient_checkpointing: bool = False,
+        simplify_node_irreps: bool = False,
         **kwargs,
     ):
         super().__init__()
 
         self.mace = mace
+        self.lean_mace = lean_mace or gradient_checkpointing
+        self.gradient_checkpointing = gradient_checkpointing
+        if gradient_checkpointing and (return_coefficients or hamiltonian_local_context):
+            raise ValueError(
+                "gradient_checkpointing only supports the node/edge labels outputs "
+                "(no return_coefficients or hamiltonian_local_context)."
+            )
 
         self.readout_per_interaction = readout_per_interaction
         if readout_interaction_aggregation not in {"sum", "mean"}:
@@ -147,6 +227,11 @@ class MatrixMACE(torch.nn.Module):
             self.mace_inter_irreps = sum(
                 [inter.hidden_irreps for inter in self.mace.interactions], o3.Irreps()
             )
+            if simplify_node_irreps:
+                self.mace_inter_irreps, index = simplified_irreps_index(self.mace_inter_irreps)
+                self.register_buffer("node_feats_index", index, persistent=False)
+            else:
+                self.node_feats_index = None
 
             self.matrix_readouts = graph2mat_cls(
                 irreps=dict(
@@ -284,15 +369,31 @@ class MatrixMACE(torch.nn.Module):
             The output of the MACE model, with the additional keys "node_labels"
             and "edge_labels" containing the output of ``Graph2Mat``.
         """
-        mace_out = self.mace(self._message_passing_data(data), compute_force=compute_force, **kwargs)
+        mp_data = self._message_passing_data(data)
+        if self.lean_mace and not compute_force:
+            mace_out = {"node_feats": mace_node_feats(self.mace, mp_data, self.gradient_checkpointing)}
+        else:
+            mace_out = self.mace(mp_data, compute_force=compute_force, **kwargs)
         if not self.readout_fp32:
-            return self._readout(data, mace_out)
+            return self._checkpointed_readout(data, mace_out)
 
         # MACE may run in reduced precision (bf16/fp16 autocast), but matrix elements
         # need ~1e-4 relative precision (bf16 rounds a 10 eV element in steps of ~60 meV).
         node_feats = mace_out["node_feats"]
         with torch.autocast(device_type=node_feats.device.type, enabled=False):
-            return self._readout(data, {**mace_out, "node_feats": node_feats.float()})
+            return self._checkpointed_readout(data, {**mace_out, "node_feats": node_feats.float()})
+
+    def _checkpointed_readout(self, data: TorchBasisMatrixData, mace_out: dict) -> dict:
+        if not (self.gradient_checkpointing and torch.is_grad_enabled()):
+            return self._readout(data, mace_out)
+
+        # Reentrant (see mace_node_feats): only tensor arguments and outputs.
+        def labels(node_feats):
+            out = self._readout(data, {**mace_out, "node_feats": node_feats})
+            return out["node_labels"], out["edge_labels"]
+
+        node_labels, edge_labels = checkpoint(labels, mace_out["node_feats"], use_reentrant=True)
+        return {**mace_out, "node_labels": node_labels, "edge_labels": edge_labels}
 
     def _message_passing_data(self, data: TorchBasisMatrixData):
         """``data`` restricted to the edges shorter than mp_cutoff (all of them if None)."""
@@ -333,6 +434,8 @@ class MatrixMACE(torch.nn.Module):
             edge_feats = edge_feats[0]
 
         node_feats = mace_out["node_feats"]
+        if getattr(self, "node_feats_index", None) is not None:
+            node_feats = node_feats[:, self.node_feats_index]
         hamiltonian_context = None
         if self.hamiltonian_local_context is not None:
             hamiltonian_context = self.hamiltonian_local_context(
