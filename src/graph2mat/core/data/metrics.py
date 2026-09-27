@@ -71,6 +71,18 @@ def get_predictions_error(
     return node_error, edge_error
 
 
+def _relative_error(error, ref, eps: float = 1e-6):
+    """|error / ref| for the elements with |ref| > eps.
+
+    Dividing by the whole reference and filtering afterwards is not enough: exact zeros
+    (e.g. symmetry-zero elements of H) give inf, and 0 * inf = NaN in the backward pass.
+    """
+    mask = abs(ref) > eps
+    ones = torch.ones_like(ref) if torch.is_tensor(ref) else np.ones_like(ref)
+    safe = ref * mask + ones * ~mask
+    return abs(error / safe)[mask]
+
+
 def _smooth_l1(values, beta: float):
     if beta <= 0:
         raise ValueError(f"Smooth L1/Huber beta must be positive, got {beta!r}.")
@@ -1316,8 +1328,8 @@ def block_type_mape(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_loss = abs(node_error / nodes_ref).mean()
-    edge_loss = abs(edge_error / edges_ref[~_isnan(edges_ref)]).mean()
+    node_loss = _relative_error(node_error, nodes_ref).mean()
+    edge_loss = _relative_error(edge_error, edges_ref[~_isnan(edges_ref)]).mean()
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1350,13 +1362,11 @@ def block_type_mapemaemix(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_mape = abs(node_error / nodes_ref)
-    edge_mape = abs(edge_error / edges_ref[~_isnan(edges_ref)])
+    node_mape = _relative_error(node_error, nodes_ref)
+    edge_mape = _relative_error(edge_error, edges_ref[~_isnan(edges_ref)])
 
-    node_loss = node_mape[abs(nodes_ref) > 1e-6].mean() + (100 * abs(node_error).mean())
-    edge_loss = edge_mape[abs(edges_ref[~_isnan(edges_ref)]) > 1e-6].mean() + (
-        100 * abs(edge_error).mean()
-    )
+    node_loss = node_mape.mean() + (100 * abs(node_error).mean())
+    edge_loss = edge_mape.mean() + (100 * abs(edge_error).mean())
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1389,16 +1399,11 @@ def block_type_mapemsemix(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_mape = abs(node_error / nodes_ref)
-    edge_mape = abs(edge_error / edges_ref[~_isnan(edges_ref)])
+    node_mape = _relative_error(node_error, nodes_ref)
+    edge_mape = _relative_error(edge_error, edges_ref[~_isnan(edges_ref)])
 
-    node_loss = (
-        node_mape[abs(nodes_ref) > 1e-6].mean() + ((100 * node_error) ** 2).mean()
-    )
-    edge_loss = (
-        edge_mape[abs(edges_ref[~_isnan(edges_ref)]) > 1e-6].mean()
-        + ((100 * edge_error) ** 2).mean()
-    )
+    node_loss = node_mape.mean() + ((100 * node_error) ** 2).mean()
+    edge_loss = edge_mape.mean() + ((100 * edge_error) ** 2).mean()
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1431,11 +1436,8 @@ def block_type_mapestdmix(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_mape = abs(node_error / nodes_ref)
-    edge_mape = abs(edge_error / edges_ref[~_isnan(edges_ref)])
-
-    node_mape = node_mape[abs(nodes_ref) > 1e-6]
-    edge_mape = edge_mape[abs(edges_ref[~_isnan(edges_ref)]) > 1e-6]
+    node_mape = _relative_error(node_error, nodes_ref)
+    edge_mape = _relative_error(edge_error, edges_ref[~_isnan(edges_ref)])
 
     node_loss = node_mape.mean() + node_mape.std()
     edge_loss = edge_mape.mean() + edge_mape.std()
@@ -1465,8 +1467,14 @@ def block_type_mapestdmix(
 
 @OrbitalMatrixMetric.from_metric_func
 def elementwise_mse(
-    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
+    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, edge_weight: float = 1.0, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
+    """MSE over all matrix elements.
+
+    ``edge_weight`` counts each edge element that many times. With symmetric storage
+    each stored edge block also stands for its transpose, so ``edge_weight=2`` gives
+    the MSE over the full matrix.
+    """
     node_error, edge_error = get_predictions_error(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
@@ -1475,7 +1483,7 @@ def elementwise_mse(
     edge_loss = (edge_error**2).mean()
 
     n_node_els = node_error.shape[0]
-    n_edge_els = edge_error.shape[0]
+    n_edge_els = edge_error.shape[0] * edge_weight
 
     loss = (n_node_els * node_loss + edge_loss * n_edge_els) / (n_node_els + n_edge_els)
 

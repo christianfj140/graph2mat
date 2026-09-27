@@ -60,3 +60,39 @@ def test_normalized_density_error_of_exact_prediction_is_zero(
         grid_spacing=0.3,
     )
     assert abs(error) < 1e-8
+
+
+def test_elementwise_mse_edge_weight_counts_edges_twice():
+    import torch
+    from graph2mat.core.data.metrics import elementwise_mse
+
+    nodes_pred, nodes_ref = torch.tensor([1.0, 2.0]), torch.zeros(2)
+    edges_pred, edges_ref = torch.tensor([3.0]), torch.zeros(1)
+    loss, _ = elementwise_mse(nodes_pred=nodes_pred, nodes_ref=nodes_ref,
+                              edges_pred=edges_pred, edges_ref=edges_ref)
+    assert torch.isclose(loss, torch.tensor((1 + 4 + 9) / 3))
+    # The full matrix of a symmetric storage has the edge element twice.
+    # (as passed through loss_kwargs in the lightning models)
+    loss, _ = elementwise_mse(edge_weight=2)(nodes_pred=nodes_pred, nodes_ref=nodes_ref,
+                                             edges_pred=edges_pred, edges_ref=edges_ref)
+    assert torch.isclose(loss, torch.tensor((1 + 4 + 2 * 9) / 4))
+
+
+@pytest.mark.parametrize(
+    "name", ["block_type_mape", "block_type_mapemaemix", "block_type_mapemsemix", "block_type_mapestdmix"]
+)
+def test_relative_losses_have_finite_gradients_with_exact_zeros(name):
+    """H has exact zeros (symmetry-zero elements): relative losses must skip them
+    without producing NaN gradients (0 * inf in the backward pass)."""
+    import torch
+    from graph2mat.core.data import metrics
+
+    nodes_ref = torch.tensor([0.0, 2.0, -1.0, 0.0, 3.0])
+    edges_ref = torch.tensor([0.0, 0.5, float("nan"), -0.25])
+    nodes_pred = (nodes_ref + 0.1).requires_grad_(True)
+    edges_pred = torch.tensor([0.1, 0.6, 0.3, -0.2], requires_grad=True)
+    loss, _ = getattr(metrics, name)(nodes_pred=nodes_pred, nodes_ref=nodes_ref,
+                                     edges_pred=edges_pred, edges_ref=edges_ref)
+    loss.backward()
+    assert torch.isfinite(loss)
+    assert torch.isfinite(nodes_pred.grad).all() and torch.isfinite(edges_pred.grad).all()

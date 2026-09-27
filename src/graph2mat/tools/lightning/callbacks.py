@@ -31,10 +31,8 @@ class MatrixWriter(Callback):
     def __init__(
         self,
         output_file: str,
+        # Only predictions by default: writing every training step is very expensive.
         splits: Sequence = [
-            "train",
-            "val",
-            "test",
             "predict",
         ],  # I don't know why, but Sequence[str] breaks the lightning CLI
     ):
@@ -255,32 +253,18 @@ class SamplewiseMetricsLogger(Callback):
         self.splits = splits
         self.metrics = [metric() for metric in metrics]
         self.output_file = output_file
+        self._handles = {}
 
         self._init_file()
 
-    def on_train_epoch_start(self, trainer, pl_module):
-        if "train" in self.splits:
-            self._on_epoch_start(trainer, pl_module)
-
-    def on_validation_epoch_start(self, trainer, pl_module):
-        if "val" in self.splits:
-            self._on_epoch_start(trainer, pl_module)
-
-    def on_test_epoch_start(self, trainer, pl_module):
-        if "test" in self.splits:
-            self._on_epoch_start(trainer, pl_module)
-
     def on_train_epoch_end(self, trainer, pl_module):
-        if "train" in self.splits:
-            self._on_epoch_end(trainer, pl_module)
+        self.close_file_handle("train")
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        if "val" in self.splits:
-            self._on_epoch_end(trainer, pl_module)
+        self.close_file_handle("val")
 
     def on_test_epoch_end(self, trainer, pl_module):
-        if "test" in self.splits:
-            self._on_epoch_end(trainer, pl_module)
+        self.close_file_handle("test")
 
     def on_train_batch_end(
         self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=None
@@ -306,12 +290,12 @@ class SamplewiseMetricsLogger(Callback):
                 "test", trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
             )
 
-    def _on_epoch_start(self, trainer, pl_module):
-        self.open_file_handle()
-
     def _on_batch_end(
         self, split, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
     ):
+        # Sanity-check batches are not an epoch; with several processes, rank 0 writes.
+        if trainer.sanity_checking or not trainer.is_global_zero:
+            return
         # Get the atomic table, which some metrics might need.
         basis_table: AtomicTableWithEdges = trainer.datamodule.basis_table
 
@@ -361,10 +345,7 @@ class SamplewiseMetricsLogger(Callback):
         )
 
         # Write the data
-        self.csv_writer.writerows(iterator)
-
-    def _on_epoch_end(self, trainer, pl_module):
-        self.close_file_handle()
+        self._writer(split).writerows(iterator)
 
     def _init_file(self):
         # Open the file
@@ -377,13 +358,18 @@ class SamplewiseMetricsLogger(Callback):
 
             csv_writer.writerow(fieldnames)
 
-    def open_file_handle(self):
-        # Open the file
-        self.output_fd = open(self.output_file, "a", newline="")
-        self.csv_writer = csv.writer(self.output_fd)
+    def _writer(self, split):
+        # One handle per split, opened on first use: a validation run in the middle of
+        # a training epoch must not close (or leak) the training handle.
+        if split not in self._handles:
+            fd = open(self.output_file, "a", newline="")
+            self._handles[split] = (fd, csv.writer(fd))
+        return self._handles[split][1]
 
-    def close_file_handle(self):
-        self.output_fd.close()
+    def close_file_handle(self, split):
+        handle = self._handles.pop(split, None)
+        if handle is not None:
+            handle[0].close()
 
 
 class PlotMatrixError(Callback):

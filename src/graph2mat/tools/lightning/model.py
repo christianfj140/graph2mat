@@ -21,6 +21,11 @@ from graph2mat.core.data.node_feats import NodeFeature
 from ._helpers import glob, maybe_zip_path
 
 
+def _epoch_reduce(stat_name: str) -> str:
+    """Epoch aggregation of a per-batch stat: the maximum of maxima, else the mean."""
+    return "max" if stat_name.endswith("_max") else "mean"
+
+
 class LitBasisMatrixModel(pl.LightningModule):
     """Base class to wrap a matrix model to use it in pytorch_lightning."""
 
@@ -128,8 +133,10 @@ class LitBasisMatrixModel(pl.LightningModule):
             model=self.model,
         )
 
+        n = batch.num_graphs
         self.log(
-            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True,
+            batch_size=n,
         )
 
         for k, v in stats.items():
@@ -140,6 +147,8 @@ class LitBasisMatrixModel(pl.LightningModule):
                 on_epoch=True,
                 prog_bar=False,
                 logger=True,
+                batch_size=n,
+                reduce_fx=_epoch_reduce(k),
             )
 
         # Only what callbacks read: keeping every MACE output alive until the end of
@@ -181,12 +190,15 @@ class LitBasisMatrixModel(pl.LightningModule):
             model=self.model,
         )
 
-        self.log("val_loss", loss, prog_bar=True, logger=True)
+        # Epoch values are means weighted by structures (the last, smaller batch must not
+        # weigh as much as a full one), except maxima.
+        n = batch.num_graphs
+        self.log("val_loss", loss, prog_bar=True, logger=True, batch_size=n)
         # save validation loss as the hyperparameter opt metric (used by tensorboard)
-        self.log("hp_metric", loss)
+        self.log("hp_metric", loss, batch_size=n)
 
         for k, v in stats.items():
-            self.log(f"val_{k}", v)
+            self.log(f"val_{k}", v, batch_size=n, reduce_fx=_epoch_reduce(k))
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
@@ -208,10 +220,11 @@ class LitBasisMatrixModel(pl.LightningModule):
             model=self.model,
         )
 
-        self.log("test_loss", loss, prog_bar=True, logger=True)
+        n = batch.num_graphs
+        self.log("test_loss", loss, prog_bar=True, logger=True, batch_size=n)
 
         for k, v in stats.items():
-            self.log(f"test_{k}", v)
+            self.log(f"test_{k}", v, batch_size=n, reduce_fx=_epoch_reduce(k))
 
         return out
 

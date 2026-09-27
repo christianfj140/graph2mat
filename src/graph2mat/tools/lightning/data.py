@@ -1,4 +1,6 @@
 """Data loading for pytorch_lightning workflows."""
+import getpass
+import hashlib
 import json
 import logging
 import math
@@ -214,14 +216,17 @@ class MatrixDataModule(pl.LightningDataModule):
         self.rotating_pool_size = rotating_pool_size
         self.prepare_data_per_node = True
         if self.copy_root_to_tmp:
-            self.tmp_dir = Path(tempfile.gettempdir()) / "e3nn_matrix"
+            # One directory per user and data root (shared by the ranks of a job), instead
+            # of a single global one that the next run could not create again.
+            key = hashlib.sha1(str(Path(str(root_dir)).resolve()).encode()).hexdigest()[:12]
+            self.tmp_dir = Path(tempfile.gettempdir()) / f"graph2mat_{getpass.getuser()}_{key}"
         else:
             self.tmp_dir = None
 
     def prepare_data(self):
         if self.copy_root_to_tmp:
             assert self.tmp_dir is not None
-            os.makedirs(self.tmp_dir)
+            os.makedirs(self.tmp_dir, exist_ok=True)
             logging.info("copying %s to %s" % (self.root_dir, self.tmp_dir))
             shutil.copytree(self.root_dir, self.tmp_dir, dirs_exist_ok=True)
 

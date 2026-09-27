@@ -187,3 +187,18 @@ def test_matrix_writer_h_only_one_sample_uses_pipeline_edge_label_length(tmp_pat
     )
 
     assert out_file.exists()
+
+
+def test_samplewise_logger_survives_validation_inside_a_training_epoch(tmp_path):
+    """Validation in the middle of a training epoch used to close the handle that the
+    training batches were still writing to (audit LOSS_TRAIN-08)."""
+    from graph2mat.core.data.metrics import elementwise_mse
+    from graph2mat.tools.lightning.callbacks import SamplewiseMetricsLogger
+
+    logger = SamplewiseMetricsLogger(metrics=[elementwise_mse], output_file=tmp_path / "m.csv")
+    logger._writer("train").writerow(["a"])
+    logger._writer("val").writerow(["b"])
+    logger.close_file_handle("val")
+    logger._writer("train").writerow(["c"])
+    logger.close_file_handle("train")
+    assert sorted((tmp_path / "m.csv").read_text().split()[1:]) == ["a", "b", "c"]
