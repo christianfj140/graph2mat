@@ -1,9 +1,11 @@
+import contextlib
 from typing import Literal, Optional, Type, Union
 
 import torch
 from e3nn import o3
 from mace.modules import MACE, InteractionBlock, RealAgnosticResidualInteractionBlock
 from mace.modules.blocks import RadialEmbeddingBlock
+from mace.tools.compile import disable_e3nn_codegen
 
 from graph2mat import BasisTableWithEdges
 from graph2mat.bindings.e3nn import (
@@ -81,6 +83,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         gradient_checkpointing: bool = False,
         simplify_node_irreps: bool = False,
         cueq: bool = False,
+        torch_compile: bool = False,
         output_scaleshift: bool = False,
         n_matrix_components: int = 1,
         optim_wdecay: float = 5e-7,
@@ -138,56 +141,59 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             )
 
         if version == "new":
-            mace = MACE(
-                r_max=matrix_r_max if mp_cutoff is None else mp_cutoff,
-                num_bessel=num_bessel,
-                num_polynomial_cutoff=num_polynomial_cutoff,
-                max_ell=max_ell,
-                interaction_cls=interaction_cls,
-                interaction_cls_first=interaction_cls_first,
-                # MACE's last interaction only outputs scalars: build one more and drop it.
-                num_interactions=num_interactions + int(keep_last_layer_irreps),
-                num_elements=len(self.basis_table.basis),
-                hidden_irreps=hidden_irreps,
-                MLP_irreps=o3.Irreps("1x0e"),
-                atomic_energies=torch.zeros(len(self.basis_table.basis)),
-                avg_num_neighbors=avg_num_neighbors,
-                atomic_numbers=torch.arange(len(self.basis_table.basis)),
-                correlation=correlation,
-                gate=None,
-                # cuEquivariance kernels for the MACE backbone (roadmap 6.9). mul_ir layout
-                # and e3nn conventions, so that the e3nn readout reads the same features.
-                **({"cueq_config": _cueq_config()} if cueq else {}),
-            )
-            if keep_last_layer_irreps:
-                mace = drop_last_mace_interaction(mace)
+            # torch_compile: e3nn modules without TorchScript code generation (dynamo cannot
+            # trace it); they are compiled when fitting starts (on_fit_start).
+            with disable_e3nn_codegen() if torch_compile else contextlib.nullcontext():
+                mace = MACE(
+                    r_max=matrix_r_max if mp_cutoff is None else mp_cutoff,
+                    num_bessel=num_bessel,
+                    num_polynomial_cutoff=num_polynomial_cutoff,
+                    max_ell=max_ell,
+                    interaction_cls=interaction_cls,
+                    interaction_cls_first=interaction_cls_first,
+                    # MACE's last interaction only outputs scalars: build one more and drop it.
+                    num_interactions=num_interactions + int(keep_last_layer_irreps),
+                    num_elements=len(self.basis_table.basis),
+                    hidden_irreps=hidden_irreps,
+                    MLP_irreps=o3.Irreps("1x0e"),
+                    atomic_energies=torch.zeros(len(self.basis_table.basis)),
+                    avg_num_neighbors=avg_num_neighbors,
+                    atomic_numbers=torch.arange(len(self.basis_table.basis)),
+                    correlation=correlation,
+                    gate=None,
+                    # cuEquivariance kernels for the MACE backbone (roadmap 6.9). mul_ir layout
+                    # and e3nn conventions, so that the e3nn readout reads the same features.
+                    **({"cueq_config": _cueq_config()} if cueq else {}),
+                )
+                if keep_last_layer_irreps:
+                    mace = drop_last_mace_interaction(mace)
 
-            self.init_model(
-                mace=mace,
-                readout_per_interaction=readout_per_interaction,
-                readout_interaction_aggregation=readout_interaction_aggregation,
-                return_coefficients=return_coefficients,
-                hamiltonian_local_context=hamiltonian_local_context,
-                hamiltonian_local_context_kwargs=hamiltonian_local_context_kwargs,
-                readout_fp32=readout_fp32,
-                lean_mace=lean_mace,
-                gradient_checkpointing=gradient_checkpointing,
-                simplify_node_irreps=simplify_node_irreps,
-                mp_cutoff=mp_cutoff,
-                readout_radial_embedding=readout_radial_embedding,
-                unique_basis=self.basis_table.basis,
-                **({"output_scaleshift": True} if output_scaleshift else {}),
-                edge_hidden_irreps=edge_hidden_irreps,
-                edge_message_mid_irreps=edge_message_mid_irreps,
-                symmetric=symmetric_matrix,
-                preprocessing_nodes=preprocessing_nodes,
-                preprocessing_edges=preprocessing_edges,
-                preprocessing_edges_reuse_nodes=preprocessing_edges_reuse_nodes,
-                node_operation=node_block_readout,
-                edge_operation=edge_block_readout,
-                basis_grouping=basis_grouping,
-                n_matrix_components=n_matrix_components,
-            )
+                self.init_model(
+                    mace=mace,
+                    readout_per_interaction=readout_per_interaction,
+                    readout_interaction_aggregation=readout_interaction_aggregation,
+                    return_coefficients=return_coefficients,
+                    hamiltonian_local_context=hamiltonian_local_context,
+                    hamiltonian_local_context_kwargs=hamiltonian_local_context_kwargs,
+                    readout_fp32=readout_fp32,
+                    lean_mace=lean_mace,
+                    gradient_checkpointing=gradient_checkpointing,
+                    simplify_node_irreps=simplify_node_irreps,
+                    mp_cutoff=mp_cutoff,
+                    readout_radial_embedding=readout_radial_embedding,
+                    unique_basis=self.basis_table.basis,
+                    **({"output_scaleshift": True} if output_scaleshift else {}),
+                    edge_hidden_irreps=edge_hidden_irreps,
+                    edge_message_mid_irreps=edge_message_mid_irreps,
+                    symmetric=symmetric_matrix,
+                    preprocessing_nodes=preprocessing_nodes,
+                    preprocessing_edges=preprocessing_edges,
+                    preprocessing_edges_reuse_nodes=preprocessing_edges_reuse_nodes,
+                    node_operation=node_block_readout,
+                    edge_operation=edge_block_readout,
+                    basis_grouping=basis_grouping,
+                    n_matrix_components=n_matrix_components,
+                )
 
         else:
             self.init_model(
@@ -212,6 +218,12 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 only_last_readout=False,
                 node_attr_irreps=self.initial_node_feats_irreps,
             )
+
+    def on_fit_start(self) -> None:
+        super().on_fit_start()
+        if self.hparams.torch_compile:
+            # 6x6 step: 138 -> 70 ms and -31% peak memory; ~90 s of compilation first.
+            self.model.compile_submodules()
 
     def configure_optimizers(self):
         model = self.model

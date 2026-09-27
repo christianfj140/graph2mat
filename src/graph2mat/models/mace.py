@@ -383,6 +383,24 @@ class MatrixMACE(torch.nn.Module):
         with torch.autocast(device_type=node_feats.device.type, enabled=False):
             return self._checkpointed_readout(data, {**mace_out, "node_feats": node_feats.float()})
 
+    def compile_submodules(self) -> None:
+        """torch.compile, in place, the MACE layers and every readout operation.
+
+        In place (``Module.compile``) keeps the state_dict keys, so checkpoints are the
+        same as without compiling. The model should have been built with e3nn's
+        TorchScript code generation disabled (``mace.tools.compile.disable_e3nn_codegen``),
+        which dynamo cannot trace. Shapes change between batches, hence dynamic=True.
+        """
+        modules = [*self.mace.interactions, *self.mace.products]
+        readouts = self.matrix_readouts
+        for readout in readouts if isinstance(readouts, torch.nn.ModuleList) else [readouts]:
+            if readout.preprocessing_edges is not None:
+                modules.append(readout.preprocessing_edges)
+            blocks = [*readout.self_interactions, *readout.interactions.values()]
+            modules += [block.operation for block in blocks if block is not None]
+        for module in modules:
+            module.compile(dynamic=True)
+
     def _checkpointed_readout(self, data: TorchBasisMatrixData, mace_out: dict) -> dict:
         if not (self.gradient_checkpointing and torch.is_grad_enabled()):
             return self._readout(data, mace_out)

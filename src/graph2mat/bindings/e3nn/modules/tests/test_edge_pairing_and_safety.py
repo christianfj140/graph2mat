@@ -350,3 +350,46 @@ def test_symmetric_model_predicts_symmetric_matrix(edge_block):
     matrix = _dense(g2m, processor, data, torch.randn(len(positions), NODE_IRREPS.dim))
     assert abs(matrix).max() > 1e-4
     np.testing.assert_allclose(matrix, matrix.T, atol=1e-6)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="torch.compile (inductor) test needs a GPU")
+def test_compiled_submodules_match_eager():
+    """compile_submodules must not change the matrix nor the gradients."""
+    mace_modules = pytest.importorskip("mace.modules")
+    from mace.tools.compile import disable_e3nn_codegen
+    from torch_geometric.data import Batch
+    from graph2mat.models.mace import MatrixMACE
+
+    positions = [[0, 0, 0], [1.0, 0.2, 0], [0.1, 1.1, 0.3], [1.2, 1.0, -0.2]]
+    table, _, data = _two_species_data(True, ["A", "B", "A", "B"], positions)
+    batch = Batch.from_data_list([data])
+    batch.node_attrs = torch.eye(2)[batch.point_types]
+    batch = batch.to("cuda")
+    torch.manual_seed(0)
+    with disable_e3nn_codegen():
+        mace = mace_modules.MACE(
+            r_max=5.0, num_bessel=4, num_polynomial_cutoff=6, max_ell=2,
+            interaction_cls=mace_modules.RealAgnosticResidualInteractionBlock,
+            interaction_cls_first=mace_modules.RealAgnosticResidualInteractionBlock,
+            num_interactions=2, num_elements=2, hidden_irreps=o3.Irreps("4x0e+4x1o"),
+            MLP_irreps=o3.Irreps("1x0e"), atomic_energies=torch.zeros(2), avg_num_neighbors=3.0,
+            atomic_numbers=torch.arange(2), correlation=2, gate=None,
+        )
+        model = MatrixMACE(mace=mace, unique_basis=table, symmetric=True, lean_mace=True,
+                           edge_hidden_irreps=o3.Irreps("2x0e+2x1o")).cuda()
+
+    def run():
+        model.zero_grad()
+        out = model(batch.clone())
+        ((out["node_labels"] ** 2).sum() + (out["edge_labels"] ** 2).sum()).backward()
+        return out, {k: p.grad.clone() for k, p in model.named_parameters() if p.grad is not None}
+
+    eager, eager_grads = run()
+    keys = set(model.state_dict())
+    model.compile_submodules()
+    compiled, compiled_grads = run()
+    assert set(model.state_dict()) == keys  # checkpoints unchanged
+    assert torch.allclose(eager["edge_labels"], compiled["edge_labels"], atol=1e-5)
+    assert torch.allclose(eager["node_labels"], compiled["node_labels"], atol=1e-5)
+    for key, grad in eager_grads.items():
+        assert torch.allclose(grad, compiled_grads[key], atol=1e-4), key
