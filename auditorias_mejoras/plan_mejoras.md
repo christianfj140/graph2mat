@@ -50,6 +50,41 @@ precisión, más los arreglos de VRAM y velocidad que sean fáciles. El grafeno 
 - **Corrección:** la referencia de `w90` es `graphene.TSHS` (sisl no desplaza el TSHS). Aun así,
   las etiquetas están referidas a E_F por estructura, como comprobó el commit 442b8e1b del
   benchmark.
+- **Medido tras la ronda 1** (`w90`, semillas 0–2, Δ frente a fp32 + poly6 = 12,6 meV): `kl`
+  −1,2 en H y −3,4 en bandas; `mid16` +0,7 en H y −1,2 en bandas (menos VRAM); `ss` ≈0; `ema` +2,8;
+  `mp3` +4,6; `mp4` +20 en bandas; `r32poly6` ≈ bf16. Test de `6x6` de fp32 + poly6 + kl en marcha.
+
+## Fase 5 — Lo abordable que queda de la auditoría (2026-09-27)
+
+> **Sustituida por [`roadmap.md`](roadmap.md)**, que cubre todas las auditorías. Esta sección queda como historial.
+
+Protocolo: cada cambio es una opción desactivada por defecto y lleva test. Se mide en `w90` con 3
+semillas contra fp32 + poly6 (máx. 6 jobs a la vez), y en `6x6` solo lo que gane. Si no supera
+el ruido entre semillas (2–5 meV), la opción se queda desactivada.
+
+Precisión, de más a menos barato:
+
+| # | Cambio | Auditoría | Coste | Estado |
+|---|---|---|---|---|
+| P1 | `edge_hidden_irreps` 16x (el valor por defecto es 4x por l) | ARCH-10, MATH_EQUIV-04 | solo configuración | en marcha |
+| P2 | `elementwise_mse(edge_weight=2)`: con almacenamiento simétrico, cada arista cuenta dos veces en la matriz | LOSS_TRAIN-11 | S | |
+| P3 | Bloque on-site con término lineal y sesgo 0e además del TensorSquare | ARCH-12 | S | |
+| P4 | `E3nnEdgeBlockNodeMix` (pesos del TP que dependen de r y de ambos nodos) con `reuse_nodes` | ARCH-23, MATH_EQUIV-11 | configuración y comprobación | |
+| P5 | Readouts experimentales del fork (`E3nnHamiltonian{Node,Edge}Block`) en grafeno | SOTA-11 | solo configuración | |
+| P6 | Resolución radial `num_bessel=16` | CRIT-06 | solo configuración | |
+| P7 | Pérdida invariante de gauge | PHYS_H-03, SOTA-03 | M | aplazado: en grafeno las etiquetas ya están referidas a E_F |
+| P8 | Pérdida espectral de primer orden | LOSS_TRAIN-15 | L | aplazado |
+
+VRAM y velocidad:
+
+| # | Cambio | Auditoría | Coste |
+|---|---|---|---|
+| V1 | Perfilar un paso de `w90` y de `6x6` para ver dónde se va el tiempo | PERF_GPU-24 | S |
+| V2 | Opción de gradient checkpointing (interacciones de MACE y readout de aristas) | PERF_GPU-20 | S |
+| V3 | `symm_transpose` con una sola llamada (ambas direcciones apiladas) | MATH_EQUIV-14, ARCH-18 | S/M |
+| V4 | No calcular los readouts de energía de MACE | ARCH-19, SOTA-22 | S/M |
+| V5 | Sin máscara de NaN cuando las etiquetas no los tienen (H) | LOSS_TRAIN-26, PERF_GPU-15 | S |
+| V6 | Sincronizaciones CPU↔GPU del forward, según lo que salga de V1 | PERF_GPU-02/03 | M |
 
 ## 0. Punto de partida: lo que ya dice el benchmark
 
