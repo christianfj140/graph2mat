@@ -127,3 +127,32 @@ def test_change_of_basis_works():
     array_again = spherical @ cob.T
 
     assert np.allclose(array, array_again)
+
+
+def test_get_atom_basis_rejects_unsorted_shells():
+    """A 4s, 3d, 4p-like order would silently mix up matrix rows (irreps are sorted by l)."""
+    import pytest
+    import sisl
+
+    from graph2mat.core.data.basis import get_atom_basis
+
+    def atom(ls):
+        return sisl.Atom("Fe", orbitals=[sisl.AtomicOrbital(n=4, l=l, m=m) for l in ls for m in range(-l, l + 1)])
+
+    assert get_atom_basis(atom([0, 1, 2])) == [(1, 0, 1), (1, 1, -1), (1, 2, 1)]
+    with pytest.raises(ValueError, match="increasing l"):
+        get_atom_basis(atom([0, 2, 1]))
+    incomplete = sisl.Atom("C", orbitals=[sisl.AtomicOrbital(n=2, l=1, m=m) for m in (-1, 0)])
+    with pytest.raises(ValueError, match="complete shells"):
+        get_atom_basis(incomplete)
+
+
+def test_point_basis_rejects_wrong_parity():
+    import pytest
+
+    from graph2mat import PointBasis
+
+    assert PointBasis("A", R=2, basis="2x0e + 1o + 2e", basis_convention="cartesian").basis == (
+        (2, 0, 1), (1, 1, -1), (1, 2, 1))
+    with pytest.raises(ValueError, match="parity"):
+        PointBasis("A", R=2, basis="0e + 1e", basis_convention="cartesian")

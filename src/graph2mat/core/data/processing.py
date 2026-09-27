@@ -172,7 +172,8 @@ class MatrixDataProcessor:
             )
 
             input_data["ptr"] = torch.tensor([0, len(input_data["point_types"])])
-            input_data["batch"] = torch.tensor([0])
+            # One graph: every node belongs to batch 0.
+            input_data["batch"] = torch.zeros(len(input_data["point_types"]), dtype=torch.long)
 
             # Then, we run the model.
             out = torch_model(input_data)
@@ -1712,6 +1713,17 @@ class BasisMatrixDataBase(Generic[ArrayType]):
                 nsc = abs(sc_shifts).max(axis=1) * 2 + 1
             else:
                 nsc = np.array([1, 1, 1])
+
+        # A shift beyond nsc//2 would be wrapped by numpy indexing into another image, silently
+        # reading the block of a different neighbour (audit PHYS_H-16, DATA_PIPE-19).
+        if any_edges:
+            reach = np.asarray(nsc).reshape(3) // 2
+            if np.any(np.abs(sc_shifts) > reach[:, None]):
+                raise ValueError(
+                    f"The graph needs supercell shifts up to {np.abs(sc_shifts).max(axis=1)}, but "
+                    f"nsc={np.asarray(nsc).reshape(3)} only covers {reach}: those edges would read "
+                    "the matrix block of another image. Use a larger nsc or a shorter cutoff."
+                )
 
         # Then build the supercell that encompasses all of those atoms, so that we can get the
         # array that converts from sc shifts (3D) to a single supercell index. This is isc_off.

@@ -495,3 +495,21 @@ def test_yield_from_batch_handles_empty_edge_predictions():
 
     assert len(outputs) == 1
     np.testing.assert_array_equal(outputs[0].edge_labels, np.array([]))
+
+
+def test_from_config_rejects_shifts_beyond_nsc():
+    """A neighbour in the next cell with nsc=1 would wrap to the unit cell (wrong block)."""
+    import numpy as np
+    import pytest
+
+    from graph2mat import BasisConfiguration, BasisTableWithEdges, MatrixDataProcessor, PointBasis
+    from graph2mat.core.data.processing import BasisMatrixData
+
+    basis = [PointBasis("A", R=1.5, basis="0e", basis_convention="cartesian")]
+    processor = MatrixDataProcessor(basis_table=BasisTableWithEdges(basis), symmetric_matrix=True,
+                                    sub_point_matrix=False)
+    config = BasisConfiguration(point_types=["A"], positions=np.zeros((1, 3)), basis=basis,
+                                cell=np.diag([2.0, 20.0, 20.0]), pbc=(True, False, False))
+    assert BasisMatrixData.from_config(config, processor).n_edges > 0
+    with pytest.raises(ValueError, match="nsc"):
+        BasisMatrixData.from_config(config, processor, nsc=[1, 1, 1])

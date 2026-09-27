@@ -45,7 +45,7 @@ class DummyNodeOp:
         assert i_basis is j_basis
 
         # Assert symmetry
-        assert symmetry == "ij=ji" if symmetric else "ij", symmetry
+        assert symmetry == ("ij=ji" if symmetric else "ij"), symmetry
 
     def __call__(self, **kwargs):
         return kwargs
@@ -85,10 +85,8 @@ def test_init_graph2mat(basis_table, symmetric, B_nobasis):
         assert isinstance(g2m.self_interactions[1].operation, DummyNodeOp)
 
     assert isinstance(g2m.interactions, dict)
-    assert (
-        len(g2m.interactions) == len(basis_table.edge_block_size)
-        if symmetric
-        else len(basis_table.basis) ** 2
+    assert len(g2m.interactions) == (
+        len(basis_table.edge_block_size) if symmetric else len(basis_table.basis) ** 2
     )
     if not B_nobasis:
         assert all(

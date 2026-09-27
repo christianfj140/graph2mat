@@ -43,6 +43,30 @@ BasisConvention = Union[
 ]
 
 
+def _check_orbital_order(atom: sisl.Atom):
+    """Raises if the orbitals are not complete shells (2l+1 consecutive orbitals) in
+    increasing l.
+
+    The irreps of a basis are built sorted by l, so any other orbital order (e.g. a
+    4s, 3d, 4p basis of a transition metal) would silently assign rows and columns of
+    the matrix to the wrong irreps. The order of m inside a shell is not checked: it is
+    what ``basis_convention`` describes.
+    """
+    orbitals = list(atom.orbitals)
+    i, last_l = 0, -1
+    while i < len(orbitals):
+        l = orbitals[i].l
+        shell = orbitals[i : i + 2 * l + 1]
+        if l < last_l or len(shell) != 2 * l + 1 or any(o.l != l for o in shell):
+            raise ValueError(
+                f"Orbitals of {atom.tag!r} must be complete shells in increasing l; got "
+                f"l = {[o.l for o in orbitals]}. graph2mat builds the basis irreps "
+                "sorted by l, so this order would mix up matrix rows."
+            )
+        last_l = l
+        i += 2 * l + 1
+
+
 def get_atom_basis(atom: sisl.Atom):
     """For a given atom, returns the representation of its basis.
 
@@ -59,6 +83,8 @@ def get_atom_basis(atom: sisl.Atom):
 
     if atom.no == 0:
         return []
+
+    _check_orbital_order(atom)
 
     atom_irreps = []
 
@@ -212,7 +238,11 @@ class PointBasis:
                     mul = 1
                     l = vals[0]
 
+                parity = l.strip()[-1:] if l.strip()[-1:] in ("e", "o") else None
                 l = int(l.replace("e", "").replace("o", ""))
+                if parity is not None and parity != "eo"[l % 2]:
+                    # Orbitals are spherical harmonics: their parity is always (-1)^l.
+                    raise ValueError(f"Basis irrep {irreps!r}: an l={l} orbital has parity '{'eo'[l % 2]}'.")
                 mul = int(mul)
                 san_basis.append((mul, l, _get_sphericalharm_parity(l)))
 
