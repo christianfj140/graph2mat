@@ -16,10 +16,13 @@ import torch
 
 from .formats import Formats
 from .processing import MatrixDataProcessor
+from .table import IdentityTypeMap
 
 __all__ = [
     "OrbitalMatrixMetric",
     "block_type_mse",
+    "block_type_mse_per_structure",
+    "block_type_mse_per_domain",
     "block_type_huber",
     "block_normalized_huber",
     "block_type_smooth_l1",
@@ -35,6 +38,7 @@ __all__ = [
     "block_type_mapemsemix",
     "block_type_mapestdmix",
     "elementwise_mse",
+    "elementwise_mae",
     "node_mse",
     "edge_mse",
     "block_type_mse_threshold",
@@ -52,18 +56,17 @@ def _isnan(values):
 def get_predictions_error(
     nodes_pred, nodes_ref, edges_pred, edges_ref, remove_nan=True
 ):
-    """Returns errors for both nodes and edges, removing NaN values."""
+    """Returns errors (pred - ref) for both nodes and edges, removing NaN values."""
     node_error = nodes_pred - nodes_ref
 
     if remove_nan:
         if getattr(edges_ref, "ndim", 1) == 2:
             notnan = ~_isnan(edges_ref).any(axis=1)
-            edge_error = edges_ref[notnan] - edges_pred[notnan]
         else:
             notnan = ~_isnan(edges_ref)
-            edge_error = edges_ref[notnan] - edges_pred[notnan]
+        edge_error = edges_pred[notnan] - edges_ref[notnan]
     else:
-        edge_error = edges_ref - edges_pred
+        edge_error = edges_pred - edges_ref
 
     return node_error, edge_error
 
@@ -118,6 +121,8 @@ def _map_types(type_map, values) -> np.ndarray:
             torch.as_tensor(values, dtype=torch.long, device=type_map.device)
         ]
         return mapped.detach().cpu().numpy().astype(int)
+    if isinstance(type_map, IdentityTypeMap):
+        return values
 
     return np.asarray(type_map)[values].astype(int)
 
@@ -225,13 +230,20 @@ def _symmetric_edge_types_for_labels(
     expected_nlabels: Optional[int],
 ) -> np.ndarray:
     edge_types = _as_numpy_int(_batch_field(batch, "edge_types"))
-    if not getattr(readout, "symmetric", False):
+    symmetric = getattr(readout, "symmetric", None)
+    if symmetric is False:
         return edge_types
 
     if expected_nlabels is None:
         edge_labels = _batch_field(batch, "edge_labels")
         if edge_labels is not None:
             expected_nlabels = _flat_length(edge_labels)
+
+    if symmetric is None and expected_nlabels is not None:
+        # No model to ask: labels for every directed edge mean non-symmetric storage.
+        all_edges = int(basis_table.edge_block_pointer(np.abs(edge_types))[-1])
+        if int(expected_nlabels) == all_edges:
+            return edge_types
 
     if expected_nlabels is None:
         raise ValueError(
@@ -585,6 +597,11 @@ class Meta(type):
 class OrbitalMatrixMetric(metaclass=Meta):
     requires_model_output = False
 
+    def __init__(self, **metric_kwargs):
+        # Constructor kwargs (``loss_kwargs`` in the lightning models) become
+        # defaults for every metric evaluation, e.g. per-domain weights.
+        self.metric_kwargs = dict(metric_kwargs)
+
     def __call__(self, *args, **kwargs):
         return self.get_metric(*args, **kwargs)
 
@@ -608,6 +625,9 @@ class OrbitalMatrixMetric(metaclass=Meta):
 
             If config_resolved is False, a dictionary is also returned containing additional stats related to the metric.
         """
+
+        if getattr(self, "metric_kwargs", None):
+            kwargs = {**self.metric_kwargs, **kwargs}
 
         if not config_resolved:
             return self.compute_metric(**kwargs)
@@ -712,6 +732,172 @@ def block_type_mse(
         )
 
     return node_loss + edge_loss, stats
+
+
+def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
+    """Structure id of every flat node/edge label element (torch tensors).
+
+    Handles symmetric-matrix edge selection (labels stored for one direction
+    only) and the NaN-edge filtering applied by ``get_predictions_error``.
+    """
+    point_types = _as_numpy_int(_batch_field(batch, "point_types"))
+    node_graph = _as_numpy_int(_batch_field(batch, "batch"))
+    if point_types is None or node_graph is None:
+        raise ValueError(
+            "per-structure losses need batch.point_types and batch.batch "
+            "(the node -> structure assignment)."
+        )
+    node_pointers = basis_table.point_block_pointer(point_types)
+    node_sizes = np.diff(node_pointers)
+    node_struct = np.repeat(node_graph, node_sizes)
+
+    edge_types = _as_numpy_int(_batch_field(batch, "edge_types"))
+    edge_index = _as_numpy_int(_batch_field(batch, "edge_index"))
+    edge_graph = node_graph[edge_index[0]]
+    edge_sizes = basis_table.edge_block_size[np.abs(edge_types)]
+    n_components = 1 if getattr(edges_ref, "ndim", 1) == 1 else int(edges_ref.shape[1])
+    expected_full = int(edge_sizes.sum())
+    actual = _flat_length(edges_ref) // max(n_components, 1)
+    if actual != expected_full:
+        selector = MatrixDataProcessor(
+            basis_table=basis_table,
+            symmetric_matrix=True,
+            sub_point_matrix=False,
+        )
+        unique_edge_mask = selector._get_symmetric_unique_edge_mask(
+            edge_types,
+            expected_nlabels=int(actual),
+            edge_index=edge_index,
+            point_types=point_types,
+        )
+        edge_graph = edge_graph[unique_edge_mask]
+        edge_sizes = edge_sizes[unique_edge_mask]
+    edge_struct = np.repeat(edge_graph, edge_sizes)
+
+    n_structures = int(node_graph.max()) + 1 if node_graph.size else 1
+    return (
+        torch.as_tensor(node_struct, dtype=torch.long),
+        torch.as_tensor(edge_struct, dtype=torch.long),
+        n_structures,
+    )
+
+
+def _structure_mean_sq(error, struct_ids, n_structures):
+    """Differentiable per-structure mean of squared errors. NaN-safe counts."""
+    error = error if torch.is_tensor(error) else torch.as_tensor(np.asarray(error))
+    squared = error.reshape(error.shape[0], -1).pow(2).sum(dim=1)
+    n_components = int(error.reshape(error.shape[0], -1).shape[1])
+    sums = torch.zeros(n_structures, dtype=squared.dtype, device=squared.device)
+    sums = sums.index_add(0, struct_ids.to(squared.device), squared)
+    counts = torch.zeros(n_structures, dtype=squared.dtype, device=squared.device)
+    counts = counts.index_add(
+        0, struct_ids.to(squared.device), torch.ones_like(squared)
+    )
+    counts = counts * n_components
+    return sums / counts.clamp(min=1), counts > 0
+
+
+def _per_structure_losses(
+    nodes_pred, nodes_ref, edges_pred, edges_ref, batch, basis_table,
+    node_weight, edge_weight,
+):
+    node_struct, edge_struct, n_structures = _per_element_structure_ids(
+        nodes_ref, edges_ref, batch, basis_table
+    )
+    # struct ids are built on CPU (torch.as_tensor with no device); move them to
+    # the data device so indexing/index_add against CUDA tensors does not raise
+    # "indices should be either on cpu or on the same device".
+    node_struct = node_struct.to(nodes_pred.device)
+    edge_struct = edge_struct.to(edges_pred.device)
+    node_error = nodes_pred - nodes_ref
+    # Same NaN filtering as get_predictions_error, kept aligned with ids.
+    if getattr(edges_ref, "ndim", 1) == 2:
+        notnan = ~_isnan(edges_ref).any(axis=1)
+    else:
+        notnan = ~_isnan(edges_ref)
+    edge_error = edges_ref[notnan] - edges_pred[notnan]
+    edge_notnan = notnan if torch.is_tensor(notnan) else torch.as_tensor(np.asarray(notnan))
+    edge_struct = edge_struct[edge_notnan.to(edge_struct.device)]
+    node_loss_s, node_present = _structure_mean_sq(node_error, node_struct, n_structures)
+    edge_loss_s, edge_present = _structure_mean_sq(edge_error, edge_struct, n_structures)
+    loss_s = node_weight * node_loss_s + edge_weight * edge_loss_s
+    stats = {
+        "node_rmse": float(node_loss_s[node_present].mean() ** 0.5) if node_present.any() else 0.0,
+        "edge_rmse": float(edge_loss_s[edge_present].mean() ** 0.5) if edge_present.any() else 0.0,
+    }
+    return loss_s, stats
+
+
+@OrbitalMatrixMetric.from_metric_func
+def block_type_mse_per_structure(
+    nodes_pred, nodes_ref, edges_pred, edges_ref,
+    batch=None, basis_table=None,
+    node_weight: float = 1.0, edge_weight: float = 1.0,
+    log_verbose=False, **kwargs,
+) -> Tuple[float, Dict[str, float]]:
+    """MSE normalized inside each structure, then averaged over structures.
+
+    Every structure contributes the same weight to the loss regardless of its
+    size — a 50-atom snapshot no longer dominates a 2-atom one just by having
+    more matrix elements (training_weighting_policy='per_structure').
+    """
+    loss_s, stats = _per_structure_losses(
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch, basis_table,
+        node_weight, edge_weight,
+    )
+    stats["n_structures"] = int(loss_s.shape[0])
+    return loss_s.mean(), stats
+
+
+@OrbitalMatrixMetric.from_metric_func
+def block_type_mse_per_domain(
+    nodes_pred, nodes_ref, edges_pred, edges_ref,
+    batch=None, basis_table=None,
+    domain_threshold_atoms: Optional[int] = None,
+    small_domain_weight: float = 0.5,
+    large_domain_weight: float = 0.5,
+    node_weight: float = 1.0, edge_weight: float = 1.0,
+    log_verbose=False, **kwargs,
+) -> Tuple[float, Dict[str, float]]:
+    """Per-structure MSE averaged inside each size domain, then across domains.
+
+    ``domain_threshold_atoms`` is required (structures with at least that many
+    atoms are 'large'); domain weights are configurable
+    (training_weighting_policy='per_domain').
+    """
+    if domain_threshold_atoms is None:
+        raise ValueError(
+            "block_type_mse_per_domain requires domain_threshold_atoms "
+            "(pass it via loss_kwargs)."
+        )
+    loss_s, stats = _per_structure_losses(
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch, basis_table,
+        node_weight, edge_weight,
+    )
+    node_graph = _as_numpy_int(_batch_field(batch, "batch"))
+    atoms_per_structure = np.bincount(node_graph, minlength=loss_s.shape[0])
+    large_mask = torch.as_tensor(
+        atoms_per_structure >= int(domain_threshold_atoms), device=loss_s.device
+    )
+    parts = []
+    weights = []
+    if (~large_mask).any():
+        parts.append(loss_s[~large_mask].mean())
+        weights.append(float(small_domain_weight))
+    if large_mask.any():
+        parts.append(loss_s[large_mask].mean())
+        weights.append(float(large_domain_weight))
+    total_weight = sum(weights)
+    loss = sum(w * p for w, p in zip(weights, parts)) / total_weight
+    stats.update(
+        {
+            "n_structures": int(loss_s.shape[0]),
+            "n_large_structures": int(large_mask.sum()),
+            "small_domain_weight": float(small_domain_weight),
+            "large_domain_weight": float(large_domain_weight),
+        }
+    )
+    return loss, stats
 
 
 @OrbitalMatrixMetric.from_metric_func
@@ -1252,7 +1438,7 @@ def block_type_mapestdmix(
     edge_mape = edge_mape[abs(edges_ref[~_isnan(edges_ref)]) > 1e-6]
 
     node_loss = node_mape.mean() + node_mape.std()
-    edge_loss = node_mape.mean() + node_mape.std()
+    edge_loss = edge_mape.mean() + edge_mape.std()
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1303,6 +1489,44 @@ def elementwise_mse(
             {
                 "node_mean": abs_node_error.mean(),
                 "edge_mean": abs_edge_error.mean(),
+                "node_std": abs_node_error.std(),
+                "edge_std": abs_edge_error.std(),
+                "node_max": abs_node_error.max(),
+                "edge_max": abs_edge_error.max(),
+            }
+        )
+
+    return loss, stats
+
+
+@OrbitalMatrixMetric.from_metric_func
+def elementwise_mae(
+    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
+) -> Tuple[float, Dict[str, float]]:
+    node_error, edge_error = get_predictions_error(
+        nodes_pred, nodes_ref, edges_pred, edges_ref
+    )
+
+    abs_node_error = abs(node_error)
+    abs_edge_error = abs(edge_error)
+    node_loss = abs_node_error.mean()
+    edge_loss = abs_edge_error.mean()
+
+    n_node_els = node_error.shape[0]
+    n_edge_els = edge_error.shape[0]
+
+    loss = (n_node_els * node_loss + edge_loss * n_edge_els) / (n_node_els + n_edge_els)
+
+    stats = {
+        "node_rmse": (node_error**2).mean() ** (1 / 2),
+        "edge_rmse": (edge_error**2).mean() ** (1 / 2),
+    }
+
+    if log_verbose:
+        stats.update(
+            {
+                "node_mean": node_loss,
+                "edge_mean": edge_loss,
                 "node_std": abs_node_error.std(),
                 "edge_std": abs_edge_error.std(),
                 "node_max": abs_node_error.max(),
@@ -1413,87 +1637,6 @@ def block_type_mse_threshold(
     }
 
     if log_verbose:
-        stats.update(
-            {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
-            }
-        )
-
-    return node_loss + edge_loss, stats
-
-
-@OrbitalMatrixMetric.from_metric_func
-def block_type_mapemaemix(
-    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
-) -> Tuple[float, Dict[str, float]]:
-    node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
-    )
-
-    node_mape = abs(node_error / nodes_ref)
-    edge_mape = abs(edge_error / edges_ref[~_isnan(edges_ref)])
-
-    node_loss = node_mape[abs(nodes_ref) > 1e-6].mean() + (100 * abs(node_error).mean())
-    edge_loss = edge_mape[abs(edges_ref[~_isnan(edges_ref)]) > 1e-6].mean() + (
-        100 * abs(edge_error).mean()
-    )
-
-    stats = {
-        # "node_rmse": node_loss ** (1 / 2),
-        # "edge_rmse": edge_loss ** (1 / 2),
-    }
-
-    if log_verbose:
-        abs_node_error = abs(node_error)
-        abs_edge_error = abs(edge_error)
-
-        stats.update(
-            {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
-            }
-        )
-
-    return node_loss + edge_loss, stats
-
-
-@OrbitalMatrixMetric.from_metric_func
-def block_type_mapemsemix(
-    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
-) -> Tuple[float, Dict[str, float]]:
-    node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
-    )
-
-    node_mape = abs(node_error / nodes_ref)
-    edge_mape = abs(edge_error / edges_ref[~_isnan(edges_ref)])
-
-    node_loss = (
-        node_mape[abs(nodes_ref) > 1e-6].mean() + ((100 * node_error) ** 2).mean()
-    )
-    edge_loss = (
-        edge_mape[abs(edges_ref[~_isnan(edges_ref)]) > 1e-6].mean()
-        + ((100 * edge_error) ** 2).mean()
-    )
-
-    stats = {
-        # "node_rmse": node_loss ** (1 / 2),
-        # "edge_rmse": edge_loss ** (1 / 2),
-    }
-
-    if log_verbose:
-        abs_node_error = abs(node_error)
-        abs_edge_error = abs(edge_error)
-
         stats.update(
             {
                 "node_mean": abs_node_error.mean(),
@@ -1630,6 +1773,25 @@ def block_type_mae_sigmoid_thresh(
     return node_loss + edge_loss, stats
 
 
+def _error_processor(batch, basis_table) -> MatrixDataProcessor:
+    """Processor of ``batch`` (or a symmetric density-matrix default) with sub_point_matrix off."""
+    metadata = getattr(batch, "metadata", None)
+    processor = metadata.get("data_processor") if isinstance(metadata, dict) else None
+    if isinstance(processor, (list, tuple)):
+        processor = processor[0] if len(processor) > 0 else None
+    if processor is None:
+        processor = MatrixDataProcessor(
+            basis_table=basis_table, symmetric_matrix=True, out_matrix="density_matrix"
+        )
+    return processor.copy(sub_point_matrix=False)
+
+
+def _error_to_sisl(data, processor: MatrixDataProcessor):
+    # Conversions read the processor from the data's metadata, so replace it there.
+    data.metadata = {**data.metadata, "data_processor": processor}
+    return data.convert_to(Formats.SISL_DM)
+
+
 @OrbitalMatrixMetric.from_metric_func
 def normalized_density_error(
     nodes_pred,
@@ -1656,26 +1818,27 @@ def normalized_density_error(
     )
     errors[1][_isnan(errors[1])] = 0
 
+    # The labels are errors, not density matrices: convert them with the data's own
+    # processor (same symmetric convention as training) but without adding back the
+    # isolated-atom reference that sub_point_matrix subtracted.
+    processor = _error_processor(batch, basis_table)
+
     if isinstance(batch, BasisMatrixDataBase):
         # We haven't really received a batch, but just a single structure.
         # Do as if we received a batch of size 1.
         matrix_error = copy(batch)
         matrix_error.point_labels = errors[0]
         matrix_error.edge_labels = errors[1]
-        matrix_errors = [matrix_error.convert_to(Formats.SISL_DM)]
+        matrix_errors = [_error_to_sisl(matrix_error, processor)]
     else:
         # Create an iterator that returns the error for each structure in the batch
         # as a sisl DensityMatrix.
-        # Note here that we assume that the model was trained under the assumption
-        # that the density matrix is symmetric, so we set symmetric_matrix=True. (Might not be the case?)
-        processor = MatrixDataProcessor(
-            basis_table=basis_table, symmetric_matrix=True, out_matrix="density_matrix"
-        )
-
-        matrix_errors = processor.yield_from_batch(
-            batch,
-            predictions={"node_labels": errors[0], "edge_labels": errors[1]},
-            as_matrix=True,
+        matrix_errors = (
+            _error_to_sisl(example, processor)
+            for example in processor.yield_from_batch(
+                batch,
+                predictions={"node_labels": errors[0], "edge_labels": errors[1]},
+            )
         )
 
     # Initialize counters

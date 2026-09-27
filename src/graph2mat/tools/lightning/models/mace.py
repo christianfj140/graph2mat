@@ -3,6 +3,7 @@ from typing import Literal, Optional, Type, Union
 import torch
 from e3nn import o3
 from mace.modules import MACE, InteractionBlock, RealAgnosticResidualInteractionBlock
+from mace.modules.blocks import RadialEmbeddingBlock
 
 from graph2mat import BasisTableWithEdges
 from graph2mat.bindings.e3nn import (
@@ -16,8 +17,8 @@ from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
 )
 
 # from context import mace
-from graph2mat.core.data.metrics import OrbitalMatrixMetric, block_type_mse
-from graph2mat.models.mace import MatrixMACE
+from graph2mat.core.data.metrics import OrbitalMatrixMetric, elementwise_mse
+from graph2mat.models.mace import MatrixMACE, drop_last_mace_interaction
 from graph2mat.tools.lightning import LitBasisMatrixModel
 
 # from graph2mat.models._mace.models import OrbitalMatrixMACE
@@ -43,9 +44,12 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             InteractionBlock
         ] = RealAgnosticResidualInteractionBlock,
         num_interactions: int = 2,
+        keep_last_layer_irreps: bool = False,
+        mp_cutoff: Optional[float] = None,
         # num_elements: int=2,
         hidden_irreps: Union[o3.Irreps, str] = "20x0e+20x1o+20x2e",
         edge_hidden_irreps: Union[o3.Irreps, str] = "4x0e+4x1o+4x2e",
+        edge_message_mid_irreps: Union[o3.Irreps, str, int, None] = None,
         avg_num_neighbors: float = 1.0,
         # atomic_numbers: List[int],
         correlation: int = 1,
@@ -62,17 +66,30 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         return_coefficients: bool = False,
         hamiltonian_local_context: bool = False,
         hamiltonian_local_context_kwargs: Optional[dict] = None,
+        readout_fp32: bool = False,
+        output_scaleshift: bool = False,
         n_matrix_components: int = 1,
         optim_wdecay: float = 5e-7,
         optim_amsgrad: bool = True,
         optim_lr: float = 1e-3,
-        loss: Type[OrbitalMatrixMetric] = block_type_mse,
+        loss: Type[OrbitalMatrixMetric] = elementwise_mse,
         loss_kwargs: Optional[dict] = None,
         training_stages: Optional[list[dict]] = None,
         initial_node_feats: str = "OneHotZ",
         version: str = "new",
     ):
         model_cls = MatrixMACE  # if version == "new" else OrbitalMatrixMACE
+
+        if output_scaleshift and readout_per_interaction:
+            # Each per-interaction readout would be fitted to the full target and then summed.
+            raise ValueError("output_scaleshift is not supported with readout_per_interaction.")
+
+        if initial_node_feats.split() != ["OneHotZ"]:
+            # The MACE node embedding is built for one-hot species attributes only.
+            raise ValueError(
+                "LitMACEMatrixModel only supports initial_node_feats='OneHotZ', "
+                f"got {initial_node_feats!r}."
+            )
 
         super().__init__(
             root_dir=root_dir,
@@ -82,7 +99,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             loss=loss,
             loss_kwargs=loss_kwargs,
             training_stages=training_stages,
-            initial_node_feats="OneHotZ",
+            initial_node_feats=initial_node_feats,
             model_cls=model_cls,
         )
         self.save_hyperparameters()
@@ -92,15 +109,30 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         if isinstance(edge_hidden_irreps, str):
             edge_hidden_irreps = o3.Irreps(edge_hidden_irreps)
 
+        matrix_r_max = self.basis_table.maxR() * 2
+        readout_radial_embedding = None
+        if mp_cutoff is not None:
+            if not 0 < mp_cutoff < matrix_r_max:
+                raise ValueError(
+                    f"mp_cutoff must be in (0, {matrix_r_max:.3f}) (the matrix graph cutoff)."
+                )
+            # MACE passes messages up to mp_cutoff; the matrix edges keep the full range.
+            readout_radial_embedding = RadialEmbeddingBlock(
+                r_max=matrix_r_max,
+                num_bessel=num_bessel,
+                num_polynomial_cutoff=num_polynomial_cutoff,
+            )
+
         if version == "new":
             mace = MACE(
-                r_max=self.basis_table.maxR() * 2,
+                r_max=matrix_r_max if mp_cutoff is None else mp_cutoff,
                 num_bessel=num_bessel,
                 num_polynomial_cutoff=num_polynomial_cutoff,
                 max_ell=max_ell,
                 interaction_cls=interaction_cls,
                 interaction_cls_first=interaction_cls_first,
-                num_interactions=num_interactions,
+                # MACE's last interaction only outputs scalars: build one more and drop it.
+                num_interactions=num_interactions + int(keep_last_layer_irreps),
                 num_elements=len(self.basis_table.basis),
                 hidden_irreps=hidden_irreps,
                 MLP_irreps=o3.Irreps("1x0e"),
@@ -110,6 +142,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 correlation=correlation,
                 gate=None,
             )
+            if keep_last_layer_irreps:
+                mace = drop_last_mace_interaction(mace)
 
             self.init_model(
                 mace=mace,
@@ -118,8 +152,13 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 return_coefficients=return_coefficients,
                 hamiltonian_local_context=hamiltonian_local_context,
                 hamiltonian_local_context_kwargs=hamiltonian_local_context_kwargs,
+                readout_fp32=readout_fp32,
+                mp_cutoff=mp_cutoff,
+                readout_radial_embedding=readout_radial_embedding,
                 unique_basis=self.basis_table.basis,
+                **({"output_scaleshift": True} if output_scaleshift else {}),
                 edge_hidden_irreps=edge_hidden_irreps,
+                edge_message_mid_irreps=edge_message_mid_irreps,
                 symmetric=symmetric_matrix,
                 preprocessing_nodes=preprocessing_nodes,
                 preprocessing_edges=preprocessing_edges,

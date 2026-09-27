@@ -23,6 +23,17 @@ import sisl
 from .basis import BasisConvention, PointBasis, get_change_of_basis
 
 
+class IdentityTypeMap:
+    """Type conversion for ``basis_grouping="point_type"``: every type maps to itself.
+
+    Supports negative edge types, which an ``arange`` lookup table would not.
+    Module level (not local to ``group``) so that models holding it can be pickled.
+    """
+
+    def __getitem__(self, key):
+        return key
+
+
 class BasisTableWithEdges:
     """Stores the unique types of points in the system, with their basis and the possible edges.
 
@@ -311,13 +322,8 @@ class BasisTableWithEdges:
         filters = None
         if grouping == "point_type":
             new_table = self
-
-            class A:
-                def __getitem__(self, key):
-                    return key
-
-            point_type_conversion = A()
-            edge_type_conversion = A()
+            point_type_conversion = IdentityTypeMap()
+            edge_type_conversion = IdentityTypeMap()
         elif grouping == "basis_shape":
             # Get all basis sizes:
             basis_sizes = np.zeros((len(self.basis), 5), dtype=int)

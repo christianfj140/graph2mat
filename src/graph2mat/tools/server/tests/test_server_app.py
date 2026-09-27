@@ -1,6 +1,10 @@
 from io import BytesIO
 
-from fastapi.testclient import TestClient
+import pytest
+
+pytest.importorskip("fastapi")
+
+from fastapi.testclient import TestClient  # noqa: E402
 
 import sisl
 

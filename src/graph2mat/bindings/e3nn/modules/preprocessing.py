@@ -110,6 +110,11 @@ class E3nnEdgeMessageBlock(torch.nn.Module):
 
     This function can be used for the preprocessing step of edges. It has no effect when used
     as the preprocessing step of nodes.
+
+    If ``irreps["edge_message_mid_irreps"]`` is given, node features are projected to those
+    irreps before being copied to every edge (an int means that multiplicity for every irrep
+    of the node features). Everything computed per edge (gather, tensor product weights and
+    output) scales with this width, so this is the main VRAM knob of the edge readout.
     """
 
     def __init__(
@@ -122,21 +127,24 @@ class E3nnEdgeMessageBlock(torch.nn.Module):
         edge_attrs_irreps = irreps["edge_attrs_irreps"]
         edge_feats_irreps = irreps["edge_feats_irreps"]
         target_irreps = irreps["edge_hidden_irreps"]
+        mid_irreps = self._mid_irreps(
+            node_feats_irreps, irreps.get("edge_message_mid_irreps")
+        )
 
-        # First linear
+        # First linear (on nodes, before the per-edge gather)
         self.linear_up = o3.Linear(
             node_feats_irreps,
-            node_feats_irreps,
+            mid_irreps,
         )
 
         # TensorProduct
         irreps_mid, instructions = tp_out_irreps_with_instructions(
-            node_feats_irreps,
+            mid_irreps,
             edge_attrs_irreps,
             target_irreps,
         )
         self.conv_tp = o3.TensorProduct(
-            node_feats_irreps,
+            mid_irreps,
             edge_attrs_irreps,
             irreps_mid,
             instructions=instructions,
@@ -159,6 +167,16 @@ class E3nnEdgeMessageBlock(torch.nn.Module):
         self.linear = o3.Linear(irreps_mid, target_irreps)
 
         self.irreps_out = (None, target_irreps)
+
+    @staticmethod
+    def _mid_irreps(node_feats_irreps: o3.Irreps, spec) -> o3.Irreps:
+        """Irreps of the node features copied to each edge (default: node_feats_irreps)."""
+        if spec is None:
+            return node_feats_irreps
+        if isinstance(spec, int):
+            present = sorted({ir for _, ir in o3.Irreps(node_feats_irreps)})
+            return o3.Irreps([(spec, ir) for ir in present])
+        return o3.Irreps(spec)
 
     def forward(
         self,

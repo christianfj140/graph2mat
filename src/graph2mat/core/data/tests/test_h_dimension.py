@@ -4,11 +4,12 @@ import numpy as np
 
 path = "/home/christian/Escritorio/CINN/repositorios/ejemplo_graph2mat_h2o/results/hamiltonian_reconstructed/predicted_matrices/4.HSX"
 
-print("Existe:", os.path.exists(path))
-if os.path.exists(path):
-    print("Tamaño:", os.path.getsize(path))
-else:
-    raise FileNotFoundError(path)
+if not os.path.exists(path):
+    import pytest
+
+    pytest.skip(f"local example file not available: {path}", allow_module_level=True)
+
+print("Tamaño:", os.path.getsize(path))
 
 sile = sisl.get_sile(path)
 

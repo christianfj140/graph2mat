@@ -15,7 +15,7 @@ from graph2mat.bindings.torch.load import sanitize_checkpoint
 
 # from context import mace
 from graph2mat.core.data import metrics as metrics_module
-from graph2mat.core.data.metrics import OrbitalMatrixMetric, block_type_mse
+from graph2mat.core.data.metrics import OrbitalMatrixMetric, elementwise_mse
 from graph2mat.core.data.node_feats import NodeFeature
 
 from ._helpers import glob, maybe_zip_path
@@ -35,7 +35,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         basis_files: Union[str, None] = None,
         basis_table: Union[BasisTableWithEdges, None] = None,
         no_basis: Optional[dict] = None,
-        loss: Type[OrbitalMatrixMetric] = block_type_mse,
+        loss: Type[OrbitalMatrixMetric] = elementwise_mse,
         loss_kwargs: Optional[dict[str, Any]] = None,
         initial_node_feats: str = "OneHotZ",
         training_stages: Optional[list[dict[str, Any]]] = None,
@@ -142,10 +142,25 @@ class LitBasisMatrixModel(pl.LightningModule):
                 logger=True,
             )
 
-        return {**out, "loss": loss}
+        # Only what callbacks read: keeping every MACE output alive until the end of
+        # the batch only costs memory.
+        return {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"]}
 
     def on_fit_start(self) -> None:
         self._apply_training_stage_for_epoch(getattr(self, "current_epoch", 0))
+        self._fit_output_scaleshift()
+
+    def _fit_output_scaleshift(self) -> None:
+        """Fits the readout output scale/shift from the training labels, once."""
+        readout = getattr(self.model, "matrix_readouts", None)
+        if not getattr(readout, "output_scaleshift", False):
+            return
+        if bool(readout.output_scaleshift_fitted):
+            return  # e.g. resuming from a checkpoint
+        loader = self.trainer.datamodule.train_dataloader()
+        readout.fit_output_scaleshift(
+            (batch.to(self.device) for batch in loader), self.basis_table
+        )
 
     def on_train_epoch_start(self) -> None:
         self._apply_training_stage_for_epoch(self.current_epoch)
@@ -173,7 +188,9 @@ class LitBasisMatrixModel(pl.LightningModule):
         for k, v in stats.items():
             self.log(f"val_{k}", v)
 
-        return {**out, "loss": loss}
+        # Only what callbacks read: keeping every MACE output alive until the end of
+        # the batch only costs memory.
+        return {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"]}
 
     def test_step(self, batch, batch_idx):
         out = self.model(batch)

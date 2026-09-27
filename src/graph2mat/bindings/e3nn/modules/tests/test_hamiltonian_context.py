@@ -413,3 +413,60 @@ def test_matrix_mace_per_interaction_return_coefficients_and_gradients():
     ]
     assert all(gradient is not None for gradient in readout_gradients)
     assert all(torch.abs(gradient).item() > 0 for gradient in readout_gradients)
+
+
+class _AutocastRecordingReadout(_RecordingReadout):
+    def forward(self, data, node_feats, return_coefficients=False):
+        self.autocast_enabled = torch.is_autocast_enabled("cpu")
+        return super().forward(data, node_feats, return_coefficients)
+
+
+@pytest.mark.parametrize("readout_fp32", [False, True])
+def test_matrix_mace_readout_fp32_under_mixed_precision(readout_fp32):
+    pytest.importorskip("mace")
+    from graph2mat.models.mace import MatrixMACE
+
+    model = MatrixMACE(
+        mace=_FakeMACE(), graph2mat_cls=_AutocastRecordingReadout, readout_fp32=readout_fp32
+    )
+    batch = _matrix_mace_batch()
+    # MACE output as it would come out of a bf16 autocast region.
+    batch["mace_node_feats"] = batch["mace_node_feats"].to(torch.bfloat16)
+    with torch.autocast("cpu", dtype=torch.bfloat16):
+        model(batch)
+    readout = model.matrix_readouts
+
+    assert readout.autocast_enabled is not readout_fp32
+    expected = torch.float32 if readout_fp32 else torch.bfloat16
+    assert readout.last_node_feats.dtype == expected
+
+
+class _EdgeRecordingMACE(_FakeMACE):
+    def forward(self, data, compute_force=False, **kwargs):
+        self.n_edges = data["edge_index"].shape[1]
+        self.n_shifts = data["shifts"].shape[0]
+        return super().forward(data, compute_force, **kwargs)
+
+
+class _ReadoutRadial(torch.nn.Module):
+    def forward(self, lengths, node_attrs, edge_index, atomic_numbers):
+        return 2 * lengths.reshape(-1, 1)
+
+
+def test_matrix_mace_mp_cutoff_only_restricts_message_passing():
+    pytest.importorskip("mace")
+    from graph2mat.models.mace import MatrixMACE
+
+    mace = _EdgeRecordingMACE()
+    model = MatrixMACE(
+        mace=mace, graph2mat_cls=_RecordingReadout, mp_cutoff=1.0,
+        readout_radial_embedding=_ReadoutRadial(),
+    )
+    batch = _matrix_mace_batch()
+    model(batch)
+    # Only the two directions of the 0.96 A bond are shorter than 1 A.
+    assert mace.n_edges == mace.n_shifts == 2
+    readout = model.matrix_readouts
+    assert readout.last_edge_feats.shape[0] == batch["edge_index"].shape[1] == 6
+    _, lengths = _vectors_and_lengths(batch["positions"], batch["edge_index"])
+    assert torch.allclose(readout.last_edge_feats.reshape(-1), 2 * lengths)

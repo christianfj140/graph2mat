@@ -289,6 +289,9 @@ class Graph2Mat(Generic[ArrayType]):
     #: This has shape (n_edge_types, dim_new_basis, dim_new_basis).
     edge_filters: Optional[ArrayType]
 
+    #: Array module used for computations (e.g. ``numpy`` or ``torch``).
+    numpy: ModuleType = np
+
     def __init__(
         self,
         unique_basis: Union[BasisTableWithEdges, Sequence[PointBasis]],
@@ -327,7 +330,10 @@ class Graph2Mat(Generic[ArrayType]):
             else BasisTableWithEdges(unique_basis)
         )
         self._matrix_block_cls = matrix_block_cls
-        self.numpy = numpy if numpy is not None else np
+        # Only store the array module on the instance when it overrides the class
+        # default: module objects cannot be deep-copied or pickled (EMA/SWA copy the model).
+        if numpy is not None and numpy is not type(self).numpy:
+            self.numpy = numpy
         self._self_interactions_list = self_interactions_list
         self.node_operation_cls = node_operation
         self._interactions_dict = interactions_dict
@@ -378,6 +384,10 @@ class Graph2Mat(Generic[ArrayType]):
             **edge_operation_kwargs,
         )
         self.interactions = self._interactions_dict(interactions)
+        # (point_type, neigh_type, edge_type) of each interaction key, parsed once.
+        self._interaction_types = {
+            key: tuple(map(int, key[1:-1].split(","))) for key in self.interactions
+        }
 
     def _supports_n_matrix_components(self, matrix_block_cls: Type[MatrixBlock]) -> bool:
         """Whether the matrix block class explicitly supports n_matrix_components."""
@@ -417,6 +427,18 @@ class Graph2Mat(Generic[ArrayType]):
                 self.basis_filters[original_edgetypes[:, 0]],
                 self.basis_filters[original_edgetypes[:, 1]],
             )
+            if not self.symmetric:
+                # Negative edge types are the reverse direction, whose blocks are
+                # transposed. They index this array from the end (numpy wraparound),
+                # so type -t must land on the transposed filter of type t.
+                reverse_filters = np.einsum(
+                    "ia, ib ->iab",
+                    self.basis_filters[original_edgetypes[:, 1]],
+                    self.basis_filters[original_edgetypes[:, 0]],
+                )
+                self.edge_filters = np.concatenate(
+                    [self.edge_filters, reverse_filters[1:][::-1]]
+                )
         else:
             self.edge_filters = None
             self.node_filters = None
@@ -843,38 +865,35 @@ class Graph2Mat(Generic[ArrayType]):
         coefficients = {}
 
         graph2mat_node_types = self.types_to_graph2mat[node_types]
+        # One host sync for all types instead of one per type.
+        present_types = set(self.numpy.unique(graph2mat_node_types).tolist())
 
         # Call each unique self interaction function with only the features
         # of nodes that correspond to that type.
         for node_type, func in enumerate(self.self_interactions):
-            if func is None:
+            # Quick exit if the type has no basis or no nodes of this type
+            if func is None or node_type not in present_types:
                 continue
 
             # Select the features for nodes of this type
             mask = graph2mat_node_types == node_type
 
-            # Quick exit if there are no features of this type
-            if not mask.any():
-                continue
-
             filtered_kwargs = {key: value[mask] for key, value in node_kwargs.items()}
 
             # If there are, compute the blocks.
-            output = func(**filtered_kwargs, **global_kwargs)
-            if return_coefficients:
-                if not hasattr(func, "forward_coefficients"):
-                    raise ValueError(
-                        "return_coefficients=True requires matrix blocks to expose "
-                        "forward_coefficients()."
-                    )
-                coefficients[f"node:{node_type}"] = func.forward_coefficients(
-                    **filtered_kwargs, **global_kwargs
-                )
+            output, coefficients[f"node:{node_type}"] = self._evaluate_block(
+                func, return_coefficients, **filtered_kwargs, **global_kwargs
+            )
             # Flatten the blocks
             if output.ndim == 4:
                 outputs.append(output.reshape(-1, output.shape[-1]))
             else:
                 outputs.append(output.ravel())
+
+        if len(outputs) == 0:
+            # No point has basis functions.
+            empty = self._empty_labels(node_types)
+            return (empty, coefficients) if return_coefficients else empty
 
         unsorted_node_labels = self.numpy.concatenate(outputs, axis=0)
 
@@ -906,6 +925,11 @@ class Graph2Mat(Generic[ArrayType]):
         coefficients = {}
 
         graph2mat_edge_types = self.edge_types_to_graph2mat[edge_types]
+        abs_edge_types = abs(graph2mat_edge_types)
+        # One host sync for all types instead of one per type.
+        present_types = set(self.numpy.unique(abs_edge_types).tolist())
+        # Non-symmetric heteronuclear types: output of the +type module, waiting for -type.
+        pending_direction = None
 
         # Call each unique interaction function with only the features
         # of edges that correspond to that type.
@@ -915,12 +939,12 @@ class Graph2Mat(Generic[ArrayType]):
                 continue
 
             # The key of the module is the a tuple (int, int, int) converted to a string.
-            point_type, neigh_type, edge_type = map(int, module_key[1:-1].split(","))
+            point_type, neigh_type, edge_type = self._interaction_types[module_key]
+            if abs(edge_type) not in present_types:
+                continue
 
             # Get a mask to select the edges that belong to this type.
-            mask = abs(graph2mat_edge_types) == abs(edge_type)
-            if not mask.any():
-                continue
+            mask = abs_edge_types == abs(edge_type)
 
             # Then, for all features, select only the edges of this type.
             filtered_edge_kwargs = {
@@ -940,9 +964,10 @@ class Graph2Mat(Generic[ArrayType]):
                     # The case of an interaction of a point type with itself is special.
                     # There is no "positive" or "negative" direction, since the points can
                     # be permuted at will in the inputs. Therefore, there is a single edge
-                    # computing function that computes all edges. We select all edges of this type.
+                    # computing function that computes all edges. We select all edges of this type,
+                    # and the reverse direction of each edge is the other member of its pair.
                     i_edges = slice(None)
-                    j_edges = slice(None)
+                    j_edges = self._pair_swap_index(type_edge_index.shape[1], type_edge_index)
             else:
                 i_edges = graph2mat_edge_types[mask] == edge_type
                 j_edges = ~i_edges
@@ -967,27 +992,48 @@ class Graph2Mat(Generic[ArrayType]):
             # Compute the outputs.
             # The output will be of shape [n_edges, i_basis_size, j_basis_size]. That is, one
             # matrix block per edge, where the shape of the block is determined by the edge type.
-            output = func(
-                **filtered_edge_kwargs, **filtered_node_kwargs, **global_kwargs
+            output, coefficients[f"edge:{module_key}"] = self._evaluate_block(
+                func,
+                return_coefficients,
+                **filtered_edge_kwargs,
+                **filtered_node_kwargs,
+                **global_kwargs,
             )
-            if return_coefficients:
-                if not hasattr(func, "forward_coefficients"):
-                    raise ValueError(
-                        "return_coefficients=True requires matrix blocks to expose "
-                        "forward_coefficients()."
-                    )
-                coefficients[f"edge:{module_key}"] = func.forward_coefficients(
-                    **filtered_edge_kwargs, **filtered_node_kwargs, **global_kwargs
+
+            # One flattened row per edge (the two directions of a heteronuclear edge type
+            # have transposed block shapes, so they can only be joined once flattened).
+            if output.ndim == 4:
+                output = output.reshape(output.shape[0], -1, output.shape[-1])
+            else:
+                output = output.reshape(output.shape[0], -1)
+
+            if not self.symmetric and point_type != neigh_type:
+                # The +type and -type modules each compute one direction, but the label
+                # resorting expects the blocks of a type in the edges' original order,
+                # where both directions alternate. Merge the two halves back in that order.
+                positions = self.numpy.where(i_edges)[0]
+                if edge_type > 0:
+                    pending_direction = (positions, output)
+                    continue
+                first_positions, first_output = pending_direction
+                order = self.numpy.argsort(
+                    self.numpy.concatenate([first_positions, positions])
                 )
+                output = self.numpy.concatenate([first_output, output], axis=0)[order]
 
             # Since each edge type has a different block shape, we need to flatten the blocks (and even
             # the n_edges dimension) to put them all in a single array.
-            if output.ndim == 4:
+            if output.ndim == 3:
                 output = output.reshape(-1, output.shape[-1])
             else:
-                output = output.ravel()
+                output = output.reshape(-1)
 
             outputs.append(output)
+
+        if len(outputs) == 0:
+            # No edges (e.g. isolated atoms): nothing to resort.
+            empty = self._empty_labels(edge_index)
+            return (empty, coefficients) if return_coefficients else empty
 
         # Concatenate all the outputs.
         unsorted_edge_labels = self.numpy.concatenate(outputs, axis=0)
@@ -1004,6 +1050,33 @@ class Graph2Mat(Generic[ArrayType]):
             return edge_labels, coefficients
 
         return edge_labels
+
+    @staticmethod
+    def _evaluate_block(func, return_coefficients: bool, **kwargs):
+        """Returns (block, coefficients or None), evaluating the block operation once."""
+        if not return_coefficients:
+            return func(**kwargs), None
+        if hasattr(func, "forward_with_coefficients"):
+            return func.forward_with_coefficients(**kwargs)
+        if not hasattr(func, "forward_coefficients"):
+            raise ValueError(
+                "return_coefficients=True requires matrix blocks to expose "
+                "forward_coefficients()."
+            )
+        return func(**kwargs), func.forward_coefficients(**kwargs)
+
+    def _empty_labels(self, like: ArrayType) -> ArrayType:
+        """Empty label array, with the components axis if there are several components."""
+        shape = (0,) if self.n_matrix_components == 1 else (0, self.n_matrix_components)
+        return self.numpy.zeros(shape)
+
+    def _pair_swap_index(self, n_edges: int, like: ArrayType) -> ArrayType:
+        """Index mapping each edge to its reverse direction.
+
+        Both directions of an edge are stored consecutively, so the reverse of
+        edge ``k`` is edge ``k ^ 1``.
+        """
+        return self.numpy.arange(n_edges) ^ 1
 
     def _get_nodelabels_resort_index(
         self, types: np.ndarray, original_types: ArrayType, **kwargs

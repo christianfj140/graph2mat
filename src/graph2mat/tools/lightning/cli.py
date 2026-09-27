@@ -16,7 +16,10 @@ from jsonargparse import Namespace
 from jsonargparse._typehints import ActionTypeHint
 
 from graph2mat.bindings.torch.load import sanitize_checkpoint
-from graph2mat.tools.lightning.data import infer_n_matrix_components_from_data_inputs
+from graph2mat.tools.lightning.data import (
+    infer_n_matrix_components_from_data_inputs,
+    resolve_symmetric_matrix,
+)
 
 
 def _autoconfigure_n_matrix_components(config_ns: Namespace) -> None:
@@ -37,7 +40,10 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace) -> None:
         basis_table=getattr(data_cfg, "basis_table", None),
         out_matrix=getattr(data_cfg, "out_matrix", None),
         matrix_component_policy=getattr(data_cfg, "matrix_component_policy", "h_only"),
-        symmetric_matrix=getattr(data_cfg, "symmetric_matrix", False),
+        symmetric_matrix=resolve_symmetric_matrix(
+            getattr(data_cfg, "symmetric_matrix", None),
+            getattr(data_cfg, "out_matrix", None),
+        ),
         sub_point_matrix=getattr(data_cfg, "sub_point_matrix", True),
         initial_node_feats=getattr(data_cfg, "initial_node_feats", "OneHotZ"),
         train_runs=getattr(data_cfg, "train_runs", None),
@@ -70,7 +76,11 @@ class OrbitalMatrixCLI(LightningCLI):
         parser.link_arguments("data.basis_files", "model.basis_files")
         parser.link_arguments("data.basis_table", "model.basis_table")
         parser.link_arguments("data.no_basis", "model.no_basis")
-        parser.link_arguments("data.symmetric_matrix", "model.symmetric_matrix")
+        parser.link_arguments(
+            ("data.symmetric_matrix", "data.out_matrix"),
+            "model.symmetric_matrix",
+            compute_fn=resolve_symmetric_matrix,
+        )
         parser.link_arguments(
             "data.n_matrix_components", "model.n_matrix_components"
         )

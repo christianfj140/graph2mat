@@ -365,6 +365,7 @@ def _nodes_and_edges_to_coo(
         sparse_data = concatenate([node_vals, edge_vals])
 
     if len(rows) != len(sparse_data):
+        orbitals = np.asarray(orbitals)
         edge_block_sizes = orbitals[edge_index[0]] * orbitals[edge_index[1]]
         raise ValueError(
             "Mismatch between COO coordinates and matrix values in "

@@ -27,6 +27,19 @@ from graph2mat.core.data.node_feats import NodeFeature
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
 
 
+#: Physics matrices that are real-symmetric (M_ij(R) = M_ji(-R)^T) without spin-orbit.
+SYMMETRIC_MATRIX_TYPES = ("density_matrix", "hamiltonian", "energy_density_matrix")
+
+
+def resolve_symmetric_matrix(
+    symmetric_matrix: Optional[bool], out_matrix: Optional[str] = None
+) -> bool:
+    """``None`` means: symmetric for density matrix, Hamiltonian and energy density matrix."""
+    if symmetric_matrix is None:
+        return out_matrix in SYMMETRIC_MATRIX_TYPES
+    return bool(symmetric_matrix)
+
+
 def infer_n_matrix_components_from_data_inputs(
     *,
     root_dir: str = ".",
@@ -35,7 +48,7 @@ def infer_n_matrix_components_from_data_inputs(
     basis_table: Optional[BasisTableWithEdges] = None,
     out_matrix: Optional[PhysicsMatrixType] = None,
     matrix_component_policy: MatrixComponentPolicy = "h_only",
-    symmetric_matrix: bool = False,
+    symmetric_matrix: Optional[bool] = None,
     sub_point_matrix: bool = True,
     initial_node_feats: str = "OneHotZ",
     train_runs: Optional[Union[str, List]] = None,
@@ -67,7 +80,7 @@ def infer_n_matrix_components_from_data_inputs(
         basis_table=basis_table,
         out_matrix=out_matrix,
         matrix_component_policy=matrix_component_policy,
-        symmetric_matrix=symmetric_matrix,
+        symmetric_matrix=resolve_symmetric_matrix(symmetric_matrix, out_matrix),
         sub_point_matrix=sub_point_matrix,
         n_matrix_components=1,
         node_attr_getters=[
@@ -116,7 +129,7 @@ class MatrixDataModule(pl.LightningDataModule):
         test_runs: Optional[str] = None,
         predict_structs: Optional[str] = None,
         runs_json: Optional[str] = None,
-        symmetric_matrix: bool = False,
+        symmetric_matrix: Optional[bool] = None,
         sub_point_matrix: bool = True,
         n_matrix_components: int = 1,
         matrix_component_policy: MatrixComponentPolicy = "h_only",
@@ -149,7 +162,10 @@ class MatrixDataModule(pl.LightningDataModule):
                 Path to json-file with a dictionary where the keys are train/val/test/predict.
                 and the dictionary values are list of paths to the run files relative to `root_dir`
                 The paths will be overwritten by train_runs/val_runs/test_runs/predict_structs if given.
-            symmetric_matrix : bool
+            symmetric_matrix : bool, optional
+                Whether the matrix is symmetric. ``None`` (default) chooses it from
+                ``out_matrix``: True for density matrix, Hamiltonian and energy
+                density matrix, False otherwise.
             sub_point_matrix : bool
             matrix_component_policy : str
                 Component policy for multi-component Hamiltonian matrices.
@@ -175,7 +191,9 @@ class MatrixDataModule(pl.LightningDataModule):
         self.no_basis = no_basis
         self.basis_table = basis_table
         self.out_matrix: Optional[PhysicsMatrixType] = out_matrix
-        self.symmetric_matrix = symmetric_matrix
+        self.symmetric_matrix = resolve_symmetric_matrix(symmetric_matrix, out_matrix)
+        # Checkpoints must record the value actually used, not "auto".
+        self.hparams["symmetric_matrix"] = self.symmetric_matrix
         self.initial_node_feats = [
             NodeFeature.registry[k] for k in initial_node_feats.split(" ")
         ]
@@ -364,9 +382,18 @@ class MatrixDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=False,
-            num_workers=self.hparams.loader_threads,
-            persistent_workers=bool(self.hparams.loader_threads),
+            **self._loader_kwargs(),
         )
+
+    def _loader_kwargs(self) -> dict:
+        """Worker settings shared by all loaders: workers are kept alive between
+        epochs (validation included) and batches go to pinned memory for the GPU."""
+        workers = self.hparams.loader_threads
+        return {
+            "num_workers": workers,
+            "persistent_workers": bool(workers),
+            "pin_memory": torch.cuda.is_available(),
+        }
 
     def val_dataloader(self):
         assert (
@@ -377,7 +404,7 @@ class MatrixDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             drop_last=False,
-            num_workers=self.hparams.loader_threads,
+            **self._loader_kwargs(),
         )
 
     def test_dataloader(self):
@@ -389,7 +416,7 @@ class MatrixDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             drop_last=False,
-            num_workers=self.hparams.loader_threads,
+            **self._loader_kwargs(),
         )
 
     def predict_dataloader(self):
@@ -401,5 +428,5 @@ class MatrixDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             drop_last=False,
-            num_workers=self.hparams.loader_threads,
+            **self._loader_kwargs(),
         )

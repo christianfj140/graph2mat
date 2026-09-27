@@ -110,7 +110,8 @@ class BasisMatrix:
         if len(blocks) > 0:
             edge_values = np.concatenate(blocks)
         else:
-            edge_values = np.array([])
+            # Keep the components axis of multi-component labels even without edges.
+            edge_values = np.zeros((0, *node_values.shape[1:]), dtype=node_values.dtype)
 
         return node_values, edge_values
 

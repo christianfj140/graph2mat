@@ -1,0 +1,1480 @@
+He revisado el `main` actual de Graph2Mat, contrastando directamente el código con la auditoría de Claude que adjuntaste, además de revisar el comportamiento relevante de `sisl`, MACE y trabajos recientes de aprendizaje de Hamiltonianos. No he ejecutado entrenamientos, benchmarks ni modificado código, tal como pediste. Por tanto, cuando hablo de ganancias de VRAM o velocidad son **estimaciones estructurales**; los bugs y comportamientos que se desprenden directamente del código los marco como tales.
+
+Mi conclusión principal es bastante clara: **antes de intentar hacer Graph2Mat simplemente “más grande” o “más profundo”, hay varios problemas de formulación y de implementación que actualmente ponen un techo artificial a la precisión del Hamiltoniano y, simultáneamente, desperdician bastante cómputo**.
+
+La auditoría de Claude es, en general, muy buena. He podido confirmar independientemente gran parte de sus observaciones de mayor impacto. :chatgpt-content-reference{index="0"} Hay, no obstante, algunos puntos que conviene matizar —especialmente gauge, magnitud del efecto de los proyectores KB y algunas estimaciones numéricas de rendimiento— porque dependen del dataset o necesitan profiling real.
+
+---
+
+# Diagnóstico global
+
+La idea fundamental de Graph2Mat me parece sólida: representar bloques de matrices orbitales mediante irreps de \(E(3)\), usar una GNN equivariante para construir características y reconstruir posteriormente los bloques orbitales. El problema no está tanto en esa idea como en **todo lo que rodea al núcleo equivariante**.
+
+Para el Hamiltoniano, el pipeline actual tiene cuatro debilidades especialmente importantes:
+
+| Problema | Precisión H | VRAM | Velocidad | Prioridad |
+|---|---:|---:|---:|---|
+| Se pierde \(S\) y solo se lee una componente de la matriz | **Muy alta** | — | — | **P0** |
+| `symmetric_matrix=False` por defecto + bug en mensajes inversos | **Alta** | **Media** | **Media** | **P0** |
+| H se aprende prácticamente “en crudo”, sin baseline ni normalización física | **Muy alta** | — | Media indirecta | **P0** |
+| Grafo del backbone y grafo de bloques de matriz son esencialmente el mismo | Media | **Muy alta** | **Muy alta** | **P0/P1** |
+| Readout de aristas muy estrecho y caro internamente | **Alta** | **Alta** | **Alta** | **P1** |
+| Información equivariante \(l>0\) limitada en las últimas interacciones MACE | **Alta** | Media | Media | **P1** |
+| Pérdida puramente elemento-a-elemento | **Alta** | Baja | Baja | **P1** |
+| Conversión irreps \(\rightarrow\) matriz durante cada forward | Baja/Media | Baja | Media | **P1** |
+| CPU↔GPU syncs y reordenaciones durante el forward | — | Baja | **Alta** | **P1** |
+| Datos SIESTA reconstruidos repetidamente durante épocas | — | — | **Alta** | **P1** |
+| Split aleatorio de snapshots | **Potencialmente muy alta** para validación real | — | — | **P0** |
+
+La consecuencia práctica es importante: **yo no empezaría aumentando `hidden_irreps`, `num_interactions` o `correlation` sin arreglar primero P0/P1**. Eso probablemente aumentaría mucho VRAM antes de eliminar los errores sistemáticos actuales.
+
+---
+
+# Verificación de la auditoría de Claude
+
+Hay varias observaciones particularmente importantes que he confirmado.
+
+### 1. Solo se lee `spmat.data[:, 0]`
+
+El conversor de matrices sparse toma explícitamente la primera componente:
+
+```python
+data = spmat.data[:, 0]
+```
+
+Por tanto, el pipeline no conserva una representación general de las diferentes componentes que puede tener un Hamiltoniano/DM de `sisl`. Esto es especialmente problemático en cálculos spin-polarizados, no colineales o SOC. :chatgpt-content-reference{index="1"}
+
+Claude tiene razón en lo esencial: **el pipeline actual no es un pipeline general para Hamiltonianos de spin**.
+
+Lo primero que haría aquí ni siquiera es implementar SOC: haría que Graph2Mat **falle explícitamente** cuando detecte una matriz con componentes de spin que no sabe representar. El fallo silencioso es mucho peor.
+
+---
+
+### 2. El overlap \(S\) desaparece
+
+La reconstrucción actual termina haciendo esencialmente:
+
+\[
+\texttt{sp\_class.fromsp(geometry, P)}
+\]
+
+sin proporcionar \(S\). :chatgpt-content-reference{index="2"}
+
+Esto es físicamente muy relevante. En una base de orbitales atómicos no ortogonal, el problema electrónico es
+
+\[
+H(\mathbf k)c_n(\mathbf k)
+=
+\varepsilon_n(\mathbf k)
+S(\mathbf k)c_n(\mathbf k),
+\]
+
+no
+
+\[
+Hc=\varepsilon c.
+\]
+
+La propia API de `sisl` distingue ambos casos: `fromsp` acepta explícitamente un \(S\), y si no se suministra la matriz resultante se considera ortogonal. :chatgpt-content-reference{index="3"}
+
+Por tanto, reformularía una afirmación de Claude de manera ligeramente más precisa:
+
+> El Hamiltoniano predicho sí se puede diagonalizar matemáticamente, pero **sin restaurar \(S\) se está resolviendo el problema espectral incorrecto para la base SIESTA original**.
+
+Esto es, para mí, uno de los problemas más importantes de todo el repositorio.
+
+---
+
+### 3. `symmetric_matrix=False` sigue siendo el valor por defecto
+
+El modelo Lightning basado en MACE mantiene `symmetric_matrix=False` por defecto. :chatgpt-content-reference{index="4"}
+
+Para un Hamiltoniano real sin SOC debería imponerse
+
+\[
+H_{ij}(\mathbf R)
+=
+H_{ji}(-\mathbf R)^T.
+\]
+
+No hay ninguna ventaja física en pedir a la red que aprenda independientemente ambos miembros de esa igualdad.
+
+Además, encontré la misma anomalía que Claude: para aristas entre átomos del mismo tipo, cuando el modo no simétrico está activo, el código utiliza los mismos índices para las dos entradas que deberían representar los mensajes directo e inverso. :chatgpt-content-reference{index="5"}
+
+El readout de arista posteriormente combina precisamente las dos entradas mediante un tensor product. :chatgpt-content-reference{index="6"}
+
+Esto significa que el problema no es solo “no usar simetría”: existe un **bug real de información perdida en el caso no simétrico para pares del mismo tipo**.
+
+---
+
+### 4. La referencia atómica existe conceptualmente, pero solo está implementada para DM
+
+`BasisTableWithEdges` tiene el concepto de `point_matrix`, pero `AtomicTableWithEdges` lo construye a partir de la density matrix atómica. No existe el equivalente natural para H. :chatgpt-content-reference{index="7"}
+
+Esta es una oportunidad enorme porque, matemáticamente, predecir
+
+\[
+H
+\]
+
+directamente es mucho peor condicionado que predecir
+
+\[
+\boxed{
+H = H_0 + \Delta H_\theta
+}
+\]
+
+donde \(H_0\) ya contiene la física dominante.
+
+Un trabajo muy reciente como HAMSTER sigue precisamente una filosofía de Hamiltoniano físico base + corrección aprendida, mostrando que este tipo de \(\Delta\)-learning puede ser extraordinariamente eficiente en datos. No implica que sus números se trasladen directamente a Graph2Mat, pero la dirección es muy relevante. :chatgpt-content-reference{index="8"}
+
+---
+
+### 5. El cutoff del grafo viene del solapamiento orbital
+
+Graph2Mat construye las relaciones atómicas básicamente a partir de los radios orbitales, con criterio del tipo
+
+\[
+d_{ij}<R_i+R_j.
+\] :chatgpt-content-reference{index="9"}
+
+
+Esto tiene mucho sentido para \(S\) y para partes locales de la DM, pero **no captura necesariamente todos los elementos no nulos del Hamiltoniano**, porque SIESTA incluye pseudopotenciales no locales en forma Kleinman–Bylander. :chatgpt-content-reference{index="10"}
+
+Para un potencial separable,
+
+\[
+\langle\phi_i|V_{\mathrm{KB}}|\phi_j\rangle
+=
+\sum_\alpha
+\langle\phi_i|\chi_\alpha\rangle
+D_\alpha
+\langle\chi_\alpha|\phi_j\rangle,
+\]
+
+puede ocurrir que \(\phi_i\) y \(\phi_j\) no se solapen directamente entre sí y, aun así, ambos se acoplen a un mismo proyector.
+
+Por tanto Claude tiene razón en la estructura del problema. Lo que **no asumiría sin medir** es cuánto error espectral produce en tu dataset concreto.
+
+---
+
+# Mejoras de física y matemáticas
+
+## 1. Convertir \(S\) en una cantidad de primera clase
+
+Para Hamiltonianos SIESTA, no consideraría terminado el soporte de H hasta que Graph2Mat trabaje explícitamente con
+
+\[
+(H,S)
+\]
+
+en vez de solo con \(H\).
+
+No necesariamente hace falta **aprender** \(S\). De hecho hay tres posibilidades razonables:
+
+**A. Usar el \(S\) exacto de SIESTA.**  
+Es mi opción preferida cuando sea posible. El overlap depende de la base orbital y puede obtenerse sin un SCF completo. Otros pipelines de Hamiltonianos como DeepH mantienen explícitamente el cálculo de la matriz de solapamiento como parte del workflow. :chatgpt-content-reference{index="11"}
+
+**B. Aprender \(S\).**  
+Podría ser interesante para inferencia totalmente independiente de SIESTA, pero no sería mi primera prioridad.
+
+**C. Modelo analítico/tabulado de dos centros para \(S\).**  
+También es posible porque \(S\) es mucho más “geométrico” que el H autoconsistente.
+
+Una vez exista \(S\), se desbloquean pérdidas y métricas físicamente mucho mejores.
+
+---
+
+## 2. Imponer Hermiticidad por construcción
+
+Para H real:
+
+\[
+H_{ij}(\mathbf R)
+=
+H_{ji}(-\mathbf R)^T.
+\]
+
+Esto debería ser una **restricción arquitectónica**, no una regularización.
+
+Consecuencias positivas:
+
+- se elimina una fuente innecesaria de error;
+- desaparecen grados de libertad que la red nunca debería aprender;
+- aproximadamente se reduce a la mitad el número de bloques de matriz únicos;
+- se reduce el readout y el almacenamiento de labels;
+- el Hamiltoniano producido es físicamente utilizable.
+
+No afirmaría que el entrenamiento completo vaya a ser \(2\times\) más rápido, porque MACE todavía puede necesitar ambas direcciones para message passing, pero el coste de la parte Graph2Mat/readout sí puede disminuir sustancialmente.
+
+Para SOC esto debe generalizarse a
+
+\[
+H_{ij}(\mathbf R)
+=
+H_{ji}(-\mathbf R)^\dagger,
+\]
+
+por lo que la implementación actual basada en matrices reales y transposición ya no basta.
+
+---
+
+## 3. Dejar de aprender \(H\) “en crudo”: \(\Delta\)-learning
+
+Esta es probablemente mi recomendación de mayor potencial para precisión.
+
+Propondría:
+
+\[
+\boxed{
+H_\theta =
+H_{\rm baseline}
++
+\Delta H_\theta
+}
+\]
+
+Hay varios niveles posibles.
+
+### Baseline mínimo
+
+Promedio on-site por especie y capa:
+
+\[
+H_{ii}^{(0)}
+\approx
+\langle H_{ii}\rangle_{\rm train}.
+\]
+
+Es extremadamente barato y probablemente mejora bastante el conditioning.
+
+### Baseline atómico
+
+Hamiltoniano del átomo aislado para cada especie.
+
+La red deja entonces de aprender energías atómicas grandes y aprende principalmente cambios de entorno.
+
+### Baseline Slater–Koster
+
+Para cada pareja de orbitales:
+
+\[
+H^{(0)}_{ij}
+=
+H^{\rm SK}_{l_i l_j m} (r_{ij}).
+\]
+
+La red aprende la corrección debida al entorno químico.
+
+Esta opción encaja extraordinariamente bien con Graph2Mat porque la transformación orbital ya está explícita.
+
+### Baseline físico de SIESTA
+
+Más ambicioso:
+
+\[
+H_0 =
+T+V_{\rm NA}+V_{\rm KB}+V[\rho_{\rm atomic}],
+\]
+
+y la red aprende principalmente el cambio autoconsistente
+
+\[
+\Delta H
+\sim
+\Delta V_H+\Delta V_{\rm xc}.
+\]
+
+Esto cambia el problema de uno muy difícil a uno mucho más cercano a aprender **polarización y screening local**.
+
+Conceptualmente me parece la dirección más potente.
+
+---
+
+## 4. Normalización equivariante de los targets
+
+Después de restar el baseline, normalizaría las salidas en la base de irreps.
+
+Un bloque orbital puede descomponerse como
+
+\[
+l_a\otimes l_b
+=
+\bigoplus_{L=|l_a-l_b|}^{l_a+l_b} L.
+\]
+
+Para cada tipo de bloque/pair de shells/\(L\), calcularía
+
+\[
+\sigma_{abL}
+=
+\sqrt{
+\left\langle
+|y_{abL}|^2
+\right\rangle
+}.
+\]
+
+Y entrenaría
+
+\[
+\tilde y_{abLM}
+=
+\frac{
+y_{abLM}-\mu_{abL}\delta_{L0}
+}{
+\sigma_{abL}
+}.
+\]
+
+Es importante que las \(2L+1\) componentes del mismo multiplete compartan \(\sigma\), porque de lo contrario se rompe la equivariancia.
+
+El desplazamiento \(\mu\) solo debe aplicarse a canales escalares \(0e\).
+
+Esto debería mejorar notablemente:
+
+- conditioning;
+- convergencia temprana;
+- balance on-site/off-site;
+- viabilidad de BF16;
+- estabilidad frente a bases con orbitales \(d/f\).
+
+---
+
+## 5. Tratar correctamente el gauge energético
+
+Aquí matizaría la auditoría de Claude.
+
+Matemáticamente,
+
+\[
+H\rightarrow H+cS
+\]
+
+implica
+
+\[
+\varepsilon_n\rightarrow\varepsilon_n+c,
+\]
+
+porque
+
+\[
+(H+cS)c_n
+=
+(\varepsilon_n+c)Sc_n.
+\]
+
+Por tanto, si dos muestras usan referencias energéticas distintas, una MSE directa sobre \(H\) castiga una diferencia que puede ser irrelevante para determinadas observables.
+
+Una pérdida invariante sería:
+
+\[
+\Delta H=H_\theta-H_{\rm ref},
+\]
+
+\[
+c^\star=
+\frac{
+\langle\Delta H,S\rangle_W
+}{
+\langle S,S\rangle_W
+},
+\]
+
+\[
+\boxed{
+L_{\rm gauge}
+=
+\|\Delta H-c^\star S\|_W^2.
+}
+\]
+
+Pero **no implementaría esto automáticamente todavía**.
+
+Primero verificaría exactamente:
+
+- qué archivo SIESTA se usa;
+- cómo lo lee la versión concreta de `sisl`;
+- si ya se ha restado o no \(E_F S\);
+- qué referencia energética tienen todas las muestras.
+
+La afirmación fuerte de Claude acerca del origen exacto del gauge SIESTA puede ser correcta en contextos concretos, pero aquí el comportamiento del dataset real importa mucho.
+
+Una alternativa arquitectónica que me parece incluso más interesante sería
+
+\[
+H =
+H_{\rm local}
++
+c_{\rm global} S,
+\]
+
+donde \(c_{\rm global}\) se predice con un pequeño head global a partir de invariantes de la estructura. Eso separaría explícitamente:
+
+- física local;
+- referencia energética global.
+
+Para bulk neutro de composición fija probablemente sea innecesario. Para slabs, sistemas cargados, composiciones mezcladas o volumen variable puede ser importante.
+
+---
+
+## 6. Añadir pérdidas espectrales sin diagonalización diferenciable
+
+Una MSE en elementos de matriz no es equivalente a minimizar errores de bandas.
+
+El error de primer orden de un autovalor es
+
+\[
+\delta\varepsilon_{n\mathbf k}
+\simeq
+c_{n\mathbf k}^{\dagger}
+\Delta H(\mathbf k)
+c_{n\mathbf k},
+\]
+
+si los autovectores de referencia están normalizados como
+
+\[
+c^\dagger S c=1.
+\]
+
+Los \(c_{n\mathbf k}\) pueden precomputarse.
+
+Entonces la loss puede combinar:
+
+\[
+L =
+\lambda_HL_H
++
+\lambda_{\rm eig}L_{\rm eig}
++
+\lambda_{\rm gauge}L_{\rm gauge}.
+\]
+
+No es necesario retropropagar por `eigh`.
+
+Esto me parece una gran mejora porque podrías concentrar \(L_{\rm eig}\) en una ventana alrededor de \(E_F\):
+
+\[
+|\varepsilon-E_F|<\Delta E.
+\]
+
+El modelo aprendería a gastar capacidad exactamente en la parte del Hamiltoniano que afecta a las bandas relevantes.
+
+---
+
+## 7. Separar el grafo físico del backbone del grafo de la matriz
+
+Esta es una de las mejoras que simultáneamente ayuda a **precisión, VRAM y velocidad**.
+
+Actualmente MACE recibe un radio global relacionado con `2 * maxR`, mientras que Graph2Mat construye la conectividad a partir de los radios orbitales. :chatgpt-content-reference{index="12"}
+
+Propongo dos grafos:
+
+\[
+G_{\rm env}
+\quad\text{y}\quad
+G_H.
+\]
+
+### \(G_{\rm env}\)
+
+Usado únicamente por MACE/GNN para entender el entorno.
+
+Cutoff optimizado para message passing.
+
+Por ejemplo 4–6 Å puede ser razonable en muchos materiales, pero **debe optimizarse en tu dataset**, no fijarse universalmente.
+
+### \(G_H\)
+
+Usado para generar bloques de la matriz.
+
+Debe contener exactamente todos los bloques físicamente relevantes:
+
+\[
+G_H=
+G_{\rm overlap}
+\cup
+G_{\rm KB}.
+\]
+
+Esto permite tener un Hamiltoniano de rango relativamente largo sin obligar a que **todas las capas MACE hagan message passing por todas esas aristas**.
+
+En un sólido 3D homogéneo,
+
+\[
+N_{\rm vecinos}\propto r_c^3,
+\]
+
+por lo que reducir el cutoff del backbone puede producir una reducción muy grande de aristas. La ganancia concreta debe medirse.
+
+---
+
+## 8. Máscaras orbitales, no solo atómicas
+
+Actualmente un bloque atómico puede contener muchas posiciones orbitales cuyo valor físico debe ser exactamente cero.
+
+Para orbitales \(a,b\) con radios \(R_a,R_b\),
+
+\[
+m_{ab}(r)
+=
+\Theta(R_a+R_b-r)
+\]
+
+puede utilizarse junto con una envolvente suave:
+
+\[
+H_{ab}(r)
+=
+m_{ab}(r)
+f_{\rm env}
+\left(
+\frac r{R_a+R_b}
+\right)
+\tilde H_{ab}.
+\]
+
+Para H habría que ampliar la máscara con los caminos KB correspondientes.
+
+Esto tiene tres ventajas:
+
+1. ceros exactos donde deben existir;
+2. no se desperdicia loss aprendiendo ceros triviales;
+3. continuidad controlada cerca de los cutoffs.
+
+---
+
+## 9. El readout de aristas necesita más capacidad, pero no simplemente más canales
+
+El default actual es aproximadamente:
+
+\[
+4\times0e+
+4\times1o+
+4\times2e,
+\]
+
+es decir, solo 36 componentes equivariantes de edge message antes del readout. :chatgpt-content-reference{index="13"}
+
+Eso es poco para describir todos los acoplamientos orbitales posibles de una base DZP/TZP con múltiples especies.
+
+Sin embargo, simplemente cambiar 4 → 32 dispararía el coste del tensor product.
+
+Yo rediseñaría el readout como:
+
+\[
+x_i
+\xrightarrow{\text{Linear}}
+\tilde x_i,
+\]
+
+\[
+x_j
+\xrightarrow{\text{Linear}}
+\tilde x_j,
+\]
+
+con representaciones mucho más pequeñas, y después un TP condicionado radialmente:
+
+\[
+z_{ij}
+=
+{\rm TP}
+(\tilde x_i,\tilde x_j;
+W(r_{ij},Z_i,Z_j)).
+\]
+
+Finalmente:
+
+\[
+y_{ij}
+=
+{\rm Linear}_{Z_iZ_j}(z_{ij}).
+\]
+
+Es una distribución de capacidad mucho más eficiente.
+
+---
+
+## 10. Reducir las features antes del tensor product de aristas
+
+Esto es especialmente importante para VRAM.
+
+`E3nnEdgeMessageBlock` actualmente hace primero una expansión/tensor product relativamente grande y solo después reduce las irreps a las pequeñas `edge_hidden_irreps`. :chatgpt-content-reference{index="14"}
+
+Computacionalmente es justo lo contrario de lo deseable.
+
+Preferiría:
+
+\[
+x_{\rm node}^{\rm grande}
+\rightarrow
+x_{\rm node}^{\rm pequeño}
+\rightarrow
+{\rm TP}.
+\]
+
+Por ejemplo:
+
+\[
+20\times0e+20\times1o+20\times2e
+\]
+
+podría proyectarse temporalmente a
+
+\[
+8\times0e+8\times1o+8\times2e
+\]
+
+antes de generar los mensajes orbitales.
+
+Esta modificación tiene posibilidades reales de ser uno de los mayores ahorros de VRAM del readout.
+
+---
+
+## 11. El problema de \(l_{\max}\) con orbitales \(f\)
+
+Si aparecen orbitales \(f\),
+
+\[
+3\otimes3
+=
+0\oplus1\oplus2\oplus3\oplus4\oplus5\oplus6.
+\]
+
+Por tanto un bloque \(f-f\) puede contener hasta \(L=6\).
+
+El modelo default solo mantiene hidden/edge irreps hasta \(l=2\). :chatgpt-content-reference{index="15"}
+
+No basta con decir “la red es equivariante”: la pregunta correcta es:
+
+> ¿Existe realmente una ruta tensorial desde las features de entrada hasta cada irrep de salida?
+
+Graph2Mat debería comprobarlo automáticamente al construir el modelo.
+
+Si una salida \(L=5\) o \(L=6\) no tiene ninguna ruta, debería lanzar un error o warning con:
+
+- irrep inalcanzable;
+- bloques afectados;
+- porcentaje de elementos afectados.
+
+No utilizaría 64 canales uniformes hasta \(l=6\). Una arquitectura jerárquica es mucho más eficiente:
+
+\[
+C_0>C_1>C_2>C_3>\cdots
+\]
+
+porque los canales de \(l\) altos suelen requerir menos multiplicidad.
+
+Es precisamente una de las direcciones empleadas por arquitecturas recientes como DeepH-pack para mantener expresividad de alto \(l\) sin multiplicar innecesariamente memoria y parámetros. :chatgpt-content-reference{index="16"}
+
+---
+
+## 12. Preservar features equivariantes en todas las interacciones del backbone
+
+Hay una limitación bastante seria derivada del MACE actual.
+
+El código de MACE deja la última interacción destinada a features invariantes; su propia implementación indica que las features equivariantes no se crean para la última capa. :chatgpt-content-reference{index="17"}
+
+Graph2Mat concatena features de diferentes interacciones, pero la información angular de alto \(l\) de las capas más profundas queda por ello restringida.
+
+Para H esto importa mucho: el Hamiltoniano no depende únicamente de la geometría inmediata del enlace, sino también del entorno que modifica screening, hibridación y potencial autoconsistente.
+
+Me plantearía un `MatrixMACEBackbone` propio que reutilice las interacciones MACE, pero mantenga:
+
+\[
+0e,\;1o,\;2e,\ldots
+\]
+
+en **todas** las capas.
+
+También probaría `correlation=2` y `3`; actualmente el default de Graph2Mat es `correlation=1`. :chatgpt-content-reference{index="18"}
+
+Aquí hay un trade-off real: aumentar correlation mejora el body order pero puede encarecer mucho el modelo. Por eso lo probaría después de las optimizaciones estructurales anteriores.
+
+---
+
+## 13. Añadir un término lineal al readout
+
+El node readout actual utiliza `TensorSquare`. :chatgpt-content-reference{index="19"}
+
+Eso hace que gran parte de la salida sea homogéneamente cuadrática en las features.
+
+Yo usaría algo del tipo
+
+\[
+y=
+b_{\rm equiv}
++
+W x
++
+{\rm TP}(x,x).
+\]
+
+El término constante solo es posible en irreps \(0e\), y el baseline debería manejar la mayor parte de él.
+
+Pero el término lineal
+
+\[
+Wx
+\]
+
+puede hacer mucho más fácil representar perturbaciones pequeñas alrededor de un Hamiltoniano base.
+
+---
+
+## 14. Una arquitectura más radical: Slater–Koster neuronal + residuo equivariante
+
+Si el objetivo final es maximizar precisión/eficiencia y se acepta cambiar bastante Graph2Mat, esta es una de las direcciones que investigaría con más interés.
+
+En el marco local del enlace \(i-j\), gran parte del bloque puede parametrizarse mediante canales físicamente interpretables:
+
+\[
+ss\sigma,\quad
+sp\sigma,\quad
+pp\sigma,\quad
+pp\pi,\quad
+pd\sigma,\quad
+pd\pi,\ldots
+\]
+
+En vez de producir directamente un tensor enorme en el frame global:
+
+1. se rota al frame del enlace;
+2. una red predice integrales reducidas condicionadas por el entorno;
+3. se reconstruye el bloque;
+4. se rota de vuelta;
+5. un pequeño residuo equivariante corrige efectos no bicéntricos.
+
+Sería:
+
+\[
+H =
+H_{\rm neural-SK}
++
+\Delta H_{\rm equiv}.
+\]
+
+Esto puede reducir drásticamente el problema de generar irreps hasta \(L=6\).
+
+No usaría Slater–Koster puro porque el Hamiltoniano autoconsistente no es estrictamente bicéntrico; lo utilizaría como **inductive bias dominante + residual**.
+
+---
+
+# Spin y SOC
+
+Aquí separaría claramente tres niveles.
+
+### No polarizado
+
+Es el caso actual más sencillo.
+
+### Spin colineal
+
+En vez de predecir directamente \(H_\uparrow,H_\downarrow\), utilizaría
+
+\[
+H_c=
+\frac{H_\uparrow+H_\downarrow}{2},
+\]
+
+\[
+H_s=
+\frac{H_\uparrow-H_\downarrow}{2}.
+\]
+
+Un backbone compartido y dos cabezas.
+
+Esto separa naturalmente:
+
+- parte de carga;
+- exchange splitting / magnetización.
+
+### SOC / no colineal
+
+Aquí el target pasa a ser complejo y spinorial:
+
+\[
+H_{ij}
+=
+\begin{pmatrix}
+H_{\uparrow\uparrow}&H_{\uparrow\downarrow}\\
+H_{\downarrow\uparrow}&H_{\downarrow\downarrow}
+\end{pmatrix}.
+\]
+
+Una descomposición útil es
+
+\[
+H=
+h_0 I+
+\mathbf h\cdot\boldsymbol\sigma.
+\]
+
+Pero con SOC hay que tratar correctamente rotaciones espaciales, spin, conjugación compleja y time reversal.
+
+No intentaría meter SOC simplemente añadiendo cuatro output channels al diseño actual: lo consideraría **una extensión matemática independiente**.
+
+---
+
+# Mejoras de entrenamiento y función de pérdida
+
+## Entrenar directamente en espacio de irreps
+
+Actualmente Graph2Mat produce los coeficientes irreducibles y después aplica un cambio de base denso mediante
+
+\[
+y_{xy}
+=
+\sum_\alpha
+Q_{\alpha xy}
+z_\alpha.
+\]
+
+El código hace esta transformación con un `einsum` en cada forward. :chatgpt-content-reference{index="20"}
+
+Si \(Q\) es ortonormal, entonces
+
+\[
+\|Qz-Qz^\star\|_2^2
+=
+\|z-z^\star\|_2^2.
+\]
+
+Por tanto se pueden transformar las etiquetas **una única vez durante el preprocesado**:
+
+\[
+z^\star=Q^T y^\star
+\]
+
+y entrenar directamente:
+
+\[
+L=\|z-z^\star\|^2.
+\]
+
+Solo habría que volver a matriz:
+
+- en validación avanzada;
+- para métricas físicas;
+- en inferencia.
+
+Esto eliminaría del hot path de entrenamiento:
+
+- el cambio de base;
+- su backward;
+- buena parte de la materialización de bloques.
+
+Además hace trivial la normalización por irrep.
+
+Antes de hacerlo verificaría con tests numéricos que cada \(Q\) usado en producción satisface
+
+\[
+Q^TQ=I
+\]
+
+dentro de tolerancia.
+
+---
+
+## Ponderar adecuadamente on-site, vecinos y colas
+
+Una MSE plana puede quedar dominada por:
+
+- on-sites grandes;
+- bloques \(d/f\) con muchos elementos;
+- ceros estructurales.
+
+Una loss razonable podría ser:
+
+\[
+L_H=
+\frac{
+\sum_{g,b,L}
+w_{bL}
+\left\|
+\frac{
+\Delta H_{bL}
+}{
+\sigma_{bL}
+}
+\right\|^2
+}{
+\sum w_{bL}
+}.
+\]
+
+Y reportaría separadamente:
+
+\[
+{\rm MAE}_{\rm onsite},
+\quad
+{\rm MAE}_{1nn},
+\quad
+{\rm MAE}_{2nn},
+\quad
+{\rm MAE}_{\rm tail}.
+\]
+
+Un único MAE global puede esconder un Hamiltoniano espectralmente malo.
+
+---
+
+# Mejoras de ingeniería informática
+
+## 1. Eliminar las sincronizaciones CPU↔GPU del forward
+
+Este es uno de los problemas más claros del código.
+
+El wrapper Torch convierte tensores a NumPy durante la construcción del índice de reordenación:
+
+```python
+types.numpy(force=True)
+```
+
+y posteriormente vuelve a Torch. :chatgpt-content-reference{index="21"}
+
+Eso implica sincronización del dispositivo y rompe el pipeline asíncrono de CUDA.
+
+Además, el forward itera por tipos con máscaras y condiciones del tipo `mask.any()`. :chatgpt-content-reference{index="22"}
+
+Estas decisiones son especialmente caras con:
+
+- batches pequeños;
+- muchas especies;
+- muchos módulos de tensor products pequeños.
+
+Yo movería toda la lógica de clasificación por tipos al `collate`.
+
+Cada batch debería llegar al GPU con:
+
+\[
+\texttt{edge\_permutation},
+\quad
+\texttt{type\_ptr},
+\quad
+\texttt{reverse\_edge},
+\quad
+\texttt{label\_ptr}
+\]
+
+ya calculados.
+
+Entonces el forward sería casi exclusivamente álgebra tensorial GPU.
+
+Esto también es condición previa para que `torch.compile` funcione bien.
+
+---
+
+## 2. Preprocesar el dataset una vez
+
+El dataset actual está diseñado para crear objetos al vuelo; `__getitem__` vuelve a construir la muestra desde su fuente. :chatgpt-content-reference{index="23"}
+
+Para ficheros TSHS/DM esto significa repetir trabajo CPU que no cambia entre épocas.
+
+Generaría una caché versionada:
+
+\[
+{\rm cache\ key}
+=
+{\rm hash(file)}
++
+{\rm hash(processor)}
++
+{\rm graph2mat\ version}.
+\]
+
+Y almacenaría de forma compacta:
+
+- posiciones;
+- especies;
+- dos grafos \(G_{\rm env}\) y \(G_H\);
+- shifts periódicos;
+- labels;
+- \(S\);
+- máscaras orbitales;
+- índices inversos;
+- targets ya transformados a irreps;
+- \(E_F\);
+- spin;
+- carga;
+- metadatos relevantes.
+
+Preferiría un formato memory-mapped o chunked a guardar miles de objetos Python/sisl completos.
+
+Esto probablemente daría una mejora muy importante de throughput CPU y haría viable `num_workers` más pequeños.
+
+---
+
+## 3. Vectorizar extracción y reconstrucción sparse
+
+`csr_to_block_dict` y las rutas inversas contienen bucles Python por bloques/no nulos. :chatgpt-content-reference{index="24"}
+
+Como las formas orbitales por tipo están conocidas de antemano, se pueden precalcular índices:
+
+\[
+(row_{ab},col_{ab})
+\]
+
+y hacer gathers/scatters vectorizados.
+
+Es especialmente importante si en el futuro añadimos simultáneamente:
+
+\[
+H,\;S,\;H_\uparrow,\;H_\downarrow,\ldots
+\]
+
+porque de otro modo el coste de parsing crecerá rápidamente.
+
+---
+
+## 4. Separar el grafo corto de MACE del grafo largo de readout
+
+Desde ingeniería es probablemente la mayor oportunidad de VRAM.
+
+Las activaciones de una GNN escalan aproximadamente como
+
+\[
+O(E\,C)
+\]
+
+o peor en los tensor products.
+
+Si \(E_H\gg E_{\rm env}\), no tiene sentido ejecutar todas las interacciones MACE sobre \(E_H\).
+
+Con dos grafos:
+
+\[
+{\rm VRAM}_{\rm backbone}
+\propto E_{\rm env}
+\]
+
+mientras solo el readout barato opera sobre \(E_H\).
+
+En un sistema homogéneo 3D:
+
+\[
+\frac{E_1}{E_2}
+\sim
+\left(\frac{r_1}{r_2}\right)^3.
+\]
+
+No tomaría la estimación \(4\times\) de Claude como garantía, pero **la dirección del ahorro es inequívoca**.
+
+---
+
+## 5. Evitar `symm_transpose` con dos evaluaciones completas
+
+El bloque simétrico actual evalúa el bloque, intercambia las entradas, vuelve a evaluarlo y promedia con la transpuesta. :chatgpt-content-reference{index="25"}
+
+La operación es matemáticamente válida, pero cara.
+
+Idealmente:
+
+\[
+B_{ji}=B_{ij}^T
+\]
+
+debería imponerse reconstruyendo la pareja a partir de **una sola predicción**.
+
+Otra posibilidad es implementar el operador de intercambio directamente en espacio de irreps.
+
+Para sistemas monoelementales, donde casi todas las aristas son same-species, puede ser una mejora relevante.
+
+---
+
+## 6. Batch size basado en coste real, no en número de estructuras
+
+Dos estructuras con 100 átomos pueden costar radicalmente diferente si una tiene orbitales \(sp\) y otra \(spdf\).
+
+El coste del bloque escala aproximadamente como
+
+\[
+n_{\rm orb,i}
+n_{\rm orb,j}
+\]
+
+y el de tensor products depende de las multiplicidades de irreps.
+
+Definiría un coste por muestra:
+
+\[
+C_g
+=
+\alpha N_g
++
+\beta E_{\rm env}
++
+\gamma E_H
++
+\delta N_{\rm matrix\ elements}.
+\]
+
+Y construiría batches hasta llegar a un presupuesto
+
+\[
+\sum_g C_g<C_{\max}.
+\]
+
+Esto puede aumentar bastante la utilización de GPU sin causar OOM esporádicos.
+
+---
+
+## 7. BF16/TF32, pero solo después de normalizar el problema
+
+No activaría FP16 directamente con el H actual.
+
+Si los targets contienen simultáneamente
+
+\[
+10^{1}\ {\rm eV}
+\quad\text{y}\quad
+10^{-5}\ {\rm eV},
+\]
+
+la precisión reducida puede ser problemática.
+
+Después de baseline + normalización, sí probaría:
+
+| Parte | Precisión inicial propuesta |
+|---|---|
+| MACE backbone | BF16 |
+| MLP radiales | BF16 |
+| Tensor products grandes | BF16/FP32 según test |
+| acumulaciones críticas | FP32 |
+| loss | FP32 |
+| reconstrucción final H | FP32 |
+| métricas espectrales | FP32/FP64 según necesidad |
+
+TF32 para GEMMs también merece benchmark en GPUs NVIDIA modernas.
+
+Lo importante es añadir un **test de equivariancia en mixed precision** antes de activarlo globalmente.
+
+---
+
+## 8. Explorar cuEquivariance
+
+Las versiones recientes de MACE disponen de backends acelerados de operaciones equivariantes y documentan ganancias importantes en determinados modelos/GPU. :chatgpt-content-reference{index="26"}
+
+Esto no aceleraría automáticamente todo Graph2Mat, porque su readout e3nn es propio, pero puede ser una vía importante para el backbone.
+
+A largo plazo estudiaría portar también los tensor products de Graph2Mat al mismo backend.
+
+---
+
+## 9. `torch.compile` después, no antes
+
+Ahora mismo `torch.compile` va a encontrar:
+
+- NumPy dentro del forward;
+- decisiones dependientes de máscaras;
+- loops Python sobre tipos;
+- tamaños dinámicos;
+- muchos pequeños módulos.
+
+Primero eliminaría esas barreras.
+
+Después probaría:
+
+\[
+\texttt{torch.compile(mode="reduce-overhead")}
+\]
+
+junto con bucketing por número de nodos/aristas.
+
+CUDA Graphs podrían ser especialmente efectivos si se utilizan buckets de formas aproximadamente fijas.
+
+---
+
+## 10. Fusionar readouts por tipo
+
+Graph2Mat crea operaciones diferentes para muchas combinaciones de tipos.
+
+Con \(T\) especies, el número de parejas escala aproximadamente como
+
+\[
+O(T^2).
+\]
+
+Para datasets multielementales esto genera muchos pequeños kernels.
+
+Una arquitectura alternativa:
+
+\[
+z_{ij}
+=
+F_{\rm shared}(x_i,x_j,e_{ij}),
+\]
+
+seguida de
+
+\[
+y_{ij}
+=
+W_{t_{ij}}z_{ij}.
+\]
+
+Es decir:
+
+- tensor product pesado compartido;
+- pequeño head dependiente del par químico.
+
+La dependencia de especie puede codificarse con embeddings y/o pesos low-rank.
+
+Esto puede mejorar tanto eficiencia estadística como GPU.
+
+---
+
+## 11. `pin_memory`, transferencias asíncronas y workers persistentes
+
+Los DataLoaders actuales no aprovechan completamente estas opciones; además los loaders de validación/test no conservan necesariamente workers como el train. :chatgpt-content-reference{index="27"}
+
+Después del cacheado añadiría:
+
+```text
+pin_memory=True
+persistent_workers=True
+non_blocking=True
+prefetch_factor>1
+```
+
+cuando tenga sentido.
+
+Es una mejora secundaria frente a las anteriores, pero barata.
+
+---
+
+## 12. Fijar versiones de dependencias
+
+El `pyproject.toml` deja dependencias críticas como `mace_torch`/`e3nn` poco restringidas. :chatgpt-content-reference{index="28"}
+
+Eso es arriesgado para un proyecto cuya matemática depende de:
+
+- convenciones de irreps;
+- implementación MACE;
+- normalización de tensor products;
+- API de `sisl`.
+
+Especialmente porque MACE sigue evolucionando y su propia documentación advierte de cambios entre generaciones. :chatgpt-content-reference{index="29"}
+
+Para investigación reproducible fijaría una matriz CI:
+
+\[
+(\text{sisl},\text{e3nn},\text{MACE},\text{PyTorch})
+\]
+
+y checkpoints con las versiones exactas.
+
+---
+
+# Problemas de datos y validación que considero muy importantes
+
+Hay un aspecto que pondría incluso por delante de varias modificaciones de arquitectura: **cómo se divide el dataset**.
+
+El DataModule puede crear automáticamente validación seleccionando aleatoriamente una fracción del train. :chatgpt-content-reference{index="30"}
+
+Si tus estructuras provienen de MD, esto puede ser muy engañoso.
+
+Dos frames consecutivos:
+
+\[
+X(t)
+\quad\text{y}\quad
+X(t+\Delta t)
+\]
+
+son prácticamente la misma configuración.
+
+Un split aleatorio puede poner uno en train y otro en validation, obteniendo un error extraordinariamente bajo sin demostrar extrapolación real.
+
+Usaría al menos dos benchmarks distintos:
+
+\[
+{\rm interpolation}
+\]
+
+y
+
+\[
+{\rm extrapolation}.
+\]
+
+En el segundo separaría por:
+
+- fragmentos completos de trayectorias;
+- temperaturas;
+- strains;
+- densidades;
+- composiciones;
+- fases;
+- clusters estructurales.
+
+Esta modificación no cambia el modelo, pero puede cambiar radicalmente tu percepción de qué modificaciones realmente funcionan.
+
+---
+
+# Ruido de etiquetas y techo de precisión
+
+Antes de perseguir errores de \(10^{-5}\)–\(10^{-4}\) eV en H, hay que saber cuál es el ruido numérico de SIESTA.
+
+Factores como:
+
+- tolerancia SCF;
+- MeshCutoff;
+- malla real;
+- \(k\)-mesh;
+- temperatura electrónica;
+- pseudopotencial;
+- base orbital;
+
+producen variabilidad en los elementos del Hamiltoniano.
+
+SIESTA documenta explícitamente que la discretización de la malla real puede producir efectos tipo egg-box y que `MeshCutoff` controla esta discretización. :chatgpt-content-reference{index="31"}
+
+Haría un experimento de control con unas pocas estructuras recalculadas usando settings más estrictos.
+
+Si
+
+\[
+\|H^{(1)}-H^{(2)}\|
+\]
+
+ya es del orden de la test MAE del modelo, modificar la arquitectura no servirá.
+
+---
+
+# Bug concreto en `normalized_density_error`
+
+La auditoría de Claude también parece correcta aquí.
+
+La métrica crea un `MatrixDataProcessor` para density matrix sin desactivar `sub_point_matrix`; este mecanismo añade de nuevo la DM atómica cuando se reconstruyen matrices. :chatgpt-content-reference{index="32"}
+
+Pero se está reconstruyendo **un error**, no una DM física:
+
+\[
+\Delta D=D_{\rm pred}-D_{\rm ref}.
+\]
+
+Añadir
+
+\[
+D_{\rm atomic}
+\]
+
+a \(\Delta D\) altera completamente la métrica.
+
+Es un bug pequeño de código pero importante porque puede invalidar conclusiones experimentales previas sobre DM.
+
+---
+
+# Una posible formulación “Graph2Mat-H2”
+
+Si yo tuviera libertad para rediseñar el modelo manteniendo la filosofía del repositorio, apuntaría aproximadamente a:
+
+\[
+\boxed{
+H =
+H_{\rm physics}
++
+c_{\rm global}S
++
+\Delta H_{\rm NN}
+}
+\]
+
+con:
+
+\[
+\Delta H_{\rm NN}
+=
+{\cal R}_{ij}
+\left[
+F_\theta
+(
+x_i,x_j,
+r_{ij},
+{\rm env}_i,
+{\rm env}_j
+)
+\right],
+\]
+
+donde:
+
+- \(H_{\rm physics}\): baseline atómico/SK/no-SCF;
+- \(S\): overlap exacto;
+- \(c_{\rm global}\): head global opcional;
+- \(F_\theta\): backbone equivariante;
+- \({\cal R}_{ij}\): reconstrucción orbital que impone simetría, sparsity y cutoffs;
+- \(G_{\rm env}\neq G_H\);
+- targets entrenados en espacio de irreps normalizado.
+
+Y una loss:
+
+\[
+\boxed{
+L=
+\lambda_{\rm irr}L_{\rm irr}
++
+\lambda_{\rm spec}L_{\rm spec}
++
+\lambda_{\rm gauge}L_{\rm gauge}
++
+\lambda_{\rm phys}L_{\rm phys}
+}
+\]
+
+donde \(L_{\rm spec}\) solo mire, por ejemplo, unas decenas de bandas alrededor de \(E_F\).
+
+Eso me parece mucho más prometedor que simplemente aumentar MACE de 2 a 4 capas y duplicar hidden channels.
+
+---
+
+# Mejoras de ingeniería informática: prioridad concreta
+
+Mi orden de implementación sería el siguiente:
+
+1. **Corregir primero la física y los bugs:** overlap \(S\), Hermiticidad, lectura de spin, mensaje inverso same-species, `normalized_density_error`, validación de orbitales y metadatos. No cambiar arquitectura todavía.
+
+2. **Crear un benchmark reproducible de H:** mismo dataset y splits no correlacionados; medir MAE/RMSE por bloque y distancia, error de bandas alrededor de \(E_F\), peak VRAM, samples/s y tiempo/epoch.
+
+3. **Introducir baseline + normalización en irreps:** empezar con baseline on-site medio por especie y después comparar baseline atómico/SK. Este experimento puede dar una mejora de precisión desproporcionadamente grande respecto al esfuerzo.
+
+4. **Separar \(G_{\rm env}\) y \(G_H\), cachear el dataset y sacar CPU/NumPy del forward:** aquí esperaría el mayor salto de velocidad/VRAM sin sacrificar precisión.
+
+5. **Rediseñar el readout:** proyección pequeña antes del TP, mayor cobertura angular, término lineal, heads condicionados por especie y entrenamiento directamente en irreps.
+
+6. **Solo entonces explorar capacidad adicional:** correlation 2–3, más interacciones, canales altos jerárquicos, BF16/cuEquivariance/`torch.compile`, y finalmente variantes más radicales tipo neural Slater–Koster + residuo.
+
+Ese orden es importante: de otro modo es fácil gastar 2–4× más GPU para compensar errores que realmente proceden de la formulación del target.
+
+---
+
+# Qué creo que tendría mayor impacto real
+
+Si tuviera que apostar por las **cinco modificaciones capaces de transformar Graph2Mat**, no serían pequeños tweaks de optimizador.
+
+**Primero**, tratar realmente el problema como un problema generalizado \((H,S)\) y preservar la física de la base no ortogonal.
+
+**Segundo**, aprender un **residuo** \(\Delta H\) sobre un baseline físico en vez del Hamiltoniano completo.
+
+**Tercero**, imponer Hermiticidad/sparsity/cutoffs orbitales exactamente por construcción.
+
+**Cuarto**, separar el **grafo de entorno** del **grafo de readout del Hamiltoniano**. Esto puede simultáneamente bajar mucho VRAM y permitir incluir interacciones H más lejanas.
+
+**Quinto**, abandonar el readout actual como cuello de botella: mantener información equivariante profunda, cobertura angular completa y un readout eficiente condicionado por el par orbital/químico.
+
+A eso añadiría una sexta que probablemente sea de enorme valor práctico: **preproyectar los targets a irreps y entrenar enteramente allí**. El cambio de base a matrices debería ser un problema de salida/inferencia, no una operación que se paga en cada step.
+
+---
+
+# Valoración de la auditoría de Claude
+
+Después de contrastarla, la usaría como una base técnica seria. En concreto, considero bien sustentadas las observaciones sobre `data[:,0]`, pérdida de \(S\), referencia DM-only, `symmetric_matrix=False`, bug same-species no simétrico, desajuste de grafos/cutoffs, cambio de base denso, preprocesado repetitivo, sincronizaciones CPU/GPU y el bug de `normalized_density_error`. :chatgpt-content-reference{index="33"}
+
+Sí pondría bajo la categoría **“hay que medir/verificar antes de diseñar alrededor de ello”** las magnitudes exactas de las ganancias de FLOPs/VRAM, cuánto pesan los términos KB en tu H concreto, el tratamiento exacto del gauge por la combinación SIESTA+sisl+formato de fichero y algunas afirmaciones cuantitativas sobre AMP. La dirección de esas observaciones es razonable, pero no conviene convertir una estimación estática en un hecho experimental.
+
+La conclusión importante es que **Graph2Mat tiene bastante margen de mejora sin necesidad de abandonar su idea central**. De hecho, creo que primero hay margen para conseguir simultáneamente **más precisión y menos coste**, algo poco común: ahora mismo existen grados de libertad físicos redundantes, grafos demasiado caros para el backbone, transformaciones que podrían sacarse fuera del training loop y targets mal condicionados. Solo después de eliminar todo eso tendría sentido pagar más capacidad de red.

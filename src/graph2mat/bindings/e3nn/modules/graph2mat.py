@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Optional, Sequence, Type, Union
+from typing import Dict, Iterable, Literal, Optional, Sequence, Type, Union
 
 import torch
 from e3nn import o3
@@ -223,9 +223,11 @@ class E3nnGraph2Mat(TorchGraph2Mat):
         blocks_symmetry: str = "ij",
         self_blocks_symmetry: Union[str, None] = None,
         matrix_block_cls: Type[MatrixBlock] = E3nnIrrepsMatrixBlock,
+        output_scaleshift: bool = False,
         **kwargs,
     ):
         self.irreps = irreps
+        self.output_scaleshift = output_scaleshift
 
         preprocessing_nodes_kwargs = {"irreps": irreps, **preprocessing_nodes_kwargs}
         preprocessing_edges_kwargs = {"irreps": irreps, **preprocessing_edges_kwargs}
@@ -262,6 +264,41 @@ class E3nnGraph2Mat(TorchGraph2Mat):
             self_blocks_symmetry=self_blocks_symmetry,
             **kwargs,
         )
+        if output_scaleshift:
+            self.register_buffer("output_scaleshift_fitted", torch.tensor(False))
+
+    def _get_matrix_block_init_kwargs(self) -> dict:
+        kwargs = super()._get_matrix_block_init_kwargs()
+        if self.output_scaleshift:
+            kwargs["output_scaleshift"] = True
+        return kwargs
+
+    @torch.no_grad()
+    def fit_output_scaleshift(self, batches: Iterable, basis_table=None) -> None:
+        """Sets each block's output scale/shift from the labels of ``batches``.
+
+        Node blocks get a shift on their 0e coefficients (the data-driven on-site
+        reference); edge blocks only get scales, so that they still decay to zero.
+        """
+        from graph2mat.core.data.metrics import target_coefficients_from_labels
+
+        basis_table = self.basis_table if basis_table is None else basis_table
+        collected = {"node": {}, "edge": {}}
+        for batch in batches:
+            coefficients = target_coefficients_from_labels(
+                self, batch, basis_table, batch.point_labels, batch.edge_labels
+            )
+            for kind in collected:
+                for key, value in coefficients[kind].items():
+                    collected[kind].setdefault(key, []).append(value)
+
+        for key, values in collected["node"].items():
+            block = self.self_interactions[int(key.split(":", 1)[1])]
+            block.set_output_scaleshift(torch.cat(values), shift_scalars=True)
+        for key, values in collected["edge"].items():
+            block = self.interactions[key.split(":", 1)[1]]
+            block.set_output_scaleshift(torch.cat(values), shift_scalars=False)
+        self.output_scaleshift_fitted.fill_(True)
 
     def _get_readout_irreps(
         self,

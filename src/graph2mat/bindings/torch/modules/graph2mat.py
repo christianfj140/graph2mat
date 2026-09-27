@@ -27,6 +27,8 @@ class TorchGraph2Mat(Graph2Mat, torch.nn.Module):
         detailed explanation of the inner workings of the class.
     """
 
+    numpy = torch
+
     def __init__(
         self,
         *args,
@@ -42,6 +44,13 @@ class TorchGraph2Mat(Graph2Mat, torch.nn.Module):
             self_interactions_list=self_interactions_list,
             interactions_dict=interactions_dict,
         )
+
+    def _empty_labels(self, like: torch.Tensor) -> torch.Tensor:
+        shape = (0,) if self.n_matrix_components == 1 else (0, self.n_matrix_components)
+        return torch.zeros(shape, device=like.device)
+
+    def _pair_swap_index(self, n_edges: int, like: torch.Tensor) -> torch.Tensor:
+        return torch.arange(n_edges, device=like.device) ^ 1
 
     def _init_center_types(self, basis_grouping):
         super()._init_center_types(basis_grouping)

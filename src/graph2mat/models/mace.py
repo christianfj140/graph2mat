@@ -14,6 +14,25 @@ from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
 from graph2mat.bindings.torch.data import TorchBasisMatrixData
 
 
+
+def drop_last_mace_interaction(mace: MACE) -> MACE:
+    """Removes the last interaction of a MACE model (and its product and readout).
+
+    MACE builds its last interaction with scalar outputs only, which is right for
+    energies but leaves a matrix readout without the l>0 features of the deepest
+    layer. Building MACE with one extra interaction and dropping it keeps the full
+    hidden irreps in every remaining layer, for any MACE version (including those
+    without ``keep_last_layer_irreps``).
+    """
+    n = len(mace.interactions) - 1
+    if n < 1:
+        raise ValueError("MACE needs at least two interactions to drop the last one.")
+    mace.interactions = mace.interactions[:n]
+    mace.products = mace.products[:n]
+    mace.readouts = mace.readouts[:n]
+    mace.num_interactions.fill_(n)
+    return mace
+
 class MatrixMACE(torch.nn.Module):
     """Model that wraps a MACE model to produce a matrix output.
 
@@ -39,6 +58,16 @@ class MatrixMACE(torch.nn.Module):
         If ``True``, append deterministic scalar local Hamiltonian context
         channels to node readout features and edge radial features. This is
         experimental and opt-in.
+    mp_cutoff :
+        If given, MACE only passes messages through edges shorter than this (the
+        matrix edges are still all read out). The number of message passing edges
+        scales as mp_cutoff^3 (^2 in 2D), and so does most of MACE's memory. MACE
+        must have been built with ``r_max = mp_cutoff``.
+    readout_radial_embedding :
+        Radial embedding for the matrix edges; needed with ``mp_cutoff``.
+    readout_fp32 :
+        If ``True``, the Graph2Mat readout runs in fp32 even when the model runs
+        under mixed precision (e.g. ``bf16-mixed``). MACE keeps the reduced precision.
     hamiltonian_local_context_kwargs :
         Keyword arguments passed to ``HamiltonianLocalContext`` when
         ``hamiltonian_local_context=True``.
@@ -56,6 +85,9 @@ class MatrixMACE(torch.nn.Module):
         return_coefficients: bool = False,
         hamiltonian_local_context: Union[bool, HamiltonianLocalContext] = False,
         hamiltonian_local_context_kwargs: Optional[dict] = None,
+        readout_fp32: bool = False,
+        mp_cutoff: Optional[float] = None,
+        readout_radial_embedding: Optional[torch.nn.Module] = None,
         **kwargs,
     ):
         super().__init__()
@@ -70,12 +102,18 @@ class MatrixMACE(torch.nn.Module):
             )
         self.readout_interaction_aggregation = readout_interaction_aggregation
         self.return_coefficients = return_coefficients
+        self.readout_fp32 = readout_fp32
+        self.mp_cutoff = mp_cutoff
+        # Radial features of the matrix edges. With mp_cutoff, MACE's own radial
+        # embedding only reaches mp_cutoff, so the readout needs one up to the full cutoff.
+        self.readout_radial_embedding = readout_radial_embedding
         self.hamiltonian_local_context = self._init_hamiltonian_local_context(
             hamiltonian_local_context,
             hamiltonian_local_context_kwargs or {},
         )
 
         edge_hidden_irreps = kwargs.pop("edge_hidden_irreps", None)
+        edge_message_mid_irreps = kwargs.pop("edge_message_mid_irreps", None)
         edge_feats_irreps = self._with_edge_context_irreps(
             self.mace.interactions[0].edge_feats_irreps
         )
@@ -98,6 +136,7 @@ class MatrixMACE(torch.nn.Module):
                                 inter.edge_feats_irreps
                             ),
                             edge_hidden_irreps=edge_hidden_irreps,
+                            edge_message_mid_irreps=edge_message_mid_irreps,
                         ),
                         **kwargs,
                     )
@@ -118,6 +157,7 @@ class MatrixMACE(torch.nn.Module):
                     edge_attrs_irreps=self.mace.interactions[0].edge_attrs_irreps,
                     edge_feats_irreps=edge_feats_irreps,
                     edge_hidden_irreps=edge_hidden_irreps,
+                    edge_message_mid_irreps=edge_message_mid_irreps,
                 ),
                 **kwargs,
             )
@@ -244,8 +284,33 @@ class MatrixMACE(torch.nn.Module):
             The output of the MACE model, with the additional keys "node_labels"
             and "edge_labels" containing the output of ``Graph2Mat``.
         """
-        mace_out = self.mace(data, compute_force=compute_force, **kwargs)
+        mace_out = self.mace(self._message_passing_data(data), compute_force=compute_force, **kwargs)
+        if not self.readout_fp32:
+            return self._readout(data, mace_out)
 
+        # MACE may run in reduced precision (bf16/fp16 autocast), but matrix elements
+        # need ~1e-4 relative precision (bf16 rounds a 10 eV element in steps of ~60 meV).
+        node_feats = mace_out["node_feats"]
+        with torch.autocast(device_type=node_feats.device.type, enabled=False):
+            return self._readout(data, {**mace_out, "node_feats": node_feats.float()})
+
+    def _message_passing_data(self, data: TorchBasisMatrixData):
+        """``data`` restricted to the edges shorter than mp_cutoff (all of them if None)."""
+        if self.mp_cutoff is None:
+            return data
+        _, lengths = get_edge_vectors_and_lengths(
+            positions=data["positions"],
+            edge_index=data["edge_index"],
+            shifts=data["shifts"],
+        )
+        short = lengths.reshape(-1) < self.mp_cutoff
+        mp_data = copy(data)
+        mp_data["edge_index"] = data["edge_index"][:, short]
+        mp_data["shifts"] = data["shifts"][short]
+        return mp_data
+
+    def _readout(self, data: TorchBasisMatrixData, mace_out: dict) -> dict:
+        """Applies the Graph2Mat readout(s) to the MACE output."""
         # Compute edge feats and edge attrs from the modules in the mace model
         # (we can't access them from the model because they are not stored/outputted,
         # but they are very cheap to recompute)
@@ -255,7 +320,10 @@ class MatrixMACE(torch.nn.Module):
             shifts=data["shifts"],
         )
         edge_attrs = self.mace.spherical_harmonics(vectors)
-        edge_feats = self.mace.radial_embedding(
+        radial_embedding = self.readout_radial_embedding
+        if radial_embedding is None:
+            radial_embedding = self.mace.radial_embedding
+        edge_feats = radial_embedding(
             lengths, data["node_attrs"], data["edge_index"], self.mace.atomic_numbers
         )
 

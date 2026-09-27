@@ -1,5 +1,6 @@
 import inspect
-from typing import Dict, Type
+import warnings
+from typing import Dict, Sequence, Type
 
 import torch
 from e3nn import o3
@@ -9,6 +10,21 @@ from graph2mat.bindings.e3nn.irreps_tools import ReducedTensorProducts
 from graph2mat.bindings.torch import TorchMatrixBlock
 
 __all__ = ["E3nnIrrepsMatrixBlock"]
+
+
+def unreachable_irreps(irreps_in: Sequence[o3.Irreps], irreps_out: o3.Irreps) -> o3.Irreps:
+    """Output irreps that no linear or bilinear path from the inputs can produce.
+
+    Readout operations are linear/bilinear in their inputs, so an output irrep is
+    only reachable if it is an input irrep or appears in the product of two of them.
+    Unreachable irreps are silently predicted as zero.
+    """
+    inputs = {ir for irreps in irreps_in for _, ir in o3.Irreps(irreps)}
+    reachable = set(inputs)
+    for ir1 in inputs:
+        for ir2 in inputs:
+            reachable.update(ir1 * ir2)
+    return o3.Irreps([(mul, ir) for mul, ir in o3.Irreps(irreps_out) if ir not in reachable])
 
 
 class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
@@ -24,6 +40,7 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         preprocessor=None,
         irreps: Dict[str, o3.Irreps] = {},
         n_matrix_components: int = 1,
+        output_scaleshift: bool = False,
         **operation_kwargs,
     ):
         torch.nn.Module.__init__(self)
@@ -44,6 +61,29 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         }
 
         self.operation = operation_cls(**operation_kwargs)
+
+        # Output = shift + scale * operation output, per irrep instance (fitted from data
+        # with set_output_scaleshift). Buffers only exist when enabled, so checkpoints of
+        # models without it keep loading.
+        self.output_scaleshift = output_scaleshift
+        if output_scaleshift:
+            self.register_buffer("output_scale", torch.ones(self._irreps_out.dim))
+            self.register_buffer("output_shift", torch.zeros(self._irreps_out.dim))
+
+        irreps_in = [
+            ir
+            for ir in (irreps.get("node_feats_irreps"), irreps.get("edge_messages_irreps"))
+            if ir is not None
+        ]
+        missing = unreachable_irreps(irreps_in, self._irreps_out) if irreps_in else None
+        if missing is not None and missing.dim > 0:
+            warnings.warn(
+                f"Block ({i_irreps}) x ({j_irreps}): output irreps {missing.simplify()} "
+                f"({missing.dim}/{self._irreps_out.dim} coefficients) cannot be produced "
+                f"from the readout inputs {[str(ir) for ir in irreps_in]} and will always "
+                "be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps "
+                "(with MACE, num_interactions=1 leaves only scalar node features)."
+            )
 
     def get_summary(self):
         return f"{str(self.operation.__class__.__name__)}: ({self.i_irreps}) x ({self.j_irreps}) -> {self._irreps_out}"
@@ -70,7 +110,44 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         self.register_buffer("change_of_basis", reduced_tp.change_of_basis)
 
     def _compute_coefficients(self, *args, **kwargs):
-        return self.operation(*args, **kwargs)
+        coefficients = self.operation(*args, **kwargs)
+        if self.output_scaleshift:
+            coefficients = coefficients * self.output_scale + self.output_shift
+        return coefficients
+
+    def _irrep_instances(self):
+        """Per coefficient: index of its irrep instance and whether it is a 0e scalar."""
+        ids, scalar = [], []
+        for mul, ir in self._irreps_out:
+            for _ in range(mul):
+                ids.extend([len(set(ids))] * ir.dim)
+                scalar.extend([ir.l == 0 and ir.p == 1] * ir.dim)
+        return torch.tensor(ids), torch.tensor(scalar)
+
+    @torch.no_grad()
+    def set_output_scaleshift(
+        self, coefficients: torch.Tensor, shift_scalars: bool, rel_floor: float = 1e-2
+    ):
+        """Fits the output scale/shift from target coefficients of shape (n_blocks, dim).
+
+        The shift is the mean of the 0e coefficients (only if ``shift_scalars``; a
+        shift in any other irrep would break equivariance). The scale is the RMS of
+        each irrep instance, shared by its 2l+1 components so that equivariance is
+        kept, floored at ``rel_floor`` times the largest one so that almost-empty
+        channels are not amplified.
+        """
+        ids, scalar = self._irrep_instances()
+        ids, scalar = ids.to(coefficients.device), scalar.to(coefficients.device)
+        shift = coefficients.mean(0) * scalar if shift_scalars else torch.zeros_like(coefficients[0])
+        squares = ((coefficients - shift) ** 2).mean(0)
+        n_instances = int(ids.max()) + 1
+        rms = (
+            torch.zeros(n_instances, dtype=squares.dtype, device=squares.device).index_add_(0, ids, squares)
+            / torch.bincount(ids, minlength=n_instances)
+        ).sqrt()
+        floor = max(float(rms.max()) * rel_floor, 1e-12)
+        self.output_scale.copy_(rms.clamp_min(floor)[ids])
+        self.output_shift.copy_(shift)
 
     def coefficients_to_block(self, irreducible_out: torch.Tensor) -> torch.Tensor:
         if self.n_matrix_components > 1:
@@ -111,6 +188,16 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
             return self._compute_coefficients(*args, **kwargs)
 
         return self.block_to_coefficients(self.forward(*args, **kwargs))
+
+    def forward_with_coefficients(self, *args, **kwargs):
+        """(block, coefficients) evaluating the operation once, not twice as
+        calling ``forward`` and ``forward_coefficients`` separately would."""
+        if self.symm_transpose == False:
+            coefficients = self._compute_coefficients(*args, **kwargs)
+            return self.coefficients_to_block(coefficients), coefficients
+
+        block = self.forward(*args, **kwargs)
+        return block, self.block_to_coefficients(block)
 
     def get_init_kwargs(self, irreps: Dict[str, o3.Irreps], operation_cls) -> dict:
         kwargs = {}
