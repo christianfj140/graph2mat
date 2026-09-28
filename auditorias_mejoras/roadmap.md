@@ -109,6 +109,15 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    capa, nunca vistos (encaja con que limitar el alcance de MACE ayude). Dentro de distribución, en
    cambio, poly6 ayuda: bf16 + poly6 + lin 1,70 (1,44/2,01/1,65); fp32 + poly6 + lin 1,51. Hay dos
    recetas según el objetivo; 🧪 fp32 + lin con poly3, lin con 16.000 pasos y lin proyectado con poly3.
+7. **Receta ganadora en `6x6`: fp32 + lin con poly3.** Dentro: **1,056/1,469/1,163 → 1,23 meV (−37 %
+   frente a 1,94; Δ −0,91/−0,54/−0,68)**. En bicapa: **72 meV (69/93/54), bandas alineadas 107**
+   (referencia 78 y 162). Mejora dentro y fuera: lo que perjudicaba la extrapolación era poly6, no fp32.
+   Con 16.000 pasos y sin EarlyStopping: **1,024/1,270/0,954 → 1,08 meV (−44 %)** y 69 meV en bicapa
+   (bandas alineadas 116). lin en bf16 con 16.000 pasos: 0,949/1,335/— (🧪 semilla 2).
+   **Receta recomendada para `6x6`: fp32 + lin + poly3 + 16.000 pasos sin EarlyStopping.**
+   🧪 nodo proyectado, `torch_compile`, 5 semillas y bicapa → moiré.
+8. En `w90`, bf16 + poly6 + lin: 7,55 meV dentro (8,40/8,07/6,19; fp32 + poly6 + lin 5,09) y 190 meV
+   en bicapa (fp32 + poly6 + lin 221, poly6 solo 183). En `w90` fp32 sí aporta dentro de distribución.
 5. El escenario realista (entrenar con bicapa AA/AB/BA y predecir registros no vistos, entornos de
    moiré) está en marcha con `g2m_bilayer_benchmark.py`.
 
@@ -139,7 +148,7 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 | 1.6 | Readout de aristas más ancho (`edge_hidden_irreps` 16x; por defecto son 4 canales por l) | P | config | bajo | 🔶 dentro de distribución neutro (12,63 frente a 12,61; bandas 20,2 frente a 18,9), pero **el mejor fuera de distribución** (monocapa → bicapa, bandas alineadas 152 frente a 282 de la línea base) |
 | 1.7 | Término lineal junto al producto tensorial, más sesgo 0e on-site (`E3nnLinearTSQNodeBlock`, `E3nnLinearEdgeBlock`) | P | S | bajo | ✅ **`w90`: 12,61 → 5,09 meV (−60 %; 4,92/5,57/4,78), bandas 18,9 → 13,5.** Misma VRAM. **`6x6`** (receta de referencia bf16 + lin): 1,23/2,58/1,58 → media 1,79 frente a 1,94 (Δ −0,73/+0,57/−0,26; −7 %, ruidoso); **fp32 + poly6 + lin en `6x6`: 1,19/1,58/1,74 → media 1,51 frente a 1,94 (−22 %; Δ −0,77/−0,43/−0,10)**. Pero fuera de distribución (bicapa) empeora: 130 frente a 78 meV, mientras que lin en bf16 da 63. Compromiso: fp32 mejora dentro y empeora fuera (en `w90` igual: fp32 solo 309, poly6 solo 183, línea base 230). 🧪 bf16 + poly6 + lin |
 | 1.8 | Peso de las aristas en la pérdida (`loss_kwargs: {edge_weight: 2}` = MSE sobre la matriz completa) | P | S | bajo | 🔶 `w90`: 11,29 frente a 12,61 meV (Δ por semilla −4,2/−0,3/+0,6), bandas 18,2 frente a 18,9: dentro del ruido. Opción disponible (`loss_kwargs`) |
-| 1.9 | `E3nnEdgeBlockNodeMix`: pesos del TP que dependen de la distancia y de ambos nodos (necesita `preprocessing_edges_reuse_nodes`) | P | config | bajo | 🔶 `w90`: 11,77 frente a 12,61 meV (Δ +1,0/−1,8/−1,7), bandas 19,5 frente a 18,9: pequeño, dentro del ruido; muy por detrás de lin |
+| 1.9 | `E3nnEdgeBlockNodeMix`: pesos del TP que dependen de la distancia y de ambos nodos (necesita `preprocessing_edges_reuse_nodes`) | P | config | bajo | ❌ `w90`: 11,77 frente a 12,61 meV (Δ +1,0/−1,8/−1,7), bandas 19,5 frente a 18,9: pequeño, dentro del ruido; **y fuera de distribución es la peor variante (557 meV en bicapa)** |
 | 1.10 | Readouts condicionados del fork (`E3nnHamiltonian{Node,Edge}Block`). Vigilar su VRAM **(GPT Astra)** | P | config | medio | ❌ con esta receta falla al construirse: intenta reservar 139 GB de RAM (el MLP que genera los pesos del TP recibe las features de MACE, 48 canales × 9 segmentos). Solo sería viable proyectando antes las features de nodo a pocos canales |
 | 1.11 | Resolución radial `num_bessel=16` | P | config | bajo | ❌ `w90`: 17,0 frente a 12,61 meV (15,7/18,8/16,4; bandas 25,9 frente a 18,9): peor |
 | 1.12 | EMA, SWA/segunda etapa, clipping, warmup | P | S | bajo | 🔶 EMA empeora (+2,8 meV); SWA y clipping sin probar |
@@ -186,7 +195,7 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` del fork ya la lee; falta la reconstrucción y la salida |
-| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | 🔶 métrica: `g2m_ood_eval.py` calcula c* por mínimos cuadrados y el error alineado. Pérdida pendiente: necesita etiquetas (H, S) (`h_and_overlap`, 2 componentes) y adaptar la predicción del benchmark (hoy `h_only`); reutilizaría `_per_element_structure_ids` de `metrics.py` |
+| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | 🔶 métrica: `g2m_ood_eval.py` calcula c* por mínimos cuadrados y el error alineado. Pérdida: ✅ `gauge_invariant_mse` (7b97b7a): con etiquetas (H, S) (`h_and_overlap`, S la última componente), c óptimo por estructura en forma cerrada y MSE de ΔH − c·S más MSE de S; test con un desplazamiento distinto por estructura. Falta probarla en el benchmark: la predicción de `MD_vs_AtomicDisplacement` asume `h_only` y la escritura de H con S del fork tiene un test que ya fallaba |
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ⏳ el benchmark ya calcula bandas por fuera |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | ⏳ |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
@@ -207,13 +216,13 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 |---|---|---|---|---|---|
 | 6.1 | Caché del preprocesado en tensores (`store_in_memory` ya evita reparsear) | T | M | bajo | ⏳ |
 | 6.2 | Vectorizar CSR → bloques y la reconstrucción; lista de vecinos | T | M | bajo | ⏳ |
-| 6.3 | Aristas ordenadas por tipo en el collate y targets reordenados: sin `nonzero` ni sincronizaciones en el forward | T | M/L | medio | ⏳ |
+| 6.3 | Aristas ordenadas por tipo en el collate y targets reordenados: sin `nonzero` ni sincronizaciones en el forward | T | M/L | medio | ⏳ Medido: el proceso principal de cada entrenamiento de `6x6` gira al 100 % de un núcleo esperando a la GPU; con sincronización bloqueante (`CU_CTX_SCHED_BLOCKING_SYNC`) baja al 65 % con +5 % de tiempo: el resto es trabajo de Python y lanzamientos. Importa porque esta máquina está limitada por la temperatura de la CPU (2–4 entrenamientos a la vez por debajo de 80 °C) |
 | 6.4 | Batching por coste (aristas y orbitales), no por número de estructuras | V | M | bajo | ⏳ |
 | 6.5 | Cambio de base disperso por pares de capas | T | M | bajo | ⏳ ver 5.3 |
 | 6.6 | Menos módulos pequeños por tipo; `basis_grouping` (`basis_shape`, **GPT ML**) | T | L | medio | ⏳ |
 | 6.7 | `symm_transpose` simetrizando los pesos: mitad de FLOPs en aristas homonucleares | T V | M | medio | ❌ en `6x6` los bloques de arista son 16 de ~150 ms/paso: ahorraría ≤5 % |
-| 6.8 | `torch.compile` y CUDA graphs (después de 6.3) | T | L | alto | ⏳ |
-| 6.9 | Kernels rápidos de TP (cuEquivariance, OpenEquivariance) | T V | L | alto | 🔶 opción `cueq` (backbone MACE, disposición `mul_ir`, convenciones e3nn): en `6x6` bf16 usa 8,6 GB frente a 2,5 GB de e3nn (OOM con la GPU compartida) y en `w90` no terminó en 10 min. Aparcado |
+| 6.8 | `torch.compile` y CUDA graphs (después de 6.3) | T | L | alto | 🔶 opción `torch_compile` (35d0172): modelo sin TorchScript de e3nn y, al empezar el fit, `compile_submodules()` compila en el sitio las capas de MACE y las operaciones del readout (formas dinámicas; mismas claves de checkpoint). **Paso de `6x6` bf16: 138 → 70 ms (2,0×), pico 2425 → 1685 MiB**, tras ~90 s de compilación; test GPU: mismas matrices y gradientes. Requirió dar permiso de ejecución a los binarios de Triton del venv (`triton/backends/nvidia/bin/*`). En `w90` (fp32, limitado por lanzamientos) solo 91 → 68 ms frente a e3nn sin TorchScript, con 160 s de compilación: no compensa en sistemas diminutos. 🧪 precisión en entrenamiento real (`lin_compile`). CUDA graphs: pendiente (necesita 6.3) |
+| 6.9 | Kernels rápidos de TP (cuEquivariance, OpenEquivariance) | T V | L | alto | 🔶 opción `cueq` (backbone MACE, disposición `mul_ir`, convenciones e3nn): en `6x6` bf16 usa más de 6 GB frente a 2,5 GB de e3nn (repetido con Triton ya funcional) y en `w90` no terminó en 10 min. Aparcado: `torch_compile` da más con menos memoria |
 
 ## Ola 7 — Arquitectura del readout (según D1)
 
