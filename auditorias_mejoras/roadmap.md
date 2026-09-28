@@ -39,6 +39,8 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 - bicapa → moiré: fp32 + lin (+ `eh16`), 6,2–6,9 frente a 20,95;
 - `w90`: fp32 + poly6 + lin (5,09 frente a 12,6).
 
+**poly6 empeora la extrapolación en los tres escenarios** (monocapa → bicapa, bicapa → moiré); úsese poly3 si hay que extrapolar.
+
 **Descartado:** `nodemix`, `hro` (no cabe), `bessel16`, `eh16` dentro de distribución, EMA, `mp_cutoff`,
 `avg_num_neighbors`, cuEquivariance (memoria).
 
@@ -155,7 +157,12 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    Nodo proyectado (fp32, 8000 pasos): 1,09/1,022/2,134 → 1,42 meV (−27 %; frente a lin Δ −0,03/−0,45/+0,97):
    no concluyente y con más varianza. En bf16 es claramente peor: 2,509/1,924/2,530 → 2,32 meV (+20 % frente a
    la referencia). La proyección a 16 canales pierde precisión: ❌ para precisión; como opción de velocidad solo
-   en fp32 y con cautela (siguiente paso posible: proyección a 32 canales).
+   en fp32 y con cautela (siguiente paso posible: proyección a 32 canales). Con poly6 en bf16, en cambio, empata con
+   lin (1,911/1,471/1,598 → 1,66 frente a 1,70), y en `w90` (fp32 + poly6) queda cerca (5,24/—/5,02 frente a
+   4,92/5,57/4,78). En `6x6` fp32 + poly6: 1,194/1,362/1,42 → 1,33 frente a 1,51 de lin (mejor). Comportamiento
+   inconsistente: con poly6 empata o gana; con poly3 pierde (bf16 2,32, fp32 1,42 con una semilla mala).
+   fp32 + poly6 + lin sin EarlyStopping: 1,114/1,585/1,161 → 1,29 (frente a 1,51 con él, −15 %); la mejor receta
+   dentro de distribución sigue siendo fp32 + lin con poly3 y 16.000 pasos (1,08), que además extrapola mejor.
    Nodo proyectado fuera de distribución: 71 meV (lin 72).
    `torch_compile` en entrenamiento real (fp32 + lin, semilla 0): 1,057 meV frente a 1,056 (misma precisión)
    en 30,3 frente a 40,3 min (−25 %, compilación incluida; carga de la máquina no controlada). Requiere que
@@ -183,6 +190,10 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    6,20 (4,36/6,13/8,11), bandas 20,9/13,2: ligera mejora fuera de distribución, dentro del ruido.
    lin en bf16: validación 9,47, registros no vistos 8,42, bandas 31,1/14,8. Entrenando con bicapa, fp32 sí
    compensa (y no perjudica la extrapolación): **para bicapa → moiré, fp32 + lin (+ `eh16` opcional)**.
+   bf16 + poly6 + lin: validación 8,91, registros no vistos **11,72 (+39 % frente a lin con poly3)**, intracapa
+   17,3, bandas 56,5/23,3: poly6 también empeora la extrapolación entrenando con bicapa (y apenas cambia dentro).
+   fp32 + poly6 + lin: validación 6,58, registros no vistos **9,83 (+42 % frente a fp32 + lin con poly3)**, bandas
+   41,6/20,3: lo mismo en fp32.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
