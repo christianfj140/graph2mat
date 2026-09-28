@@ -26,8 +26,8 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 - monocapa (`w90`, celda de 2 átomos) → bicapa: no funciona con ninguna variante (150–450).
 
 **Velocidad y VRAM (`6x6`):**
-- `torch_compile`: paso 2× más rápido, −25 % del tiempo total, misma precisión;
-- nodo proyectado: 2,3× menos tiempo de GPU (precisión con más varianza);
+- `torch_compile`: paso 2× más rápido, −25 % del tiempo total, misma precisión, −28 % de pico en bf16;
+- nodo proyectado: 2,3× menos tiempo de GPU, pero pierde precisión (bf16: 2,32 meV); descartado para precisión;
 - `lean_mace` (ya por defecto): −14 % de pico;
 - checkpointing: −44 % de pico.
 
@@ -152,13 +152,15 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    más barata y la que mejor extrapola); fp32 si solo importa la precisión dentro de distribución
    (1,08 frente a 1,12).
    Nodo proyectado (fp32, 8000 pasos): 1,09/1,022/2,134 → 1,42 meV (−27 %; frente a lin Δ −0,03/−0,45/+0,97):
-   no concluyente y con más varianza. Queda como opción de velocidad; para precisión, lin sin proyectar
-   (siguiente paso: proyección a 32 canales).
+   no concluyente y con más varianza. En bf16 es claramente peor: 2,509/1,924/2,530 → 2,32 meV (+20 % frente a
+   la referencia). La proyección a 16 canales pierde precisión: ❌ para precisión; como opción de velocidad solo
+   en fp32 y con cautela (siguiente paso posible: proyección a 32 canales).
    Nodo proyectado fuera de distribución: 71 meV (lin 72).
    `torch_compile` en entrenamiento real (fp32 + lin, semilla 0): 1,057 meV frente a 1,056 (misma precisión)
    en 30,3 frente a 40,3 min (−25 %, compilación incluida; carga de la máquina no controlada). Requiere que
    el PATH no tenga entradas inaccesibles (torch 2.11 ejecuta `nvcc --version` en cada compilación);
-   `g2m_autorun` ya las filtra.
+   `g2m_autorun` ya las filtra. En bf16 (lin, 3 semillas): 1,239/1,524/1,432 → 1,40 meV (sin compilar 1,80;
+   diferencia dentro del ruido) y **pico del proceso 5520 → ~4000 MiB (−28 %)**.
    **5 semillas de fp32 + lin (8000 pasos): 1,056/1,469/1,163/1,150/1,380 → 1,24 meV (−36 %)**; las cinco
    por debajo de la mejor semilla de la referencia (1,839).
 8. En `w90`, fp32 + lin con poly3: 7,32 meV dentro (4,12/11,36/6,48; bandas 16,6) y 229 meV en bicapa: en
