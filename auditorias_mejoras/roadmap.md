@@ -185,6 +185,11 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    4,81/4,36/4,40 → 4,52, bandas 15,0 (la precisión de H viene de las aristas, las bandas empeoran);
    `linnode` (lin solo en nodos) 12,65/13,38/14,97 → 13,67, bandas 18,3: sin lin en aristas no hay ganancia.
    Nota: en `6x6` la pérdida KL sola era mala (2,01 frente a 1,51); combinada con lin en `w90` es la mejor.
+12. En `w90`, capacidad sobre fp32 + poly6 + lin (dentro / bandas / min): `mp4` (4 pasos de mensaje)
+   5,42 / 16,2 / 24,3 (lin solo 5,30 / 13,2 / ~25): neutro en H y peor en bandas; `mp3` 7,92 / 20,8 (peor);
+   `mid16` 6,27 / 21,9 (peor). Sin lin la tendencia es la misma (`fp32poly6_mp4` 12,86 pero bandas 39,0,
+   `mp3` 17,19, `mid16` 13,28 frente a 12,98 de fp32 + poly6): **más capacidad no compra nada en `w90`;
+   lo que importa son los bloques lin y la pérdida KL**.
 5. **Escenario realista, bicapa → moiré** (`g2m_bilayer_benchmark.py`: entrenar con la MD de AA/AB/BA,
    n474, 8000 pasos; predecir los registros de `tbg_registry_grid_12x12` no vistos en el entrenamiento):
 
@@ -204,8 +209,9 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    fp32 + poly6 + lin: validación 6,58, registros no vistos **9,83 (+42 % frente a fp32 + lin con poly3)**, bandas
    41,6/20,3: lo mismo en fp32.
    Más variantes (validación / no vistos / bandas alineadas): fp32 + poly6 + lin + eh16 5,74 / 8,13 / 20,9 (la mejor
-   dentro de distribución); fp32 + poly6 + eh16 **sin lin** 6,30 / 10,87 / 19,4. En bicapa parte de la mejora podría
-   venir de fp32 (+ eh16) y no solo de lin: 🧪 `fp32poly6` (sin lin) en la cola lo aclarará.
+   dentro de distribución); fp32 + poly6 + eh16 **sin lin** 6,30 / 10,87 / 19,4. Y **fp32 + poly6 sin lin ni eh16:
+   8,61 / 10,56 / 18,8**: con poly6, lin apenas cambia la extrapolación (9,83 frente a 10,56) y lo que la
+   arruina es poly6 en sí — el 6,92 de fp32 + lin es mérito de poly3 + lin, no de fp32.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
