@@ -115,11 +115,28 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    Con 16.000 pasos y sin EarlyStopping: **1,024/1,270/0,954 → 1,08 meV (−44 %)** y 69 meV en bicapa
    (bandas alineadas 116). lin en bf16 con 16.000 pasos: 0,949/1,335/— (🧪 semilla 2).
    **Receta recomendada para `6x6`: fp32 + lin + poly3 + 16.000 pasos sin EarlyStopping.**
-   🧪 nodo proyectado, `torch_compile`, 5 semillas y bicapa → moiré.
+   Nodo proyectado (fp32, 8000 pasos): 1,09/1,022/2,134 → 1,42 meV (−27 %; frente a lin Δ −0,03/−0,45/+0,97):
+   no concluyente y con más varianza. Queda como opción de velocidad; para precisión, lin sin proyectar
+   (siguiente paso: proyección a 32 canales).
+   Nodo proyectado fuera de distribución: 71 meV (lin 72).
+   `torch_compile` en entrenamiento real (fp32 + lin, semilla 0): 1,057 meV frente a 1,056 (misma precisión)
+   en 30,3 frente a 40,3 min (−25 %, compilación incluida; carga de la máquina no controlada). Requiere que
+   el PATH no tenga entradas inaccesibles (torch 2.11 ejecuta `nvcc --version` en cada compilación);
+   `g2m_autorun` ya las filtra.
+   🧪 5 semillas y bicapa → moiré.
 8. En `w90`, bf16 + poly6 + lin: 7,55 meV dentro (8,40/8,07/6,19; fp32 + poly6 + lin 5,09) y 190 meV
    en bicapa (fp32 + poly6 + lin 221, poly6 solo 183). En `w90` fp32 sí aporta dentro de distribución.
-5. El escenario realista (entrenar con bicapa AA/AB/BA y predecir registros no vistos, entornos de
-   moiré) está en marcha con `g2m_bilayer_benchmark.py`.
+5. **Escenario realista, bicapa → moiré** (`g2m_bilayer_benchmark.py`: entrenar con la MD de AA/AB/BA,
+   n474, 8000 pasos; predecir los registros de `tbg_registry_grid_12x12` no vistos en el entrenamiento):
+
+   | Receta (3 semillas) | Validación MD (meV) | Registros no vistos | intra / inter | Bandas brutas / alineadas |
+   |---|---:|---:|---:|---:|
+   | Referencia (bf16, poly3, bloques base) | 21,85 | 20,95 | 22,9 / 19,0 | 92,2 / 69,6 |
+   | **fp32 + lin (poly3)** | **6,45 (−70 %)** | **6,92 (−67 %)** | 8,8 / 5,1 | 27,9 / **14,5 (−79 %)** |
+
+   Por semilla, registros no vistos: referencia 21,98/17,65/23,23; fp32 + lin 6,64/7,71/6,39. Entrenando
+   con bicapa, el error en entornos de moiré no vistos es igual al de dentro de distribución, y la receta
+   ganadora lo divide por tres.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
@@ -221,7 +238,7 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 | 6.5 | Cambio de base disperso por pares de capas | T | M | bajo | ⏳ ver 5.3 |
 | 6.6 | Menos módulos pequeños por tipo; `basis_grouping` (`basis_shape`, **GPT ML**) | T | L | medio | ⏳ |
 | 6.7 | `symm_transpose` simetrizando los pesos: mitad de FLOPs en aristas homonucleares | T V | M | medio | ❌ en `6x6` los bloques de arista son 16 de ~150 ms/paso: ahorraría ≤5 % |
-| 6.8 | `torch.compile` y CUDA graphs (después de 6.3) | T | L | alto | 🔶 opción `torch_compile` (35d0172): modelo sin TorchScript de e3nn y, al empezar el fit, `compile_submodules()` compila en el sitio las capas de MACE y las operaciones del readout (formas dinámicas; mismas claves de checkpoint). **Paso de `6x6` bf16: 138 → 70 ms (2,0×), pico 2425 → 1685 MiB**, tras ~90 s de compilación; test GPU: mismas matrices y gradientes. Requirió dar permiso de ejecución a los binarios de Triton del venv (`triton/backends/nvidia/bin/*`). En `w90` (fp32, limitado por lanzamientos) solo 91 → 68 ms frente a e3nn sin TorchScript, con 160 s de compilación: no compensa en sistemas diminutos. 🧪 precisión en entrenamiento real (`lin_compile`). CUDA graphs: pendiente (necesita 6.3) |
+| 6.8 | `torch.compile` y CUDA graphs (después de 6.3) | T | L | alto | 🔶 opción `torch_compile` (35d0172): modelo sin TorchScript de e3nn y, al empezar el fit, `compile_submodules()` compila en el sitio las capas de MACE y las operaciones del readout (formas dinámicas; mismas claves de checkpoint). **Paso de `6x6` bf16: 138 → 70 ms (2,0×), pico 2425 → 1685 MiB**, tras ~90 s de compilación; test GPU: mismas matrices y gradientes. Requirió dar permiso de ejecución a los binarios de Triton del venv (`triton/backends/nvidia/bin/*`). En `w90` (fp32, limitado por lanzamientos) solo 91 → 68 ms frente a e3nn sin TorchScript, con 160 s de compilación: no compensa en sistemas diminutos. Entrenamiento real `6x6` fp32 + lin: misma precisión (1,057 frente a 1,056) y −25 % de tiempo total. CUDA graphs: pendiente (necesita 6.3) |
 | 6.9 | Kernels rápidos de TP (cuEquivariance, OpenEquivariance) | T V | L | alto | 🔶 opción `cueq` (backbone MACE, disposición `mul_ir`, convenciones e3nn): en `6x6` bf16 usa más de 6 GB frente a 2,5 GB de e3nn (repetido con Triton ya funcional) y en `w90` no terminó en 10 min. Aparcado: `torch_compile` da más con menos memoria |
 
 ## Ola 7 — Arquitectura del readout (según D1)

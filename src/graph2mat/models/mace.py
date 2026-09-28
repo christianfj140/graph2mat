@@ -390,6 +390,11 @@ class MatrixMACE(torch.nn.Module):
         same as without compiling. The model should have been built with e3nn's
         TorchScript code generation disabled (``mace.tools.compile.disable_e3nn_codegen``),
         which dynamo cannot trace. Shapes change between batches, hence dynamic=True.
+
+        Note: torch 2.11 runs ``nvcc --version`` on every compilation and only tolerates
+        a missing nvcc; a PATH entry that cannot be searched (permission denied) makes
+        the compilation fail with ``PermissionError: 'nvcc'``. Triton's bundled binaries
+        (``triton/backends/nvidia/bin``) must also be executable.
         """
         modules = [*self.mace.interactions, *self.mace.products]
         readouts = self.matrix_readouts
