@@ -10,6 +10,7 @@ from graph2mat import OrbitalMatrixMetric
         metric()
         for metric in OrbitalMatrixMetric.__subclasses__()
         if not getattr(metric, "requires_model_output", False)
+        and not getattr(metric, "requires_overlap_labels", False)
     ],
     ids=lambda x: x.__class__.__name__,
 )
@@ -96,3 +97,39 @@ def test_relative_losses_have_finite_gradients_with_exact_zeros(name):
     loss.backward()
     assert torch.isfinite(loss)
     assert torch.isfinite(nodes_pred.grad).all() and torch.isfinite(edges_pred.grad).all()
+
+
+def test_gauge_invariant_mse_ignores_a_per_structure_shift():
+    """Labels (H, S): predicting H + c_g S with a different c per structure costs ~0."""
+    import numpy as np
+    import torch
+    from graph2mat.core.data.metrics import elementwise_mse, gauge_invariant_mse
+
+    class OneLabelPerSite:
+        edge_block_size = np.array([1])
+
+        @staticmethod
+        def point_block_pointer(point_types):
+            return np.arange(len(point_types) + 1)
+
+    n = 6  # structures 0 (nodes 0-2) and 1 (nodes 3-5), one edge per node inside its structure
+    batch = {"point_types": np.zeros(n, dtype=int), "batch": np.array([0, 0, 0, 1, 1, 1]),
+             "edge_types": np.zeros(n, dtype=int),
+             "edge_index": np.array([[0, 1, 2, 3, 4, 5], [1, 2, 0, 4, 5, 3]])}
+    torch.manual_seed(0)
+    nodes_ref = torch.stack([torch.randn(n), 1 + 0.1 * torch.rand(n)], dim=1)  # (H, S); S_ii ~ 1
+    edges_ref = torch.stack([torch.randn(n), 0.3 * torch.rand(n)], dim=1)
+    shift = torch.tensor([0.7, -1.3])
+    node_c, edge_c = shift[torch.as_tensor(batch["batch"])], shift[torch.as_tensor(batch["batch"])]
+    nodes_pred = nodes_ref.clone(); nodes_pred[:, 0] += node_c * nodes_ref[:, 1]
+    edges_pred = edges_ref.clone(); edges_pred[:, 0] += edge_c * edges_ref[:, 1]
+    nodes_pred.requires_grad_(True)
+
+    kwargs = dict(nodes_pred=nodes_pred, nodes_ref=nodes_ref, edges_pred=edges_pred, edges_ref=edges_ref,
+                  batch=batch, basis_table=OneLabelPerSite())
+    loss, stats = gauge_invariant_mse(**kwargs)
+    assert loss.item() < 1e-10
+    assert torch.allclose(stats["gauge_shift_mean_abs"], shift.abs().mean())
+    assert elementwise_mse(**kwargs)[0].item() > 0.1
+    loss.backward()
+    assert torch.isfinite(nodes_pred.grad).all()

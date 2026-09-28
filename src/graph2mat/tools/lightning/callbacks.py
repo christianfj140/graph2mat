@@ -247,6 +247,7 @@ class SamplewiseMetricsLogger(Callback):
                 metric
                 for metric in OrbitalMatrixMetric.__subclasses__()
                 if not getattr(metric, "requires_model_output", False)
+                and not getattr(metric, "requires_overlap_labels", False)
             ]
             self.fail_ok = True
 
