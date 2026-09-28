@@ -212,6 +212,9 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    dentro de distribución); fp32 + poly6 + eh16 **sin lin** 6,30 / 10,87 / 19,4. Y **fp32 + poly6 sin lin ni eh16:
    8,61 / 10,56 / 18,8**: con poly6, lin apenas cambia la extrapolación (9,83 frente a 10,56) y lo que la
    arruina es poly6 en sí — el 6,92 de fp32 + lin es mérito de poly3 + lin, no de fp32.
+   Con `mp4` (4 pasos de mensaje) sobre fp32 + poly6: sin lin 8,54 / 9,41 / 23,2 y con lin 7,69 / 12,82 / 26,0.
+   Curioso: `mp4` reparte el error al revés (intracapa 8,1–8,7 frente a 13,8–14,9, pero intercapa 10,7–16,9
+   frente a 5,9–6,2), así que las bandas empeoran; **como en `w90`, más pasos de mensaje no ayudan**.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
