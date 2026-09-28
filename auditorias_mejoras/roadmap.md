@@ -17,6 +17,7 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
   - bf16: 1,80;
   - fp32: **1,24** (5 semillas, −36 %);
 - con 16.000 pasos sin EarlyStopping: bf16 **1,12** (−42 %), fp32 **1,08** (−44 %);
+- quitar el EarlyStopping de la receta (paciencia 80) da por sí solo −13 % (1,69), sin coste;
 - el suelo de ruido de las etiquetas de SIESTA es ≈0,002 meV: queda margen.
 
 **Extrapolación:**
@@ -29,7 +30,7 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 - `torch_compile`: paso 2× más rápido, −25 % del tiempo total, misma precisión, −28 % de pico en bf16;
 - nodo proyectado: 2,3× menos tiempo de GPU, pero pierde precisión (bf16: 2,32 meV); descartado para precisión;
 - `lean_mace` (ya por defecto): −14 % de pico;
-- checkpointing: −44 % de pico.
+- checkpointing: −24 % (fp32) / −34 % (bf16) de pico del proceso, +34 % de tiempo.
 
 **Recetas recomendadas:**
 - `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
@@ -224,7 +225,7 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 |---|---|---|---|---|---|
 | 2.1 | Proyectar las features de nodo antes de copiarlas a cada arista (`edge_message_mid_irreps`) | V | S | bajo | 🔶 `6x6` fp32: 11,4 → 8,4 GB; `w90` +0,7 meV |
 | 2.2 | MACE ligero (`lean_mace`): sin readouts de energía ni gradientes respecto a posiciones | T V | S | bajo | 🔶 hecho y testado (misma salida y gradientes); falta medir |
-| 2.3 | Gradient checkpointing de interacciones y readout (`gradient_checkpointing`) | V | S | bajo | 🔶 hecho y testado; falta medir |
+| 2.3 | Gradient checkpointing de interacciones y readout (`gradient_checkpointing`) | V | S | bajo | ✅ opción. Sonda `6x6` (N=16, batch 16, pico del proceso): fp32 10008 → 7654 MiB (−24 %), bf16 6862 → 4516 MiB (−34 %); microbenchmark: +34 % de tiempo |
 | 2.4 | `symm_transpose` con una llamada (las dos direcciones apiladas) | T | S | bajo | ✅ activo por defecto, mismo resultado (test). Reducir los FLOPs a la mitad es la 6.7 |
 | 2.5 | DataLoader: `pin_memory` y workers persistentes | T | S | bajo | ✅ |
 | 2.6 | Máscara de NaN solo cuando las etiquetas los tienen (H no) | T | S | bajo | ⏳ aplazado a 6.3: saber si hay NaN ya es una sincronización |
@@ -270,7 +271,7 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 | 5.1 | Referencia on-site por especie → Δ-learning sobre H0 (atómico o Slater–Koster; H0 de SIESTA como versión completa) | P | M → L | medio | ⏳ las 7 auditorías lo ponen entre lo de más retorno |
 | 5.2 | Normalización equivariante por especie, par e irrep | P | M | bajo | ⏳ expectativa baja (1.5 fue neutro) |
 | 5.3 | Entrenar en el espacio de irreps (Q ortonormal: pérdida sin cambio de base) | P T V | M | medio | ⏳ |
-| 5.4 | Techo de ruido de las etiquetas y tiempo hasta una precisión objetivo **(GPT Astra)** | — | S | bajo | ✅ **suelo de ruido de SIESTA en `6x6` ≈ 0,002 meV** (SCF 1e-4 frente a 1e-6: 0,0015; traslación rígida bajo la malla: 0,0011; ambas: 0,0022; 4 estructuras, `g2m_label_noise.py`). El modelo (1,94 meV) está ~1000× por encima: **6x6 no está limitado por las etiquetas**, hay margen real. **Y en parte está limitado por la optimización**: la misma receta con 16.000 pasos y sin EarlyStopping da 1,716/1,933/1,490 → **1,71 meV (−12 %, las tres semillas mejoran: −0,25/−0,08/−0,35)**. El EarlyStopping de la receta (paciencia 80 validaciones) paraba algunas semillas a 1/3 del coseno; 🧪 `noes` (8000 pasos sin él) separa ambos efectos. Consecuencia: acelerar el paso (p. ej. el bloque de nodo proyectado, 2,3× menos GPU) se traduce en precisión con el mismo tiempo |
+| 5.4 | Techo de ruido de las etiquetas y tiempo hasta una precisión objetivo **(GPT Astra)** | — | S | bajo | ✅ **suelo de ruido de SIESTA en `6x6` ≈ 0,002 meV** (SCF 1e-4 frente a 1e-6: 0,0015; traslación rígida bajo la malla: 0,0011; ambas: 0,0022; 4 estructuras, `g2m_label_noise.py`). El modelo (1,94 meV) está ~1000× por encima: **6x6 no está limitado por las etiquetas**, hay margen real. **Y en parte está limitado por la optimización**: la misma receta con 16.000 pasos y sin EarlyStopping da 1,716/1,933/1,490 → **1,71 meV (−12 %, las tres semillas mejoran: −0,25/−0,08/−0,35)**. El EarlyStopping de la receta (paciencia 80 validaciones) paraba algunas semillas a 1/3 del coseno. **`noes` (8000 pasos sin EarlyStopping): 1,684/1,575/1,805 → 1,69 meV (−13 %)**: con la receta de referencia, toda la ganancia de «16.000 pasos» viene de quitar el EarlyStopping (cambio gratis). Con lin no está separado (lin bf16 8000 pasos con EarlyStopping 1,80; 16.000 sin él 1,12) |
 
 ## Ola 6 — Rendimiento en profundidad (según el perfil 2.9)
 
