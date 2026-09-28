@@ -11,6 +11,7 @@ from graph2mat import BasisTableWithEdges
 from graph2mat.bindings.e3nn import (
     E3nnEdgeMessageBlock,
     E3nnGraph2Mat,
+    E3nnLinearEdgeBlock,
     E3nnSimpleEdgeBlock,
     E3nnSimpleNodeBlock,
 )
@@ -70,7 +71,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         preprocessing_edges: Optional[Type[torch.nn.Module]] = E3nnEdgeMessageBlock,
         preprocessing_edges_reuse_nodes: bool = False,
         node_block_readout: Type[torch.nn.Module] = E3nnSimpleNodeBlock,
-        edge_block_readout: Type[torch.nn.Module] = E3nnSimpleEdgeBlock,
+        # Tensor product + linear term (roadmap 1.7): the linear term of the edge blocks carries
+        # the whole gain (w90 12.98 -> 4.52 meV; node-only 13.67). Checkpoints store their own.
+        edge_block_readout: Type[torch.nn.Module] = E3nnLinearEdgeBlock,
         readout_per_interaction: bool = False,
         readout_interaction_aggregation: Literal["sum", "mean"] = "sum",
         return_coefficients: bool = False,
