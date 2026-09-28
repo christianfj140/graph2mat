@@ -38,7 +38,7 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 - solo precisión dentro de distribución: lo mismo en fp32;
 - bicapa → moiré: fp32 + lin (+ `eh16`), 6,2–6,9 frente a 20,95;
 - `w90`: fp32 + poly6 + lin, **5 semillas: 4,92/5,57/4,78/4,67/6,58 → 5,30 meV frente a 12,98 (−59 %)**;
-  añadiendo la pérdida KL, **4,32 meV y bandas 10,5 (−67 %): la mejor receta de `w90`**.
+  añadiendo `kl` (`keep_last_layer_irreps`: la última capa de MACE conserva l>0), **4,32 meV y bandas 10,5 (−67 %): la mejor receta de `w90`**.
 
 **poly6 empeora la extrapolación en los tres escenarios** (monocapa → bicapa, bicapa → moiré); úsese poly3 si hay que extrapolar.
 
@@ -180,16 +180,16 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 10. En `w90`, bf16 + poly6 + lin: 7,55 meV dentro (8,40/8,07/6,19; fp32 + poly6 + lin 5,09) y 190 meV
    en bicapa (fp32 + poly6 + lin 221, poly6 solo 183). En `w90` fp32 sí aporta dentro de distribución.
 11. En `w90`, variantes de los bloques lin sobre fp32 + poly6 (3 semillas, dentro de distribución / bandas):
-   **`lin_kl` (pérdida KL) 4,48/4,95/3,52 → 4,32 meV, bandas 10,5: la mejor receta de `w90` hasta ahora**
+   **`lin_kl` (lin + `keep_last_layer_irreps`) 4,48/4,95/3,52 → 4,32 meV, bandas 10,5: la mejor receta de `w90` hasta ahora**
    (−67 % frente a la referencia 12,98, y las bandas bajan de 13,2 a 10,5); `linedge` (lin solo en aristas)
    4,81/4,36/4,40 → 4,52, bandas 15,0 (la precisión de H viene de las aristas, las bandas empeoran);
    `linnode` (lin solo en nodos) 12,65/13,38/14,97 → 13,67, bandas 18,3: sin lin en aristas no hay ganancia.
-   Nota: en `6x6` la pérdida KL sola era mala (2,01 frente a 1,51); combinada con lin en `w90` es la mejor.
-12. En `w90`, capacidad sobre fp32 + poly6 + lin (dentro / bandas / min): `mp4` (4 pasos de mensaje)
+   Nota: en `6x6`, fp32 + poly6 + `kl` sin lin no mejoraba (2,01 frente a 1,94 de la referencia); combinado con lin en `w90` es la mejor.
+12. En `w90`, capacidad sobre fp32 + poly6 + lin (dentro / bandas / min): `mp4` (`mp_cutoff` = 4 Å)
    5,42 / 16,2 / 24,3 (lin solo 5,30 / 13,2 / ~25): neutro en H y peor en bandas; `mp3` 7,92 / 20,8 (peor);
    `mid16` 6,27 / 21,9 (peor). Sin lin la tendencia es la misma (`fp32poly6_mp4` 12,86 pero bandas 39,0,
    `mp3` 17,19, `mid16` 13,28 frente a 12,98 de fp32 + poly6): **más capacidad no compra nada en `w90`;
-   lo que importa son los bloques lin y la pérdida KL**.
+   lo que importa son los bloques lin (y `kl` encima)**.
 5. **Escenario realista, bicapa → moiré** (`g2m_bilayer_benchmark.py`: entrenar con la MD de AA/AB/BA,
    n474, 8000 pasos; predecir los registros de `tbg_registry_grid_12x12` no vistos en el entrenamiento):
 
@@ -211,10 +211,11 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    Más variantes (validación / no vistos / bandas alineadas): fp32 + poly6 + lin + eh16 5,74 / 8,13 / 20,9 (la mejor
    dentro de distribución); fp32 + poly6 + eh16 **sin lin** 6,30 / 10,87 / 19,4. Y **fp32 + poly6 sin lin ni eh16:
    8,61 / 10,56 / 18,8**: con poly6, lin apenas cambia la extrapolación (9,83 frente a 10,56) y lo que la
-   arruina es poly6 en sí — el 6,92 de fp32 + lin es mérito de poly3 + lin, no de fp32.
-   Con `mp4` (4 pasos de mensaje) sobre fp32 + poly6: sin lin 8,54 / 9,41 / 23,2 y con lin 7,69 / 12,82 / 26,0.
+   arruina es poly6 en sí. fp32 también cuenta: sin lin, fp32 + poly6 baja los no vistos de 20,95 a 10,56, y con lin y
+   poly3, fp32 frente a bf16 los baja de 8,42 a 6,92 (−18 %).
+   Con `mp4` (`mp_cutoff` = 4 Å) sobre fp32 + poly6: sin lin 8,54 / 9,41 / 23,2 y con lin 7,69 / 12,82 / 26,0.
    Curioso: `mp4` reparte el error al revés (intracapa 8,1–8,7 frente a 13,8–14,9, pero intercapa 10,7–16,9
-   frente a 5,9–6,2), así que las bandas empeoran; **como en `w90`, más pasos de mensaje no ayudan**.
+   frente a 5,9–6,2), así que las bandas empeoran; **como en `w90`, limitar el alcance del paso de mensajes no ayuda**.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
