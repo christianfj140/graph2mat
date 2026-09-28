@@ -8,7 +8,7 @@ Fecha: 2026-09-27. Recoge **todas** las propuestas de las 7 auditorías de `audi
 
 Sustituye a la "Fase 5" de `plan_mejoras.md`. Ese fichero queda como historial de las fases 0–4.
 
-## Resumen de resultados (noche del 27 al 28 de septiembre)
+## Resumen de resultados (27–28 de septiembre)
 
 Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 
@@ -16,15 +16,29 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 - bloques con término lineal (`E3nnLinearTSQNodeBlock` + `E3nnLinearEdgeBlock`), con poly3:
   - bf16: 1,80;
   - fp32: **1,24** (5 semillas, −36 %);
-- con 16.000 pasos sin EarlyStopping: bf16 **1,12** (−42 %), fp32 **1,08** (−44 %);
+- con 16.000 pasos sin EarlyStopping (5 semillas): bf16 **1,11** (−43 %), fp32 **1,02** (−48 %;
+  1,024/1,270/0,954/0,930/0,902);
+- término lineal solo en las aristas (el nuevo valor por defecto), 16.000 pasos, `torch_compile`:
+  bf16 1,23 (5 semillas), fp32 1,14 (2 semillas);
 - quitar el EarlyStopping de la receta (paciencia 80) da por sí solo −13 % (1,69), sin coste;
 - el suelo de ruido de las etiquetas de SIESTA es ≈0,002 meV: queda margen.
 
 **Extrapolación:**
 - bicapa → registros de moiré no vistos: 20,95 → **6,92** con fp32 + lin (−67 %), bandas alineadas
   69,6 → 14,5;
-- monocapa (`6x6`) → bicapa: 78 → **61** con lin bf16 + 16.000 pasos; poly6 la empeora (≈125–130);
+- monocapa (`6x6`) → bicapa (5 semillas): 78 → **66** con lin bf16 + 16.000 pasos (−15 %; con 3
+  semillas parecía 61), fp32 75; la dispersión entre semillas (47–109) es mayor que las diferencias
+  entre recetas; poly6 la empeora (≈125–130);
 - monocapa (`w90`, celda de 2 átomos) → bicapa: no funciona con ninguna variante (150–450).
+
+**Otro material, H2O** (moléculas perturbadas, 120 de entrenamiento; ver su sección): la receta nueva
+(fp32, término lineal en aristas, sin EarlyStopping) baja H de 55,3 a **48,7** (−12 %, gana en las 3
+semillas) y la mediana del error del gap de 565 a 379 meV (−33 %). El término lineal también en los
+nodos no ayuda en H (51,3) y casi triplica el error del gap (1054).
+
+**Valores por defecto:** `LitMACEMatrixModel` usa `E3nnLinearEdgeBlock` desde a39439a (gana en `w90`,
+`6x6` y H2O). El bloque de nodos sigue siendo `E3nnSimpleNodeBlock`: el lineal ayuda en `6x6` con bf16,
+es neutro con fp32 y empeora el espectro de H2O.
 
 **Velocidad y VRAM (`6x6`):**
 - `torch_compile`: paso 2× más rápido, −25 % del tiempo total, misma precisión, −28 % de pico en bf16;
@@ -34,8 +48,9 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 
 **Recetas recomendadas:**
 - `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
-  para compensar el tiempo);
-- solo precisión dentro de distribución: lo mismo en fp32;
+  para compensar el tiempo): 1,11 dentro y 66 en bicapa;
+- solo precisión dentro de distribución: lo mismo en fp32 (1,02, pero 75 en bicapa);
+- otros materiales (H2O): fp32 + lin solo en aristas, sin EarlyStopping;
 - bicapa → moiré: fp32 + lin (+ `eh16`), 6,2–6,9 frente a 20,95;
 - `w90`: fp32 + poly6 + lin, **5 semillas: 4,92/5,57/4,78/4,67/6,58 → 5,30 meV frente a 12,98 (−59 %)**;
   añadiendo `kl` (`keep_last_layer_irreps`: la última capa de MACE conserva l>0), **4,32 meV y bandas 10,5 (−67 %): la mejor receta de `w90`**.
@@ -155,6 +170,20 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    **Receta recomendada para `6x6`: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16** (la
    más barata y la que mejor extrapola); fp32 si solo importa la precisión dentro de distribución
    (1,08 frente a 1,12).
+   **Con 5 semillas** (dentro / bicapa por semilla, H / intracapa / bandas alineadas):
+   - lin bf16 16.000 pasos: 0,949/1,335/1,083/1,086/1,075 → **1,11 (−43 %)**; bicapa 55/81/47/91/58 →
+     **66** (intracapa 75, bandas alineadas 110). Las semillas 3 y 4 extrapolan peor: el 61 de 3
+     semillas era optimista.
+   - fp32 + lin 16.000 pasos: 1,024/1,270/0,954/0,930/0,902 → **1,02 (−48 %, la mejor dentro)**;
+     bicapa 68/91/47/109/58 → 75 (intracapa 89, bandas 119). Se mantiene el compromiso: fp32 gana
+     dentro y bf16 fuera, aunque la dispersión fuera (47–109 con la misma receta) es mayor que la
+     diferencia entre recetas.
+   - lin solo en aristas (el valor por defecto desde a39439a) + `torch_compile`, bf16 (`rec_bf16`):
+     1,503/1,289/1,116/1,188/1,067 → 1,23; bicapa 73 (intracapa **85**, como la referencia: sin lin
+     en nodos la mejora fuera es solo intercapa; bandas alineadas 104). Frente a lin completo gana
+     este en 4 de 5 semillas fuera (−7 meV de media) y dentro Δ +0,55/−0,05/+0,03/+0,10/−0,01.
+     En fp32 (`rec_fp32`, 2 semillas): 1,229/1,055 → 1,14; bicapa 70 (intracapa 74), bandas
+     alineadas **71, las mejores**: con fp32 el lin de nodos no aporta.
    Nodo proyectado (fp32, 8000 pasos): 1,09/1,022/2,134 → 1,42 meV (−27 %; frente a lin Δ −0,03/−0,45/+0,97):
    no concluyente y con más varianza. En bf16 es claramente peor: 2,509/1,924/2,530 → 2,32 meV (+20 % frente a
    la referencia). La proyección a 16 canales pierde precisión: ❌ para precisión; como opción de velocidad solo
@@ -217,6 +246,35 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    Curioso: `mp4` reparte el error al revés (intracapa 8,1–8,7 frente a 13,8–14,9, pero intercapa 10,7–16,9
    frente a 5,9–6,2), así que las bandas empeoran; **como en `w90`, limitar el alcance del paso de mensajes no ayuda**.
 
+## Otro material: H2O
+
+Script: `MD_vs_AtomicDisplacement/Comparison/scripts/g2m_h2o_benchmark.py`.
+
+- **Datos:** 200 moléculas de agua con ruido gaussiano de 0,05 Å por coordenada sobre la geometría
+  relajada de `AtomDisplacement`, calculadas con SIESTA en punto único (DZP, PBE, 200 Ry, caja de 15 Å).
+  Reparto: 120 de entrenamiento, 30 de validación y 50 de test.
+- **Entrenamiento:** 8000 pasos, MSE por elemento.
+- **Métricas:** H en Γ; los 4 autovalores ocupados y el gap HOMO-LUMO, con la S de referencia. La
+  ventana de ±2 eV del grafeno queda vacía en una molécula.
+- **Medianas:** se dan por estructura, porque unas pocas moléculas muy distorsionadas dominan las
+  medias (H-MAE máximo 315 meV frente a una mediana de 29).
+
+| Receta (3 semillas) | H-MAE | mediana | gap (mediana) | ocupados (mediana) | Por semilla |
+|---|---:|---:|---:|---:|---|
+| `base` (bf16, bloques de siempre, EarlyStopping) | 55,3 | 35,5 | 565 | 136 | 54,0/52,3/59,5 |
+| **`rec_fp32` (fp32, lin en aristas, sin EarlyStopping)** | **48,7** | **27,0** | **379** | 132 | 52,3/48,1/45,6 |
+| `lin_fp32` (lo mismo con lin también en nodos) | 51,3 | 31,6 | 1054 | 114 | 51,2/43,6/59,0 |
+
+La receta nueva gana también en otro material: −12 % en H (en las 3 semillas) y −33 % en la mediana
+del error del gap. El lin de nodos no ayuda en H y empeora mucho el gap; por eso el bloque de nodos
+por defecto no cambia.
+
+En términos absolutos H2O es difícil con 120 moléculas:
+
+- el mejor checkpoint llega hacia la época 800–1100 de 2000 (sobreajuste);
+- los autovalores amplifican el error de H más que en grafeno. Probablemente es la S mal condicionada
+  de la base DZP difusa en una molécula aislada.
+
 ## Ola 0 — Red de seguridad y fallos críticos
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
@@ -242,7 +300,7 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 | 1.4 | Última capa de MACE con l>0 (`keep_last_layer_irreps`) | P | S | bajo | 🔶 opción. `w90`: −1,2 meV en H (ruido), −3,4 en bandas. `6x6`: 2,01 frente a 1,94 (sin mejora), ×2 en tiempo y VRAM |
 | 1.5 | Escala/desplazamiento equivariante de la salida (`output_scaleshift`) | P | S | bajo | 🔶 opción; ≈0 en `w90` |
 | 1.6 | Readout de aristas más ancho (`edge_hidden_irreps` 16x; por defecto son 4 canales por l) | P | config | bajo | 🔶 dentro de distribución neutro (12,63 frente a 12,61; bandas 20,2 frente a 18,9), pero **el mejor fuera de distribución** (monocapa → bicapa, bandas alineadas 152 frente a 282 de la línea base) |
-| 1.7 | Término lineal junto al producto tensorial, más sesgo 0e on-site (`E3nnLinearTSQNodeBlock`, `E3nnLinearEdgeBlock`) | P | S | bajo | ✅ **`w90`: 12,61 → 5,09 meV (−60 %; 4,92/5,57/4,78), bandas 18,9 → 13,5.** Misma VRAM. **`6x6`** (receta de referencia bf16 + lin): 1,23/2,58/1,58 → media 1,79 frente a 1,94 (Δ −0,73/+0,57/−0,26; −7 %, ruidoso); **fp32 + poly6 + lin en `6x6`: 1,19/1,58/1,74 → media 1,51 frente a 1,94 (−22 %; Δ −0,77/−0,43/−0,10)**. Pero fuera de distribución (bicapa) empeora: 130 frente a 78 meV, mientras que lin en bf16 da 63. Compromiso: fp32 mejora dentro y empeora fuera (en `w90` igual: fp32 solo 309, poly6 solo 183, línea base 230). 🧪 bf16 + poly6 + lin |
+| 1.7 | Término lineal junto al producto tensorial, más sesgo 0e on-site (`E3nnLinearTSQNodeBlock`, `E3nnLinearEdgeBlock`) | P | S | bajo | ✅ **`w90`: 12,61 → 5,09 meV (−60 %; 4,92/5,57/4,78), bandas 18,9 → 13,5.** Misma VRAM. **`6x6`** (receta de referencia bf16 + lin): 1,23/2,58/1,58 → media 1,79 frente a 1,94 (Δ −0,73/+0,57/−0,26; −7 %, ruidoso); **fp32 + poly6 + lin en `6x6`: 1,19/1,58/1,74 → media 1,51 frente a 1,94 (−22 %; Δ −0,77/−0,43/−0,10)**. Pero fuera de distribución (bicapa) empeora: 130 frente a 78 meV, mientras que lin en bf16 da 63. Compromiso: fp32 mejora dentro y empeora fuera (en `w90` igual: fp32 solo 309, poly6 solo 183, línea base 230); lo que perjudicaba fuera era poly6 (punto 6 de la extrapolación). **`E3nnLinearEdgeBlock` es el bloque de aristas por defecto desde a39439a** (gana en `w90`, `6x6` y H2O); el de nodos sigue siendo el simple (ver el resumen y la sección de H2O) |
 | 1.8 | Peso de las aristas en la pérdida (`loss_kwargs: {edge_weight: 2}` = MSE sobre la matriz completa) | P | S | bajo | 🔶 `w90`: 11,29 frente a 12,61 meV (Δ por semilla −4,2/−0,3/+0,6), bandas 18,2 frente a 18,9: dentro del ruido. Opción disponible (`loss_kwargs`) |
 | 1.9 | `E3nnEdgeBlockNodeMix`: pesos del TP que dependen de la distancia y de ambos nodos (necesita `preprocessing_edges_reuse_nodes`) | P | config | bajo | ❌ `w90`: 11,77 frente a 12,61 meV (Δ +1,0/−1,8/−1,7), bandas 19,5 frente a 18,9: pequeño, dentro del ruido; **y fuera de distribución es la peor variante (557 meV en bicapa)** |
 | 1.10 | Readouts condicionados del fork (`E3nnHamiltonian{Node,Edge}Block`). Vigilar su VRAM **(GPT Astra)** | P | config | medio | ❌ con esta receta falla al construirse: intenta reservar 139 GB de RAM (el MLP que genera los pesos del TP recibe las features de MACE, 48 canales × 9 segmentos). Solo sería viable proyectando antes las features de nodo a pocos canales |
