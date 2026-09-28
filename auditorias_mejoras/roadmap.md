@@ -8,6 +8,38 @@ Fecha: 2026-09-27. Recoge **todas** las propuestas de las 7 auditorías de `audi
 
 Sustituye a la "Fase 5" de `plan_mejoras.md`. Ese fichero queda como historial de las fases 0–4.
 
+## Resumen de resultados (noche del 27 al 28 de septiembre)
+
+Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
+
+**Precisión en `6x6` (N=8, receta de referencia 1,94):**
+- bloques con término lineal (`E3nnLinearTSQNodeBlock` + `E3nnLinearEdgeBlock`), con poly3:
+  - bf16: 1,80;
+  - fp32: **1,24** (5 semillas, −36 %);
+- con 16.000 pasos sin EarlyStopping: bf16 **1,12** (−42 %), fp32 **1,08** (−44 %);
+- el suelo de ruido de las etiquetas de SIESTA es ≈0,002 meV: queda margen.
+
+**Extrapolación:**
+- bicapa → registros de moiré no vistos: 20,95 → **6,92** con fp32 + lin (−67 %), bandas alineadas
+  69,6 → 14,5;
+- monocapa (`6x6`) → bicapa: 78 → **61** con lin bf16 + 16.000 pasos; poly6 la empeora (≈125–130);
+- monocapa (`w90`, celda de 2 átomos) → bicapa: no funciona con ninguna variante (150–450).
+
+**Velocidad y VRAM (`6x6`):**
+- `torch_compile`: paso 2× más rápido, −25 % del tiempo total, misma precisión;
+- nodo proyectado: 2,3× menos tiempo de GPU (precisión con más varianza);
+- `lean_mace` (ya por defecto): −14 % de pico;
+- checkpointing: −44 % de pico.
+
+**Recetas recomendadas:**
+- `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
+  para compensar el tiempo);
+- solo precisión dentro de distribución: lo mismo en fp32;
+- `w90`: fp32 + poly6 + lin (5,09 frente a 12,6).
+
+**Descartado:** `nodemix`, `hro` (no cabe), `bessel16`, `eh16` dentro de distribución, EMA, `mp_cutoff`,
+`avg_num_neighbors`, cuEquivariance (memoria).
+
 ## Cómo leerlo
 
 - **Gana:** P = precisión, V = VRAM, T = tiempo, C = corrección (sin ella el resultado está mal o falla).
@@ -113,8 +145,11 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    frente a 1,94; Δ −0,91/−0,54/−0,68)**. En bicapa: **72 meV (69/93/54), bandas alineadas 107**
    (referencia 78 y 162). Mejora dentro y fuera: lo que perjudicaba la extrapolación era poly6, no fp32.
    Con 16.000 pasos y sin EarlyStopping: **1,024/1,270/0,954 → 1,08 meV (−44 %)** y 69 meV en bicapa
-   (bandas alineadas 116). lin en bf16 con 16.000 pasos: 0,949/1,335/— (🧪 semilla 2).
-   **Receta recomendada para `6x6`: fp32 + lin + poly3 + 16.000 pasos sin EarlyStopping.**
+   (bandas alineadas 116). **lin en bf16 con 16.000 pasos: 0,949/1,335/1,083 → 1,12 meV (−42 %) y 61 meV en
+   bicapa (bandas alineadas 94): la mejor extrapolación de todas** y casi la misma precisión que fp32.
+   **Receta recomendada para `6x6`: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16** (la
+   más barata y la que mejor extrapola); fp32 si solo importa la precisión dentro de distribución
+   (1,08 frente a 1,12).
    Nodo proyectado (fp32, 8000 pasos): 1,09/1,022/2,134 → 1,42 meV (−27 %; frente a lin Δ −0,03/−0,45/+0,97):
    no concluyente y con más varianza. Queda como opción de velocidad; para precisión, lin sin proyectar
    (siguiente paso: proyección a 32 canales).
@@ -123,7 +158,8 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    en 30,3 frente a 40,3 min (−25 %, compilación incluida; carga de la máquina no controlada). Requiere que
    el PATH no tenga entradas inaccesibles (torch 2.11 ejecuta `nvcc --version` en cada compilación);
    `g2m_autorun` ya las filtra.
-   🧪 5 semillas y bicapa → moiré.
+   **5 semillas de fp32 + lin (8000 pasos): 1,056/1,469/1,163/1,150/1,380 → 1,24 meV (−36 %)**; las cinco
+   por debajo de la mejor semilla de la referencia (1,839).
 8. En `w90`, bf16 + poly6 + lin: 7,55 meV dentro (8,40/8,07/6,19; fp32 + poly6 + lin 5,09) y 190 meV
    en bicapa (fp32 + poly6 + lin 221, poly6 solo 183). En `w90` fp32 sí aporta dentro de distribución.
 5. **Escenario realista, bicapa → moiré** (`g2m_bilayer_benchmark.py`: entrenar con la MD de AA/AB/BA,
@@ -136,7 +172,8 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
 
    Por semilla, registros no vistos: referencia 21,98/17,65/23,23; fp32 + lin 6,64/7,71/6,39. Entrenando
    con bicapa, el error en entornos de moiré no vistos es igual al de dentro de distribución, y la receta
-   ganadora lo divide por tres.
+   ganadora lo divide por tres. Con `eh16` además (fp32 + lin + eh16): validación 6,57, registros no vistos
+   6,20 (4,36/6,13/8,11), bandas 20,9/13,2: ligera mejora fuera de distribución, dentro del ruido.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
