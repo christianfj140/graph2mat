@@ -35,6 +35,7 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 - `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
   para compensar el tiempo);
 - solo precisión dentro de distribución: lo mismo en fp32;
+- bicapa → moiré: fp32 + lin (+ `eh16`), 6,2–6,9 frente a 20,95;
 - `w90`: fp32 + poly6 + lin (5,09 frente a 12,6).
 
 **Descartado:** `nodemix`, `hro` (no cabe), `bessel16`, `eh16` dentro de distribución, EMA, `mp_cutoff`,
@@ -160,7 +161,10 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    `g2m_autorun` ya las filtra.
    **5 semillas de fp32 + lin (8000 pasos): 1,056/1,469/1,163/1,150/1,380 → 1,24 meV (−36 %)**; las cinco
    por debajo de la mejor semilla de la referencia (1,839).
-8. En `w90`, bf16 + poly6 + lin: 7,55 meV dentro (8,40/8,07/6,19; fp32 + poly6 + lin 5,09) y 190 meV
+8. En `w90`, fp32 + lin con poly3: 7,32 meV dentro (4,12/11,36/6,48; bandas 16,6) y 229 meV en bicapa: en
+   `w90` poly6 sí ayuda dentro de distribución (fp32 + poly6 + lin 5,09) y la extrapolación desde la celda
+   de 2 átomos no mejora con ninguna receta.
+9. En `w90`, bf16 + poly6 + lin: 7,55 meV dentro (8,40/8,07/6,19; fp32 + poly6 + lin 5,09) y 190 meV
    en bicapa (fp32 + poly6 + lin 221, poly6 solo 183). En `w90` fp32 sí aporta dentro de distribución.
 5. **Escenario realista, bicapa → moiré** (`g2m_bilayer_benchmark.py`: entrenar con la MD de AA/AB/BA,
    n474, 8000 pasos; predecir los registros de `tbg_registry_grid_12x12` no vistos en el entrenamiento):
@@ -174,6 +178,8 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    con bicapa, el error en entornos de moiré no vistos es igual al de dentro de distribución, y la receta
    ganadora lo divide por tres. Con `eh16` además (fp32 + lin + eh16): validación 6,57, registros no vistos
    6,20 (4,36/6,13/8,11), bandas 20,9/13,2: ligera mejora fuera de distribución, dentro del ruido.
+   lin en bf16: validación 9,47, registros no vistos 8,42, bandas 31,1/14,8. Entrenando con bicapa, fp32 sí
+   compensa (y no perjudica la extrapolación): **para bicapa → moiré, fp32 + lin (+ `eh16` opcional)**.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
