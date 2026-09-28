@@ -37,7 +37,8 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
   para compensar el tiempo);
 - solo precisión dentro de distribución: lo mismo en fp32;
 - bicapa → moiré: fp32 + lin (+ `eh16`), 6,2–6,9 frente a 20,95;
-- `w90`: fp32 + poly6 + lin (5,09 frente a 12,6).
+- `w90`: fp32 + poly6 + lin, **5 semillas: 4,92/5,57/4,78/4,67/6,58 → 5,30 meV frente a 12,98 (−59 %)**;
+  añadiendo la pérdida KL, **4,32 meV y bandas 10,5 (−67 %): la mejor receta de `w90`**.
 
 **poly6 empeora la extrapolación en los tres escenarios** (monocapa → bicapa, bicapa → moiré); úsese poly3 si hay que extrapolar.
 
@@ -171,11 +172,19 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    diferencia dentro del ruido) y **pico del proceso 5520 → ~4000 MiB (−28 %)**.
    **5 semillas de fp32 + lin (8000 pasos): 1,056/1,469/1,163/1,150/1,380 → 1,24 meV (−36 %)**; las cinco
    por debajo de la mejor semilla de la referencia (1,839).
-8. En `w90`, fp32 + lin con poly3: 7,32 meV dentro (4,12/11,36/6,48; bandas 16,6) y 229 meV en bicapa: en
+8. En `w90`, fp32 + poly6 + lin + `eh16`: 4,88/5,36/4,38 → 4,87 meV dentro (lin sin eh16 5,09; bandas 15,0 frente a
+   13,5): neutro; en bicapa 181 meV (lin 221, eh16 sin lin 153).
+9. En `w90`, fp32 + lin con poly3: 7,32 meV dentro (4,12/11,36/6,48; bandas 16,6) y 229 meV en bicapa: en
    `w90` poly6 sí ayuda dentro de distribución (fp32 + poly6 + lin 5,09) y la extrapolación desde la celda
    de 2 átomos no mejora con ninguna receta.
-9. En `w90`, bf16 + poly6 + lin: 7,55 meV dentro (8,40/8,07/6,19; fp32 + poly6 + lin 5,09) y 190 meV
+10. En `w90`, bf16 + poly6 + lin: 7,55 meV dentro (8,40/8,07/6,19; fp32 + poly6 + lin 5,09) y 190 meV
    en bicapa (fp32 + poly6 + lin 221, poly6 solo 183). En `w90` fp32 sí aporta dentro de distribución.
+11. En `w90`, variantes de los bloques lin sobre fp32 + poly6 (3 semillas, dentro de distribución / bandas):
+   **`lin_kl` (pérdida KL) 4,48/4,95/3,52 → 4,32 meV, bandas 10,5: la mejor receta de `w90` hasta ahora**
+   (−67 % frente a la referencia 12,98, y las bandas bajan de 13,2 a 10,5); `linedge` (lin solo en aristas)
+   4,81/4,36/4,40 → 4,52, bandas 15,0 (la precisión de H viene de las aristas, las bandas empeoran);
+   `linnode` (lin solo en nodos) 12,65/13,38/14,97 → 13,67, bandas 18,3: sin lin en aristas no hay ganancia.
+   Nota: en `6x6` la pérdida KL sola era mala (2,01 frente a 1,51); combinada con lin en `w90` es la mejor.
 5. **Escenario realista, bicapa → moiré** (`g2m_bilayer_benchmark.py`: entrenar con la MD de AA/AB/BA,
    n474, 8000 pasos; predecir los registros de `tbg_registry_grid_12x12` no vistos en el entrenamiento):
 
@@ -194,6 +203,9 @@ Conclusiones, con cautela porque la dispersión entre semillas es enorme (fp32 +
    17,3, bandas 56,5/23,3: poly6 también empeora la extrapolación entrenando con bicapa (y apenas cambia dentro).
    fp32 + poly6 + lin: validación 6,58, registros no vistos **9,83 (+42 % frente a fp32 + lin con poly3)**, bandas
    41,6/20,3: lo mismo en fp32.
+   Más variantes (validación / no vistos / bandas alineadas): fp32 + poly6 + lin + eh16 5,74 / 8,13 / 20,9 (la mejor
+   dentro de distribución); fp32 + poly6 + eh16 **sin lin** 6,30 / 10,87 / 19,4. En bicapa parte de la mejora podría
+   venir de fp32 (+ eh16) y no solo de lin: 🧪 `fp32poly6` (sin lin) en la cola lo aclarará.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
