@@ -1524,34 +1524,44 @@ def gauge_invariant_mse(
     inferred by a local model (roadmap 4.2, audit PHYS_H-03). Labels must carry the
     overlap as their last component (``matrix_component_policy="h_and_overlap"``).
     For each structure and H component, ``c = sum(w dH S) / sum(w S^2)`` (closed form,
-    differentiable) and the H loss is the MSE of ``dH - c S``. The predicted overlap
-    is fitted with a plain MSE weighted by ``overlap_weight``. ``edge_weight`` as in
-    ``elementwise_mse``. Labels are assumed NaN-free (as H is).
+    differentiable) and the H loss is the MSE of ``dH - c S``. The model may predict
+    (H, S), and then the predicted overlap is fitted with a plain MSE weighted by
+    ``overlap_weight``, or only H (one component fewer than the labels): S is then just
+    the label that defines the shift, and the readout is half the size.
+    ``edge_weight`` as in ``elementwise_mse``. Labels are assumed NaN-free (as H is).
     """
     node_struct, edge_struct, n_structures = _per_element_structure_ids(
         nodes_ref, edges_ref, batch, basis_table
     )
     node_struct = node_struct.to(nodes_pred.device)
     edge_struct = edge_struct.to(edges_pred.device)
-    d_nodes, d_edges = nodes_pred - nodes_ref, edges_pred - edges_ref
-    s_nodes, s_edges = nodes_ref[:, -1:], edges_ref[:, -1:]
     n_h = nodes_ref.shape[1] - 1
+    if nodes_pred.ndim == 1:  # a single predicted component: H only
+        nodes_pred, edges_pred = nodes_pred[:, None], edges_pred[:, None]
+    predicts_overlap = nodes_pred.shape[1] == nodes_ref.shape[1]
+    d_nodes = nodes_pred[:, :n_h] - nodes_ref[:, :n_h]
+    d_edges = edges_pred[:, :n_h] - edges_ref[:, :n_h]
+    s_nodes, s_edges = nodes_ref[:, -1:], edges_ref[:, -1:]
 
     def per_structure(values, struct):
         out = torch.zeros((n_structures, values.shape[1]), dtype=values.dtype, device=values.device)
         return out.index_add(0, struct, values)
 
-    num = per_structure(d_nodes[:, :-1] * s_nodes, node_struct) + edge_weight * per_structure(
-        d_edges[:, :-1] * s_edges, edge_struct
+    num = per_structure(d_nodes * s_nodes, node_struct) + edge_weight * per_structure(
+        d_edges * s_edges, edge_struct
     )
     den = per_structure(s_nodes**2, node_struct) + edge_weight * per_structure(s_edges**2, edge_struct)
     shift = num / den.clamp_min(1e-12)  # (n_structures, n_h)
 
-    aligned_nodes = d_nodes[:, :-1] - shift[node_struct] * s_nodes
-    aligned_edges = d_edges[:, :-1] - shift[edge_struct] * s_edges
+    aligned_nodes = d_nodes - shift[node_struct] * s_nodes
+    aligned_edges = d_edges - shift[edge_struct] * s_edges
     n_elements = nodes_ref.shape[0] + edge_weight * edges_ref.shape[0]
     h_loss = ((aligned_nodes**2).sum() + edge_weight * (aligned_edges**2).sum()) / (n_elements * n_h)
-    s_loss = ((d_nodes[:, -1] ** 2).sum() + edge_weight * (d_edges[:, -1] ** 2).sum()) / n_elements
+    if predicts_overlap:
+        s_loss = (((nodes_pred[:, -1] - s_nodes[:, 0]) ** 2).sum()
+                  + edge_weight * ((edges_pred[:, -1] - s_edges[:, 0]) ** 2).sum()) / n_elements
+    else:
+        s_loss = h_loss.new_zeros(())
 
     stats = {
         "gauge_h_rmse": h_loss.detach() ** 0.5,
@@ -1563,6 +1573,8 @@ def gauge_invariant_mse(
 
 # Only meaningful with (H, S) labels: not part of the metrics run on any matrix by default.
 gauge_invariant_mse.requires_overlap_labels = True
+# The prediction may omit S (n_output_components one fewer than the labels).
+gauge_invariant_mse.overlap_prediction_optional = True
 
 
 @OrbitalMatrixMetric.from_metric_func

@@ -35,9 +35,9 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
 - la receta nueva (fp32, término lineal en aristas, sin EarlyStopping) baja H de 55,3 a **48,7** (−12 %,
   gana en las 3 semillas) y la mediana del error del gap de 565 a 379 meV (−33 %); el lin de nodos
   empeora el gap (1054);
-- **con la pérdida invariante de gauge (4.2): H alineado 29,6 → 7,2 meV (−76 %), gap 986 → 102 meV (−90 %),
-  autovalores ocupados −96 %.** En una molécula E_F cae en el gap y ~40 % del error con MSE era ese
-  desplazamiento del cero de energía por estructura.
+- **con la pérdida invariante de gauge (4.2) y S solo como etiqueta: H alineado 29,6 → 5,6 meV (−81 %),
+  gap 986 → 80 meV (−92 %), autovalores ocupados −97 %.** En una molécula E_F cae en el gap y ~40 % del
+  error con MSE era ese desplazamiento del cero de energía por estructura.
 
 **Pérdida invariante de gauge (4.2) en grafeno** (3 semillas; se compara el H sin el desplazamiento c·S
 y las bandas alineadas, porque deja libre el cero de energía):
@@ -47,8 +47,12 @@ y las bandas alineadas, porque deja libre el cero de energía):
 - extrapolación, mixta: monocapa → bicapa H 59 → 52 (−12 %) pero bandas alineadas 94 → 143 (+53 %);
   bicapa → moiré H 6,4 → 6,0, intracapa 7,7 → 4,9 (−36 %), intercapa 5,1 → 7,1, bandas 14,5 → 11,7
   (−19 %; mejor en 2 de 3 semillas);
-- coste: el modelo predice también S (pico 5,5 → 8,2 GB, +48 %). Siguiente paso: usar S solo como
-  etiqueta de la pérdida, sin cabeza de S. Al predecir hay que fijar el cero (p. ej. E_F de la H predicha).
+- el modelo que predice también S cuesta +48 % de VRAM (5,5 → 8,2 GB). **Con S solo como etiqueta
+  (`n_output_components=1`, `lin_steps16k_gaugeh`): H alineado 0,622/0,808/0,691 → 0,71 meV (−35 % frente a
+  1,08; mejor que con S, 0,86) y la misma VRAM que sin gauge (5,5 GB).** Es la mejor precisión de `6x6`
+  del roadmap. En bicapa, igual que con S: H 59 → 52, bandas alineadas 129/85 en dos semillas (sin gauge
+  128/86) y 253 en la tercera;
+- al predecir hay que fijar el cero de energía (p. ej. E_F de la H predicha, como hace SIESTA).
 
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`):** fuera del alcance de los orbitales
 ≤1 % (la máscara orbital, 4.6, no aporta en grafeno); el desplazamiento c·S explica solo el 2 % en
@@ -290,7 +294,8 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | `base` (bf16, bloques de siempre, EarlyStopping) | 55,3 | 33,8 (28,9) | 324 (55) | 1193 (565) | — |
 | `rec_fp32` (fp32, lin en aristas, sin EarlyStopping) | 48,7 | 29,6 (22,1) | 248 (44) | 986 (379) | — |
 | `lin_fp32` (lo mismo con lin también en nodos) | 51,3 | 32,2 (26,0) | 286 (50) | 1828 (1054) | — |
-| **`gauge_fp32` (`rec_fp32` + pérdida invariante de gauge, 4.2)** | — | **7,2 (5,9)** | **9,9 (8,5)** | **102 (46)** | 7,6/7,0/6,9 |
+| `gauge_fp32` (`rec_fp32` + pérdida invariante de gauge, 4.2; predice también S) | — | 7,2 (5,9) | 9,9 (8,5) | 102 (46) | 7,6/7,0/6,9 |
+| **`gaugeh_fp32` (lo mismo, S solo como etiqueta: predice H)** | — | **5,6 (4,2)** | **8,2 (6,5)** | **80 (37)** | 5,8/5,1/5,9 |
 
 - **La receta nueva gana también en otro material**, incluso en las métricas invariantes: `rec_fp32`
   frente a `base`, −12 % en H alineado y −33 % en la mediana del gap. El lin de nodos no ayuda y
@@ -299,6 +304,9 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
   alineado −76 %, autovalores ocupados −96 % (mediana −81 %) y gap −90 %; la peor molécula baja de
   73–147 a 23–25 meV. Las 3 semillas coinciden. El H-MAE bruto no cuenta para ella (1,5–2,4 eV):
   deja libre el cero de energía de cada estructura, que es justo lo que no se puede aprender.
+- **Sin predecir S (`n_output_components=1`) es aún mejor y más barato:** H alineado 7,2 → 5,6 (−22 %),
+  gap 102 → 80, ocupados 9,9 → 8,2, pico de VRAM 2160 → 1372 MiB (−36 %). Frente a `rec_fp32`: H
+  alineado −81 %, gap −92 %.
 - Con MSE, el mejor checkpoint llegaba hacia la época 800–1100 de 2000 (sobreajustaba el ruido de
   E_F); con la pérdida de gauge sigue mejorando pasada la 1400. Los errores grandes de autovalores
   no venían de una S mal condicionada, sino de ese ruido de las etiquetas.
@@ -377,7 +385,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` lee (H, S) y ya escribe H con S (la política no llegaba a la conversión a `sisl_H`, 72b468c); la predicción del benchmark la admite. Falta la reconstrucción no ortogonal completa |
-| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **H2O: H alineado 29,6 → 7,2 meV (−76 %), gap 986 → 102 meV (−90 %), ocupados −96 %**; **`6x6`: H alineado 1,08 → 0,86 meV (−21 %, 3 de 3 semillas)**; extrapolación mixta (monocapa → bicapa: H −12 %, bandas +53 %; bicapa → moiré: H −6 %, bandas −19 %). +48 % de VRAM porque también predice S (siguiente paso: S solo como etiqueta). `gauge_invariant_mse` (7b97b7a) con `h_and_overlap`; métrica c* en `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` y ya en `val_metrics` (`H_MAE_gauge_meV`) |
+| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **con S solo como etiqueta (`n_output_components=1`): H2O H alineado 29,6 → 5,6 meV (−81 %), gap 986 → 80 meV (−92 %); `6x6` H alineado 1,08 → 0,71 meV (−35 %, 3 de 3 semillas), misma VRAM.** Prediciendo también S: H2O 7,2, `6x6` 0,86 y +48 % de VRAM. Extrapolación mixta (monocapa → bicapa: H −12 %, bandas peores en 1 de 3 semillas; bicapa → moiré, con S: H −6 %, bandas −19 %). `gauge_invariant_mse` (7b97b7a) con `h_and_overlap`; métrica c* en `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` y `val_metrics` (`H_MAE_gauge_meV`) |
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ por on-site/capa de vecinos/par l, fuera de alcance orbital y parte c·S. `6x6`: queda el on-site (12,9 meV/elemento, 19 %) y los primeros vecinos (28 %); lin quitó el 82 % del error a ~4,3 Å. En validación sigue sin métricas espectrales |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | ⏳ |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |

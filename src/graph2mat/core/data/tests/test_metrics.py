@@ -138,3 +138,13 @@ def test_gauge_invariant_mse_ignores_a_per_structure_shift():
     assert elementwise_mse(**kwargs)[0].item() > 0.1
     loss.backward()
     assert torch.isfinite(nodes_pred.grad).all()
+
+    # S as a label only: predicting H alone (1-D, one component fewer) gives the same H loss.
+    h_only = dict(kwargs, nodes_pred=nodes_pred[:, 0].detach(), edges_pred=edges_pred[:, 0])
+    loss_h, stats_h = gauge_invariant_mse(**h_only)
+    assert loss_h.item() < 1e-10
+    assert stats_h["overlap_rmse"].item() == 0
+    wrong = dict(h_only, nodes_pred=h_only["nodes_pred"] + 0.1 * torch.randn(n))
+    assert torch.isclose(gauge_invariant_mse(**wrong)[0],
+                         gauge_invariant_mse(**dict(kwargs, nodes_pred=torch.stack(
+                             [wrong["nodes_pred"], nodes_ref[:, 1]], dim=1)))[0])

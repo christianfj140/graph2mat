@@ -93,7 +93,10 @@ class LitBasisMatrixModel(pl.LightningModule):
         return self.model(x)
 
     @staticmethod
-    def _validate_pred_ref_shapes(out, batch):
+    def _validate_pred_ref_shapes(out, batch, overlap_optional: bool = False):
+        """``overlap_optional``: the loss uses the last label component (S) only as a label
+        and accepts predictions with one component fewer (gauge_invariant_mse with
+        n_output_components)."""
         pairs = (
             ("node_labels", "point_labels"),
             ("edge_labels", "edge_labels"),
@@ -102,6 +105,10 @@ class LitBasisMatrixModel(pl.LightningModule):
         for pred_key, ref_key in pairs:
             pred = out[pred_key]
             ref = batch[ref_key]
+            n_pred = 1 if pred.ndim == 1 else pred.shape[1]
+            if (overlap_optional and ref.ndim == 2 and pred.shape[0] == ref.shape[0]
+                    and n_pred == ref.shape[1] - 1):
+                continue
 
             if pred.ndim != ref.ndim:
                 raise ValueError(
@@ -120,7 +127,9 @@ class LitBasisMatrixModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         out = self.model(batch)
-        self._validate_pred_ref_shapes(out, batch)
+        self._validate_pred_ref_shapes(
+            out, batch, getattr(self.loss_fn, "overlap_prediction_optional", False)
+        )
 
         loss, stats = self.loss_fn(
             nodes_pred=out["node_labels"],
@@ -176,7 +185,9 @@ class LitBasisMatrixModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         out = self.model(batch)
-        self._validate_pred_ref_shapes(out, batch)
+        self._validate_pred_ref_shapes(
+            out, batch, getattr(self.loss_fn, "overlap_prediction_optional", False)
+        )
 
         loss, stats = self.loss_fn(
             nodes_pred=out["node_labels"],
@@ -206,7 +217,9 @@ class LitBasisMatrixModel(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         out = self.model(batch)
-        self._validate_pred_ref_shapes(out, batch)
+        self._validate_pred_ref_shapes(
+            out, batch, getattr(self.loss_fn, "overlap_prediction_optional", False)
+        )
 
         loss, stats = self.loss_fn(
             nodes_pred=out["node_labels"],

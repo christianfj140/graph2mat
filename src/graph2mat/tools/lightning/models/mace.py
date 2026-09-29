@@ -85,6 +85,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         torch_compile: bool = False,
         output_scaleshift: bool = False,
         n_matrix_components: int = 1,
+        # Components the readout predicts, when fewer than the labels carry: 1 with (H, S)
+        # labels and gauge_invariant_mse predicts H only (S is only the loss's label).
+        n_output_components: Optional[int] = None,
         optim_wdecay: float = 5e-7,
         optim_amsgrad: bool = True,
         optim_lr: float = 1e-3,
@@ -193,7 +196,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 node_operation=node_block_readout,
                 edge_operation=edge_block_readout,
                 basis_grouping=basis_grouping,
-                n_matrix_components=n_matrix_components,
+                n_matrix_components=n_output_components or n_matrix_components,
             )
 
     def on_fit_start(self) -> None:

@@ -153,6 +153,19 @@ def test_shape_validation_accepts_h_only_one_component_labels():
     LitBasisMatrixModel._validate_pred_ref_shapes(out, batch)
 
 
+def test_shape_validation_accepts_h_only_prediction_of_h_and_overlap_labels():
+    """gauge_invariant_mse with n_output_components=1: H predicted, (H, S) labels."""
+    out = {"node_labels": torch.zeros(4), "edge_labels": torch.zeros(2)}
+    batch = {"point_labels": torch.zeros(4, 2), "edge_labels": torch.zeros(2, 2)}
+
+    LitBasisMatrixModel._validate_pred_ref_shapes(out, batch, overlap_optional=True)
+    with pytest.raises(ValueError):  # two components fewer is still an error
+        LitBasisMatrixModel._validate_pred_ref_shapes(
+            out, {"point_labels": torch.zeros(4, 3), "edge_labels": torch.zeros(2, 3)},
+            overlap_optional=True,
+        )
+
+
 def test_cli_autoconfigures_matrix_components(monkeypatch):
     config = Namespace(
         data=Namespace(
