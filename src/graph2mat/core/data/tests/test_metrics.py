@@ -3,6 +3,10 @@ import pytest
 from graph2mat import OrbitalMatrixMetric
 
 
+# Arguments that some metrics require (they raise without them).
+REQUIRED_KWARGS = {"block_type_mse_per_domain": {"domain_threshold_atoms": 2}}
+
+
 # Test that all metrics run
 @pytest.mark.parametrize(
     "metric",
@@ -22,6 +26,7 @@ def test_metric_runs(density_data, density_z_table, metric):
         edges_ref=density_data.edge_labels,
         batch=density_data,
         basis_table=density_z_table,
+        **REQUIRED_KWARGS.get(metric.__class__.__name__, {}),
     )
 
 

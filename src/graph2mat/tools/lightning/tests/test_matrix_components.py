@@ -343,7 +343,8 @@ def test_matrix_writer_h_only_outputs_unpolarized_hamiltonian_metadata(tmp_path)
         geometry=hamiltonian.geometry
     )
     assert not written.spin.is_polarized
-    assert written._csr.data.shape[1] == 1
+    # One Hamiltonian channel; HSX always stores S, which adds a column when read back.
+    assert written._csr.data.shape[1] - (not written.orthogonal) == 1
 
     metadata = json.loads(out_file.with_suffix(".HSX.metadata.json").read_text())
     assert metadata["matrix_component_policy"] == "h_only"

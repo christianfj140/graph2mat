@@ -369,15 +369,17 @@ def test_graph2mat_symm_transpose_multicomponent_keeps_components_axis():
     basis = [PointBasis("A", R=2, basis=[1], basis_convention="cartesian")]
     table = BasisTableWithEdges(basis)
 
+    # symm_transpose is only used by homonuclear edge blocks (node blocks are symmetric
+    # by construction of their operation), so the non-symmetric op goes on the edges.
     g2m = Graph2Mat(
         unique_basis=table,
         symmetric=True,
-        node_operation=DummySymmNodeCompOp,
-        edge_operation=DummyEdgeCompOp,
+        node_operation=DummyNodeCompOp,
+        edge_operation=DummySymmNodeCompOp,
         n_matrix_components=2,
     )
 
-    block = g2m.self_interactions[0]()
+    block = g2m.interactions["(0, 0, 0)"]()
 
     expected = np.array(
         [

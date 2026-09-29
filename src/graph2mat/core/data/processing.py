@@ -679,7 +679,10 @@ class MatrixDataProcessor:
             shape = self.basis_table.point_block_shape[:, point_type]
             block = block.reshape(tuple(shape))
 
-            irreps_values = torch.einsum("zij, ij-> z", rtp.change_of_basis, block)
+            # RTP buffers are float32; follow the labels (float64 in tests and analysis).
+            irreps_values = torch.einsum(
+                "zij, ij-> z", rtp.change_of_basis.to(block.dtype), block
+            )
 
             point_values.append(irreps_values)
 
@@ -713,7 +716,10 @@ class MatrixDataProcessor:
             shape = self.basis_table.edge_block_shape[:, canonical_edge_type]
             block = block.reshape(tuple(shape))
 
-            irreps_values = torch.einsum("zij, ij-> z", rtp.change_of_basis, block)
+            # RTP buffers are float32; follow the labels (float64 in tests and analysis).
+            irreps_values = torch.einsum(
+                "zij, ij-> z", rtp.change_of_basis.to(block.dtype), block
+            )
 
             edge_values.append(irreps_values)
 
@@ -1177,7 +1183,9 @@ class MatrixDataProcessor:
             neigh_isc = neigh_isc[unique_edge_mask]
 
         # Construct the matrix.
-        if out_format == Formats.SISL_H:
+        # "sisl_H" is registered as the generic "sisl" converter with sp_class=Hamiltonian,
+        # so the policy must also reach that path (other sparse classes ignore it).
+        if out_format in (Formats.SISL, Formats.SISL_H):
             kwargs.setdefault("matrix_component_policy", self.matrix_component_policy)
 
         matrix = conversions.get_converter(data_format, out_format)(

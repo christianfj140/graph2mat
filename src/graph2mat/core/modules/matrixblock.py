@@ -1,4 +1,5 @@
 import numpy as np
+import inspect
 from typing import Type, Tuple, TypeVar
 from types import ModuleType
 
@@ -42,6 +43,9 @@ class MatrixBlock:
 
         On forward, this module will just be a wrapper around the operation, so you should pass
         whatever arguments that the operation expects.
+    n_matrix_components: int
+        Number of matrix components (e.g. H and S). When larger than 1 it is passed to
+        `operation_cls`, which must then produce blocks with a trailing component axis.
     **operation_kwargs: dict
         Any arguments needed for the initialization of the `operation_cls`.
 
@@ -65,10 +69,14 @@ class MatrixBlock:
         operation_cls: Type,
         symm_transpose: bool = False,
         preprocessor=None,
+        n_matrix_components: int = 1,
         **operation_kwargs,
     ):
         super().__init__()
         self.symm_transpose = symm_transpose
+        self.n_matrix_components = n_matrix_components
+        if n_matrix_components > 1 and "n_matrix_components" in inspect.signature(operation_cls).parameters:
+            operation_kwargs["n_matrix_components"] = n_matrix_components
 
         self.operation = operation_cls(
             i_basis=i_basis, j_basis=j_basis, **operation_kwargs
@@ -78,10 +86,11 @@ class MatrixBlock:
         return self.operation(*args, **kwargs)
 
     def _transpose_block(self, block):
+        # swapaxes swaps two axes in numpy and torch alike (numpy's transpose wants a full permutation).
         if getattr(self, "n_matrix_components", 1) > 1 and block.ndim >= 4:
-            return block.transpose(-3, -2)
+            return block.swapaxes(-3, -2)
 
-        return block.transpose(-1, -2)
+        return block.swapaxes(-1, -2)
 
     def forward(self, *args, **kwargs):
         if self.symm_transpose == False:

@@ -747,19 +747,25 @@ def block_type_mse(
     return node_loss + edge_loss, stats
 
 
+def _node_graph(batch) -> np.ndarray:
+    """Structure of every node (batch.batch); an unbatched data object is one structure."""
+    node_graph = _batch_field(batch, "batch")
+    if node_graph is None:
+        return np.zeros(len(_as_numpy_int(_batch_field(batch, "point_types"))), dtype=int)
+    return _as_numpy_int(node_graph)
+
+
 def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
     """Structure id of every flat node/edge label element (torch tensors).
 
     Handles symmetric-matrix edge selection (labels stored for one direction
     only) and the NaN-edge filtering applied by ``get_predictions_error``.
     """
-    point_types = _as_numpy_int(_batch_field(batch, "point_types"))
-    node_graph = _as_numpy_int(_batch_field(batch, "batch"))
-    if point_types is None or node_graph is None:
-        raise ValueError(
-            "per-structure losses need batch.point_types and batch.batch "
-            "(the node -> structure assignment)."
-        )
+    point_types = _batch_field(batch, "point_types")
+    if point_types is None:
+        raise ValueError("per-structure losses need batch.point_types.")
+    point_types = _as_numpy_int(point_types)
+    node_graph = _node_graph(batch)
     node_pointers = basis_table.point_block_pointer(point_types)
     node_sizes = np.diff(node_pointers)
     node_struct = np.repeat(node_graph, node_sizes)
@@ -887,8 +893,7 @@ def block_type_mse_per_domain(
         nodes_pred, nodes_ref, edges_pred, edges_ref, batch, basis_table,
         node_weight, edge_weight,
     )
-    node_graph = _as_numpy_int(_batch_field(batch, "batch"))
-    atoms_per_structure = np.bincount(node_graph, minlength=loss_s.shape[0])
+    atoms_per_structure = np.bincount(_node_graph(batch), minlength=loss_s.shape[0])
     large_mask = torch.as_tensor(
         atoms_per_structure >= int(domain_threshold_atoms), device=loss_s.device
     )

@@ -202,8 +202,10 @@ def test_hamiltonian_edge_readout_improves_synthetic_parameter_rank():
         irreps_out,
         hidden_dim=16,
     ).to(dtype=dtype)
-    left = torch.randn(3, irreps_in.dim, dtype=dtype)
-    right = torch.randn(3, irreps_in.dim, dtype=dtype)
+    # The bilinear tensor product spans at most 5 x (4 x 4) = 80 directions: with 3 edges
+    # (15 outputs) both readouts saturate at rank 15, so use enough edges to tell them apart.
+    left = torch.randn(20, irreps_in.dim, dtype=dtype)
+    right = torch.randn(20, irreps_in.dim, dtype=dtype)
 
     default_output = default_readout(edge_messages=(left, right))
     hamiltonian_output = hamiltonian_readout(edge_messages=(left, right))
