@@ -39,26 +39,24 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
   gap 986 → 80 meV (−92 %), autovalores ocupados −97 %.** En una molécula E_F cae en el gap y ~40 % del
   error con MSE era ese desplazamiento del cero de energía por estructura.
 
-**Pérdida invariante de gauge (4.2) en grafeno** (3 semillas; se compara el H sin el desplazamiento c·S
-y las bandas alineadas, porque deja libre el cero de energía):
-- `6x6` dentro de distribución (lin bf16 16.000 pasos): H alineado 0,926/1,306/1,012 → **0,593/1,137/0,836
-  (1,08 → 0,86 meV, −21 %, gana en las 3)**, aunque el c·S era solo el 2 % del error: sin tener que
-  ajustar E_F, el resto se ajusta mejor;
-- extrapolación, mixta: monocapa → bicapa H 59 → 52 (−12 %) pero bandas alineadas 94 → 143 (+53 %);
-  bicapa → moiré H 6,4 → 6,0, intracapa 7,7 → 4,9 (−36 %), intercapa 5,1 → 7,1, bandas 14,5 → 11,7
-  (−19 %; mejor en 2 de 3 semillas);
-- el modelo que predice también S cuesta +48 % de VRAM (5,5 → 8,2 GB). **Con S solo como etiqueta
-  (`n_output_components=1`, `lin_steps16k_gaugeh`): H alineado 0,622/0,808/0,691 → 0,71 meV (−35 % frente a
-  1,08; mejor que con S, 0,86) y la misma VRAM que sin gauge (5,5 GB).** Es la mejor precisión de `6x6`
-  del roadmap. En bicapa, igual que con S: H 59 → 52, bandas alineadas 129/85 en dos semillas (sin gauge
-  128/86) y 253 en la tercera;
-- al predecir hay que fijar el cero de energía (p. ej. E_F de la H predicha, como hace SIESTA).
+**Pérdida invariante de gauge (4.2) con S solo como etiqueta** (`gauge_invariant_mse`, etiquetas (H, S),
+`n_output_components=1`: el modelo predice solo H y S solo define el desplazamiento; misma VRAM que sin
+gauge). Se compara el H sin el desplazamiento c·S y las bandas alineadas, porque deja libre el cero de
+energía de cada estructura (al predecir hay que fijarlo, p. ej. con la E_F de la H predicha):
+- **`6x6` dentro de distribución (lin bf16 16.000 pasos, 5 semillas): H alineado 0,926/1,306/1,012/0,939/1,048
+  → 0,622/0,808/0,691/0,686/0,689 (1,05 → 0,70 meV, −33 %, gana en las 5 y con mucha menos dispersión)**;
+- **bicapa → moiré (fp32 + lin, 3 semillas): H 6,39 → 5,64, intracapa 7,7 → 4,4 (−43 %), bandas alineadas
+  14,5 → 7,3 (−50 %; 6,8/6,9/8,3 frente a 13,6/14,5/15,5)**;
+- monocapa (`6x6`) → bicapa (5 semillas): H 62,8 → 53,2 (−15 %), pero bandas alineadas 110 → 162 (peores en
+  3 de 5 semillas);
+- prediciendo también S era peor y más caro: `6x6` 0,86 meV con +48 % de VRAM; bicapa → moiré bandas 11,7
+  con una semilla mala.
 
-**Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`):** fuera del alcance de los orbitales
-≤1 % (la máscara orbital, 4.6, no aporta en grafeno); el desplazamiento c·S explica solo el 2 % en
-las recetas finales. lin quitó el 82 % del error de los pares a ~4,3 Å (cerca del corte) y el 50 % de
-los primeros vecinos; lo que queda es el bloque **on-site** (12,9 meV por elemento, 19 % del error;
-apenas mejoró) y los primeros vecinos (6,4 meV, 28 %).
+**Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
+alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
+de los pares a ~4,3 Å (cerca del corte); la pérdida de gauge mejora todas las capas de vecinos (primeros
+6,1 → 3,6 meV por elemento), pero el **on-site** apenas (12,3 → 10,3): es ya el 23 % del error que queda y
+el mayor por elemento.
 
 **Valores por defecto:** `LitMACEMatrixModel` usa `E3nnLinearEdgeBlock` desde a39439a (gana en `w90`,
 `6x6` y H2O). El bloque de nodos sigue siendo `E3nnSimpleNodeBlock`: el lineal ayuda en `6x6` con bf16,
@@ -70,7 +68,9 @@ es neutro con fp32 y empeora el espectro de H2O.
 - `lean_mace` (ya por defecto): −14 % de pico;
 - checkpointing: −24 % (fp32) / −34 % (bf16) de pico del proceso, +34 % de tiempo.
 
-**Recetas recomendadas:**
+**Recetas recomendadas** (con etiquetas (H, S), añadir la pérdida invariante de gauge con S solo como
+etiqueta: −33 % en `6x6`, bandas −50 % en bicapa → moiré, −81 % en H2O, salvo para extrapolar de monocapa a
+bicapa, donde empeora las bandas):
 - `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
   para compensar el tiempo): 1,11 dentro y 66 en bicapa;
 - solo precisión dentro de distribución: lo mismo en fp32 (1,02, pero 75 en bicapa);
@@ -385,8 +385,8 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` lee (H, S) y ya escribe H con S (la política no llegaba a la conversión a `sisl_H`, 72b468c); la predicción del benchmark la admite. Falta la reconstrucción no ortogonal completa |
-| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **con S solo como etiqueta (`n_output_components=1`): H2O H alineado 29,6 → 5,6 meV (−81 %), gap 986 → 80 meV (−92 %); `6x6` H alineado 1,08 → 0,71 meV (−35 %, 3 de 3 semillas), misma VRAM.** Prediciendo también S: H2O 7,2, `6x6` 0,86 y +48 % de VRAM. Extrapolación mixta (monocapa → bicapa: H −12 %, bandas peores en 1 de 3 semillas; bicapa → moiré, con S: H −6 %, bandas −19 %). `gauge_invariant_mse` (7b97b7a) con `h_and_overlap`; métrica c* en `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` y `val_metrics` (`H_MAE_gauge_meV`) |
-| 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ por on-site/capa de vecinos/par l, fuera de alcance orbital y parte c·S. `6x6`: queda el on-site (12,9 meV/elemento, 19 %) y los primeros vecinos (28 %); lin quitó el 82 % del error a ~4,3 Å. En validación sigue sin métricas espectrales |
+| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **con S solo como etiqueta (`n_output_components=1`, misma VRAM): `6x6` H alineado 1,05 → 0,70 meV (−33 %, 5 de 5 semillas); bicapa → moiré bandas alineadas 14,5 → 7,3 (−50 %, 3 de 3) e intracapa −43 %; H2O H alineado 29,6 → 5,6 (−81 %), gap 986 → 80 meV (−92 %).** Monocapa → bicapa: H −15 % pero bandas peores en 3 de 5. Prediciendo también S: peor y +48 % de VRAM. `gauge_invariant_mse` (7b97b7a, 71c1afa) con `h_and_overlap`; métrica c* en `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` y `val_metrics` (`H_MAE_gauge_meV`) |
+| 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ sin el desplazamiento c·S, por on-site/capa de vecinos/par l, y fuera de alcance orbital. `6x6` (semilla 0, meV por elemento): lin 1,79 → 0,93 quitó el 82 % del error a ~4,3 Å; la pérdida de gauge 0,93 → 0,62 mejora todas las capas (primeros vecinos 6,1 → 3,6, terceros 2,8 → 1,4) pero el **on-site** solo 12,3 → 10,3: es ya el 23 % del error y el mayor por elemento, el siguiente objetivo |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | ⏳ |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
 | 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ❌ en grafeno (base SZ) el error fuera del alcance de los orbitales es ≤1 % del total y los ceros exactos ya salen a cero: no hay nada que enmascarar |
