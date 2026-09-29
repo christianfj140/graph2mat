@@ -39,6 +39,17 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
   autovalores ocupados −96 %.** En una molécula E_F cae en el gap y ~40 % del error con MSE era ese
   desplazamiento del cero de energía por estructura.
 
+**Pérdida invariante de gauge (4.2) en grafeno** (3 semillas; se compara el H sin el desplazamiento c·S
+y las bandas alineadas, porque deja libre el cero de energía):
+- `6x6` dentro de distribución (lin bf16 16.000 pasos): H alineado 0,926/1,306/1,012 → **0,593/1,137/0,836
+  (1,08 → 0,86 meV, −21 %, gana en las 3)**, aunque el c·S era solo el 2 % del error: sin tener que
+  ajustar E_F, el resto se ajusta mejor;
+- extrapolación, mixta: monocapa → bicapa H 59 → 52 (−12 %) pero bandas alineadas 94 → 143 (+53 %);
+  bicapa → moiré H 6,4 → 6,0, intracapa 7,7 → 4,9 (−36 %), intercapa 5,1 → 7,1, bandas 14,5 → 11,7
+  (−19 %; mejor en 2 de 3 semillas);
+- coste: el modelo predice también S (pico 5,5 → 8,2 GB, +48 %). Siguiente paso: usar S solo como
+  etiqueta de la pérdida, sin cabeza de S. Al predecir hay que fijar el cero (p. ej. E_F de la H predicha).
+
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`):** fuera del alcance de los orbitales
 ≤1 % (la máscara orbital, 4.6, no aporta en grafeno); el desplazamiento c·S explica solo el 2 % en
 las recetas finales. lin quitó el 82 % del error de los pares a ~4,3 Å (cerca del corte) y el 50 % de
@@ -303,7 +314,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 0.5 | CI que ejecuta pytest | C | S | bajo | ✅ `.github/workflows/tests.yaml` |
 | 0.6 | Tests: equivariancia con rotación genérica, localidad de bloques, reordenación, asserts que siempre pasan | C | M | bajo | 🔶 los 14 tests del fork que ya fallaban en a5e8134 están arreglados (72b468c; suite: 470 pasan). Faltan ENG_QUALITY-04 y los tests del modelo completo con supercelda |
 | 0.7 | Carga con torch ≥ 2.6 (e3nn, checkpoints) | C | S | bajo | 🔶 falta el KeyError con variables `E3MAT_*` |
-| 0.8 | `initial_node_feats` ignorado; rama `version != "new"` rota | C | S | bajo | 🔶 queda borrar la rama muerta |
+| 0.8 | `initial_node_feats` ignorado; rama `version != "new"` rota | C | S | bajo | ✅ `initial_node_feats` validado; la rama `version != "new"` (llamaba a `init_model` con argumentos que `MatrixMACE` ya no acepta) eliminada: el argumento se conserva para los checkpoints y cualquier otro valor da error |
 | 0.9 | Batch sin aristas o sin nodos con base | C | S | bajo | ✅ |
 | 0.10 | Benchmark reproducible, perfilado y regresión numérica | — | M | bajo | 🔶 existe `g2m_improvements_benchmark.py` (`w90`/`6x6`); falta el perfilado (2.9) |
 
@@ -366,7 +377,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` lee (H, S) y ya escribe H con S (la política no llegaba a la conversión a `sisl_H`, 72b468c); la predicción del benchmark la admite. Falta la reconstrucción no ortogonal completa |
-| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **H2O: H alineado 29,6 → 7,2 meV (−76 %), gap 986 → 102 meV (−90 %), ocupados −96 %** (3 semillas; `gauge_invariant_mse`, 7b97b7a, con `h_and_overlap`). En `6x6` el desplazamiento c·S es solo el 2 % del error de las recetas finales (9 % en la referencia): 🧪 probarla en `6x6` y bicapa. Métrica c*: `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` |
+| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **H2O: H alineado 29,6 → 7,2 meV (−76 %), gap 986 → 102 meV (−90 %), ocupados −96 %**; **`6x6`: H alineado 1,08 → 0,86 meV (−21 %, 3 de 3 semillas)**; extrapolación mixta (monocapa → bicapa: H −12 %, bandas +53 %; bicapa → moiré: H −6 %, bandas −19 %). +48 % de VRAM porque también predice S (siguiente paso: S solo como etiqueta). `gauge_invariant_mse` (7b97b7a) con `h_and_overlap`; métrica c* en `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` y ya en `val_metrics` (`H_MAE_gauge_meV`) |
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ por on-site/capa de vecinos/par l, fuera de alcance orbital y parte c·S. `6x6`: queda el on-site (12,9 meV/elemento, 19 %) y los primeros vecinos (28 %); lin quitó el 82 % del error a ~4,3 Å. En validación sigue sin métricas espectrales |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | ⏳ |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
