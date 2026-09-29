@@ -51,6 +51,11 @@ energía de cada estructura (al predecir hay que fijarlo, p. ej. con la E_F de l
   3 de 5 semillas);
 - prediciendo también S era peor y más caro: `6x6` 0,86 meV con +48 % de VRAM; bicapa → moiré bandas 11,7
   con una semilla mala.
+- **+ `kl` (`keep_last_layer_irreps`: la última capa de MACE conserva l>0), 5 semillas: la mejor receta de
+  `6x6`.** Dentro 0,732/0,740/0,781/0,529/0,791 → 0,72 meV (empata con `gaugeh`, 0,70; −32 % frente a lin).
+  **Monocapa → bicapa: registros H 62,8 → 40,4 meV (−36 % frente a lin, −49 % frente a la referencia 78,5;
+  mejor en las 5 semillas), intracapa 67 → 38, bandas alineadas 110 → 100; MD AB H 64 → 43, bandas 91 → 83.**
+  Misma VRAM (6,0 GB), +30 % de tiempo. 🧪 `gaugeh` con 32.000 pasos (su mejor checkpoint cae al final).
 
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
 alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
@@ -69,8 +74,10 @@ es neutro con fp32 y empeora el espectro de H2O.
 - checkpointing: −24 % (fp32) / −34 % (bf16) de pico del proceso, +34 % de tiempo.
 
 **Recetas recomendadas** (con etiquetas (H, S), añadir la pérdida invariante de gauge con S solo como
-etiqueta: −33 % en `6x6`, bandas −50 % en bicapa → moiré, −81 % en H2O, salvo para extrapolar de monocapa a
-bicapa, donde empeora las bandas):
+etiqueta: −33 % en `6x6`, bandas −50 % en bicapa → moiré, −81 % en H2O; para extrapolar de monocapa a
+bicapa, con `kl`: H −36 % y bandas −9 %):
+- **`6x6` y extrapolación: lin + poly3 + 16.000 pasos sin EarlyStopping, bf16, pérdida de gauge con S como
+  etiqueta y `kl` (`lin_steps16k_gaugeh_kl`): 0,72 meV dentro, 40 meV en bicapa (referencia 1,94 bruto / 78);**
 - `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
   para compensar el tiempo): 1,11 dentro y 66 en bicapa;
 - solo precisión dentro de distribución: lo mismo en fp32 (1,02, pero 75 en bicapa);
