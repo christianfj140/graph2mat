@@ -31,10 +31,19 @@ Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
   entre recetas; poly6 la empeora (≈125–130);
 - monocapa (`w90`, celda de 2 átomos) → bicapa: no funciona con ninguna variante (150–450).
 
-**Otro material, H2O** (moléculas perturbadas, 120 de entrenamiento; ver su sección): la receta nueva
-(fp32, término lineal en aristas, sin EarlyStopping) baja H de 55,3 a **48,7** (−12 %, gana en las 3
-semillas) y la mediana del error del gap de 565 a 379 meV (−33 %). El término lineal también en los
-nodos no ayuda en H (51,3) y casi triplica el error del gap (1054).
+**Otro material, H2O** (moléculas perturbadas, 120 de entrenamiento; ver su sección):
+- la receta nueva (fp32, término lineal en aristas, sin EarlyStopping) baja H de 55,3 a **48,7** (−12 %,
+  gana en las 3 semillas) y la mediana del error del gap de 565 a 379 meV (−33 %); el lin de nodos
+  empeora el gap (1054);
+- **con la pérdida invariante de gauge (4.2): H alineado 29,6 → 7,2 meV (−76 %), gap 986 → 102 meV (−90 %),
+  autovalores ocupados −96 %.** En una molécula E_F cae en el gap y ~40 % del error con MSE era ese
+  desplazamiento del cero de energía por estructura.
+
+**Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`):** fuera del alcance de los orbitales
+≤1 % (la máscara orbital, 4.6, no aporta en grafeno); el desplazamiento c·S explica solo el 2 % en
+las recetas finales. lin quitó el 82 % del error de los pares a ~4,3 Å (cerca del corte) y el 50 % de
+los primeros vecinos; lo que queda es el bloque **on-site** (12,9 meV por elemento, 19 % del error;
+apenas mejoró) y los primeros vecinos (6,4 meV, 28 %).
 
 **Valores por defecto:** `LitMACEMatrixModel` usa `E3nnLinearEdgeBlock` desde a39439a (gana en `w90`,
 `6x6` y H2O). El bloque de nodos sigue siendo `E3nnSimpleNodeBlock`: el lineal ayuda en `6x6` con bf16,
@@ -259,21 +268,29 @@ Script: `MD_vs_AtomicDisplacement/Comparison/scripts/g2m_h2o_benchmark.py`.
 - **Medianas:** se dan por estructura, porque unas pocas moléculas muy distorsionadas dominan las
   medias (H-MAE máximo 315 meV frente a una mediana de 29).
 
-| Receta (3 semillas) | H-MAE | mediana | gap (mediana) | ocupados (mediana) | Por semilla |
+Las etiquetas son H − E_F·S y en una molécula E_F cae en el gap, donde SIESTA la coloca de forma casi
+arbitraria: el desglose del error (4.3) muestra que ~40 % del error de H de estos modelos es un
+desplazamiento c·S por estructura (|c*| medio ≈ 210 meV). Por eso se comparan también métricas
+invariantes: H tras quitar el c* de mínimos cuadrados y los autovalores ocupados sin su desplazamiento
+medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
+
+| Receta (3 semillas) | H-MAE | H alineado (mediana) | ocupados alineados (mediana) | gap (mediana) | Por semilla (H alineado) |
 |---|---:|---:|---:|---:|---|
-| `base` (bf16, bloques de siempre, EarlyStopping) | 55,3 | 35,5 | 565 | 136 | 54,0/52,3/59,5 |
-| **`rec_fp32` (fp32, lin en aristas, sin EarlyStopping)** | **48,7** | **27,0** | **379** | 132 | 52,3/48,1/45,6 |
-| `lin_fp32` (lo mismo con lin también en nodos) | 51,3 | 31,6 | 1054 | 114 | 51,2/43,6/59,0 |
+| `base` (bf16, bloques de siempre, EarlyStopping) | 55,3 | 33,8 (28,9) | 324 (55) | 1193 (565) | — |
+| `rec_fp32` (fp32, lin en aristas, sin EarlyStopping) | 48,7 | 29,6 (22,1) | 248 (44) | 986 (379) | — |
+| `lin_fp32` (lo mismo con lin también en nodos) | 51,3 | 32,2 (26,0) | 286 (50) | 1828 (1054) | — |
+| **`gauge_fp32` (`rec_fp32` + pérdida invariante de gauge, 4.2)** | — | **7,2 (5,9)** | **9,9 (8,5)** | **102 (46)** | 7,6/7,0/6,9 |
 
-La receta nueva gana también en otro material: −12 % en H (en las 3 semillas) y −33 % en la mediana
-del error del gap. El lin de nodos no ayuda en H y empeora mucho el gap; por eso el bloque de nodos
-por defecto no cambia.
-
-En términos absolutos H2O es difícil con 120 moléculas:
-
-- el mejor checkpoint llega hacia la época 800–1100 de 2000 (sobreajuste);
-- los autovalores amplifican el error de H más que en grafeno. Probablemente es la S mal condicionada
-  de la base DZP difusa en una molécula aislada.
+- **La receta nueva gana también en otro material**, incluso en las métricas invariantes: `rec_fp32`
+  frente a `base`, −12 % en H alineado y −33 % en la mediana del gap. El lin de nodos no ayuda y
+  empeora el gap, así que el bloque de nodos por defecto no cambia.
+- **La pérdida invariante de gauge es la mayor mejora del roadmap en H2O:** frente a `rec_fp32`, H
+  alineado −76 %, autovalores ocupados −96 % (mediana −81 %) y gap −90 %; la peor molécula baja de
+  73–147 a 23–25 meV. Las 3 semillas coinciden. El H-MAE bruto no cuenta para ella (1,5–2,4 eV):
+  deja libre el cero de energía de cada estructura, que es justo lo que no se puede aprender.
+- Con MSE, el mejor checkpoint llegaba hacia la época 800–1100 de 2000 (sobreajustaba el ruido de
+  E_F); con la pérdida de gauge sigue mejorando pasada la 1400. Los errores grandes de autovalores
+  no venían de una S mal condicionada, sino de ese ruido de las etiquetas.
 
 ## Ola 0 — Red de seguridad y fallos críticos
 
@@ -284,7 +301,7 @@ En términos absolutos H2O es difícil con 120 moléculas:
 | 0.3 | `normalized_density_error`: re-sumaba la DM atómica; signo on-site/off-site | C | S | bajo | ✅ |
 | 0.4 | Métricas mal definidas o duplicadas (`mapestdmix`, `mapemaemix`, `mapemsemix`) | C | S | bajo | ✅ |
 | 0.5 | CI que ejecuta pytest | C | S | bajo | ✅ `.github/workflows/tests.yaml` |
-| 0.6 | Tests: equivariancia con rotación genérica, localidad de bloques, reordenación, asserts que siempre pasan | C | M | bajo | 🔶 faltan ENG_QUALITY-04 y los tests del modelo completo con supercelda |
+| 0.6 | Tests: equivariancia con rotación genérica, localidad de bloques, reordenación, asserts que siempre pasan | C | M | bajo | 🔶 los 14 tests del fork que ya fallaban en a5e8134 están arreglados (72b468c; suite: 470 pasan). Faltan ENG_QUALITY-04 y los tests del modelo completo con supercelda |
 | 0.7 | Carga con torch ≥ 2.6 (e3nn, checkpoints) | C | S | bajo | 🔶 falta el KeyError con variables `E3MAT_*` |
 | 0.8 | `initial_node_feats` ignorado; rama `version != "new"` rota | C | S | bajo | 🔶 queda borrar la rama muerta |
 | 0.9 | Batch sin aristas o sin nodos con base | C | S | bajo | ✅ |
@@ -335,7 +352,7 @@ En términos absolutos H2O es difícil con 120 moléculas:
 | 3.4 | Servidor (`/test` roto, `/predict`), `local_write_predict`, extrapolación, `PlotMatrixError` con `neigh_isc` | C | S | bajo | ⏳ |
 | 3.5 | `import graph2mat` sin torch; dependencias de la CLI; versiones fijadas | C | S | bajo | ⏳ |
 | 3.6 | DataModule: `copy_root_to_tmp`, `setup` carga todos los splits, carrera de zipfile, filtros de labels descartados, `torch_predict`, `node_types_subgraph` | C | S | bajo | 🔶 `torch_predict` y `copy_root_to_tmp` (2778903); el resto pendiente |
-| 3.7 | RTPs: caché vacía, dtype congelado, RTP lento en cada llamada | T | S | bajo | ⏳ |
+| 3.7 | RTPs: caché vacía, dtype congelado, RTP lento en cada llamada | T | S | bajo | 🔶 `irreps_from_data` sigue el dtype de las etiquetas (72b468c); caché vacía y RTP lento pendientes |
 | 3.8 | `reuse_nodes` con `E3nnSimpleEdgeBlock`, `E3nnInteraction` sin residual, features experimentales no equivariantes, robustez de `PointBasis`, EDM en el registro de matrices | C | S | bajo | 🔶 entradas por nombre con `reuse_nodes` (5cdc3e0); paridad de `PointBasis` (2b32072); faltan residual, EDM y features experimentales |
 | 3.9 | Linter y tipos, tests con semilla, reproducibilidad del split, tests de pérdidas y de simetría H_ij = H_jiᵀ | C | M | bajo | 🔶 asserts que siempre pasaban y test M = Mᵀ (3cc3aa3); faltan linter y semillas |
 | 3.10 | Validar la convención de orbitales (l creciente, m = −l..l); `qe_spherical` incorrecta para l ≥ 2 | C | M | medio | 🔶 error si las capas no están completas y en l creciente (dade02d); el orden de m depende de `basis_convention`; `qe_spherical` pendiente |
@@ -348,12 +365,12 @@ En términos absolutos H2O es difícil con 120 moléculas:
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
-| 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` del fork ya la lee; falta la reconstrucción y la salida |
-| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | 🔶 métrica: `g2m_ood_eval.py` calcula c* por mínimos cuadrados y el error alineado. Pérdida: ✅ `gauge_invariant_mse` (7b97b7a): con etiquetas (H, S) (`h_and_overlap`, S la última componente), c óptimo por estructura en forma cerrada y MSE de ΔH − c·S más MSE de S; test con un desplazamiento distinto por estructura. Falta probarla en el benchmark: la predicción de `MD_vs_AtomicDisplacement` asume `h_only` y la escritura de H con S del fork tiene un test que ya fallaba |
-| 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ⏳ el benchmark ya calcula bandas por fuera |
+| 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` lee (H, S) y ya escribe H con S (la política no llegaba a la conversión a `sisl_H`, 72b468c); la predicción del benchmark la admite. Falta la reconstrucción no ortogonal completa |
+| 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **H2O: H alineado 29,6 → 7,2 meV (−76 %), gap 986 → 102 meV (−90 %), ocupados −96 %** (3 semillas; `gauge_invariant_mse`, 7b97b7a, con `h_and_overlap`). En `6x6` el desplazamiento c·S es solo el 2 % del error de las recetas finales (9 % en la referencia): 🧪 probarla en `6x6` y bicapa. Métrica c*: `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` |
+| 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ por on-site/capa de vecinos/par l, fuera de alcance orbital y parte c·S. `6x6`: queda el on-site (12,9 meV/elemento, 19 %) y los primeros vecinos (28 %); lin quitó el 82 % del error a ~4,3 Å. En validación sigue sin métricas espectrales |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | ⏳ |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
-| 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ⏳ |
+| 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ❌ en grafeno (base SZ) el error fuera del alcance de los orbitales es ≤1 % del total y los ceros exactos ya salen a cero: no hay nada que enmascarar |
 
 ## Ola 5 — El objetivo: residuo y normalización
 
