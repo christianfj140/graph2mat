@@ -55,7 +55,16 @@ energía de cada estructura (al predecir hay que fijarlo, p. ej. con la E_F de l
   `6x6`.** Dentro 0,732/0,740/0,781/0,529/0,791 → 0,72 meV (empata con `gaugeh`, 0,70; −32 % frente a lin).
   **Monocapa → bicapa: registros H 62,8 → 40,4 meV (−36 % frente a lin, −49 % frente a la referencia 78,5;
   mejor en las 5 semillas), intracapa 67 → 38, bandas alineadas 110 → 100; MD AB H 64 → 43, bandas 91 → 83.**
-  Misma VRAM (6,0 GB), +30 % de tiempo. 🧪 `gaugeh` con 32.000 pasos (su mejor checkpoint cae al final).
+  Misma VRAM (6,0 GB), +30 % de tiempo.
+- Lote nocturno (3 semillas cada uno; H alineado en meV):
+  - `gaugeh` con 32.000 pasos: 0,592/0,791/0,670 → 0,68 (16.000: 0,71): −3 %, dentro del ruido, por el
+    doble de tiempo. ❌
+  - `gaugeh` + `kl` en fp32 (`6x6`): 0,536/0,783/0,681 → **0,67 (bf16 0,75 en las mismas semillas; la mejor
+    dentro de `6x6`)**; bicapa H 25/46/41 → 37 (bf16 38), pero bandas alineadas 125 (bf16 94).
+  - bicapa → moiré con `kl` (fp32): H 5,64 (igual que sin `kl`), bandas alineadas 6,7 (sin `kl` 7,3).
+  - H2O con `kl`: H alineado 5,9 (sin `kl` 5,6), gap 101 (80): `kl` no ayuda en moléculas.
+  - **`w90` (fp32 + poly6 + lin + `kl`) + gauge con S como etiqueta: validación alineada 2,17/2,17/1,46 →
+    1,04/1,75/1,21 (1,93 → 1,33, −31 %)**; test común alineado 1,84/2,71/1,70.
 
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
 alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
