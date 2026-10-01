@@ -74,6 +74,10 @@ predecir se suma H0. Con la pérdida de gauge (S como etiqueta), 3 semillas:
 - monocapa → bicapa: registros 52 → **6,3 meV** (con `kl` 38 → **5,3**; referencia 78), bandas alineadas
   156 → **19** (con `kl` 94 → **17**; referencia 162); MD AB 53 → **6,8** (con `kl` 41 → **5,9**);
 - H2O H alineado 5,6 → **1,0 meV**, gap 80 → **9,6 meV**.
+- **`w90` (celda de 2 átomos) → bicapa, que nunca había funcionado (150–450 meV):** fp32 + lin + gauge + Δ, registros
+  4,3/4,5/4,7 → **4,5 meV** (sin Δ, `fp32_lin`: 171/277/204), bandas alineadas **22,6**, MD AB **5,0**; con poly6 +
+  `kl` 5,2 meV y bandas **16,7**, MD AB 5,4 / 12,8. Dentro de `w90` (test común alineado): 2,08 → **0,62 meV**.
+  **Entrenando solo con la celda de 2 átomos, la bicapa sale igual que entrenando con la supercelda `6x6`.**
 - **bicapa → moiré** (fp32 + lin + gauge, registros no vistos): H alineado 5,64 → **0,96 meV** (1,15/0,93/0,79;
   referencia 20,95), intracapa 4,4 → 0,67, intercapa 6,8 → 1,25, bandas alineadas 7,3 → **2,0 meV**
   (referencia 69,6).
@@ -100,6 +104,8 @@ bicapa, con `kl`: H −36 % y bandas −9 %):
 - **`6x6` y extrapolación: lin + poly3 + 16.000 pasos sin EarlyStopping, bf16, pérdida de gauge con S como
   etiqueta, `kl` y Δ-learning sobre H0 de SIESTA (`lin_steps16k_gaugeh_kl_delta`): 0,13 meV dentro, 5,8 meV en
   bicapa y bandas 18 (referencia 1,94 bruto / 78 / 162);**
+- **celda de 2 átomos (`w90`) y extrapolación a bicapa: fp32 + poly6 + lin + `kl` + gauge con S como etiqueta + Δ:
+  0,62 meV en el test de `w90`, 5,2 meV y bandas 16,7 en bicapa;**
 - **bicapa → moiré: fp32 + lin + gauge con S como etiqueta + Δ: 0,96 meV en registros no vistos, bandas 2,0
   (referencia 20,95 / 69,6);**
 - `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
@@ -373,7 +379,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 1.9 | `E3nnEdgeBlockNodeMix`: pesos del TP que dependen de la distancia y de ambos nodos (necesita `preprocessing_edges_reuse_nodes`) | P | config | bajo | ❌ `w90`: 11,77 frente a 12,61 meV (Δ +1,0/−1,8/−1,7), bandas 19,5 frente a 18,9: pequeño, dentro del ruido; **y fuera de distribución es la peor variante (557 meV en bicapa)** |
 | 1.10 | Readouts condicionados del fork (`E3nnHamiltonian{Node,Edge}Block`). Vigilar su VRAM **(GPT Astra)** | P | config | medio | ❌ con esta receta falla al construirse: intenta reservar 139 GB de RAM (el MLP que genera los pesos del TP recibe las features de MACE, 48 canales × 9 segmentos). Solo sería viable proyectando antes las features de nodo a pocos canales |
 | 1.11 | Resolución radial `num_bessel=16` | P | config | bajo | ❌ `w90`: 17,0 frente a 12,61 meV (15,7/18,8/16,4; bandas 25,9 frente a 18,9): peor |
-| 1.12 | EMA, SWA/segunda etapa, clipping, warmup | P | S | bajo | 🔶 EMA empeora (+2,8 meV); SWA y clipping sin probar |
+| 1.12 | EMA, SWA/segunda etapa, clipping, warmup | P | S | bajo | 🔶 EMA empeora (+2,8 meV). **Gradient clipping (norma 1) sobre la mejor receta de `6x6` (gauge + `kl` + Δ): neutro** (0,144/0,125/0,103 frente a 0,145/0,122/0,103; bicapa 5,4 frente a 5,3). SWA no es posible (deepcopy del modelo) |
 | 1.13 | `correlation`, `lmax`, número de interacciones; defaults de `LitMACEMatrixModel` para H | P | config | bajo | ✅ la receta ya usa corr 3, lmax 3 y 3 interacciones. Los defaults se cambian al cerrar la Ola 1 |
 | 1.14 | Irreps de salida inalcanzables (se predecían como cero sin avisar) | C | S | bajo | 🔶 ahora avisa; la solución es subir lmax |
 | 1.15 | Grupos de weight decay; selección del checkpoint dependiente de la pérdida | P | S | bajo | ⏳ |
