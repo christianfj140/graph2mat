@@ -95,7 +95,9 @@ alineadas en meV, 3 semillas salvo indicación):
 Con Δ, un modelo entrenado solo con la celda de 2 átomos de grafeno predice moirés rotados reales con
 <1 meV de H y ~16–19 meV de bandas; entrenado con la MD de bicapa, 0,19 meV y 1,1 meV. Las bandas siguen
 siendo la métrica más alta, pero ya a nivel de decenas de meV (antes centenares). En fp32, `6x6` +
-gauge + `kl` + Δ: semilla 0, 0,134 meV (bf16 0,145); semillas 1–2 en cola tras los trabajos de fonones.
+gauge + `kl` + Δ (semillas 0–2, frente a bf16 en las mismas): dentro 0,134/0,154/0,108 → 0,13 (bf16 0,12),
+registros H 5,28 (igual) y bandas 14,1 (bf16 17,2), MD AB bandas 10,6 (11,6), moiré H 1,03 (0,99) y bandas
+**8,5 (12,0)**: fp32 no cambia H pero mejora las bandas fuera de distribución un 10–30 %.
 
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
 alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
