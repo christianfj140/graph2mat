@@ -82,6 +82,21 @@ predecir se suma H0. Con la pérdida de gauge (S como etiqueta), 3 semillas:
   referencia 20,95), intracapa 4,4 → 0,67, intercapa 6,8 → 1,25, bandas alineadas 7,3 → **2,0 meV**
   (referencia 69,6).
 
+**Moiré real** (`g2m_tbg_moire.py`: bicapas rotadas conmensurables de 21,8°, 32,2° y 13,2°, 28/52/76 átomos,
+etiquetadas con SIESTA con los ajustes de los registros; media de los tres ángulos, H alineado / bandas
+alineadas en meV, 3 semillas salvo indicación):
+
+| Entrenado con | sin Δ | con Δ (gauge, S como etiqueta) |
+|---|---|---|
+| celda de 2 átomos (`w90`) | fp32 + lin 65,4 / 372 | **0,79 / 19,2** (poly6 + `kl`: 1,00 / 15,7) |
+| supercelda `6x6` | referencia 15,2 / 74; `gaugeh_kl` 7,6 / 80 | **1,08 / 12,7** (5 semillas) |
+| MD de bicapa (n474) | base 4,7 / 31,2; fp32 + lin 1,74 / 5,0 | **0,185 / 1,08** |
+
+Con Δ, un modelo entrenado solo con la celda de 2 átomos de grafeno predice moirés rotados reales con
+<1 meV de H y ~16–19 meV de bandas; entrenado con la MD de bicapa, 0,19 meV y 1,1 meV. Las bandas siguen
+siendo la métrica más alta, pero ya a nivel de decenas de meV (antes centenares). En fp32, `6x6` +
+gauge + `kl` + Δ: semilla 0, 0,134 meV (bf16 0,145); semillas 1–2 en cola tras los trabajos de fonones.
+
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
 alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
 de los pares a ~4,3 Å (cerca del corte); la pérdida de gauge mejora todas las capas de vecinos (primeros
