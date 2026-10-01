@@ -123,6 +123,7 @@ bicapa, con `kl`: H −36 % y bandas −9 %):
   bicapa y bandas 18 (referencia 1,94 bruto / 78 / 162);**
 - **celda de 2 átomos (`w90`) y extrapolación a bicapa: fp32 + poly6 + lin + `kl` + gauge con S como etiqueta + Δ:
   0,62 meV en el test de `w90`, 5,2 meV y bandas 16,7 en bicapa;**
+- en todas: `torch_compile` (misma precisión, ×2–3 más rápido);
 - **bicapa → moiré: fp32 + lin + gauge con S como etiqueta + Δ: 0,96 meV en registros no vistos, bandas 2,0
   (referencia 20,95 / 69,6);**
 - `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
@@ -466,7 +467,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 6.5 | Cambio de base disperso por pares de capas | T | M | bajo | ⏳ ver 5.3 |
 | 6.6 | Menos módulos pequeños por tipo; `basis_grouping` (`basis_shape`, **GPT ML**) | T | L | medio | ⏳ |
 | 6.7 | `symm_transpose` simetrizando los pesos: mitad de FLOPs en aristas homonucleares | T V | M | medio | ❌ en `6x6` los bloques de arista son 16 de ~150 ms/paso: ahorraría ≤5 % |
-| 6.8 | `torch.compile` y CUDA graphs (después de 6.3) | T | L | alto | 🔶 opción `torch_compile` (35d0172): modelo sin TorchScript de e3nn y, al empezar el fit, `compile_submodules()` compila en el sitio las capas de MACE y las operaciones del readout (formas dinámicas; mismas claves de checkpoint). **Paso de `6x6` bf16: 138 → 70 ms (2,0×), pico 2425 → 1685 MiB**, tras ~90 s de compilación; test GPU: mismas matrices y gradientes. Requirió dar permiso de ejecución a los binarios de Triton del venv (`triton/backends/nvidia/bin/*`). En `w90` (fp32, limitado por lanzamientos) solo 91 → 68 ms frente a e3nn sin TorchScript, con 160 s de compilación: no compensa en sistemas diminutos. Entrenamiento real `6x6` fp32 + lin: misma precisión (1,057 frente a 1,056) y −25 % de tiempo total. CUDA graphs: pendiente (necesita 6.3) |
+| 6.8 | `torch.compile` y CUDA graphs (después de 6.3) | T | L | alto | 🔶 opción `torch_compile` (35d0172): modelo sin TorchScript de e3nn y, al empezar el fit, `compile_submodules()` compila en el sitio las capas de MACE y las operaciones del readout (formas dinámicas; mismas claves de checkpoint). **Paso de `6x6` bf16: 138 → 70 ms (2,0×), pico 2425 → 1685 MiB**, tras ~90 s de compilación; test GPU: mismas matrices y gradientes. Requirió dar permiso de ejecución a los binarios de Triton del venv (`triton/backends/nvidia/bin/*`). En `w90` (fp32, limitado por lanzamientos) solo 91 → 68 ms frente a e3nn sin TorchScript, con 160 s de compilación: no compensa en sistemas diminutos. Entrenamiento real `6x6` fp32 + lin: misma precisión (1,057 frente a 1,056) y −25 % de tiempo total. CUDA graphs: pendiente (necesita 6.3); **sobre la mejor receta (fp32 + gauge + `kl` + Δ, 3 semillas): misma precisión (0,14 frente a 0,13 meV; bicapa 4,4 frente a 5,3; moiré 0,86 / 9,7 frente a 1,03 / 8,5) en 46 min de media frente a 127 (×2,8, con carga variable)** |
 | 6.9 | Kernels rápidos de TP (cuEquivariance, OpenEquivariance) | T V | L | alto | 🔶 opción `cueq` (backbone MACE, disposición `mul_ir`, convenciones e3nn): en `6x6` bf16 usa más de 6 GB frente a 2,5 GB de e3nn (repetido con Triton ya funcional) y en `w90` no terminó en 10 min. Aparcado: `torch_compile` da más con menos memoria |
 
 ## Ola 7 — Arquitectura del readout (según D1)
