@@ -83,6 +83,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         simplify_node_irreps: bool = False,
         cueq: bool = False,
         torch_compile: bool = False,
+        # torch.compile mode (roadmap 6.8): None (default), "reduce-overhead" (CUDA graphs,
+        # for batches of constant shape) or "max-autotune-no-cudagraphs".
+        torch_compile_mode: Optional[str] = None,
         output_scaleshift: bool = False,
         n_matrix_components: int = 1,
         # Components the readout predicts, when fewer than the labels carry: 1 with (H, S)
@@ -203,7 +206,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         super().on_fit_start()
         if self.hparams.torch_compile:
             # 6x6 step: 138 -> 70 ms and -31% peak memory; ~90 s of compilation first.
-            self.model.compile_submodules()
+            self.model.compile_submodules(mode=self.hparams.torch_compile_mode)
 
     def configure_optimizers(self):
         model = self.model
