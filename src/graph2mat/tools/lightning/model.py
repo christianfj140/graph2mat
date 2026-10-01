@@ -12,6 +12,8 @@ from e3nn import o3
 
 from graph2mat import AtomicTableWithEdges, BasisTableWithEdges, __version__
 from graph2mat.bindings.torch.load import sanitize_checkpoint
+from graph2mat.bindings.torch.modules.graph2mat import layout_to
+from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 
 # from context import mace
 from graph2mat.core.data import metrics as metrics_module
@@ -91,6 +93,15 @@ class LitBasisMatrixModel(pl.LightningModule):
 
     def forward(self, x):
         return self.model(x)
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        """Also moves the batch's type layout (roadmap 6.3), which lives outside the PyG
+        store and so is not moved by ``batch.to(device)``."""
+        layout = getattr(batch, LAYOUT_ATTR, None)
+        batch = super().transfer_batch_to_device(batch, device, dataloader_idx)
+        if layout is not None:
+            object.__setattr__(batch, LAYOUT_ATTR, layout_to(layout, device))
+        return batch
 
     @staticmethod
     def _validate_pred_ref_shapes(out, batch, overlap_optional: bool = False):

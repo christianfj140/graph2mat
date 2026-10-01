@@ -218,3 +218,92 @@ def test_linear_blocks_keep_equivariance(node_block):
     pred, pred_rot = get_mat(data), get_mat(data_rot)
     assert abs(pred).max() > 1e-3
     assert abs(big_R @ pred @ big_R.T - pred_rot).max() < 1e-5
+
+
+@pytest.mark.parametrize("n_components", [1, 2])
+def test_type_layout_matches_the_dynamic_path(with_no_basis, n_components):
+    """Roadmap 6.3: the precomputed per-type layout gives exactly the dynamic path's output
+    (homonuclear and heteronuclear edges, periodic images, a batch of two structures)."""
+    from torch_geometric.data import Batch
+
+    from graph2mat.bindings.torch.modules.graph2mat import torch_type_layout
+    from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
+
+    basis = [
+        PointBasis("A", R=2.5, basis="2x0e + 1o", basis_convention="cartesian"),
+        PointBasis("B", R=2.0, basis="0e + 1o", basis_convention="cartesian"),
+    ]
+    if with_no_basis:
+        basis.append(PointBasis("F", R=2.0, basis_convention="cartesian"))
+    table = BasisTableWithEdges(basis)
+    processor = MatrixDataProcessor(
+        basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+        n_matrix_components=n_components,
+    )
+    g2m = E3nnGraph2Mat(
+        preprocessing_edges=None, unique_basis=table,
+        irreps={"node_feats_irreps": o3.Irreps("2x0e + 1o")},
+        symmetric=True, basis_grouping="point_type", n_matrix_components=n_components,
+    )
+    conv = conversions.get_converter("basisconfiguration", "torch_basismatrixdata")
+    rng = np.random.default_rng(0)
+    structures = []
+    for types in (["A", "B", "A", "B"], ["B", "A", "A"] + (["F"] if with_no_basis else [])):
+        config = BasisConfiguration(
+            point_types=types, positions=rng.uniform(0, 3.0, (len(types), 3)), basis=basis,
+            cell=np.eye(3) * 3.0, pbc=(True, True, False),
+        )
+        structures.append(conv(config, data_processor=processor))
+    batch = Batch.from_data_list(structures)
+    node_feats = torch.tensor(rng.normal(size=(batch.num_nodes, 5)), dtype=torch.float32)
+
+    dynamic = g2m(batch, node_feats=node_feats)
+    object.__setattr__(
+        batch, LAYOUT_ATTR,
+        torch_type_layout(batch.point_types.numpy(), batch.edge_types.numpy(), table),
+    )
+    def dynamic_path_used(*args, **kwargs):
+        raise AssertionError("the layout was ignored: dynamic path used")
+
+    g2m._get_nodelabels_resort_index = g2m._get_edgelabels_resort_index = dynamic_path_used
+    fast = g2m(batch, node_feats=node_feats)
+
+    assert set(getattr(batch, LAYOUT_ATTR)["edge_index"]) >= {0, 1}  # homo- and heteronuclear
+    for d, f in zip(dynamic, fast):
+        assert d.shape == f.shape
+        assert torch.equal(d, f)
+
+
+def test_type_layout_collate_survives_worker_processes():
+    """The layout is a plain attribute of the batch: it must reach the main process from
+    DataLoader workers and be ignored by get_example."""
+    from torch_geometric.loader import DataLoader
+
+    from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
+    from graph2mat.tools.lightning.data import TypeLayoutCollate
+
+    basis = [PointBasis("A", R=2.5, basis="0e + 1o", basis_convention="cartesian")]
+    table = BasisTableWithEdges(basis)
+    processor = MatrixDataProcessor(basis_table=table, symmetric_matrix=True, sub_point_matrix=False)
+    conv = conversions.get_converter("basisconfiguration", "torch_basismatrixdata")
+    rng = np.random.default_rng(1)
+    data = [conv(BasisConfiguration(point_types=["A"] * 3, positions=rng.uniform(0, 3.0, (3, 3)),
+                                    basis=basis, cell=np.eye(3) * 3.0, pbc=(True, True, False)),
+                 data_processor=processor) for _ in range(4)]
+    for d in data:  # labels of the right length (symmetric: one direction per edge)
+        d.point_labels = torch.zeros(int(table.point_block_pointer(d.point_types.numpy())[-1]))
+        d.edge_labels = torch.zeros(int(table.edge_block_size[d.edge_types.numpy()[::2]].sum()))
+    loader = DataLoader(data, batch_size=2, num_workers=2)
+    loader.collate_fn = TypeLayoutCollate(loader.collate_fn, table)
+    from graph2mat.core.data.metrics import _per_element_structure_ids, gauge_invariant_mse
+
+    for batch in loader:
+        layout = getattr(batch, LAYOUT_ATTR)
+        assert set(layout) >= {"node_index", "edge_index", "node_sort", "edge_sort", "node_struct"}
+        assert batch.get_example(1).num_nodes == 3
+        # The structure ids it carries are those computed from the batch itself.
+        plain = batch.clone()
+        plain.__dict__.pop(LAYOUT_ATTR, None)
+        ref = _per_element_structure_ids(batch.point_labels, batch.edge_labels, plain, table)
+        for a, b in zip(ref, (layout["node_struct"], layout["edge_struct"], layout["n_structures"])):
+            assert torch.equal(torch.as_tensor(a), torch.as_tensor(b))

@@ -24,10 +24,54 @@ from ..data.basis import PointBasis
 from ._labels_resort import get_labels_resorting_array
 from .matrixblock import MatrixBlock
 
-__all__ = ["Graph2Mat"]
+__all__ = ["Graph2Mat", "type_layout"]
 
 # This type will be
 ArrayType = TypeVar("ArrayType")
+
+#: Attribute of a batch holding its precomputed type layout (see ``type_layout``).
+LAYOUT_ATTR = "_g2m_layout"
+
+
+def type_layout(point_types, edge_types, basis_table: BasisTableWithEdges) -> dict:
+    """Per-type indices and label resorting of a batch, computed on the CPU (roadmap 6.3).
+
+    ``Graph2Mat.forward`` otherwise derives them on the device in every call: boolean masks
+    per type (one host sync each), a ``unique`` of the types and a device -> host copy of the
+    types for the resorting loop. Computed here, in the DataLoader workers, the forward only
+    gathers with ready index arrays. Valid for symmetric matrices without basis grouping
+    (``basis_grouping="point_type"``); ``forward`` ignores it otherwise. Edges must follow the
+    ``BasisMatrixData`` order (both directions consecutive, the positive type first).
+
+    Returns a dict with ``node_index`` {type: indices}, ``edge_index`` {|type|: (indices of
+    the direction each block is computed from, indices of the reverse direction)},
+    ``node_sort`` and ``edge_sort`` (the resorting indices of the concatenated outputs).
+    """
+    point_types = np.asarray(point_types, dtype=np.int64)
+    edge_types = np.asarray(edge_types, dtype=np.int64)
+    abs_types = np.abs(edge_types)
+    edge_index = {}
+    for edge_type in np.unique(abs_types).tolist():
+        positions = np.flatnonzero(abs_types == edge_type)
+        point_type, neigh_type = basis_table.edge_type_to_point_types[edge_type]
+        if point_type == neigh_type:
+            edge_index[edge_type] = (positions[0::2], positions[1::2])
+        else:
+            forward = edge_types[positions] == edge_type
+            edge_index[edge_type] = (positions[forward], positions[~forward])
+    return {
+        "basis_grouping": "point_type",
+        "symmetric": True,
+        "n_point_types": len(basis_table.basis),
+        "node_index": {t: np.flatnonzero(point_types == t) for t in np.unique(point_types).tolist()},
+        "edge_index": edge_index,
+        "node_sort": get_labels_resorting_array(
+            point_types, shapes=basis_table.point_block_shape.astype(np.int64)
+        ),
+        "edge_sort": get_labels_resorting_array(
+            edge_types[::2], shapes=basis_table.edge_block_shape.astype(np.int64)
+        ),
+    }
 
 
 class Graph2Mat(Generic[ArrayType]):
@@ -814,12 +858,15 @@ class Graph2Mat(Generic[ArrayType]):
         node_operation_global_kwargs = {**global_kwargs, **node_operation_global_kwargs}
         edge_operation_global_kwargs = {**global_kwargs, **edge_operation_global_kwargs}
 
+        layout = self._usable_layout(data)
+
         # Compute node blocks using the self interaction functions.
         node_result = self._forward_self_interactions(
             node_types=data["point_types"],
             node_kwargs=node_operation_node_kwargs,
             global_kwargs=node_operation_global_kwargs,
             return_coefficients=return_coefficients,
+            layout=layout,
         )
         if return_coefficients:
             node_labels, node_coefficients = node_result
@@ -834,6 +881,7 @@ class Graph2Mat(Generic[ArrayType]):
             edge_kwargs=edge_kwargs,
             global_kwargs=edge_operation_global_kwargs,
             return_coefficients=return_coefficients,
+            layout=layout,
         )
         if return_coefficients:
             edge_labels, edge_coefficients = edge_result
@@ -854,15 +902,49 @@ class Graph2Mat(Generic[ArrayType]):
 
         return (node_labels, edge_labels)
 
+    def _usable_layout(self, data) -> Optional[dict]:
+        """The batch's precomputed ``type_layout``, if it applies to this module."""
+        layout = data.get(LAYOUT_ATTR) if isinstance(data, dict) else getattr(data, LAYOUT_ATTR, None)
+        if (
+            layout is None
+            or self.basis_grouping != "point_type"
+            or not self.symmetric
+            or layout["n_point_types"] != len(self.graph2mat_table.basis)
+        ):
+            return None
+        return layout
+
     def _forward_self_interactions(
         self,
         node_types: ArrayType,
         node_kwargs,
         global_kwargs,
         return_coefficients: bool = False,
+        layout: Optional[dict] = None,
     ) -> ArrayType:
         outputs = []
         coefficients = {}
+
+        if layout is not None:
+            # Precomputed per-type node indices: no masks, no host syncs.
+            for node_type, func in enumerate(self.self_interactions):
+                index = layout["node_index"].get(node_type)
+                if func is None or index is None:
+                    continue
+                output, coefficients[f"node:{node_type}"] = self._evaluate_block(
+                    func,
+                    return_coefficients,
+                    **{key: value[index] for key, value in node_kwargs.items()},
+                    **global_kwargs,
+                )
+                outputs.append(
+                    output.reshape(-1, output.shape[-1]) if output.ndim == 4 else output.ravel()
+                )
+            if len(outputs) == 0:
+                empty = self._empty_labels(node_types)
+                return (empty, coefficients) if return_coefficients else empty
+            node_labels = self.numpy.concatenate(outputs, axis=0)[layout["node_sort"]]
+            return (node_labels, coefficients) if return_coefficients else node_labels
 
         graph2mat_node_types = self.types_to_graph2mat[node_types]
         # One host sync for all types instead of one per type.
@@ -918,11 +1000,42 @@ class Graph2Mat(Generic[ArrayType]):
         edge_kwargs: Dict[str, ArrayType] = {},
         global_kwargs: dict = {},
         return_coefficients: bool = False,
+        layout: Optional[dict] = None,
     ) -> ArrayType:
         """Computation of edge blocks."""
 
         outputs = []
         coefficients = {}
+
+        if layout is not None:
+            # Precomputed indices of both directions per edge type (symmetric matrices, so
+            # only positive types have modules): no masks, no host syncs, no resort loop.
+            for module_key, func in self.interactions.items():
+                if func is None:
+                    continue
+                _, _, edge_type = self._interaction_types[module_key]
+                pair = layout["edge_index"].get(abs(edge_type))
+                if pair is None:
+                    continue
+                i_index, j_index = pair
+                output, coefficients[f"edge:{module_key}"] = self._evaluate_block(
+                    func,
+                    return_coefficients,
+                    **{key: (value[i_index], value[j_index]) for key, value in edge_kwargs.items()},
+                    **{
+                        key: (value[edge_index[0, i_index]], value[edge_index[1, i_index]])
+                        for key, value in node_kwargs.items()
+                    },
+                    **global_kwargs,
+                )
+                outputs.append(
+                    output.reshape(-1, output.shape[-1]) if output.ndim == 4 else output.reshape(-1)
+                )
+            if len(outputs) == 0:
+                empty = self._empty_labels(edge_index)
+                return (empty, coefficients) if return_coefficients else empty
+            edge_labels = self.numpy.concatenate(outputs, axis=0)[layout["edge_sort"]]
+            return (edge_labels, coefficients) if return_coefficients else edge_labels
 
         graph2mat_edge_types = self.edge_types_to_graph2mat[edge_types]
         abs_edge_types = abs(graph2mat_edge_types)

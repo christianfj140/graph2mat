@@ -23,10 +23,42 @@ from graph2mat.bindings.torch import (
     TorchBasisMatrixDataset,
 )
 from graph2mat.bindings.torch.data import TorchBasisMatrixData
+from graph2mat.bindings.torch.modules.graph2mat import torch_type_layout
+from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 from graph2mat.core.data.configuration import MatrixComponentPolicy, PhysicsMatrixType
 from graph2mat.core.data.node_feats import NodeFeature
 
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
+
+
+class TypeLayoutCollate:
+    """PyG collate that also attaches the batch's per-type layout (roadmap 6.3).
+
+    The layout (``graph2mat.core.modules.graph2mat.type_layout``) is computed here, in the
+    DataLoader workers while the GPU runs, so that ``Graph2Mat.forward`` needs neither
+    boolean masks nor host syncs. It is kept outside the PyG store (a plain attribute), so
+    ``get_example`` and the rest of the batch API ignore it; the Lightning model moves it to
+    the device in ``transfer_batch_to_device``.
+    """
+
+    def __init__(self, collate, basis_table):
+        self.collate = collate
+        self.basis_table = basis_table
+
+    def __call__(self, data_list):
+        batch = self.collate(data_list)
+        layout = torch_type_layout(batch.point_types.numpy(), batch.edge_types.numpy(), self.basis_table)
+        if getattr(batch, "point_labels", None) is not None:
+            # Structure of every label element, for the per-structure losses
+            # (gauge_invariant_mse): on the GPU it would cost a device -> host copy per step.
+            from graph2mat.core.data.metrics import _per_element_structure_ids
+
+            node_struct, edge_struct, n_structures = _per_element_structure_ids(
+                batch.point_labels, batch.edge_labels, batch, self.basis_table
+            )
+            layout.update(node_struct=node_struct, edge_struct=edge_struct, n_structures=n_structures)
+        object.__setattr__(batch, LAYOUT_ATTR, layout)
+        return batch
 
 
 #: Physics matrices that are real-symmetric (M_ij(R) = M_ji(-R)^T) without spin-orbit.
@@ -382,13 +414,22 @@ class MatrixDataModule(pl.LightningDataModule):
             data_handle = self.train_dataset.get_data_pool()
         else:
             data_handle = self.train_dataset
-        return DataLoader(
-            data_handle,
-            batch_size=self.batch_size,
-            shuffle=True,
-            drop_last=False,
-            **self._loader_kwargs(),
+        return self._with_type_layout(
+            DataLoader(
+                data_handle,
+                batch_size=self.batch_size,
+                shuffle=True,
+                drop_last=False,
+                **self._loader_kwargs(),
+            )
         )
+
+    def _with_type_layout(self, loader):
+        """Training and validation batches carry their type layout (symmetric matrices,
+        the only case Graph2Mat's fast path covers)."""
+        if self.data_processor.symmetric_matrix:
+            loader.collate_fn = TypeLayoutCollate(loader.collate_fn, self.data_processor.basis_table)
+        return loader
 
     def _loader_kwargs(self) -> dict:
         """Worker settings shared by all loaders: workers are kept alive between
@@ -404,12 +445,14 @@ class MatrixDataModule(pl.LightningDataModule):
         assert (
             self.val_dataset is not None
         ), "No validation data was provided, please set either the ``train_runs`` or the ``val_runs`` argument."
-        return DataLoader(
-            self.val_dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            drop_last=False,
-            **self._loader_kwargs(),
+        return self._with_type_layout(
+            DataLoader(
+                self.val_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                drop_last=False,
+                **self._loader_kwargs(),
+            )
         )
 
     def test_dataloader(self):

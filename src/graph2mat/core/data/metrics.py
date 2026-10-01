@@ -759,8 +759,16 @@ def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
     """Structure id of every flat node/edge label element (torch tensors).
 
     Handles symmetric-matrix edge selection (labels stored for one direction
-    only) and the NaN-edge filtering applied by ``get_predictions_error``.
+    only) and the NaN-edge filtering applied by ``get_predictions_error``. Batches from
+    the Lightning DataModule carry them already (their type layout, roadmap 6.3), which
+    avoids a device -> host copy per step.
     """
+    from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
+
+    layout = batch.get(LAYOUT_ATTR) if isinstance(batch, dict) else getattr(batch, LAYOUT_ATTR, None)
+    if layout is not None and "node_struct" in layout:
+        return layout["node_struct"], layout["edge_struct"], layout["n_structures"]
+
     point_types = _batch_field(batch, "point_types")
     if point_types is None:
         raise ValueError("per-structure losses need batch.point_types.")
