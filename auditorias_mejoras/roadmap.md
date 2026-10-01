@@ -69,10 +69,14 @@ energía de cada estructura (al predecir hay que fijarlo, p. ej. con la E_F de l
 **Δ-learning sobre H0 de SIESTA (5.1): la mayor mejora del roadmap.** El modelo aprende H − H0, con H0 el
 H no autoconsistente de la densidad atómica superpuesta (1 iteración de SIESTA, ~18 s en `6x6`), y al
 predecir se suma H0. Con la pérdida de gauge (S como etiqueta), 3 semillas:
-- `6x6` H alineado 0,71 → **0,14 meV** (con `kl` 0,75 → **0,12**; referencia 1,94 bruto);
+- `6x6` H alineado 0,71 → **0,14 meV** (con `kl` 0,75 → **0,12**; referencia 1,94 bruto). **Con `kl`, 5 semillas:
+  0,145/0,122/0,103/0,138/0,141 → 0,130 meV; bicapa registros 5,75, bandas alineadas 17,8; MD AB 6,2 / 12,9;**
 - monocapa → bicapa: registros 52 → **6,3 meV** (con `kl` 38 → **5,3**; referencia 78), bandas alineadas
   156 → **19** (con `kl` 94 → **17**; referencia 162); MD AB 53 → **6,8** (con `kl` 41 → **5,9**);
 - H2O H alineado 5,6 → **1,0 meV**, gap 80 → **9,6 meV**.
+- **bicapa → moiré** (fp32 + lin + gauge, registros no vistos): H alineado 5,64 → **0,96 meV** (1,15/0,93/0,79;
+  referencia 20,95), intracapa 4,4 → 0,67, intercapa 6,8 → 1,25, bandas alineadas 7,3 → **2,0 meV**
+  (referencia 69,6).
 
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
 alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
@@ -94,7 +98,10 @@ es neutro con fp32 y empeora el espectro de H2O.
 etiqueta: −33 % en `6x6`, bandas −50 % en bicapa → moiré, −81 % en H2O; para extrapolar de monocapa a
 bicapa, con `kl`: H −36 % y bandas −9 %):
 - **`6x6` y extrapolación: lin + poly3 + 16.000 pasos sin EarlyStopping, bf16, pérdida de gauge con S como
-  etiqueta y `kl` (`lin_steps16k_gaugeh_kl`): 0,72 meV dentro, 40 meV en bicapa (referencia 1,94 bruto / 78);**
+  etiqueta, `kl` y Δ-learning sobre H0 de SIESTA (`lin_steps16k_gaugeh_kl_delta`): 0,13 meV dentro, 5,8 meV en
+  bicapa y bandas 18 (referencia 1,94 bruto / 78 / 162);**
+- **bicapa → moiré: fp32 + lin + gauge con S como etiqueta + Δ: 0,96 meV en registros no vistos, bandas 2,0
+  (referencia 20,95 / 69,6);**
 - `6x6` y extrapolación: bloques lin + poly3 + 16.000 pasos sin EarlyStopping, en bf16 (más `torch_compile`
   para compensar el tiempo): 1,11 dentro y 66 en bicapa;
 - solo precisión dentro de distribución: lo mismo en fp32 (1,02, pero 75 en bicapa);
@@ -420,7 +427,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
-| 5.1 | Referencia on-site por especie → Δ-learning sobre H0 (atómico o Slater–Koster; H0 de SIESTA como versión completa) | P | M → L | medio | ✅ **la mayor mejora del roadmap.** `g2m_delta.py`: H0 = H de la densidad atómica superpuesta (SIESTA, 1 iteración de punto único; no depende del peso de mezcla; se comprueba que la geometría coincide con la de la etiqueta); el modelo aprende H − H0 y al predecir se suma H0 (ida y vuelta exacta). H − H0 en Γ: grafeno `6x6` 2,5 meV frente a 200 de H; H2O 248 frente a 3044. **H2O (`gaugeh`): H alineado 5,6 → 1,01 meV (−82 %), gap 80 → 9,6 (−88 %). `6x6` (3 semillas, H alineado / registros de bicapa H / bandas alineadas / MD AB H): `gaugeh` 0,707 / 52 / 156 / 53 → con Δ 0,140 / 6,3 / 19 / 6,8; `gaugeh_kl` 0,751 / 38 / 94 / 41 → con Δ 0,123 / 5,3 / 17 / 5,9 (−84 %, −86 %, −82 %, −86 %).** Coste al predecir: un cálculo SIESTA de 1 iteración (~18 s en `6x6`) |
+| 5.1 | Referencia on-site por especie → Δ-learning sobre H0 (atómico o Slater–Koster; H0 de SIESTA como versión completa) | P | M → L | medio | ✅ **la mayor mejora del roadmap.** `g2m_delta.py`: H0 = H de la densidad atómica superpuesta (SIESTA, 1 iteración de punto único; no depende del peso de mezcla; se comprueba que la geometría coincide con la de la etiqueta); el modelo aprende H − H0 y al predecir se suma H0 (ida y vuelta exacta). H − H0 en Γ: grafeno `6x6` 2,5 meV frente a 200 de H; H2O 248 frente a 3044. **H2O (`gaugeh`): H alineado 5,6 → 1,01 meV (−82 %), gap 80 → 9,6 (−88 %). `6x6` (3 semillas, H alineado / registros de bicapa H / bandas alineadas / MD AB H): `gaugeh` 0,707 / 52 / 156 / 53 → con Δ 0,140 / 6,3 / 19 / 6,8; `gaugeh_kl` 0,751 / 38 / 94 / 41 → con Δ 0,123 / 5,3 / 17 / 5,9 (−84 %, −86 %, −82 %, −86 %).** **Bicapa → moiré: registros no vistos 5,64 → 0,96 meV, bandas alineadas 7,3 → 2,0 (referencia 20,95 / 69,6).** Coste al predecir: un cálculo SIESTA de 1 iteración (~18 s en `6x6`) |
 | 5.2 | Normalización equivariante por especie, par e irrep | P | M | bajo | ⏳ expectativa baja (1.5 fue neutro) |
 | 5.3 | Entrenar en el espacio de irreps (Q ortonormal: pérdida sin cambio de base) | P T V | M | medio | ⏳ |
 | 5.4 | Techo de ruido de las etiquetas y tiempo hasta una precisión objetivo **(GPT Astra)** | — | S | bajo | ✅ **suelo de ruido de SIESTA en `6x6` ≈ 0,002 meV** (SCF 1e-4 frente a 1e-6: 0,0015; traslación rígida bajo la malla: 0,0011; ambas: 0,0022; 4 estructuras, `g2m_label_noise.py`). El modelo (1,94 meV) está ~1000× por encima: **6x6 no está limitado por las etiquetas**, hay margen real. **Y en parte está limitado por la optimización**: la misma receta con 16.000 pasos y sin EarlyStopping da 1,716/1,933/1,490 → **1,71 meV (−12 %, las tres semillas mejoran: −0,25/−0,08/−0,35)**. El EarlyStopping de la receta (paciencia 80 validaciones) paraba algunas semillas a 1/3 del coseno. **`noes` (8000 pasos sin EarlyStopping): 1,684/1,575/1,805 → 1,69 meV (−13 %)**: con la receta de referencia, toda la ganancia de «16.000 pasos» viene de quitar el EarlyStopping (cambio gratis). Con lin no está separado (lin bf16 8000 pasos con EarlyStopping 1,80; 16.000 sin él 1,12) |
