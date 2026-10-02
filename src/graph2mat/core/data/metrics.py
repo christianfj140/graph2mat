@@ -1671,12 +1671,19 @@ def pair_difference_mse(
     penalises their antisymmetric part, the error of the slope. It has the units and
     normalisation of the H loss, so ``pair_weight=1`` weighs a difference element like a
     value element. ``expected_pairs`` makes a batch with another non-zero number of pairs
-    an error (validation batches without pairs give 0 pairs and no term).
+    an error.
+
+    The term is a training signal only: with ``model`` in eval mode (validation) the loss
+    is the plain ``elementwise_mse``, so ``val_loss`` and checkpoint selection match runs
+    without pairs, and small-amplitude validation structures are never mistaken for pairs.
     """
     loss, stats = elementwise_mse.compute_metric(
         nodes_pred=nodes_pred, nodes_ref=nodes_ref, edges_pred=edges_pred, edges_ref=edges_ref,
         edge_weight=edge_weight, log_verbose=log_verbose,
     )
+    model = kwargs.get("model")
+    if model is not None and not getattr(model, "training", True):
+        return loss, stats
     pairs = find_displacement_pairs(batch, pair_max_displacement)
     if expected_pairs is not None and pairs and len(pairs) != int(expected_pairs):
         raise ValueError(f"found {len(pairs)} +/- pairs in the batch, expected {expected_pairs}")

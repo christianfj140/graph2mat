@@ -333,3 +333,11 @@ def test_pair_difference_mse_penalises_only_the_antisymmetric_error():
     _, stats = pair_difference_mse(nodes_pred=nodes_ref, edges_pred=edges_ref,
                                    **dict(kwargs, pair_max_displacement=0.01))
     assert stats["n_pairs"] == 0
+
+    # Validation (model in eval mode): plain MSE, no pairing at all.
+    model = torch.nn.Linear(1, 1).eval()
+    loss, stats = pair_difference_mse(nodes_pred=nodes.detach(), edges_pred=edges_ref, model=model, **kwargs)
+    plain, _ = elementwise_mse(nodes_pred=nodes.detach(), nodes_ref=nodes_ref, edges_pred=edges_ref, edges_ref=edges_ref)
+    assert torch.isclose(loss, plain) and "n_pairs" not in stats
+    loss_train, _ = pair_difference_mse(nodes_pred=nodes.detach(), edges_pred=edges_ref, model=model.train(), **kwargs)
+    assert loss_train > loss
