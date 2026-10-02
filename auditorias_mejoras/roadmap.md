@@ -83,20 +83,23 @@ predecir se suma H0. Con la pérdida de gauge (S como etiqueta), 3 semillas:
   (referencia 69,6).
 
 **Curva de aprendizaje en `6x6` (receta fp32 + lin + gauge + `kl` + compile, 16.000 pasos, 3 semillas): con
-Δ, una sola estructura de entrenamiento basta.** H alineado de validación / bicapa registros / MD AB / moiré
-real (H / bandas alineadas), en meV:
+Δ, una sola estructura de entrenamiento basta para H.** H alineado de validación / bicapa registros (H / bandas
+alineadas) / MD AB (H / bandas) / moiré real (H / bandas), en meV:
 
 | N estructuras | con Δ | sin Δ |
 |---|---|---|
-| 1 | 0,153 / 4,50 / 5,11 / 0,88 / 11,8 | — |
-| 2 | 0,141 / 4,17 / 4,85 / 0,84 / 11,5 | — |
-| 4 | 0,146 / 4,19 / 4,88 / 0,84 / 11,9 | 0,671 / 39,8 / 41,6 / 8,1 / 98 |
-| 8 | 0,136 / 4,43 / 5,18 / 0,86 / 9,7 | 0,667 / 37,3 / 39,1 / — / — |
+| 1 | 0,153 / 4,57 / 17,3 / 5,05 / 13,1 / 0,91 / 13,8 | — |
+| 2 | 0,141 / 3,49 / 14,8 / 4,33 / 11,2 / 0,74 / 10,9 | — |
+| 4 | 0,146 / 4,28 / 19,8 / 4,95 / 12,7 / 0,87 / 13,2 | 0,671 / 39,8 / 135 / 41,6 / 94 / 8,1 / 98 |
+| 8 | 0,136 / 4,43 / 15,1 / 5,17 / 10,6 / 0,86 / 9,7 | 0,667 / 37,3 / — / 39,1 / — / — / — |
 
-La curva es plana con y sin Δ: una supercelda `6x6` de 72 átomos ya contiene casi todos los entornos locales
-que ven estos modelos, y el error lo fija el objetivo (H frente a H − H0), no la cantidad de datos. Con N = 1
-solo empeoran algo las bandas del moiré (+20 %) y la dispersión entre semillas (0,211/0,135/0,114). El
-entrenamiento baja de ~45 min (N = 8) a 30 min (N = 1) con los mismos pasos. Para seguir mejorando en grafeno
+En H la curva es plana con y sin Δ (las diferencias entre N están dentro del ruido entre semillas): una
+supercelda `6x6` de 72 átomos ya contiene casi todos los entornos locales que ven estos modelos, y el error lo
+fija el objetivo (H frente a H − H0), no la cantidad de datos. Las bandas del moiré sí empeoran con menos
+estructuras (9,7 con N = 8 frente a 11–14), y con N = 1 crece la dispersión entre semillas (0,211/0,135/0,114).
+El entrenamiento baja de ~45 min (N = 8) a 30 min (N = 1) con los mismos pasos. Una versión anterior de esta
+tabla daba valores fuera de distribución de N = 1, 2, 4 promediados con los de N = 8: el resumen de
+`g2m_ood_eval.py` agrupaba por variante sin separar N (corregido). Para seguir mejorando en grafeno
 no hacen falta más estructuras de la misma familia, sino otro objetivo o más capacidad (4.4, 7.2).
 
 **Moiré real** (`g2m_tbg_moire.py`: bicapas rotadas conmensurables de 21,8°, 32,2° y 13,2°, 28/52/76 átomos,
@@ -484,7 +487,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` lee (H, S) y ya escribe H con S (la política no llegaba a la conversión a `sisl_H`, 72b468c); la predicción del benchmark la admite. Falta la reconstrucción no ortogonal completa |
 | 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **con S solo como etiqueta (`n_output_components=1`, misma VRAM): `6x6` H alineado 1,05 → 0,70 meV (−33 %, 5 de 5 semillas); bicapa → moiré bandas alineadas 14,5 → 7,3 (−50 %, 3 de 3) e intracapa −43 %; H2O H alineado 29,6 → 5,6 (−81 %), gap 986 → 80 meV (−92 %).** Monocapa → bicapa: H −15 % pero bandas peores en 3 de 5. Prediciendo también S: peor y +48 % de VRAM. `gauge_invariant_mse` (7b97b7a, 71c1afa) con `h_and_overlap`; métrica c* en `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` y `val_metrics` (`H_MAE_gauge_meV`) |
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ sin el desplazamiento c·S, por on-site/capa de vecinos/par l, y fuera de alcance orbital. `6x6` (semilla 0, meV por elemento): lin 1,79 → 0,93 quitó el 82 % del error a ~4,3 Å; la pérdida de gauge 0,93 → 0,62 mejora todas las capas (primeros vecinos 6,1 → 3,6, terceros 2,8 → 1,4) pero el **on-site** solo 12,3 → 10,3: es ya el 23 % del error y el mayor por elemento, el siguiente objetivo |
-| 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | 🔶 **pérdida espectral de primer orden implementada** (`gauge_invariant_mse(spectral_weight=…)` + `MatrixDataModule(spectral_window=True)`): por estructura, `‖Cᵀ ΔH(Γ) C − media(diag)·I‖²` con C los autovectores S-ortonormales de la H de referencia completa en una ventana alrededor de E_F en Γ (`spectral_window.npz` junto a cada muestra, columnas de relleno a cero). La diagonal es el error de primer orden de cada autovalor y el resto el acoplamiento dentro de la ventana; CᵀSC = I, así que el desplazamiento cS se va con la media: no depende del gauge y solo necesita ΔH = predicción − etiqueta, luego vale tal cual con Δ (no hace falta H0 como componente auxiliar). El collate calcula en los workers el orbital (fila, columna) de cada elemento de etiqueta. Test: el H(Γ) ensamblado coincide con `matrix_from_data` (1e-12; homo/heteronuclear, imágenes periódicas, 2 estructuras), H + cS no cuesta nada y la diagonal reproduce el cambio exacto de los autovalores. `6x6` ±3 eV: 34 estados (±2 eV solo los 4 de Dirac); en el mejor modelo, error espectral de entrenamiento 1,5 meV RMSE frente a 2,1 de H. Solo Γ: sirve para superceldas (`6x6`, bicapa), no para `w90` (2 átomos, sin estados cerca de E_F en Γ). 🧪 `6x6` con peso 1 y 10 (3 semillas + OOD) |
+| 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | 🔶 **pérdida espectral de primer orden implementada** (`gauge_invariant_mse(spectral_weight=…)` + `MatrixDataModule(spectral_window=True)`): por estructura, `‖Cᵀ ΔH(Γ) C − media(diag)·I‖²` con C los autovectores S-ortonormales de la H de referencia completa en una ventana alrededor de E_F en Γ (`spectral_window.npz` junto a cada muestra, columnas de relleno a cero). La diagonal es el error de primer orden de cada autovalor y el resto el acoplamiento dentro de la ventana; CᵀSC = I, así que el desplazamiento cS se va con la media: no depende del gauge y solo necesita ΔH = predicción − etiqueta, luego vale tal cual con Δ (no hace falta H0 como componente auxiliar). El collate calcula en los workers el orbital (fila, columna) de cada elemento de etiqueta. Test: el H(Γ) ensamblado coincide con `matrix_from_data` (1e-12; homo/heteronuclear, imágenes periódicas, 2 estructuras), H + cS no cuesta nada y la diagonal reproduce el cambio exacto de los autovalores. `6x6` ±3 eV: 34 estados (±2 eV solo los 4 de Dirac); en el mejor modelo, error espectral de entrenamiento 1,5 meV RMSE frente a 2,1 de H. Solo Γ: sirve para superceldas (`6x6`, bicapa), no para `w90` (2 átomos, sin estados cerca de E_F en Γ). **Medido en `6x6` (mejor receta, 3 semillas; validación / bicapa H, bandas / MD AB H, bandas / moiré H, bandas, meV): sin el término 0,136 / 4,43, 15,1 / 5,17, 10,6 / 0,86, 9,7; peso 1: 0,134 / 5,38, 15,3 / 5,74, 11,3 / 1,11, 10,8; peso 10: 0,166 / 4,27, 20,3 / 5,04, 13,5 / 0,84, 13,2.** No mejora las bandas fuera de distribución: con peso 1 empeora el H de fuera (+20 %, sobre todo intracapa) sin cambiar las bandas; con peso 10 el H se mantiene pero las bandas empeoran un 35 % y la validación un 22 %. El entrenamiento tarda ~40 % más (62–64 min frente a 45, con la carga de la noche). La ventana en Γ de la monocapa no representa el error de bandas de la bicapa y el moiré, que viene sobre todo del acoplamiento entre capas, ausente en el entrenamiento. ❌ en esta forma; podría servir entrenando con el sistema objetivo (bicapa) o con varios puntos k |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
 | 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ❌ en grafeno (base SZ) el error fuera del alcance de los orbitales es ≤1 % del total y los ceros exactos ya salen a cero: no hay nada que enmascarar |
 
