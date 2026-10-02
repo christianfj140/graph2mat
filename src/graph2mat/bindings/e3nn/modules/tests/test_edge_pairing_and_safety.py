@@ -456,3 +456,51 @@ def test_edge_update_layers(layers):
     matrix = _dense(g2m, processor, data, torch.randn(len(positions), NODE_IRREPS.dim))
     assert abs(matrix).max() > 1e-4
     np.testing.assert_allclose(matrix, matrix.T, atol=1e-6)
+
+
+def test_pair_envelope_vanishes_at_each_pair_range():
+    """Roadmap 7.3: with pair_envelope_radii the edge blocks go to zero at R_i + R_j, not at the
+    global 2 max(R); without it the model is unchanged."""
+    mace_modules = pytest.importorskip("mace.modules")
+    from torch_geometric.data import Batch
+    from graph2mat.models.mace import MatrixMACE, pair_envelope
+
+    r = torch.linspace(0, 4, 9)
+    env = pair_envelope(r, torch.tensor(3.0), 6)
+    assert env[0] == 1 and torch.all(env[r >= 3] == 0) and torch.all(env[r < 3] > 0)
+
+    basis = [PointBasis("A", R=2.5, basis="0e + 1o", basis_convention="cartesian"),
+             PointBasis("B", R=1.5, basis="2x0e + 1o", basis_convention="cartesian")]
+    table = BasisTableWithEdges(basis)
+    processor = MatrixDataProcessor(basis_table=table, symmetric_matrix=True, sub_point_matrix=False)
+    conv = conversions.get_converter("basisconfiguration", "torch_basismatrixdata")
+
+    def matrix(distance, **kwargs):
+        config = BasisConfiguration(point_types=["B", "B"], positions=np.array([[0, 0, 0], [distance, 0.1, 0.2]]),
+                                    basis=basis, cell=np.eye(3) * 100, pbc=(False, False, False))
+        batch = Batch.from_data_list([conv(config, data_processor=processor)])
+        batch.node_attrs = torch.eye(2)[batch.point_types]
+        torch.manual_seed(0)
+        mace = mace_modules.MACE(
+            r_max=5.0, num_bessel=4, num_polynomial_cutoff=6, max_ell=2,
+            interaction_cls=mace_modules.RealAgnosticResidualInteractionBlock,
+            interaction_cls_first=mace_modules.RealAgnosticResidualInteractionBlock,
+            num_interactions=2, num_elements=2, hidden_irreps=o3.Irreps("4x0e+4x1o"),
+            MLP_irreps=o3.Irreps("1x0e"), atomic_energies=torch.zeros(2), avg_num_neighbors=3.0,
+            atomic_numbers=torch.arange(2), correlation=2, gate=None,
+        )
+        torch.manual_seed(1)
+        model = MatrixMACE(mace=mace, unique_basis=table, symmetric=True,
+                           edge_hidden_irreps=o3.Irreps("2x0e+2x1o"), **kwargs)
+        out = model(batch)
+        dense = processor.matrix_from_data(batch[0], predictions={k: out[k] for k in ("node_labels", "edge_labels")},
+                                           out_format="numpy")
+        n = table.basis_size[1]
+        return np.abs(dense[:n, n:2 * n]).max()
+
+    radii = {"pair_envelope_radii": [2.5, 1.5]}
+    d = 3.0 * (1 - 0.04)  # 4 % inside the B-B range R_B + R_B = 3
+    plain, enveloped = matrix(d), matrix(d, **radii)
+    assert plain > 0 and enveloped < 1e-3 * plain  # suppressed next to the pair's own range
+    # Well inside the range the envelope only rescales (x = 0.5: f > 0.3).
+    assert matrix(1.5, **radii) > 0.3 * matrix(1.5) * pair_envelope(torch.tensor(1.5), torch.tensor(3.0), 6) > 0

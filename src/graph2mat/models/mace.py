@@ -1,5 +1,5 @@
 from copy import copy
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Sequence, Union
 
 import torch
 from e3nn import o3
@@ -91,6 +91,14 @@ def simplified_irreps_index(irreps: o3.Irreps) -> tuple[o3.Irreps, torch.Tensor]
     return o3.Irreps([irreps[i] for i in order]).simplify(), index
 
 
+def pair_envelope(r: torch.Tensor, r_cut: torch.Tensor, p: int) -> torch.Tensor:
+    """MACE's polynomial cutoff with a per-edge range: 1 at r = 0, 0 (with p-1 zero
+    derivatives) at r >= r_cut."""
+    x = r / r_cut
+    f = (1.0 - (p + 1) * (p + 2) / 2 * x**p + p * (p + 2) * x ** (p + 1) - p * (p + 1) / 2 * x ** (p + 2))
+    return f * (x < 1.0)
+
+
 class MatrixMACE(torch.nn.Module):
     """Model that wraps a MACE model to produce a matrix output.
 
@@ -161,11 +169,20 @@ class MatrixMACE(torch.nn.Module):
         lean_mace: bool = False,
         gradient_checkpointing: bool = False,
         simplify_node_irreps: bool = False,
+        pair_envelope_radii: Optional[Sequence[float]] = None,
+        pair_envelope_p: int = 6,
         **kwargs,
     ):
         super().__init__()
 
         self.mace = mace
+        # Roadmap 7.3: the readout radial features also vanish at each pair's own range
+        # R_i + R_j (orbital radii per point type), not only at the global 2 max(R).
+        if pair_envelope_radii is None:
+            self.pair_envelope_radii = None
+        else:
+            self.register_buffer("pair_envelope_radii", torch.as_tensor(pair_envelope_radii, dtype=torch.get_default_dtype()))
+        self.pair_envelope_p = pair_envelope_p
         self.lean_mace = lean_mace or gradient_checkpointing
         self.gradient_checkpointing = gradient_checkpointing
         if gradient_checkpointing and (return_coefficients or hamiltonian_local_context):
@@ -463,6 +480,11 @@ class MatrixMACE(torch.nn.Module):
             # From MACE 0.3.14, the radial embedding returns a tuple, with the second
             # element being the cutoff.
             edge_feats = edge_feats[0]
+        if self.pair_envelope_radii is not None:
+            types = data["point_types"]
+            sender, receiver = data["edge_index"]
+            pair_range = self.pair_envelope_radii[types[sender]] + self.pair_envelope_radii[types[receiver]]
+            edge_feats = edge_feats * pair_envelope(lengths, pair_range[:, None], self.pair_envelope_p)
 
         node_feats = mace_out["node_feats"]
         if getattr(self, "node_feats_index", None) is not None:

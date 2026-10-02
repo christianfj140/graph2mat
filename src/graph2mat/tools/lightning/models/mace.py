@@ -1,6 +1,7 @@
 import contextlib
 from typing import Literal, Optional, Type, Union
 
+import numpy as np
 import torch
 from e3nn import o3
 from mace.modules import MACE, InteractionBlock, RealAgnosticResidualInteractionBlock
@@ -58,6 +59,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         edge_hidden_irreps: Union[o3.Irreps, str] = "4x0e+4x1o+4x2e",
         edge_message_mid_irreps: Union[o3.Irreps, str, int, None] = None,
         edge_update_layers: int = 0,
+        # Roadmap 7.3: readout radial features that vanish at each pair's R_i + R_j.
+        pair_envelope: bool = False,
         edge_update_node_irreps: Union[o3.Irreps, str, int, None] = None,
         avg_num_neighbors: float = 1.0,
         # atomic_numbers: List[int],
@@ -183,6 +186,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 readout_interaction_aggregation=readout_interaction_aggregation,
                 return_coefficients=return_coefficients,
                 hamiltonian_local_context=hamiltonian_local_context,
+                **({"pair_envelope_radii": np.broadcast_to(np.asarray(self.basis_table.R, dtype=float), (len(self.basis_table.basis),)).tolist(),
+                    "pair_envelope_p": num_polynomial_cutoff} if pair_envelope else {}),
                 hamiltonian_local_context_kwargs=hamiltonian_local_context_kwargs,
                 readout_fp32=readout_fp32,
                 lean_mace=lean_mace,
