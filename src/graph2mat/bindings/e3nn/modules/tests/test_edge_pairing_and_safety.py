@@ -393,3 +393,66 @@ def test_compiled_submodules_match_eager():
     assert torch.allclose(eager["node_labels"], compiled["node_labels"], atol=1e-5)
     for key, grad in eager_grads.items():
         assert torch.allclose(grad, compiled_grads[key], atol=1e-4), key
+
+
+@pytest.mark.parametrize("layers", [1, 2])
+def test_edge_update_layers(layers):
+    """Roadmap 7.2: with edge updates the message of j -> i also depends on the receiver i,
+    stays equivariant, vanishes with the radial features (cutoff) and the model's matrix
+    stays symmetric."""
+    torch.manual_seed(0)
+    irreps = {
+        "node_feats_irreps": o3.Irreps("4x0e + 4x1o + 2x2e"),
+        "edge_attrs_irreps": o3.Irreps("0e + 1o + 2e"),
+        "edge_feats_irreps": o3.Irreps("2x0e"),
+        "edge_hidden_irreps": o3.Irreps("2x0e + 2x1o + 2x2e"),
+        "edge_update_layers": layers,
+        "edge_update_node_irreps": 3,
+    }
+    block = E3nnEdgeMessageBlock(irreps)
+    base = E3nnEdgeMessageBlock({**irreps, "edge_update_layers": 0})
+    base.load_state_dict(block.state_dict(), strict=False)
+    vectors = torch.randn(3, 3)
+    data = {"edge_index": torch.tensor([[0, 1, 2], [1, 2, 0]]),
+            "edge_attrs": o3.spherical_harmonics(irreps["edge_attrs_irreps"], vectors, normalize=True),
+            "edge_feats": torch.rand(3, 2)}
+    feats = torch.randn(3, irreps["node_feats_irreps"].dim)
+    _, messages = block(data, feats)
+
+    # Receiver dependence: changing node 1 (receiver of edge 0 only, sender of edge 1).
+    other = feats.clone()
+    other[1] += torch.randn_like(other[1])
+    _, changed = block(data, other)
+    _, changed_base = base(data, other)
+    _, messages_base = base(data, feats)
+    assert torch.allclose(changed_base[0], messages_base[0])  # without updates, edge 0 ignores its receiver
+    assert not torch.allclose(changed[0], messages[0])
+
+    # Equivariance.
+    rot = o3.rand_matrix()
+    rotated = {**data, "edge_attrs": o3.spherical_harmonics(irreps["edge_attrs_irreps"], vectors @ rot.T, normalize=True)}
+    _, messages_rot = block(rotated, feats @ irreps["node_feats_irreps"].D_from_matrix(rot).T)
+    expected = messages @ irreps["edge_hidden_irreps"].D_from_matrix(rot).T
+    assert torch.allclose(messages_rot, expected, atol=1e-5)
+
+    # Zero radial features (an edge at the cutoff): zero message.
+    _, at_cutoff = block({**data, "edge_feats": torch.zeros(3, 2)}, feats)
+    assert at_cutoff.abs().max() == 0
+
+    # The full symmetric model still predicts a symmetric matrix.
+    positions = [[0, 0, 0], [1.0, 0.2, 0], [0.1, 1.1, 0.3], [1.2, 1.0, -0.2]]
+    table, processor, data = _two_species_data(True, ["A", "B", "A", "B"], positions)
+    sender, receiver = data.edge_index
+    vectors = data.positions[receiver] - data.positions[sender]
+    data.edge_attrs = o3.spherical_harmonics("0e + 1o", vectors, normalize=True)
+    data.edge_feats = torch.stack([vectors.norm(dim=-1), vectors.norm(dim=-1) ** 2], dim=-1)
+    g2m = E3nnGraph2Mat(
+        unique_basis=table,
+        irreps={"node_feats_irreps": NODE_IRREPS, "edge_attrs_irreps": o3.Irreps("0e+1o"),
+                "edge_feats_irreps": o3.Irreps("2x0e"), "edge_hidden_irreps": o3.Irreps("2x0e+2x1o"),
+                "edge_update_layers": layers},
+        preprocessing_edges=E3nnEdgeMessageBlock, symmetric=True,
+    )
+    matrix = _dense(g2m, processor, data, torch.randn(len(positions), NODE_IRREPS.dim))
+    assert abs(matrix).max() > 1e-4
+    np.testing.assert_allclose(matrix, matrix.T, atol=1e-6)

@@ -194,6 +194,7 @@ class MatrixMACE(torch.nn.Module):
 
         edge_hidden_irreps = kwargs.pop("edge_hidden_irreps", None)
         edge_message_mid_irreps = kwargs.pop("edge_message_mid_irreps", None)
+        edge_update = {k: kwargs.pop(k) for k in ("edge_update_layers", "edge_update_node_irreps") if k in kwargs}
         edge_feats_irreps = self._with_edge_context_irreps(
             self.mace.interactions[0].edge_feats_irreps
         )
@@ -217,6 +218,7 @@ class MatrixMACE(torch.nn.Module):
                             ),
                             edge_hidden_irreps=edge_hidden_irreps,
                             edge_message_mid_irreps=edge_message_mid_irreps,
+                            **edge_update,
                         ),
                         **kwargs,
                     )
@@ -243,6 +245,7 @@ class MatrixMACE(torch.nn.Module):
                     edge_feats_irreps=edge_feats_irreps,
                     edge_hidden_irreps=edge_hidden_irreps,
                     edge_message_mid_irreps=edge_message_mid_irreps,
+                    **edge_update,
                 ),
                 **kwargs,
             )

@@ -510,7 +510,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 7.1 | TP de aristas canal a canal o de rango bajo, con pesos por par y gates no lineales | P V | L | medio | ⏳ |
-| 7.2 | Capas de actualización de aristas | P | L | medio | ⏳ |
+| 7.2 | Capas de actualización de aristas | P | L | medio | 🔶 **implementado** (`edge_update_layers`, `edge_update_node_irreps`): capas residuales en `E3nnEdgeMessageBlock`, `m ← m + act(Linear(TP(m, P(h_receptor); w(r))))`. Hasta ahora el mensaje j → i solo dependía del emisor y el readout multiplica los dos mensajes del par (separable); con la actualización depende de los dos extremos a la vez. Sin sesgos: se anula con las features radiales (corte). Tests: depende del receptor, equivariante, cero en el corte, matriz simétrica. Coste en `6x6`: +31k parámetros por capa (+3 %), sin cambio de tiempo apreciable en CPU. 🧪 `6x6` mejor receta + 1 y 2 capas (3 semillas + OOD) |
 | 7.3 | Envolvente y radiales por par (R_i+R_j) | P | M | bajo | ⏳ solo cambia algo con varias especies |
 | 7.4 | Readout en el marco local de la arista (SO(2)) o Slater–Koster neuronal más un residuo **(GPT CMP, Maths and Physics, Astra)** | P T | L | alto | ⏳ |
 | 7.5 | Readout compartido entre especies | P | L | medio | ⏳ |

@@ -57,6 +57,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         hidden_irreps: Union[o3.Irreps, str] = "20x0e+20x1o+20x2e",
         edge_hidden_irreps: Union[o3.Irreps, str] = "4x0e+4x1o+4x2e",
         edge_message_mid_irreps: Union[o3.Irreps, str, int, None] = None,
+        edge_update_layers: int = 0,
+        edge_update_node_irreps: Union[o3.Irreps, str, int, None] = None,
         avg_num_neighbors: float = 1.0,
         # atomic_numbers: List[int],
         correlation: int = 1,
@@ -192,6 +194,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 **({"output_scaleshift": True} if output_scaleshift else {}),
                 edge_hidden_irreps=edge_hidden_irreps,
                 edge_message_mid_irreps=edge_message_mid_irreps,
+                # Roadmap 7.2: residual edge updates with the receiver (E3nnEdgeMessageBlock).
+                **({"edge_update_layers": edge_update_layers, "edge_update_node_irreps": edge_update_node_irreps}
+                   if edge_update_layers else {}),
                 symmetric=symmetric_matrix,
                 preprocessing_nodes=preprocessing_nodes,
                 preprocessing_edges=preprocessing_edges,
