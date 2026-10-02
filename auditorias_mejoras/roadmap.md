@@ -82,6 +82,23 @@ predecir se suma H0. Con la pérdida de gauge (S como etiqueta), 3 semillas:
   referencia 20,95), intracapa 4,4 → 0,67, intercapa 6,8 → 1,25, bandas alineadas 7,3 → **2,0 meV**
   (referencia 69,6).
 
+**Curva de aprendizaje en `6x6` (receta fp32 + lin + gauge + `kl` + compile, 16.000 pasos, 3 semillas): con
+Δ, una sola estructura de entrenamiento basta.** H alineado de validación / bicapa registros / MD AB / moiré
+real (H / bandas alineadas), en meV:
+
+| N estructuras | con Δ | sin Δ |
+|---|---|---|
+| 1 | 0,153 / 4,50 / 5,11 / 0,88 / 11,8 | — |
+| 2 | 0,141 / 4,17 / 4,85 / 0,84 / 11,5 | — |
+| 4 | 0,146 / 4,19 / 4,88 / 0,84 / 11,9 | 0,671 / 39,8 / 41,6 / 8,1 / 98 |
+| 8 | 0,136 / 4,43 / 5,18 / 0,86 / 9,7 | 0,667 / 37,3 / 39,1 / — / — |
+
+La curva es plana con y sin Δ: una supercelda `6x6` de 72 átomos ya contiene casi todos los entornos locales
+que ven estos modelos, y el error lo fija el objetivo (H frente a H − H0), no la cantidad de datos. Con N = 1
+solo empeoran algo las bandas del moiré (+20 %) y la dispersión entre semillas (0,211/0,135/0,114). El
+entrenamiento baja de ~45 min (N = 8) a 30 min (N = 1) con los mismos pasos. Para seguir mejorando en grafeno
+no hacen falta más estructuras de la misma familia, sino otro objetivo o más capacidad (4.4, 7.2).
+
 **Moiré real** (`g2m_tbg_moire.py`: bicapas rotadas conmensurables de 21,8°, 32,2° y 13,2°, 28/52/76 átomos,
 etiquetadas con SIESTA con los ajustes de los registros; media de los tres ángulos, H alineado / bandas
 alineadas en meV, 3 semillas salvo indicación):
