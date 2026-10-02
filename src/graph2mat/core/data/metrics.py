@@ -38,6 +38,7 @@ __all__ = [
     "block_type_mapemsemix",
     "block_type_mapestdmix",
     "elementwise_mse",
+    "pair_difference_mse",
     "gauge_invariant_mse",
     "elementwise_mae",
     "node_mse",
@@ -1597,6 +1598,103 @@ def elementwise_mse(
         )
 
     return loss, stats
+
+
+def find_displacement_pairs(batch, max_displacement: float) -> list[tuple[int, int]]:
+    """Structures of a batch that are +/- finite-difference partners.
+
+    Two structures pair when they have the same number of atoms and every atom moved by
+    at most ``max_displacement`` (minimum image, Ang) but not all by zero. Atoms must be in
+    the same order (the pairs come from the same template). Ambiguous matches raise.
+    """
+    positions = _batch_field(batch, "positions")
+    positions = np.asarray(positions.detach().cpu() if torch.is_tensor(positions) else positions, dtype=float)
+    node_graph = _node_graph(batch)
+    n_structures = int(node_graph.max()) + 1 if node_graph.size else 0
+    cell = _batch_field(batch, "cell")
+    cell = None if cell is None else np.asarray(cell.detach().cpu() if torch.is_tensor(cell) else cell,
+                                                dtype=float).reshape(n_structures, 3, 3)
+    atoms = [np.flatnonzero(node_graph == s) for s in range(n_structures)]
+    pairs, used = [], set()
+    for a in range(n_structures):
+        for b in range(a + 1, n_structures):
+            if len(atoms[a]) != len(atoms[b]):
+                continue
+            delta = positions[atoms[a]] - positions[atoms[b]]
+            if cell is not None and np.allclose(cell[a], cell[b]):
+                periodic = np.abs(np.linalg.det(cell[a])) > 1e-12
+                if periodic:
+                    frac = np.linalg.solve(cell[a].T, delta.T).T
+                    delta = (frac - np.round(frac)) @ cell[a]
+            moved = np.linalg.norm(delta, axis=1).max()
+            if 0 < moved <= max_displacement:
+                if a in used or b in used:
+                    raise ValueError(f"structures {a} and {b}: ambiguous +/- pairing")
+                pairs.append((a, b))
+                used |= {a, b}
+    return pairs
+
+
+def _gamma_matrices(nodes, edges, edges_ref, batch, basis_table):
+    """Per-structure Gamma-point matrices of flat label-like elements, (n_structures, no, no)."""
+    from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
+
+    layout = getattr(batch, LAYOUT_ATTR, None) or {}
+    if "node_row" not in layout:
+        layout = spectral_window_layout(edges_ref, batch, basis_table)
+    node_struct, edge_struct, n_structures = _per_element_structure_ids(nodes, edges_ref, batch, basis_table)
+    dev = nodes.device
+    get = lambda key: layout[key].to(dev)
+    rows, cols = [get("node_row"), get("edge_row")], [get("node_col"), get("edge_col")]
+    structs, values = [node_struct.to(dev), edge_struct.to(dev)], [nodes, edges]
+    if layout["symmetric"]:
+        rows.append(get("edge_col")); cols.append(get("edge_row"))
+        structs.append(edge_struct.to(dev)); values.append(edges)
+    no = layout["no_max"]
+    return nodes.new_zeros((n_structures, no, no)).index_put(
+        (torch.cat(structs), torch.cat(rows), torch.cat(cols)), torch.cat(values), accumulate=True
+    ), node_struct, edge_struct
+
+
+@OrbitalMatrixMetric.from_metric_func
+def pair_difference_mse(
+    nodes_pred, nodes_ref, edges_pred, edges_ref, batch=None, basis_table=None,
+    edge_weight: float = 1.0, pair_weight: float = 1.0, pair_max_displacement: float = 0.05,
+    expected_pairs: Optional[int] = None, log_verbose=False, **kwargs,
+) -> Tuple[float, Dict[str, float]]:
+    """``elementwise_mse`` plus the error of the +/- pair differences at Gamma.
+
+    For every +/- finite-difference pair in the batch (``find_displacement_pairs``) the
+    term is the mean square of ``(H_a - H_b)_pred - (H_a - H_b)_ref`` at the Gamma point,
+    i.e. of ``E_a(Gamma) - E_b(Gamma)`` with ``E = pred - ref``, per label element of the
+    structure. Plain MSE lets the errors of both partners be equal and large; this term
+    penalises their antisymmetric part, the error of the slope. It has the units and
+    normalisation of the H loss, so ``pair_weight=1`` weighs a difference element like a
+    value element. ``expected_pairs`` makes a batch with another non-zero number of pairs
+    an error (validation batches without pairs give 0 pairs and no term).
+    """
+    loss, stats = elementwise_mse.compute_metric(
+        nodes_pred=nodes_pred, nodes_ref=nodes_ref, edges_pred=edges_pred, edges_ref=edges_ref,
+        edge_weight=edge_weight, log_verbose=log_verbose,
+    )
+    pairs = find_displacement_pairs(batch, pair_max_displacement)
+    if expected_pairs is not None and pairs and len(pairs) != int(expected_pairs):
+        raise ValueError(f"found {len(pairs)} +/- pairs in the batch, expected {expected_pairs}")
+    stats["n_pairs"] = len(pairs)
+    if not pairs:
+        stats["pair_rmse"] = 0.0
+        return loss, stats
+    errors, node_struct, edge_struct = _gamma_matrices(
+        nodes_pred - nodes_ref, edges_pred - edges_ref, edges_ref, batch, basis_table
+    )
+    counts = torch.bincount(node_struct, minlength=errors.shape[0]) + edge_weight * torch.bincount(
+        edge_struct, minlength=errors.shape[0]
+    )
+    a, b = (torch.as_tensor([p[i] for p in pairs], device=errors.device) for i in (0, 1))
+    per_pair = ((errors[a] - errors[b]) ** 2).sum(dim=(1, 2)) / counts.to(errors.device)[a].clamp_min(1)
+    pair_loss = per_pair.mean()
+    stats["pair_rmse"] = pair_loss.detach() ** 0.5
+    return loss + pair_weight * pair_loss, stats
 
 
 @OrbitalMatrixMetric.from_metric_func

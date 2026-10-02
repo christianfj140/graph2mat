@@ -247,3 +247,89 @@ def test_spectral_window_loss_matches_gamma_point_matrices():
     total, _ = loss(nodes_pred, batch.edge_labels[:, 0] + eps * x_edges)
     total.backward()
     assert torch.isfinite(nodes_pred.grad).all() and nodes_pred.grad.abs().max() > 0
+
+
+def _pair_batch(displacement=0.02):
+    """Two +/- pairs (one across a periodic boundary) and the shared machinery."""
+    import numpy as np
+    import torch
+    from torch_geometric.data import Batch
+
+    import graph2mat.bindings.torch  # noqa: F401 (registers the torch converters)
+    from graph2mat import BasisConfiguration, BasisTableWithEdges, MatrixDataProcessor, PointBasis, conversions
+
+    basis = [PointBasis("A", R=2.5, basis="0e + 1o", basis_convention="cartesian")]
+    table = BasisTableWithEdges(basis)
+    proc = MatrixDataProcessor(basis_table=table, symmetric_matrix=True, sub_point_matrix=False)
+    conv = conversions.get_converter("basisconfiguration", "torch_basismatrixdata")
+    rng = np.random.default_rng(1)
+    cell = np.eye(3) * 4.0
+    base_a = rng.uniform(0.5, 3.5, (4, 3))
+    base_b = rng.uniform(0.5, 3.5, (4, 3))
+    base_b[0, 0] = 3.999  # this atom crosses x = 4 Ang in the + partner
+    u = rng.normal(size=(4, 3)); u /= np.linalg.norm(u, axis=1).max()
+    u[0] = (1.0, 0.0, 0.0)
+    plus_b = base_b + displacement * u
+    plus_b[0, 0] -= 4.0  # wrapped into the cell
+    positions = [base_a + displacement * u, base_a - displacement * u, plus_b, base_b - displacement * u]
+    structs = [conv(BasisConfiguration(point_types=["A"] * 4, positions=p, basis=basis, cell=cell,
+                                       pbc=(True, True, False)), data_processor=proc) for p in positions]
+    for d in structs:
+        n_nodes = int(table.basis_size[d.point_types.numpy()].sum() * 4)  # 4 x 4 on-site blocks
+        n_edges = int(table.edge_block_size[np.abs(d.edge_types.numpy()[::2])].sum())
+        d.point_labels = torch.tensor(rng.normal(size=n_nodes))
+        d.edge_labels = torch.tensor(rng.normal(size=n_edges))
+    return Batch.from_data_list(structs), table
+
+
+def test_find_displacement_pairs_uses_minimum_image():
+    from graph2mat.core.data.metrics import find_displacement_pairs
+
+    batch, _ = _pair_batch()
+    assert find_displacement_pairs(batch, 0.05) == [(0, 1), (2, 3)]
+    assert find_displacement_pairs(batch, 0.03) == []  # partners differ by 2 x 0.02
+
+
+def test_pair_difference_mse_penalises_only_the_antisymmetric_error():
+    import pytest
+    import torch
+    from graph2mat.core.data.metrics import _gamma_matrices, elementwise_mse, pair_difference_mse
+
+    batch, table = _pair_batch()
+    nodes_ref, edges_ref = batch.point_labels, batch.edge_labels
+    struct = batch.batch.repeat_interleave(16)  # node elements per structure (4x4 blocks)
+    kwargs = dict(nodes_ref=nodes_ref, edges_ref=edges_ref, batch=batch, basis_table=table, expected_pairs=2)
+
+    # Exact prediction: zero.
+    loss, stats = pair_difference_mse(nodes_pred=nodes_ref.clone(), edges_pred=edges_ref.clone(), **kwargs)
+    assert loss.item() == 0 and stats["n_pairs"] == 2
+
+    # The same error on both partners of a pair: only the plain MSE sees it.
+    common = torch.randn(int((struct == 0).sum()), dtype=nodes_ref.dtype)
+    nodes = nodes_ref.clone()
+    for a, b in ((0, 1), (2, 3)):
+        nodes[struct == a] += common
+        nodes[struct == b] += common
+    loss, stats = pair_difference_mse(nodes_pred=nodes, edges_pred=edges_ref.clone(), **kwargs)
+    plain, _ = elementwise_mse(nodes_pred=nodes, nodes_ref=nodes_ref, edges_pred=edges_ref, edges_ref=edges_ref)
+    assert stats["pair_rmse"].item() < 1e-12 and torch.isclose(loss, plain)
+
+    # An antisymmetric error: the term is the Gamma-point difference, per label element.
+    nodes = nodes_ref.clone()
+    nodes[struct == 0] += common
+    nodes[struct == 1] -= common
+    nodes.requires_grad_(True)
+    loss, stats = pair_difference_mse(nodes_pred=nodes, edges_pred=edges_ref.clone(), pair_weight=1.0, **kwargs)
+    gamma, node_struct, edge_struct = _gamma_matrices(nodes - nodes_ref, edges_ref * 0, edges_ref, batch, table)
+    n_el = (node_struct == 0).sum() + (edge_struct == 0).sum()
+    expected = ((gamma[0] - gamma[1]) ** 2).sum() / n_el / 2  # mean over the two pairs; pair 2 is exact
+    assert torch.isclose(stats["pair_rmse"] ** 2, expected)
+    loss.backward()
+    assert torch.isfinite(nodes.grad).all() and nodes.grad.abs().sum() > 0
+
+    # A batch with another number of pairs is an error; one without pairs has no term.
+    with pytest.raises(ValueError):
+        pair_difference_mse(nodes_pred=nodes_ref, edges_pred=edges_ref, **dict(kwargs, expected_pairs=3))
+    _, stats = pair_difference_mse(nodes_pred=nodes_ref, edges_pred=edges_ref,
+                                   **dict(kwargs, pair_max_displacement=0.01))
+    assert stats["n_pairs"] == 0
