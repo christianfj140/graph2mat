@@ -116,6 +116,24 @@ gauge + `kl` + Δ (semillas 0–2, frente a bf16 en las mismas): dentro 0,134/0,
 registros H 5,28 (igual) y bandas 14,1 (bf16 17,2), MD AB bandas 10,6 (11,6), moiré H 1,03 (0,99) y bandas
 **8,5 (12,0)**: fp32 no cambia H pero mejora las bandas fuera de distribución un 10–30 %.
 
+**Grafeno/hBN (otro material, `g2m_bilayer_benchmark.py --material grhbn`):** entrenado con la MD de bicapa
+grafeno/hBN (`graphene_hbn_bilayer_md_nested/n480`), validación en su propia MD y prueba en un moiré
+grafeno/hBN conmensurable de 22° (28 átomos), 3 semillas, meV:
+
+| Variante | validación H alineado | moiré H alineado (intra / inter) | moiré bandas alineadas |
+|---|---|---|---|
+| baseline | 17,8 | 21,4 (15,7 / 31,5) | 899 |
+| fp32 + lin + gauge | 14,7 | 13,8 (12,6 / 15,8) | 901 |
+| fp32 + lin + gauge + Δ | **3,7** | **6,1 (8,9 / 1,2)** | 272 |
+
+Δ vuelve a ser la mejora grande (validación −79 %, H del moiré −71 %, intercapa 31 → 1,2), pero **las bandas
+del moiré no son una prueba válida con estos datos**: toda la MD de entrenamiento tiene las capas a ~5,0 Å
+(4,8–5,0; la de bicapa de grafeno está a 3,3–3,6 Å) y el moiré a 3,35 Å. A esa distancia, la etiqueta desplaza
+los on-site del carbono ~0,8 eV respecto a B/N (también frente a H0; en validación lo reproduce con ~35 meV
+de error, en el moiré se equivoca en ~660 meV): el cono de Dirac se mueve respecto a las bandas del hBN y las
+bandas fallan aunque el H medio sea bueno. Ajustes de SIESTA iguales (vacío 20 Å, VDW, 600 Ry, 0,075 eV); la
+base difiere solo en radios (`rinn`/`rcs`, <0,01 Å). Pendiente de decidir: reetiquetar la MD a ~3,35 Å.
+
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
 alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
 de los pares a ~4,3 Å (cerca del corte); la pérdida de gauge mejora todas las capas de vecinos (primeros
