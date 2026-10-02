@@ -57,6 +57,10 @@ class TypeLayoutCollate:
                 batch.point_labels, batch.edge_labels, batch, self.basis_table
             )
             layout.update(node_struct=node_struct, edge_struct=edge_struct, n_structures=n_structures)
+            if getattr(batch, "spectral_C", None) is not None:
+                from graph2mat.core.data.metrics import spectral_window_layout
+
+                layout.update(spectral_window_layout(batch.edge_labels, batch, self.basis_table))
         object.__setattr__(batch, LAYOUT_ATTR, layout)
         return batch
 
@@ -173,6 +177,7 @@ class MatrixDataModule(pl.LightningDataModule):
         store_in_memory: bool = False,
         rotating_pool_size: Optional[int] = None,
         initial_node_feats: str = "OneHotZ",
+        spectral_window: bool = False,
     ):
         """
 
@@ -214,6 +219,12 @@ class MatrixDataModule(pl.LightningDataModule):
                 with new data. This is useful if the data loading is slow. Note that the notion of
                 epochs will not be meaningful when this kind of loading is used.
                 This will not affect test/val/predict data.
+            spectral_window: bool
+                Attach to every labelled structure the reference eigenvectors of a window around
+                E_F at Gamma (``spectral_C``), read from ``spectral_window.npz`` (array ``C``,
+                one row per orbital, the same number of columns in every structure, zero
+                columns as padding) next to its run file. Needed by the spectral term of
+                ``gauge_invariant_mse`` (``spectral_weight``, roadmap 4.4).
 
         """
         super().__init__()
@@ -246,6 +257,7 @@ class MatrixDataModule(pl.LightningDataModule):
         self.copy_root_to_tmp = copy_root_to_tmp
         self.store_in_memory = store_in_memory
         self.rotating_pool_size = rotating_pool_size
+        self.spectral_window = spectral_window
         self.prepare_data_per_node = True
         if self.copy_root_to_tmp:
             # One directory per user and data root (shared by the ranks of a job), instead
@@ -327,6 +339,7 @@ class MatrixDataModule(pl.LightningDataModule):
                     data_processor=self.data_processor,
                     data_cls=TorchBasisMatrixData,
                     load_labels=split != "predict",
+                    spectral_window=self.spectral_window and split != "predict",
                 )
 
                 if self.store_in_memory:

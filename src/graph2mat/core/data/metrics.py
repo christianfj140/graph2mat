@@ -755,6 +755,100 @@ def _node_graph(batch) -> np.ndarray:
     return _as_numpy_int(node_graph)
 
 
+def _label_edge_mask(edges_ref, edge_types, edge_index, point_types, basis_table) -> np.ndarray:
+    """Edges that carry labels: all of them, or one per pair for a symmetric matrix."""
+    edge_sizes = basis_table.edge_block_size[np.abs(edge_types)]
+    n_components = 1 if getattr(edges_ref, "ndim", 1) == 1 else int(edges_ref.shape[1])
+    actual = _flat_length(edges_ref) // max(n_components, 1)
+    if actual == int(edge_sizes.sum()):
+        return np.ones(len(edge_types), dtype=bool)
+    selector = MatrixDataProcessor(basis_table=basis_table, symmetric_matrix=True, sub_point_matrix=False)
+    return selector._get_symmetric_unique_edge_mask(
+        edge_types, expected_nlabels=int(actual), edge_index=edge_index, point_types=point_types
+    )
+
+
+def spectral_window_layout(edges_ref, batch, basis_table) -> dict:
+    """Where every label element goes in its structure's Gamma-point matrix (roadmap 4.4).
+
+    ``node_row``/``node_col`` and ``edge_row``/``edge_col``: orbital indices inside the
+    structure. Node blocks are flattened row-major (orbitals of the node x orbitals of the
+    node), edge blocks row-major (orbitals of ``edge_index[0]`` x of ``edge_index[1]``).
+    With symmetric labels (one edge per pair) each edge element also stands for its
+    transpose (``symmetric``). ``orb_struct``/``orb_local``: structure and local index of
+    every orbital of the batch, to scatter per-orbital data such as ``spectral_C``.
+    """
+    point_types = _as_numpy_int(_batch_field(batch, "point_types"))
+    edge_types = _as_numpy_int(_batch_field(batch, "edge_types"))
+    edge_index = _as_numpy_int(_batch_field(batch, "edge_index"))
+    node_graph = _node_graph(batch)
+    sizes = basis_table.basis_size[point_types].astype(np.int64)
+    n_structures = int(node_graph.max()) + 1 if node_graph.size else 1
+    n_orb = np.bincount(node_graph, weights=sizes, minlength=n_structures).astype(np.int64)
+    start = np.cumsum(n_orb) - n_orb  # the nodes of a structure are contiguous in a batch
+    local = np.cumsum(sizes) - sizes - start[node_graph]
+
+    def block_pairs(row_nodes, col_nodes):
+        n_rows, n_cols = sizes[row_nodes], sizes[col_nodes]
+        n = n_rows * n_cols
+        owner = np.repeat(np.arange(len(n)), n)
+        k = np.arange(n.sum()) - np.repeat(np.cumsum(n) - n, n)
+        return local[row_nodes][owner] + k // n_cols[owner], local[col_nodes][owner] + k % n_cols[owner]
+
+    nodes = np.arange(len(point_types))
+    node_row, node_col = block_pairs(nodes, nodes)
+    labelled = _label_edge_mask(edges_ref, edge_types, edge_index, point_types, basis_table)
+    edge_row, edge_col = block_pairs(edge_index[0, labelled], edge_index[1, labelled])
+    orb_struct = np.repeat(node_graph, sizes)
+    orb_local = np.arange(int(sizes.sum())) - start[orb_struct]
+    as_long = lambda a: torch.as_tensor(np.ascontiguousarray(a), dtype=torch.long)
+    return {
+        "node_row": as_long(node_row), "node_col": as_long(node_col),
+        "edge_row": as_long(edge_row), "edge_col": as_long(edge_col),
+        "orb_struct": as_long(orb_struct), "orb_local": as_long(orb_local),
+        "no_max": int(n_orb.max()) if n_orb.size else 0,
+        "symmetric": not bool(labelled.all()),
+    }
+
+
+def _spectral_window_loss(d_nodes, d_edges, node_struct, edge_struct, n_structures, batch, edges_ref, basis_table):
+    """``|| C^T dH(Gamma) C - mean(diag) I ||^2`` per structure (roadmap 4.4, audit LOSS_TRAIN-15).
+
+    ``C`` (``batch.spectral_C``): reference eigenvectors of a window around E_F at Gamma,
+    S-orthonormal, one row per orbital, zero columns as padding. The diagonal is the
+    first-order error of each eigenvalue and the off-diagonal the coupling inside the
+    window. ``C^T S C = I``, so the gauge shift ``c S`` is the mean of the diagonal and is
+    removed. It only needs dH = prediction - label, so it holds for Delta-learning too.
+    """
+    from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
+
+    C = _batch_field(batch, "spectral_C")
+    if C is None:
+        raise ValueError("spectral_weight needs batch.spectral_C (MatrixDataModule(spectral_window=True)).")
+    layout = getattr(batch, LAYOUT_ATTR, None) or {}
+    if "node_row" not in layout:
+        layout = spectral_window_layout(edges_ref, batch, basis_table)
+    dev = d_nodes.device
+    get = lambda key: layout[key].to(dev)
+    rows, cols = [get("node_row"), get("edge_row")], [get("node_col"), get("edge_col")]
+    structs, values = [node_struct, edge_struct], [d_nodes, d_edges]
+    if layout["symmetric"]:
+        rows.append(get("edge_col")); cols.append(get("edge_row"))
+        structs.append(edge_struct); values.append(d_edges)
+    no = layout["no_max"]
+    d_h = d_nodes.new_zeros((n_structures, no, no)).index_put(
+        (torch.cat(structs), torch.cat(rows), torch.cat(cols)), torch.cat(values), accumulate=True
+    )
+    C = C.to(device=dev, dtype=d_nodes.dtype)
+    c_pad = C.new_zeros((n_structures, no, C.shape[1])).index_put((get("orb_struct"), get("orb_local")), C)
+    m = c_pad.transpose(1, 2) @ d_h @ c_pad
+    mask = (c_pad.abs().sum(1) > 0).to(m.dtype)  # real (non-padding) window columns
+    k = mask.sum(1)
+    shift = (torch.diagonal(m, dim1=1, dim2=2) * mask).sum(1) / k.clamp_min(1)
+    residual = m - shift[:, None, None] * torch.diag_embed(mask)
+    return (residual**2).sum() / (k**2).sum().clamp_min(1)
+
+
 def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
     """Structure id of every flat node/edge label element (torch tensors).
 
@@ -780,25 +874,9 @@ def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
 
     edge_types = _as_numpy_int(_batch_field(batch, "edge_types"))
     edge_index = _as_numpy_int(_batch_field(batch, "edge_index"))
-    edge_graph = node_graph[edge_index[0]]
-    edge_sizes = basis_table.edge_block_size[np.abs(edge_types)]
-    n_components = 1 if getattr(edges_ref, "ndim", 1) == 1 else int(edges_ref.shape[1])
-    expected_full = int(edge_sizes.sum())
-    actual = _flat_length(edges_ref) // max(n_components, 1)
-    if actual != expected_full:
-        selector = MatrixDataProcessor(
-            basis_table=basis_table,
-            symmetric_matrix=True,
-            sub_point_matrix=False,
-        )
-        unique_edge_mask = selector._get_symmetric_unique_edge_mask(
-            edge_types,
-            expected_nlabels=int(actual),
-            edge_index=edge_index,
-            point_types=point_types,
-        )
-        edge_graph = edge_graph[unique_edge_mask]
-        edge_sizes = edge_sizes[unique_edge_mask]
+    labelled = _label_edge_mask(edges_ref, edge_types, edge_index, point_types, basis_table)
+    edge_graph = node_graph[edge_index[0]][labelled]
+    edge_sizes = basis_table.edge_block_size[np.abs(edge_types)][labelled]
     edge_struct = np.repeat(edge_graph, edge_sizes)
 
     n_structures = int(node_graph.max()) + 1 if node_graph.size else 1
@@ -1524,7 +1602,8 @@ def elementwise_mse(
 @OrbitalMatrixMetric.from_metric_func
 def gauge_invariant_mse(
     nodes_pred, nodes_ref, edges_pred, edges_ref, batch=None, basis_table=None,
-    edge_weight: float = 1.0, overlap_weight: float = 1.0, log_verbose=False, **kwargs,
+    edge_weight: float = 1.0, overlap_weight: float = 1.0, spectral_weight: float = 0.0,
+    log_verbose=False, **kwargs,
 ) -> Tuple[float, Dict[str, float]]:
     """Elementwise MSE of H that ignores a per-structure energy shift H -> H + c S.
 
@@ -1537,6 +1616,8 @@ def gauge_invariant_mse(
     ``overlap_weight``, or only H (one component fewer than the labels): S is then just
     the label that defines the shift, and the readout is half the size.
     ``edge_weight`` as in ``elementwise_mse``. Labels are assumed NaN-free (as H is).
+    ``spectral_weight`` > 0 adds the Gamma-point window loss of ``_spectral_window_loss``
+    (one H component; needs ``batch.spectral_C``).
     """
     node_struct, edge_struct, n_structures = _per_element_structure_ids(
         nodes_ref, edges_ref, batch, basis_table
@@ -1576,7 +1657,16 @@ def gauge_invariant_mse(
         "overlap_rmse": s_loss.detach() ** 0.5,
         "gauge_shift_mean_abs": shift.detach().abs().mean(),
     }
-    return h_loss + overlap_weight * s_loss, stats
+    loss = h_loss + overlap_weight * s_loss
+    if spectral_weight:
+        if n_h != 1:
+            raise ValueError("spectral_weight supports a single H component.")
+        spectral = _spectral_window_loss(
+            d_nodes[:, 0], d_edges[:, 0], node_struct, edge_struct, n_structures, batch, edges_ref, basis_table
+        )
+        stats["spectral_rmse"] = spectral.detach() ** 0.5
+        loss = loss + spectral_weight * spectral
+    return loss, stats
 
 
 # Only meaningful with (H, S) labels: not part of the metrics run on any matrix by default.

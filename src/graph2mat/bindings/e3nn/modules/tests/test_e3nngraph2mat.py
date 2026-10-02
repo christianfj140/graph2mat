@@ -293,6 +293,7 @@ def test_type_layout_collate_survives_worker_processes():
     for d in data:  # labels of the right length (symmetric: one direction per edge)
         d.point_labels = torch.zeros(int(table.point_block_pointer(d.point_types.numpy())[-1]))
         d.edge_labels = torch.zeros(int(table.edge_block_size[d.edge_types.numpy()[::2]].sum()))
+        d.spectral_C = torch.ones(3 * 4, 2)  # 3 atoms x 4 orbitals, a window of 2 (roadmap 4.4)
     loader = DataLoader(data, batch_size=2, num_workers=2)
     loader.collate_fn = TypeLayoutCollate(loader.collate_fn, table)
     from graph2mat.core.data.metrics import _per_element_structure_ids, gauge_invariant_mse
@@ -307,3 +308,10 @@ def test_type_layout_collate_survives_worker_processes():
         ref = _per_element_structure_ids(batch.point_labels, batch.edge_labels, plain, table)
         for a, b in zip(ref, (layout["node_struct"], layout["edge_struct"], layout["n_structures"])):
             assert torch.equal(torch.as_tensor(a), torch.as_tensor(b))
+        # With spectral_C it also carries the orbital of every label element.
+        from graph2mat.core.data.metrics import spectral_window_layout
+
+        spectral = spectral_window_layout(batch.edge_labels, plain, table)
+        assert batch.spectral_C.shape == (24, 2) and layout["no_max"] == 12 and layout["symmetric"]
+        for key in ("node_row", "node_col", "edge_row", "edge_col", "orb_struct", "orb_local"):
+            assert torch.equal(layout[key], spectral[key])

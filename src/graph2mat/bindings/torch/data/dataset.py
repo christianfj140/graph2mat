@@ -86,11 +86,13 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         data_processor: MatrixDataProcessor,
         data_cls: Type[TorchBasisMatrixData] = TorchBasisMatrixData,
         load_labels: bool = True,
+        spectral_window: bool = False,
     ):
         self.input_data = input_data
         self.data_processor = data_processor
         self.data_cls = data_cls
         self.load_labels = load_labels
+        self.spectral_window = spectral_window
 
         self._root_pid = os.getpid()
         self._worker_pid = None
@@ -103,9 +105,20 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
 
         self._fix_multiprocessing_zipfile(item)
 
-        return self.data_cls.new(
+        data = self.data_cls.new(
             item, data_processor=self.data_processor, labels=self.load_labels
         )
+        if self.spectral_window:
+            # Reference eigenvectors of a window around E_F (MatrixDataModule.spectral_window).
+            with np.load(Path(str(item)).parent / "spectral_window.npz") as f:
+                data.spectral_C = torch.as_tensor(f["C"], dtype=torch.get_default_dtype())
+            if data.spectral_C.shape[0] != self._n_orbitals(data):
+                raise ValueError(f"spectral_window.npz of {item} does not match its number of orbitals.")
+        return data
+
+    def _n_orbitals(self, data) -> int:
+        types = data.point_types.numpy()
+        return int(self.data_processor.basis_table.basis_size[types].sum())
 
     def _fix_multiprocessing_zipfile(self, item):
         """Fix issues with zipfiles when using multiprocessing.
