@@ -1600,11 +1600,13 @@ def elementwise_mse(
     return loss, stats
 
 
-def find_displacement_pairs(batch, max_displacement: float) -> list[tuple[int, int]]:
+def find_displacement_pairs(batch, max_displacement: float, min_displacement: float = 0.0) -> list[tuple[int, int]]:
     """Structures of a batch that are +/- finite-difference partners.
 
-    Two structures pair when they have the same number of atoms and every atom moved by
-    at most ``max_displacement`` (minimum image, Ang) but not all by zero. Atoms must be in
+    Two structures pair when they have the same number of atoms and the largest atom
+    displacement between them (minimum image, Ang) is in ``(min_displacement,
+    max_displacement]``. Partners of a +/-delta pair differ by exactly 2 delta, so a narrow
+    window around it separates them from other structures that share the template. Atoms must be in
     the same order (the pairs come from the same template). Ambiguous matches raise.
     """
     positions = _batch_field(batch, "positions")
@@ -1627,7 +1629,7 @@ def find_displacement_pairs(batch, max_displacement: float) -> list[tuple[int, i
                     frac = np.linalg.solve(cell[a].T, delta.T).T
                     delta = (frac - np.round(frac)) @ cell[a]
             moved = np.linalg.norm(delta, axis=1).max()
-            if 0 < moved <= max_displacement:
+            if max(min_displacement, 0.0) < moved <= max_displacement:
                 if a in used or b in used:
                     raise ValueError(f"structures {a} and {b}: ambiguous +/- pairing")
                 pairs.append((a, b))
@@ -1660,7 +1662,7 @@ def _gamma_matrices(nodes, edges, edges_ref, batch, basis_table):
 def pair_difference_mse(
     nodes_pred, nodes_ref, edges_pred, edges_ref, batch=None, basis_table=None,
     edge_weight: float = 1.0, pair_weight: float = 1.0, pair_max_displacement: float = 0.05,
-    expected_pairs: Optional[int] = None, log_verbose=False, **kwargs,
+    pair_min_displacement: float = 0.0, expected_pairs: Optional[int] = None, log_verbose=False, **kwargs,
 ) -> Tuple[float, Dict[str, float]]:
     """``elementwise_mse`` plus the error of the +/- pair differences at Gamma.
 
@@ -1670,8 +1672,8 @@ def pair_difference_mse(
     structure. Plain MSE lets the errors of both partners be equal and large; this term
     penalises their antisymmetric part, the error of the slope. It has the units and
     normalisation of the H loss, so ``pair_weight=1`` weighs a difference element like a
-    value element. ``expected_pairs`` makes a batch with another non-zero number of pairs
-    an error.
+    value element. ``expected_pairs`` makes a training batch with any other number of pairs
+    (including none) an error, so a pairing failure never trains silently without the term.
 
     The term is a training signal only: with ``model`` in eval mode (validation) the loss
     is the plain ``elementwise_mse``, so ``val_loss`` and checkpoint selection match runs
@@ -1684,8 +1686,8 @@ def pair_difference_mse(
     model = kwargs.get("model")
     if model is not None and not getattr(model, "training", True):
         return loss, stats
-    pairs = find_displacement_pairs(batch, pair_max_displacement)
-    if expected_pairs is not None and pairs and len(pairs) != int(expected_pairs):
+    pairs = find_displacement_pairs(batch, pair_max_displacement, pair_min_displacement)
+    if expected_pairs is not None and len(pairs) != int(expected_pairs):  # training batches only
         raise ValueError(f"found {len(pairs)} +/- pairs in the batch, expected {expected_pairs}")
     stats["n_pairs"] = len(pairs)
     if not pairs:

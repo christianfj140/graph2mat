@@ -288,6 +288,8 @@ def test_find_displacement_pairs_uses_minimum_image():
     batch, _ = _pair_batch()
     assert find_displacement_pairs(batch, 0.05) == [(0, 1), (2, 3)]
     assert find_displacement_pairs(batch, 0.03) == []  # partners differ by 2 x 0.02
+    assert find_displacement_pairs(batch, 0.05, 0.035) == [(0, 1), (2, 3)]  # window around 2 delta
+    assert find_displacement_pairs(batch, 0.05, 0.045) == []
 
 
 def test_pair_difference_mse_penalises_only_the_antisymmetric_error():
@@ -330,8 +332,10 @@ def test_pair_difference_mse_penalises_only_the_antisymmetric_error():
     # A batch with another number of pairs is an error; one without pairs has no term.
     with pytest.raises(ValueError):
         pair_difference_mse(nodes_pred=nodes_ref, edges_pred=edges_ref, **dict(kwargs, expected_pairs=3))
+    with pytest.raises(ValueError):  # no pairs found where some are expected
+        pair_difference_mse(nodes_pred=nodes_ref, edges_pred=edges_ref, **dict(kwargs, pair_max_displacement=0.01))
     _, stats = pair_difference_mse(nodes_pred=nodes_ref, edges_pred=edges_ref,
-                                   **dict(kwargs, pair_max_displacement=0.01))
+                                   **dict(kwargs, pair_max_displacement=0.01, expected_pairs=None))
     assert stats["n_pairs"] == 0
 
     # Validation (model in eval mode): plain MSE, no pairing at all.
