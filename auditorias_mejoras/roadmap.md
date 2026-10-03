@@ -597,8 +597,29 @@ receta actual, 3 semillas, prueba dentro de distribución y una de extrapolació
 | Dos especies con la misma Z y distinta base (ghosts) | 8.3 | — | solo si se usan átomos fantasma |
 | Dimensionalidad (0D, 2D, 3D) | 2.7, 6.4 | H2O (0D), grafeno (2D), Si amorfo (3D) | — |
 
-Los materiales nuevos se eligen con ayuda externa (prompt preparado el 2026-10-03) y necesitan etiquetas SIESTA
-(H, S y H0) antes de medir nada.
+**Lista definitiva (2026-10-03, consenso de 4 GPT + revisión propia):** H2O en clústeres, LiF, BaTiO3 (fase 1);
+ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/WSe2 con SOC, Bi2Se3 opcional (fase 3).
+
+**Fase 1, preparada (MD_vs_AtomicDisplacement `g2m_bench_materials.py`, `materials/bench_*`):**
+- Pseudopotenciales: PseudoDojo nc-sr-04 PBE standard (psml), descargados dos veces con el mismo SHA-256, con
+  procedencia en `materials/bench_common/pseudos/PROVENANCE.json`. Semicore incluido (Li 1s, Ti 3s3p, Ba 5s5p).
+- Base: DZP, `PAO.EnergyShift` 0,005 Ry elegido midiendo: la constante de red PBE de LiF sale 3,952 Å con 0,02 Ry,
+  4,035 con 0,01 y 4,070 con 0,005 (ondas planas ~4,06–4,07; con 0,02 Ry el 2p del F mide 1,88 Å, demasiado corto
+  para un anión). Polarización no perturbativa (la perturbativa falla con el 1s del Li); Ba con su 5d añadido.
+  La base del piloto queda congelada y cada etiqueta se comprueba byte a byte contra ella.
+- Pilotos: LiF relajado (celda variable) a = 4,070 Å; BaTiO3 en la celda tetragonal experimental con iones
+  relajados (Ti +0,055 Å, O −0,080/−0,050 Å: la distorsión ferroeléctrica conocida).
+- Convergencia de etiquetas (H tras quitar c·S frente a 550 Ry + densidad k 40 Å): 550 Ry + 20 Å (3×3×3) da
+  0,0009 meV de MAE en LiF y 0,0022 en BaTiO3; 400 Ry añade ~0,006 meV (máx. ~1 meV). Se usa 550 Ry + 20 Å.
+- Estructuras (entrenamiento / validación / pruebas): LiF 54 átomos 32/8 (desplazamientos, deformación ±3 %,
+  MD térmica MACE-MP 300/600/1000 K) + nanocubo (LiF)32 sin y con MD, par de Schottky en 126 átomos, centro F con
+  carga 0 y +1 en la misma geometría; BaTiO3 40 átomos 32/8 (modo polar ±1,2, deformación ±2 %, rotaciones
+  octaédricas a0a0c−, MD 300/600 K) + pared de dominio de 180° (120 átomos) y modo polar modulado con λ = 3a
+  (135 átomos); H2O en clústeres n = 2/4/8, 32/4, con los ajustes del dataset de H2O existente para poder usar
+  sus 200 monómeros, + (H2O)32 (96 átomos, 3 conformaciones). Comprobados al leerlos de vuelta: recuentos, ids
+  únicos, distancias mínimas, vacío, k, cargas, pseudopotenciales y la consistencia de las rotaciones.
+- H0 para Δ funciona con psml: en LiF |H − H0| alineado 8 meV frente a 391 de |H|.
+- Etiquetas: H2O en clústeres hechas (39, comprobadas); LiF y BaTiO3 en cola.
 
 ## Descartado
 
