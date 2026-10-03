@@ -78,6 +78,13 @@ predecir se suma H0. Con la pérdida de gauge (S como etiqueta), 3 semillas:
   4,3/4,5/4,7 → **4,5 meV** (sin Δ, `fp32_lin`: 171/277/204), bandas alineadas **22,6**, MD AB **5,0**; con poly6 +
   `kl` 5,2 meV y bandas **16,7**, MD AB 5,4 / 12,8. Dentro de `w90` (test común alineado): 2,08 → **0,62 meV**.
   **Entrenando solo con la celda de 2 átomos, la bicapa sale igual que entrenando con la supercelda `6x6`.**
+- **`w90` con Δ y los conjuntos del chat de fonones (N = 8, protocolo de 8000 pasos, 3 semillas, H alineado en meV):**
+  aleatorio (`random8`) frente a 6 aleatorias + 2 `rattle` térmicas de los modos ópticos de Γ (`S6R2`): MD térmica de
+  `w90` 0,58 → **0,50** (−14 %, 3/3 semillas), test cartesiano común 0,69 → 0,75 (+9 %, 3/3 peor), bicapa 4,33 → 4,18,
+  moiré 0,77 → 0,77. Sin Δ el chat de fonones medía −36 % en MD y −12 % en el cartesiano: con Δ la ventaja de los datos
+  térmicos se reduce a la mitad en su dominio y el compromiso entre dominios aparece también en `w90`. Elegir según
+  el uso (MD térmica: `S6R2`; desplazamientos: aleatorio). Con Δ, 8 estructuras aleatorias dan 0,69 meV en el test
+  cartesiano frente a 0,62 con 64.
 - **bicapa → moiré** (fp32 + lin + gauge, registros no vistos): H alineado 5,64 → **0,96 meV** (1,15/0,93/0,79;
   referencia 20,95), intracapa 4,4 → 0,67, intercapa 6,8 → 1,25, bandas alineadas 7,3 → **2,0 meV**
   (referencia 69,6).
@@ -158,6 +165,10 @@ de 22° del mismo sistema, 3 semillas, meV:
 medio sea de ~14 meV: el error se concentra en los on-site, que desplazan el cono de Dirac respecto al hBN, y
 H0 (la densidad atómica superpuesta) ya contiene esa electrostática. Con los datos de la tricapa (`n480`) el
 mismo modelo daba 6,1 meV y 272 meV de bandas: la diferencia era el sistema, no el modelo.
+**Con la mejor receta de `6x6`** (+ `kl`, compile, 16.000 actualizaciones; `fp32_lin_gaugeh_kl_delta_compile_u16k`):
+validación 2,23 → **1,73 meV** (1,69/1,78/1,71, las 3 semillas mejoran), moiré H 1,26 → **0,99** (intra 1,46 → 1,21,
+inter 0,89 → 0,60), bandas 19,6 → **16,3** (8,1/16,0/24,9 por semilla: mucha dispersión), a cambio del doble de tiempo
+(99 frente a 53 min). La receta se traslada a otro material: −22 % dentro y −21 % en el moiré.
 
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
 alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
