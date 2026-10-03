@@ -156,6 +156,15 @@ def test_output_scaleshift_fit_keeps_equivariance():
     student.fit_output_scaleshift([data], table)
     assert bool(student.output_scaleshift_fitted)
 
+    # (H, S) labels with an H-only model (gauge loss, S as a label only): fitted on H alone.
+    with_overlap = copy.copy(data)
+    with_overlap.point_labels = torch.stack([data.point_labels, torch.rand_like(data.point_labels)], dim=1)
+    with_overlap.edge_labels = torch.stack([data.edge_labels, torch.rand_like(data.edge_labels)], dim=1)
+    h_only = E3nnGraph2Mat(**kwargs, output_scaleshift=True)
+    h_only.fit_output_scaleshift([with_overlap], table)
+    assert torch.equal(h_only.state_dict()["self_interactions.0.output_shift"],
+                       student.state_dict()["self_interactions.0.output_shift"])
+
     for block in student.self_interactions:
         ids, scalar = block._irrep_instances()
         assert torch.all(block.output_shift[~scalar] == 0) and torch.any(block.output_shift[scalar] != 0)

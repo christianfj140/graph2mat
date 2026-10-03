@@ -285,9 +285,11 @@ class E3nnGraph2Mat(TorchGraph2Mat):
         basis_table = self.basis_table if basis_table is None else basis_table
         collected = {"node": {}, "edge": {}}
         for batch in batches:
-            coefficients = target_coefficients_from_labels(
-                self, batch, basis_table, batch.point_labels, batch.edge_labels
-            )
+            nodes, edges = batch.point_labels, batch.edge_labels
+            if self.n_matrix_components == 1 and nodes.ndim == 2:
+                # (H, S) labels with an H-only model (gauge loss, S as a label only): fit on H.
+                nodes, edges = nodes[:, 0], edges[:, 0]
+            coefficients = target_coefficients_from_labels(self, batch, basis_table, nodes, edges)
             for kind in collected:
                 for key, value in coefficients[kind].items():
                     collected[kind].setdefault(key, []).append(value)
