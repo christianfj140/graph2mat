@@ -143,6 +143,22 @@ falta y del orden de las capas. Pruebas válidas posibles: (A) entrenar con `gra
 (bicapa, AA/AB1/AB2, 75 estructuras) y probar en este moiré; (B) mantener `n480` y etiquetar con SIESTA un
 moiré de tricapa (`graphene_hbn_moire_overlap_benchmark_42` solo tiene S). Pendiente de decidir.
 
+**Grafeno/hBN, prueba válida (`--material grhbn_bl`):** entrenado con la MD de la propia bicapa grafeno/hBN
+(`graphene_hBN_bilayer_train`, apilamientos AA/AB1/AB2, 66 + 9 estructuras de 4 átomos) y probado en el moiré
+de 22° del mismo sistema, 3 semillas, meV:
+
+| Variante | validación H alineado | moiré H alineado (intra / inter) | moiré bandas alineadas |
+|---|---|---|---|
+| baseline | 16,9 | 13,3 (17,2 / 6,2) | 876 |
+| fp32 + lin + gauge | 12,0 | 14,0 (18,5 / 6,1) | 830 |
+| fp32 + lin + gauge + Δ | **2,23** | **1,26 (1,46 / 0,89)** | **19,6** |
+
+**Con Δ, un modelo entrenado solo con celdas de 4 átomos predice el moiré rotado de 28 átomos con 1,3 meV de H y
+20 meV de bandas** (−91 % de H y −98 % de bandas frente a la receta base). Sin Δ las bandas fallan aunque el H
+medio sea de ~14 meV: el error se concentra en los on-site, que desplazan el cono de Dirac respecto al hBN, y
+H0 (la densidad atómica superpuesta) ya contiene esa electrostática. Con los datos de la tricapa (`n480`) el
+mismo modelo daba 6,1 meV y 272 meV de bandas: la diferencia era el sistema, no el modelo.
+
 **Dónde está el error (4.3, `g2m_error_breakdown.py`, `6x6`, sin el desplazamiento c·S):** fuera del
 alcance de los orbitales ≤1 % (la máscara orbital, 4.6, no aporta en grafeno). lin quitó el 82 % del error
 de los pares a ~4,3 Å (cerca del corte); la pérdida de gauge mejora todas las capas de vecinos (primeros
