@@ -109,6 +109,20 @@ tabla daba valores fuera de distribución de N = 1, 2, 4 promediados con los de 
 `g2m_ood_eval.py` agrupaba por variante sin separar N (corregido). Para seguir mejorando en grafeno
 no hacen falta más estructuras de la misma familia, sino otro objetivo o más capacidad (4.4, 7.2).
 
+**Extrapolar está limitado por los datos: 2 bicapas en el entrenamiento valen más que cualquier cambio de modelo.**
+Mejor receta de `6x6` (N = 8) + 2 frames de la MD de bicapa (AA y BA de `n474`, 4 átomos cada uno; nunca AB, de donde
+sale el test de MD AB), 3 semillas, H alineado (intra / inter) y bandas alineadas en meV:
+
+| | validación | bicapa registros | MD AB | moiré real |
+|---|---|---|---|---|
+| `6x6` | 0,136 | 4,43 (4,79 / 4,06), 15,1 | 5,17 (6,35 / 4,00), 10,6 | 0,86 (1,04 / 0,67), 9,7 |
+| `6x6` + 2 bicapas | 0,123 | **2,57** (3,21 / 1,94), **3,3** | **3,19** (4,49 / 1,89), **4,6** | **0,50** (0,64 / 0,37), **2,6** |
+
+H −38 a −42 % y bandas −57 a −78 % fuera de distribución, sin empeorar la monocapa (0,136 → 0,123). El acoplamiento
+entre capas (−50 a −53 %) es lo que faltaba: ninguna arquitectura lo puede inferir de monocapas. La rejilla de
+registros incluye apilamientos parecidos a AA y BA (en parte dentro de distribución); la MD AB y el moiré rotado no.
+Coste: 2 SCF de 4 átomos. Receta recomendada para extrapolar a bicapas y moirés.
+
 **Moiré real** (`g2m_tbg_moire.py`: bicapas rotadas conmensurables de 21,8°, 32,2° y 13,2°, 28/52/76 átomos,
 etiquetadas con SIESTA con los ajustes de los registros; media de los tres ángulos, H alineado / bandas
 alineadas en meV, 3 semillas salvo indicación):
