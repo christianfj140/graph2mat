@@ -619,7 +619,12 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   sus 200 monómeros, + (H2O)32 (96 átomos, 3 conformaciones). Comprobados al leerlos de vuelta: recuentos, ids
   únicos, distancias mínimas, vacío, k, cargas, pseudopotenciales y la consistencia de las rotaciones.
 - H0 para Δ funciona con psml: en LiF |H − H0| alineado 8 meV frente a 391 de |H|.
-- Etiquetas: H2O en clústeres hechas (39, comprobadas); LiF y BaTiO3 en cola.
+- Etiquetas: H2O en clústeres 39/39 y LiF 45/45 hechas y comprobadas dos veces (el propio etiquetado: SCF
+  convergido y base congelada idéntica; después, de forma independiente: TSHS, átomos, orbitales por átomo
+  Li 6 / F 13, posiciones iguales al fdf, salida normal, |H − H†| ≤ 3·10⁻⁸ eV, NetCharge solo en el centro F +1).
+  El estado de carga sí cambia H a geometría fija: centro F +1 frente a 0, |ΔH| alineado 10 meV de media y
+  hasta 1,1 eV, muy por encima del error de los modelos: es una prueba real del eje «estado de carga».
+  BaTiO3 en marcha (de uno en uno, 4 núcleos, para no calentar la CPU).
 
 ## Descartado
 
