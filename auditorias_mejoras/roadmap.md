@@ -679,6 +679,20 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
     demasiado grande con solo 4,6 meV de error medio en H).
   - **Estado de carga:** a geometría fija el modelo da la misma H para el centro F neutro y +1; acierta mejor el
     neutro (gap +0,4 eV) que el +1 (+1,4 eV). Para defectos cargados la carga tiene que ser una entrada del modelo.
+- **BaTiO3 (entrenado con 40 átomos: modo polar ±1,2, deformación, rotaciones octaédricas, MD 300/600 K; 3 semillas;
+  meV):**
+
+  | | validación H | pared de dominio 180°, 120 átomos: H / gap / bandas | modo polar con λ = 3a, 135 átomos: H / gap / bandas |
+  |---|---|---|---|
+  | referencia | 14,4 | 4,00 / −400 / 72 | 4,33 / −350 / 70 |
+  | con Δ | **2,44** | **0,46 / ±30 / 14** | **0,48 / +44 / 20** |
+
+  Δ: −83 % en validación y −89 % en las pruebas, con el gap (1,72 eV) a ±50 meV y bandas a 14–20 meV. El peor par es
+  Ba–Ba (0,8–1,2 meV con Δ; 8–14 sin él). **La pared de dominio y el modo polar no muestran el problema de largo
+  alcance del nanocubo de LiF**: la polarización cambia de signo, pero sin superficie ni carga neta el entorno
+  sigue siendo periódico y local. (Las pruebas salen mejor que la validación porque esta incluye MD a 600 K.)
+- **Variantes en H2O en clústeres (con Δ, 3 semillas; validación / (H2O)32 H / bandas, meV):** con Δ 4,16 / 2,40 / 112;
+  + envolvente por par (7.3) 4,42 / 2,32 / 107; + `output_scaleshift` (5.2) 4,61 / 2,51 / 119. Ambas neutras en H2O.
 
 ## Descartado
 
