@@ -533,6 +533,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ sin el desplazamiento c·S, por on-site/capa de vecinos/par l, y fuera de alcance orbital. `6x6` (semilla 0, meV por elemento): lin 1,79 → 0,93 quitó el 82 % del error a ~4,3 Å; la pérdida de gauge 0,93 → 0,62 mejora todas las capas (primeros vecinos 6,1 → 3,6, terceros 2,8 → 1,4) pero el **on-site** solo 12,3 → 10,3: es ya el 23 % del error y el mayor por elemento, el siguiente objetivo |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | 🔶 **pérdida espectral de primer orden implementada** (`gauge_invariant_mse(spectral_weight=…)` + `MatrixDataModule(spectral_window=True)`): por estructura, `‖Cᵀ ΔH(Γ) C − media(diag)·I‖²` con C los autovectores S-ortonormales de la H de referencia completa en una ventana alrededor de E_F en Γ (`spectral_window.npz` junto a cada muestra, columnas de relleno a cero). La diagonal es el error de primer orden de cada autovalor y el resto el acoplamiento dentro de la ventana; CᵀSC = I, así que el desplazamiento cS se va con la media: no depende del gauge y solo necesita ΔH = predicción − etiqueta, luego vale tal cual con Δ (no hace falta H0 como componente auxiliar). El collate calcula en los workers el orbital (fila, columna) de cada elemento de etiqueta. Test: el H(Γ) ensamblado coincide con `matrix_from_data` (1e-12; homo/heteronuclear, imágenes periódicas, 2 estructuras), H + cS no cuesta nada y la diagonal reproduce el cambio exacto de los autovalores. `6x6` ±3 eV: 34 estados (±2 eV solo los 4 de Dirac); en el mejor modelo, error espectral de entrenamiento 1,5 meV RMSE frente a 2,1 de H. Solo Γ: sirve para superceldas (`6x6`, bicapa), no para `w90` (2 átomos, sin estados cerca de E_F en Γ). **Medido en `6x6` (mejor receta, 3 semillas; validación / bicapa H, bandas / MD AB H, bandas / moiré H, bandas, meV): sin el término 0,136 / 4,43, 15,1 / 5,17, 10,6 / 0,86, 9,7; peso 1: 0,134 / 5,38, 15,3 / 5,74, 11,3 / 1,11, 10,8; peso 10: 0,166 / 4,27, 20,3 / 5,04, 13,5 / 0,84, 13,2.** No mejora las bandas fuera de distribución: con peso 1 empeora el H de fuera (+20 %, sobre todo intracapa) sin cambiar las bandas; con peso 10 el H se mantiene pero las bandas empeoran un 35 % y la validación un 22 %. El entrenamiento tarda ~40 % más (62–64 min frente a 45, con la carga de la noche). La ventana en Γ de la monocapa no representa el error de bandas de la bicapa y el moiré, que viene sobre todo del acoplamiento entre capas, ausente en el entrenamiento. ⚪ en grafeno (monocapa → bicapa/moiré) en esta forma; podría servir entrenando con el sistema objetivo (bicapa) o con varios puntos k |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
+| 4.7 | Pérdida en la métrica de S (Löwdin S^−1/2 ΔH S^−1/2) o penalización de ΔH en el espacio casi nulo de S | P | M | medio | ⏳ motivada por el banco: en (H2O)32 con 2,4 meV de error en H el gap se cierra por estados que viven en el espacio casi nulo de S (base difusa); la ortogonalización canónica lo recupera en la evaluación |
 | 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ⚪ (solo medido en grafeno (base SZ)) en grafeno (base SZ) el error fuera del alcance de los orbitales es ≤1 % del total y los ceros exactos ya salen a cero: no hay nada que enmascarar |
 
 ## Ola 5 — El objetivo: residuo y normalización
@@ -641,6 +642,21 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   [VBM − 2 eV, CBM + 2 eV] y error del gap). Lotes según una sonda de VRAM (LiF 2, BaTiO3 4, H2O 8). Probado de
   extremo a extremo con 40 actualizaciones (Δ con H0 sumado en las pruebas). En cola: receta de referencia sin y
   con Δ, y después 7.3, 5.2 y 7.2 con Δ, 3 semillas por material.
+- **H2O en clústeres (entrenado con n = 2/4/8, probado en (H2O)32 de 96 átomos; 3 semillas, meV):**
+
+  | | validación H | (H2O)32 H (H–H / H–O / O–O) | gap: error medio, bruto → tras ortogonalización canónica | bandas en la ventana del gap (canónica) |
+  |---|---|---|---|---|
+  | referencia | 19,8 | 9,1 (14,0 / 9,7 / 5,4) | −4900 → ±850 | 241 |
+  | con Δ | **4,2** | **2,4** (4,0 / 2,4 / 1,4) | −2600 (6 de 9 cerrados) → **±245** | **112** |
+
+  Δ vuelve a ser la mejora grande (−79 % en validación, −74 % en el clúster de 96 átomos). **Hallazgo:** con
+  solo 2,4 meV de error en H, el gap se cierra en la mayoría de predicciones: aparecen estados dentro del gap
+  que viven en un 50–95 % en el espacio casi nulo de S (137 autovalores de S < 10⁻² en (H2O)32 por la base
+  difusa de 0,03 eV). Un error de H en esas direcciones se amplifica como 1/λ(S). Resolviendo en el subespacio
+  de S con autovalores > 10⁻² (ortogonalización canónica, igual para referencia y predicción) el gap vuelve
+  (error medio 245 meV con Δ). Consecuencias: (1) en bases difusas el error medio de H no basta, hay que medir
+  el espectro tras quitar el espacio casi nulo de S; (2) **nueva mejora candidata (4.7): una pérdida que pese el
+  error de H en la métrica de S (Löwdin, S^−1/2 ΔH S^−1/2) o que penalice ΔH en el espacio casi nulo de S.**
 
 ## Descartado
 
