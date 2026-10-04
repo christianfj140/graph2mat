@@ -628,6 +628,19 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   **Fase 1 etiquetada: 126 estructuras (H2O 39, LiF 45, BaTiO3 42).** Para no calentar la CPU, las etiquetas
   corren fijadas a los núcleos E (`--cpus 8-23`): mismo ritmo que en los núcleos P y ~18 °C menos en el núcleo
   más caliente; con trabajos de GPU activos, 4 núcleos E no pausaron ningún entrenamiento.
+- **Auditoría de las etiquetas (sin entrenar, `g2m_bench_materials.py audit`):**
+  - Elementos de H más allá del grafo de graph2mat (pares a más de R_i + R_j, acoplados por proyectores KB de un
+    tercer átomo; nunca se predicen): despreciables en H2O (≤0,03 meV) y LiF (F–F hasta 5 meV), pero en BaTiO3
+    los O–O llegan a **50 meV** (hasta 6,1 Å, alcance del grafo 5,0 Å). Pocos (8·10⁻⁶ de |H|²), pero por encima
+    del error esperado de los modelos: **8.2 deja de ser neutro en BaTiO3**, hay que medir su efecto.
+  - Condicionamiento de S en Γ: λ_min 1,3·10⁻³ en H2O (base de 0,03 eV), 5·10⁻⁵ en LiF y 3·10⁻⁵ en BaTiO3
+    (κ hasta 3·10⁵): las bases difusas (EnergyShift pequeño) amplifican en los autovalores errores pequeños de H.
+    Hay que vigilar el gap y las bandas, no solo el H medio.
+- **Ejecutor `g2m_bench_benchmark.py`:** entrena con la partición de entrenamiento, valida con la de validación y
+  evalúa cada prueba por separado (H alineado, H alineado por par de especies, bandas en la ventana
+  [VBM − 2 eV, CBM + 2 eV] y error del gap). Lotes según una sonda de VRAM (LiF 2, BaTiO3 4, H2O 8). Probado de
+  extremo a extremo con 40 actualizaciones (Δ con H0 sumado en las pruebas). En cola: receta de referencia sin y
+  con Δ, y después 7.3, 5.2 y 7.2 con Δ, 3 semillas por material.
 
 ## Descartado
 
