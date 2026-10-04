@@ -624,7 +624,10 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   Li 6 / F 13, posiciones iguales al fdf, salida normal, |H − H†| ≤ 3·10⁻⁸ eV, NetCharge solo en el centro F +1).
   El estado de carga sí cambia H a geometría fija: centro F +1 frente a 0, |ΔH| alineado 10 meV de media y
   hasta 1,1 eV, muy por encima del error de los modelos: es una prueba real del eje «estado de carga».
-  BaTiO3 en marcha (de uno en uno, 4 núcleos, para no calentar la CPU).
+  BaTiO3 42/42 hecho y comprobado igual (orbitales Ba 19 / Ti 19 / O 13, base congelada idéntica, |H − H†| ≤ 4·10⁻⁸ eV).
+  **Fase 1 etiquetada: 126 estructuras (H2O 39, LiF 45, BaTiO3 42).** Para no calentar la CPU, las etiquetas
+  corren fijadas a los núcleos E (`--cpus 8-23`): mismo ritmo que en los núcleos P y ~18 °C menos en el núcleo
+  más caliente; con trabajos de GPU activos, 4 núcleos E no pausaron ningún entrenamiento.
 
 ## Descartado
 
