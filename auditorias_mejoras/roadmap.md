@@ -693,6 +693,10 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   sigue siendo periódico y local. (Las pruebas salen mejor que la validación porque esta incluye MD a 600 K.)
 - **Variantes en H2O en clústeres (con Δ, 3 semillas; validación / (H2O)32 H / bandas, meV):** con Δ 4,16 / 2,40 / 112;
   + envolvente por par (7.3) 4,42 / 2,32 / 107; + `output_scaleshift` (5.2) 4,61 / 2,51 / 119. Ambas neutras en H2O.
+  + capa de actualización de aristas (7.2) **3,47** / 2,24 / 117: −17 % en validación y −7 % en (H2O)32, la primera
+  ganancia de 7.2 fuera del grafeno (aquí los términos de tres centros entre moléculas cuentan).
+- **7.3 en LiF (con Δ, 3 semillas):** validación 1,73 → 1,70 meV y pruebas iguales (nanocubo 16,8 → 16,7, Schottky
+  4,57 → 4,55): neutra también con radios muy distintos (Li 5,2 Å frente a F 2,3 Å).
 
 ## Descartado
 
