@@ -706,6 +706,10 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   entrenamiento (neutro) a costa del otro. Confirma que la carga tiene que ser una entrada; 7.2 en sí, neutra aquí.
 - **7.3 en BaTiO3 (con Δ):** validación 2,44 → 2,52 meV, pruebas iguales (0,46–0,48 meV), gap algo peor (±40 → ±55 meV).
   Neutra en los tres materiales: 7.3 queda ❌ (se mantiene como opción).
+- **5.2 (`output_scaleshift`) en BaTiO3 (con Δ):** validación 2,44 → **2,02 meV** (−17 %, las 3 semillas mejoran),
+  pared de dominio 0,46 → 0,38 y modo polar 0,48 → 0,39 meV (−19 %), bandas 14–20 → 12 meV. Gana en BaTiO3 (como en
+  `6x6`), es neutra en H2O y peor en LiF: depende del material. Hipótesis: ayuda cuando las escalas de los bloques son
+  muy distintas pero el desplazamiento on-site está bien definido (Ti-d, O-p) y perjudica con el 2s difuso del Li.
 
 ## Descartado
 
