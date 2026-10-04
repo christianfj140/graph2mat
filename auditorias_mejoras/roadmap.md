@@ -710,6 +710,24 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   pared de dominio 0,46 → 0,38 y modo polar 0,48 → 0,39 meV (−19 %), bandas 14–20 → 12 meV. Gana en BaTiO3 (como en
   `6x6`), es neutra en H2O y peor en LiF: depende del material. Hipótesis: ayuda cuando las escalas de los bloques son
   muy distintas pero el desplazamiento on-site está bien definido (Ti-d, O-p) y perjudica con el 2s difuso del Li.
+- **7.2 en BaTiO3 (con Δ):** validación 2,44 → 2,43 meV, pruebas −4 a −6 % (0,46 → 0,44 y 0,48 → 0,45), gap algo peor
+  (±40 → ±50 meV): neutra.
+
+**Resumen de la fase 1 del banco (2026-10-04, 3 semillas por casilla; mejora respecto a la receta con Δ):**
+
+| | H2O en clústeres | LiF | BaTiO3 |
+|---|---|---|---|
+| Δ frente a referencia (validación) | −79 % | −91 % | −83 % |
+| 7.3 envolvente por par | neutra | neutra | neutra |
+| 5.2 `output_scaleshift` | neutra | **peor** (+25 %, gap del nanocubo +5 eV) | **−17 %** |
+| 7.2 actualización de aristas | **−17 %** | neutra (mejor F neutro, peor F +1) | neutra |
+
+Conclusiones: Δ es la mejora general en todos los materiales. Las modificaciones de arquitectura dependen del
+material (5.2 y 7.2) o no aportan (7.3). Lo que el banco ha descubierto que falta no es arquitectura local sino
+física nueva: **largo alcance** (nanocubo de LiF 3,7 veces peor que el volumen, gap +3 eV), **estado de carga**
+como entrada (centro F) y **niveles de defecto**, más la **pérdida en la métrica de S (4.7)** para bases difusas,
+y los **elementos KB más allá del grafo (8.2)** en BaTiO3. Siguiente, por valor: 8.4 (electrostática de largo
+alcance, con LiF como prueba), la carga total como entrada y 4.7.
 
 ## Descartado
 
