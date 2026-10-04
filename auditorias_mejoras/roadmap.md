@@ -700,6 +700,10 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
 - **5.2 (`output_scaleshift`) en LiF (con Δ):** validación 1,73 → 2,17 meV (peor en las 3 semillas); en las pruebas H
   casi igual (nanocubo 16,8 → 16,1) pero el gap del nanocubo empeora de +3,1 a +5,2 eV. Peor en LiF; con 6x6 había
   ganado dentro de distribución: depende del material, no se pone por defecto.
+- **7.2 (una capa de actualización de aristas) en LiF (con Δ):** validación igual (1,73 → 1,75 meV); nanocubo y Schottky
+  iguales. Cambia el centro F: el neutro mejora mucho (H 4,7 → 3,5 meV, gap +0,44 → +0,14 eV, bandas 152 → 64 meV) y
+  el +1 empeora (6,9 → 8,1 meV): con la misma geometría el modelo afina el estado que más se parece al
+  entrenamiento (neutro) a costa del otro. Confirma que la carga tiene que ser una entrada; 7.2 en sí, neutra aquí.
 
 ## Descartado
 
