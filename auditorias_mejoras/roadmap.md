@@ -578,7 +578,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 8.1 | Spin colineal y SOC; referencia atómica coherente con spin | C P | L | medio | 🔶 `spin_h_only` del fork |
 | 8.2 | Bloques de H mediados por proyectores KB (aristas de readout más largas) | P | L | medio | ⚪ (solo medido en grafeno) para grafeno (despreciable según la Fase 0); sí para elementos pesados |
 | 8.3 | Tipos de punto por Z: dos especies con la misma Z y distinta base (ghosts) | C | M | bajo | ⏳ |
-| 8.4 | **(GPT Astra, Maths and Physics)** Electrostática de largo alcance para sistemas polares | P | L | alto | ⏳ |
+| 8.4 | **(GPT Astra, Maths and Physics)** Electrostática de largo alcance para sistemas polares | P | L | alto | ⏳ **señal en el banco:** nanocubo de LiF 3,7 veces peor que el volumen con defecto y gap 3 eV demasiado grande con Δ; propuesta común de los 4 GPT: ΔH_LR ≈ (V_i + V_j)/2 · S_ij con V de cargas aprendidas + Ewald (compatible con el gauge) |
 
 ## Banco de materiales (pendiente de definir)
 
@@ -657,6 +657,28 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   (error medio 245 meV con Δ). Consecuencias: (1) en bases difusas el error medio de H no basta, hay que medir
   el espectro tras quitar el espacio casi nulo de S; (2) **nueva mejora candidata (4.7): una pérdida que pese el
   error de H en la métrica de S (Löwdin, S^−1/2 ΔH S^−1/2) o que penalice ΔH en el espacio casi nulo de S.**
+- **LiF (entrenado con 54 átomos en volumen: desplazamientos, deformación, MD 300–1000 K; 3 semillas; meV; gap y
+  bandas tras ortogonalización canónica, error del gap = predicho − referencia):**
+
+  | prueba (gap de referencia) | H referencia → con Δ | H con Δ por par F–F / F–Li / Li–Li | gap con Δ | bandas con Δ |
+  |---|---|---|---|---|
+  | validación (volumen) | 20,3 → **1,73** | | | |
+  | par de Schottky, 126 átomos (2,69 eV) | 16,0 → **4,6** | 1,3 / 3,7 / 23,7 | +2,3 eV | 370 |
+  | centro F neutro (2,74 eV) | 28,2 → **4,7** | 1,9 / 4,5 / 18,0 | +0,4 eV | 152 |
+  | centro F +1, misma geometría (4,87 eV) | 27,6 → 6,9 | 2,3 / 6,1 / 30,2 | +1,4 eV | 175 |
+  | nanocubo (LiF)32 (5,28 eV) | 137 → **16,8** | 6,4 / 13,4 / 80,8 | +3,1 eV | 1269 |
+  | nanocubo con MD 300 K (5,45 eV) | 163 → 18,2 | 7,1 / 15,2 / 83,3 | +3,0 eV | 1178 |
+
+  - Δ es la mejora grande también en un sólido iónico: −91 % en validación y −70 a −88 % en las pruebas.
+  - **El error vive en los pares Li–Li** (el 2s del Li llega a 5,2 Å y los pares a 10,4 Å): 5–15 veces el de F–F.
+  - **El nanocubo es 3,7 veces peor que el volumen con defecto** (17 frente a 4,6 meV) aunque sus entornos locales
+    son casi los del volumen, y el gap sale 3 eV demasiado grande: la superficie y el potencial de Madelung
+    distinto no se ven con un modelo local. Es la señal que buscábamos para **8.4 (electrostática de largo
+    alcance)**: deja de estar aparcado.
+  - **Estados de defecto:** en el par de Schottky el modelo no reproduce los niveles dentro del gap (gap 2,3 eV
+    demasiado grande con solo 4,6 meV de error medio en H).
+  - **Estado de carga:** a geometría fija el modelo da la misma H para el centro F neutro y +1; acierta mejor el
+    neutro (gap +0,4 eV) que el +1 (+1,4 eV). Para defectos cargados la carga tiene que ser una entrada del modelo.
 
 ## Descartado
 
