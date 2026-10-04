@@ -697,6 +697,9 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   ganancia de 7.2 fuera del grafeno (aquí los términos de tres centros entre moléculas cuentan).
 - **7.3 en LiF (con Δ, 3 semillas):** validación 1,73 → 1,70 meV y pruebas iguales (nanocubo 16,8 → 16,7, Schottky
   4,57 → 4,55): neutra también con radios muy distintos (Li 5,2 Å frente a F 2,3 Å).
+- **5.2 (`output_scaleshift`) en LiF (con Δ):** validación 1,73 → 2,17 meV (peor en las 3 semillas); en las pruebas H
+  casi igual (nanocubo 16,8 → 16,1) pero el gap del nanocubo empeora de +3,1 a +5,2 eV. Peor en LiF; con 6x6 había
+  ganado dentro de distribución: depende del material, no se pone por defecto.
 
 ## Descartado
 
