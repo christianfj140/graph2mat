@@ -25,7 +25,7 @@ def test_ewald_madelung_rocksalt():
     np.testing.assert_allclose(two.numpy(), np.tile(expected * q.numpy(), 2), rtol=1e-6)
 
 
-def _model_and_batch(long_range: bool, n_components: int = 2):
+def _model_and_batch(long_range, n_components: int = 2):
     mace_modules = pytest.importorskip("mace.modules")
     from torch_geometric.data import Batch
     from graph2mat.models.mace import MatrixMACE
@@ -102,3 +102,43 @@ def test_long_range_needs_the_overlap():
     model, batch, _, _ = _model_and_batch(True, n_components=1)
     with pytest.raises(ValueError, match="overlap"):
         model(batch)
+
+
+def test_equilibrate_charges_solves_qeq():
+    """The charges add up to Q and make chi + J q + A q the same at every atom (the
+    stationarity condition with its Lagrange multiplier), structure by structure."""
+    from graph2mat.models.long_range import equilibrate_charges, ewald_matrix
+
+    rng = np.random.default_rng(5)
+    cells = [np.diag([5.0, 6.0, 7.0]), np.array([[4.0, 0, 0], [1.0, 5.0, 0], [0, 0.5, 6.0]])]
+    sizes, totals = [5, 4], torch.tensor([0.0, 1.0], dtype=torch.float64)
+    positions = torch.tensor(np.concatenate([rng.uniform(0, 4, (n, 3)) for n in sizes]))
+    cell = torch.tensor(np.concatenate(cells))
+    batch = torch.tensor([0] * sizes[0] + [1] * sizes[1])
+    chi = torch.tensor(rng.normal(size=sum(sizes)))
+    hardness = torch.tensor(rng.uniform(5, 15, sum(sizes)))
+    q = equilibrate_charges(chi, hardness, positions, cell, batch, totals, smearing=1.0)
+    for s in range(2):
+        m = batch == s
+        assert abs(float(q[m].sum() - totals[s])) < 1e-10
+        a = ewald_matrix(positions[m], cell[3 * s:3 * s + 3], smearing=1.0)
+        mu = chi[m] + hardness[m] * q[m] + a @ q[m]
+        np.testing.assert_allclose(mu.numpy(), float(mu.mean()), atol=1e-8)
+    assert torch.all(equilibrate_charges(torch.zeros_like(chi), hardness, positions, cell, batch,
+                                         torch.zeros(2, dtype=torch.float64), smearing=1.0) == 0)
+
+
+def test_qeq_mode_starts_neutral_and_takes_the_total_charge():
+    """long_range='qeq': same output as without it for neutral structures at the start; a
+    total charge gives charges that add up to it (and change H)."""
+    plain, batch, _, _ = _model_and_batch(False)
+    model, _, _, _ = _model_and_batch("qeq")
+    base = plain(batch)
+    out = model(batch)
+    for key in ("node_labels", "edge_labels"):
+        torch.testing.assert_close(out[key], base[key])
+    batch.total_charge = torch.tensor([1.0, -2.0])
+    out = model(batch)
+    sums = torch.zeros(2).index_add(0, batch.batch, out["node_charges"].detach())
+    np.testing.assert_allclose(sums.numpy(), [1.0, -2.0], atol=1e-5)
+    assert (out["node_labels"] - base["node_labels"]).abs().max() > 1e-4

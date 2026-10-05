@@ -578,7 +578,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 8.1 | Spin colineal y SOC; referencia atómica coherente con spin | C P | L | medio | 🔶 `spin_h_only` del fork |
 | 8.2 | Bloques de H mediados por proyectores KB (aristas de readout más largas) | P | L | medio | ⚪ (solo medido en grafeno) para grafeno (despreciable según la Fase 0); sí para elementos pesados |
 | 8.3 | Tipos de punto por Z: dos especies con la misma Z y distinta base (ghosts) | C | M | bajo | ⏳ |
-| 8.4 | **(GPT Astra, Maths and Physics)** Electrostática de largo alcance para sistemas polares | P | L | alto | ⏳ **señal en el banco:** nanocubo de LiF 3,7 veces peor que el volumen con defecto y gap 3 eV demasiado grande con Δ; con superficies en el entrenamiento mejora un 38 % pero el gap sigue ±3 eV según la semilla; en ZnO las láminas fallan (gap ±1,1 eV) con todas las recetas; propuesta común de los 4 GPT: ΔH_LR ≈ (V_i + V_j)/2 · S_ij con V de cargas aprendidas + Ewald (compatible con el gauge) |
+| 8.4 | **(GPT Astra, Maths and Physics)** Electrostática de largo alcance para sistemas polares | P | L | alto | 🔶 **implementada** (`long_range`: `"charges"` = cargas locales neutralizadas, `"qeq"` = equilibrado de cargas con electronegatividad y dureza aprendidas y la carga total de `NetCharge`; potencial de Ewald de cargas gaussianas de 2 Å y H += (V_i + V_j)/2 · S_ij; S de H0 en la predicción). Ganancias moderadas y dependientes del material (ver «Banco de materiales»): cargas fijas −7 % en validación de BaTiO3 y gap/bandas −25 a −45 %, pero rompen las láminas polares de ZnO (×2,4–3,8); Qeq las deja como sin término y mejora el gap de la lámina no polar (144 → 20 meV) y el centro F neutro (−24 %); sin estructuras cargadas en el entrenamiento la carga total aún no ayuda (F +1 peor). Origen: nanocubo de LiF 3,7 veces peor que el volumen con defecto y gap 3 eV demasiado grande con Δ; propuesta común de los 4 GPT: ΔH_LR ≈ (V_i + V_j)/2 · S_ij con V de cargas aprendidas + Ewald (compatible con el gauge) |
 
 ## Banco de materiales (pendiente de definir)
 
@@ -813,6 +813,45 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
   prueba mezcla superficie no vista y campo de largo alcance (la lámina no polar también falla): para separar ambas
   cosas falta entrenar con láminas no polares y mirar lo que queda en las polares. 5.2 vuelve a ganar dentro de
   distribución (−28 %, como en BaTiO3) y a empeorar gap y bandas fuera; 7.2 neutra (−10 % en validación).
+
+- **ZnO con láminas no polares en el entrenamiento (conjunto extra `nonpolar`: (10-10) de 2 y 4 celdas y (11-20) de
+  4, una con desplazamientos y MD a 300 y 600 K cada una; la prueba (10-10) es de 3 celdas; 3 semillas, con Δ; H /
+  |error del gap| / bandas, meV):** lámina no polar 25,8 / 677 / 253 → **3,9 / 144 / 44**; láminas polares de 2/4/6
+  celdas 31,4 / 11,1 / 6,1 → 11,3 / 6,9 / 4,3 meV, gap ~1,1 eV → 240–370 meV, bandas 580–935 → 340–420. Con
+  superficies vistas, la no polar queda resuelta y las polares siguen ~3 veces peor en H y ~8 veces en bandas: ese
+  resto es el campo de largo alcance, la prueba limpia de 8.4. Validación igual (1,66 → 1,63).
+- **4.7 con pesos menores (H2O, 3 semillas):** 10⁻⁵: validación 4,33, gap bruto 1788 meV (3/9 cerrados); 3·10⁻⁵:
+  4,52, 603 meV (1/9). Compromiso monótono: cuanto más arregla el gap, más empeora H en validación; 10⁻⁴ sigue siendo
+  el útil si importa el espectro sin ortogonalización canónica.
+- **8.4 (electrostática de largo alcance), 3 semillas, con Δ; H / |error del gap| / bandas, meV:**
+
+  | | sin 8.4 | cargas fijas | Qeq |
+  |---|---|---|---|
+  | ZnO+no polar: validación | 1,63 | 1,65 | 1,61 |
+  | (10-10) | 3,9 / 144 / 44 | 3,7 / 71 / 42 | 4,3 / **20** / **31** |
+  | (0001) × 2 | 11,3 / 368 / 419 | 26,5 / 796 / 866 | 11,2 / 291 / 453 |
+  | (0001) × 4 | 6,9 / 267 / 374 | 20,7 / 649 / 654 | 6,9 / 192 / 464 |
+  | (0001) × 6 | 4,3 / 238 / 338 | 16,3 / 587 / 829 | 4,3 / 149 / 426 |
+  | LiF+defectos: validación | 1,98 | 1,88 | **1,78** |
+  | par de Schottky | 3,76 / 1641 / 248 | **3,21** / 1287 / 182 | 3,61 / 1515 / 224 |
+  | centro F neutro | 5,27 / 500 / 157 | 4,78 / 349 / 125 | **3,99 / 254 / 93** |
+  | centro F +1 | 6,62 / 1232 / 164 | 6,94 / 1325 / 176 | 7,55 / 1404 / 186 |
+  | nanocubo / con MD 300 K | 10,4 / 11,1 | 9,5 / 11,9 | 10,1 / 13,2 |
+  | BaTiO3: validación | 2,44 | **2,27** | |
+  | pared de dominio / modo polar | 0,46 / 30 / 14 · 0,48 / 44 / 20 | 0,46 / **23 / 11** · 0,49 / **24 / 13** | |
+
+  - **Cargas fijas** (función del entorno local): ayudan en sistemas sin superficie polar (BaTiO3 −7 % en validación y
+    gap/bandas −25 a −45 %; LiF −5 % en validación y −15 % en el par de Schottky), pero en las láminas polares de ZnO
+    empeoran H ×2,4–3,8: unas cargas de volumen en una pila polar crean el campo sin apantallar, que crece con el
+    grosor, mientras que en DFT los electrones pasan de una cara a otra y lo apantallan.
+  - **Qeq** (cargas del mínimo de Σχq + ½Jq² + Coulomb con Σq = Q): ya no rompe las láminas polares (H igual que sin
+    8.4, gap −20 a −37 %, bandas +8 a +26 %), da el mejor gap de la lámina no polar (144 → 20 meV), la mejor validación
+    de LiF (−10 %) y el mejor centro F neutro (−24 % en H, gap 500 → 254 meV). No arregla el nanocubo (con MD, peor).
+  - **Carga total:** con Qeq entra en el modelo (F +1 ya no recibe la misma H que el neutro), pero el entrenamiento no
+    tiene estructuras cargadas y χ/J no saben qué hacer con ella: F +1 empeora (6,6 → 7,6 meV). Falta entrenar con
+    defectos cargados.
+  - Lo que sigue sin resolver en las polares es sobre todo el de bandas: posible metalización de superficie (gap de
+    0,3–0,5 eV) que una corrección de primer orden V·S no captura.
 
 ## Descartado
 

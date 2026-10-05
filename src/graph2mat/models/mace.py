@@ -1,6 +1,8 @@
 from copy import copy
 from typing import Literal, Optional, Sequence, Union
 
+import math
+
 import torch
 from e3nn import o3
 from torch.utils.checkpoint import checkpoint
@@ -13,7 +15,7 @@ from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
     HamiltonianLocalContext,
 )
 from graph2mat.bindings.torch.data import TorchBasisMatrixData
-from graph2mat.models.long_range import ewald_potentials, label_element_atoms, neutralize
+from graph2mat.models.long_range import ewald_potentials, equilibrate_charges, label_element_atoms, neutralize
 
 
 
@@ -100,6 +102,11 @@ def pair_envelope(r: torch.Tensor, r_cut: torch.Tensor, p: int) -> torch.Tensor:
     return f * (x < 1.0)
 
 
+#: Hardness (eV per e^2) of every atom before training in long_range="qeq"; softplus keeps it > 0.
+QEQ_HARDNESS = 10.0
+QEQ_SOFTPLUS_SHIFT = math.log(math.expm1(QEQ_HARDNESS))
+
+
 class MatrixMACE(torch.nn.Module):
     """Model that wraps a MACE model to produce a matrix output.
 
@@ -151,10 +158,13 @@ class MatrixMACE(torch.nn.Module):
         Keyword arguments passed to ``HamiltonianLocalContext`` when
         ``hamiltonian_local_context=True``.
     long_range :
-        If ``True`` (roadmap 8.4), every atom gets a learned charge (neutral per structure),
-        the Ewald potential V of those charges is computed (``models.long_range``) and the
-        output gets ``(V_i + V_j) / 2 * S_ij``, with S the labels' last component (so S
-        must also be loaded for predictions). Starts at zero (no charges).
+        If ``True`` or ``"charges"`` (roadmap 8.4), every atom gets a learned charge (neutral
+        per structure), the Ewald potential V of those charges is computed
+        (``models.long_range``) and the output gets ``(V_i + V_j) / 2 * S_ij``, with S the
+        labels' last component (so S must also be loaded for predictions). Starts at zero
+        (no charges). ``"qeq"``: the charges come from charge equilibration instead, with a
+        learned electronegativity and hardness per atom and the structure's total charge
+        (``data.total_charge``, 0 if absent), so they respond to the whole structure.
     long_range_smearing :
         Width (Angstrom) of the Gaussian charges: the potential is that of erf(r/s)/r.
     **kwargs :
@@ -179,7 +189,7 @@ class MatrixMACE(torch.nn.Module):
         simplify_node_irreps: bool = False,
         pair_envelope_radii: Optional[Sequence[float]] = None,
         pair_envelope_p: int = 6,
-        long_range: bool = False,
+        long_range: Union[bool, str] = False,
         long_range_smearing: float = 2.0,
         **kwargs,
     ):
@@ -278,11 +288,16 @@ class MatrixMACE(torch.nn.Module):
             )
 
         self.long_range_smearing = long_range_smearing
-        if long_range:
+        self.long_range_mode = {True: "charges", False: None}.get(long_range, long_range)
+        if self.long_range_mode not in (None, "charges", "qeq"):
+            raise ValueError(f"long_range must be a bool, 'charges' or 'qeq', not {long_range!r}")
+        if self.long_range_mode:
             if self.readout_per_interaction or gradient_checkpointing:
                 raise ValueError("long_range needs a single readout and no gradient_checkpointing.")
-            self.charge_readout = o3.Linear(self._with_node_context_irreps(self.mace_inter_irreps), o3.Irreps("1x0e"))
-            torch.nn.init.zeros_(self.charge_readout.weight)  # starts as the model without it
+            # charges: q; qeq: electronegativity and hardness (around QEQ_HARDNESS eV per e^2).
+            n_out = 1 if self.long_range_mode == "charges" else 2
+            self.charge_readout = o3.Linear(self._with_node_context_irreps(self.mace_inter_irreps), o3.Irreps(f"{n_out}x0e"))
+            torch.nn.init.zeros_(self.charge_readout.weight)  # no charges at the start (neutral structures)
         else:
             self.charge_readout = None
 
@@ -618,7 +633,15 @@ class MatrixMACE(torch.nn.Module):
         if batch is None:
             batch = torch.zeros(len(node_feats), dtype=torch.long, device=node_feats.device)
         n_structures = int(data["cell"].shape[0] // 3)
-        charges = neutralize(self.charge_readout(node_feats)[:, 0], batch, n_structures)
+        raw = self.charge_readout(node_feats)
+        if self.long_range_mode == "qeq":
+            total = data.get("total_charge")
+            total = raw.new_zeros(n_structures) if total is None else total.reshape(-1).to(raw.dtype)
+            hardness = torch.nn.functional.softplus(raw[:, 1] + QEQ_SOFTPLUS_SHIFT)
+            charges = equilibrate_charges(raw[:, 0], hardness, data["positions"], data["cell"], batch, total,
+                                          self.long_range_smearing)
+        else:
+            charges = neutralize(raw[:, 0], batch, n_structures)
         potential = ewald_potentials(charges, data["positions"], data["cell"], batch, self.long_range_smearing)
         node_labels, edge_out = output["node_labels"], output["edge_labels"]
         node_atoms, edge_i, edge_j = (

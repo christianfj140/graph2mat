@@ -61,8 +61,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         edge_update_layers: int = 0,
         # Roadmap 7.3: readout radial features that vanish at each pair's R_i + R_j.
         pair_envelope: bool = False,
-        # Roadmap 8.4: learned charges + Ewald potential, (V_i + V_j) / 2 * S_ij added to H.
-        long_range: bool = False,
+        # Roadmap 8.4: learned charges ("charges"/True) or charge equilibration ("qeq") + Ewald
+        # potential, (V_i + V_j) / 2 * S_ij added to H.
+        long_range: Union[bool, str] = False,
         long_range_smearing: float = 2.0,
         edge_update_node_irreps: Union[o3.Irreps, str, int, None] = None,
         avg_num_neighbors: float = 1.0,
@@ -191,7 +192,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 hamiltonian_local_context=hamiltonian_local_context,
                 **({"pair_envelope_radii": np.broadcast_to(np.asarray(self.basis_table.R, dtype=float), (len(self.basis_table.basis),)).tolist(),
                     "pair_envelope_p": num_polynomial_cutoff} if pair_envelope else {}),
-                **({"long_range": True, "long_range_smearing": long_range_smearing} if long_range else {}),
+                **({"long_range": long_range, "long_range_smearing": long_range_smearing} if long_range else {}),
                 hamiltonian_local_context_kwargs=hamiltonian_local_context_kwargs,
                 readout_fp32=readout_fp32,
                 lean_mace=lean_mace,

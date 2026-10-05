@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import threading
 import zipfile
 from copy import deepcopy
@@ -108,6 +109,11 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         data = self.data_cls.new(
             item, data_processor=self.data_processor, labels=self.load_labels
         )
+        if str(item).endswith(".fdf"):
+            # Total charge of the structure (SIESTA NetCharge, 0 by default), for models whose
+            # charges depend on it (long_range="qeq", roadmap 8.4).
+            match = re.search(r"(?im)^\s*NetCharge\s+(\S+)", Path(str(item)).read_text(errors="ignore"))
+            data.total_charge = torch.tensor([float(match.group(1)) if match else 0.0], dtype=torch.get_default_dtype())
         if self.spectral_window:
             # Projection columns of the spectral loss (MatrixDataModule.spectral_window).
             name = self.spectral_window if isinstance(self.spectral_window, str) else "spectral_window.npz"

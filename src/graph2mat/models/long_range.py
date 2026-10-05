@@ -73,6 +73,50 @@ def ewald_potentials(
     return charges.new_zeros(charges.shape).index_put((torch.cat(index),), torch.cat(out))
 
 
+def ewald_matrix(positions: torch.Tensor, cell: torch.Tensor, smearing: float = 2.0,
+                 tolerance: float = 1e-8) -> torch.Tensor:
+    """Coulomb interaction matrix of one structure (eV per unit charge squared): the potential
+    at atom i of a unit Gaussian charge at atom j and its images, reciprocal-space sum of
+    ``ewald_potentials`` without the self term (positive semidefinite)."""
+    kmax = 2.0 * math.sqrt(-math.log(tolerance)) / smearing
+    k = _kvectors(cell.double(), kmax).to(positions.dtype)
+    k2 = (k**2).sum(-1)
+    volume = torch.abs(torch.linalg.det(cell.double())).to(positions.dtype)
+    weight = 4 * math.pi / volume * torch.exp(-k2 * smearing**2 / 4) / k2
+    phase = positions @ k.T
+    cos, sin = torch.cos(phase), torch.sin(phase)
+    return COULOMB * ((cos * weight) @ cos.T + (sin * weight) @ sin.T)
+
+
+def equilibrate_charges(electronegativity: torch.Tensor, hardness: torch.Tensor, positions: torch.Tensor,
+                        cell: torch.Tensor, batch: torch.Tensor, total_charge: torch.Tensor,
+                        smearing: float = 2.0) -> torch.Tensor:
+    """Charge equilibration (Qeq, as in 4G-HDNNP): in every structure the charges minimize
+
+        E(q) = sum_i chi_i q_i + 1/2 sum_i J_i q_i^2 + 1/2 q^T A q,  with  sum_i q_i = Q,
+
+    A from ``ewald_matrix``, chi and J > 0 predicted from the local environment and Q the
+    structure's total charge. Unlike charges read from the local environment, these respond to
+    the potential of the whole structure: charge moves between distant regions (the two faces
+    of a polar slab) and screens fields, and Q enters (charge states). Linear in chi and Q;
+    differentiable in chi and J; the geometry is fixed."""
+    n_structures = int(cell.shape[0] // 3)
+    cells = cell.reshape(n_structures, 3, 3)
+    out = electronegativity.new_zeros(electronegativity.shape)
+    for s in range(n_structures):
+        atoms = torch.nonzero(batch == s).reshape(-1)
+        n = len(atoms)
+        with torch.no_grad():
+            a = ewald_matrix(positions[atoms], cells[s], smearing)
+        m = electronegativity.new_zeros((n + 1, n + 1))
+        m[:n, :n] = a + torch.diag(hardness[atoms])
+        m[:n, n] = 1.0
+        m[n, :n] = 1.0
+        rhs = torch.cat([-electronegativity[atoms], total_charge[s].reshape(1).to(electronegativity.dtype)])
+        out = out.index_put((atoms,), torch.linalg.solve(m, rhs)[:n])
+    return out
+
+
 def neutralize(charges: torch.Tensor, batch: torch.Tensor, n_structures: int) -> torch.Tensor:
     """Charges minus their mean in each structure (sum zero)."""
     total = charges.new_zeros(n_structures).index_add(0, batch, charges)
