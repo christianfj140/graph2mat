@@ -712,6 +712,25 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   muy distintas pero el desplazamiento on-site está bien definido (Ti-d, O-p) y perjudica con el 2s difuso del Li.
 - **7.2 en BaTiO3 (con Δ):** validación 2,44 → 2,43 meV, pruebas −4 a −6 % (0,46 → 0,44 y 0,48 → 0,45), gap algo peor
   (±40 → ±50 meV): neutra.
+- **8.4 (largo alcance) en BaTiO3 (con Δ):** validación 2,44 → **2,27 meV** (−7 %), H de las pruebas igual
+  (0,47 / 0,49 frente a 0,46 / 0,48), y lo que mejora es el espectro: **gap 30 / 44 → 23 / 24 meV** y bandas
+  14 / 20 → 11 / 13 (pared de dominio / modo polar). +80 min por semilla frente a 111 de la receta con Δ, así que
+  no cuesta tiempo. Modesto pero del signo esperado en un ferroeléctrico.
+
+**8.4 en los tres materiales (3 semillas cada uno): depende de qué rompe el largo alcance.**
+
+| | BaTiO3 | LiF (+ defectos) | ZnO (+ láminas no polares) |
+|---|---|---|---|
+| validación | **−7 %** | −5 % | +1 % |
+| H fuera de distribución | igual | −9 % nanocubo, −15 % Schottky | **+135 % láminas polares** |
+| gap / bandas | **−30 % / −30 %** | mejor salvo nanocubo a 300 K | **×2 peor en polares**, ×7 mejor en volumen |
+
+Donde el largo alcance entra como corrección suave de un cristal polarizado (BaTiO3) o de defectos cargados en
+volumen (LiF), ayuda poco pero ayuda, y además hace que el H predicho ya no necesite la ortogonalización canónica
+(objetivo de 4.7, visible en ZnO: bruto 38 frente a canónico 42 meV). Donde hay un campo macroscópico con
+superficie (láminas polares de ZnO) lo empeora, y el error crece con el grosor: las cargas aprendidas no son
+neutras por capa. **Conclusión: 8.4 se queda como 🔶, útil en volumen, no utilizable en láminas polares hasta
+imponer neutralidad por capa o por trozo.**
 
 **Resumen de la fase 1 del banco (2026-10-04, 3 semillas por casilla; mejora respecto a la receta con Δ):**
 
