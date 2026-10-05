@@ -735,12 +735,19 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
   neutra, una con desplazamientos y otra de MD a 600 K cada una, y lámina (001) de 6 capas; la partición congelada no
   cambia; 3 semillas, con Δ; H / gap tras ortogonalización canónica / bandas):**
 
-  | prueba | sin defectos | con defectos |
-  |---|---|---|
-  | validación (volumen) | 1,73 meV | 1,98 meV |
-  | par de Schottky, 126 átomos | 4,6 / +2,3 eV / 370 | **3,8** / +1,6 eV / **248** |
-  | centro F neutro / +1 | 4,7 / 6,9 meV | 5,3 / 6,6 meV |
-  | nanocubo / con MD 300 K | 16,8 / 18,2 meV, gap +3,1 / +3,0 eV, bandas 1269 / 1178 | **10,4 / 11,1** meV, gap de −3,2 a +2,6 eV según la semilla, bandas **634 / 472** |
+  | prueba | sin defectos | con defectos | con defectos + **8.4** |
+  |---|---|---|---|
+  | validación (volumen) | 1,73 meV | 1,98 meV | 1,88 meV |
+  | par de Schottky, 126 átomos | 4,6 / +2,3 eV / 370 | 3,8 / +1,6 eV / 248 | **3,2 / +1,3 eV / 182** |
+  | centro F neutro / +1 | 4,7 / 6,9 meV | 5,3 / 6,6 meV | 4,8 / 6,9 meV |
+  | nanocubo / con MD 300 K | 16,8 / 18,2 meV, gap +3,1 / +3,0 eV, bandas 1269 / 1178 | **10,4 / 11,1** meV, gap de −3,2 a +2,6 eV según la semilla, bandas 634 / 472 | 9,5 / 11,9 meV, gap +1,8 / +3,1 eV, bandas **589** / 695 |
+
+  **Largo alcance (8.4) en LiF: ligeramente positivo, al contrario que en ZnO.** Gana en el par de Schottky
+  (H −15 %, gap 1,6 → 1,3 eV, bandas 248 → 182) y en el nanocubo estático (10,4 → 9,5 meV, gap 2,2 → 1,8 eV);
+  neutro en el centro F; **peor en el nanocubo a 300 K** (gap 1,8 → 3,1 eV, bandas 472 → 695). La diferencia con
+  ZnO encaja con la hipótesis de las cargas: aquí las pruebas son defectos cargados o neutros en un volumen, no
+  superficies polares con campo macroscópico. En LiF el gap bruto sigue siendo de 2,9–5,4 eV con y sin 8.4, así que
+  la equivalencia bruto ≈ canónico que sí aparece en ZnO no se reproduce.
 
   Dos láminas pequeñas bastan para quitar un 38 % del error del nanocubo y la mitad del de bandas: la superficie era en
   parte falta de datos. Pero el gap del nanocubo oscila ±3 eV entre semillas, los niveles del par de Schottky siguen
