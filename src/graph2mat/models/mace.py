@@ -13,6 +13,7 @@ from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
     HamiltonianLocalContext,
 )
 from graph2mat.bindings.torch.data import TorchBasisMatrixData
+from graph2mat.models.long_range import ewald_potentials, label_element_atoms, neutralize
 
 
 
@@ -149,6 +150,13 @@ class MatrixMACE(torch.nn.Module):
     hamiltonian_local_context_kwargs :
         Keyword arguments passed to ``HamiltonianLocalContext`` when
         ``hamiltonian_local_context=True``.
+    long_range :
+        If ``True`` (roadmap 8.4), every atom gets a learned charge (neutral per structure),
+        the Ewald potential V of those charges is computed (``models.long_range``) and the
+        output gets ``(V_i + V_j) / 2 * S_ij``, with S the labels' last component (so S
+        must also be loaded for predictions). Starts at zero (no charges).
+    long_range_smearing :
+        Width (Angstrom) of the Gaussian charges: the potential is that of erf(r/s)/r.
     **kwargs :
         Additional keyword arguments to pass to ``graph2mat_cls`` for
         initialization.
@@ -171,6 +179,8 @@ class MatrixMACE(torch.nn.Module):
         simplify_node_irreps: bool = False,
         pair_envelope_radii: Optional[Sequence[float]] = None,
         pair_envelope_p: int = 6,
+        long_range: bool = False,
+        long_range_smearing: float = 2.0,
         **kwargs,
     ):
         super().__init__()
@@ -266,6 +276,15 @@ class MatrixMACE(torch.nn.Module):
                 ),
                 **kwargs,
             )
+
+        self.long_range_smearing = long_range_smearing
+        if long_range:
+            if self.readout_per_interaction or gradient_checkpointing:
+                raise ValueError("long_range needs a single readout and no gradient_checkpointing.")
+            self.charge_readout = o3.Linear(self._with_node_context_irreps(self.mace_inter_irreps), o3.Irreps("1x0e"))
+            torch.nn.init.zeros_(self.charge_readout.weight)  # starts as the model without it
+        else:
+            self.charge_readout = None
 
     def _init_hamiltonian_local_context(
         self,
@@ -582,5 +601,32 @@ class MatrixMACE(torch.nn.Module):
         if hamiltonian_context is not None:
             output["hamiltonian_node_context"] = hamiltonian_context.node
             output["hamiltonian_edge_context"] = hamiltonian_context.edge
+        if self.charge_readout is not None:
+            output = self._long_range(data, node_feats, output)
 
         return output
+
+    @torch.compiler.disable
+    def _long_range(self, data: TorchBasisMatrixData, node_feats: torch.Tensor, output: dict) -> dict:
+        """Adds (V_i + V_j) / 2 * S_ij to the H component of the output (roadmap 8.4)."""
+        point_labels, edge_labels = data.get("point_labels"), data.get("edge_labels")
+        if point_labels is None or point_labels.ndim != 2 or point_labels.shape[1] < 2:
+            raise ValueError("long_range needs the overlap as the last label component "
+                             "(matrix_component_policy='h_and_overlap'; for predictions, "
+                             "MatrixDataModule(predict_labels=True)).")
+        batch = data.get("batch")
+        if batch is None:
+            batch = torch.zeros(len(node_feats), dtype=torch.long, device=node_feats.device)
+        n_structures = int(data["cell"].shape[0] // 3)
+        charges = neutralize(self.charge_readout(node_feats)[:, 0], batch, n_structures)
+        potential = ewald_potentials(charges, data["positions"], data["cell"], batch, self.long_range_smearing)
+        node_labels, edge_out = output["node_labels"], output["edge_labels"]
+        node_atoms, edge_i, edge_j = (
+            a.to(node_feats.device) for a in label_element_atoms(
+                data["point_types"].cpu(), data["edge_types"].cpu(), data["edge_index"].cpu(),
+                len(edge_out), self.matrix_readouts.basis_table))
+        d_nodes = potential[node_atoms] * point_labels[:, -1]
+        d_edges = 0.5 * (potential[edge_i] + potential[edge_j]) * edge_labels[:, -1]
+        add = lambda out, d: out + d if out.ndim == 1 else torch.cat([out[:, :1] + d[:, None], out[:, 1:]], dim=1)
+        return {**output, "node_labels": add(node_labels, d_nodes), "edge_labels": add(edge_out, d_edges),
+                "node_charges": charges, "node_potential": potential}

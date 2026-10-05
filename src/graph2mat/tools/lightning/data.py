@@ -178,6 +178,7 @@ class MatrixDataModule(pl.LightningDataModule):
         rotating_pool_size: Optional[int] = None,
         initial_node_feats: str = "OneHotZ",
         spectral_window: Union[bool, str] = False,
+        predict_labels: bool = False,
     ):
         """
 
@@ -227,6 +228,9 @@ class MatrixDataModule(pl.LightningDataModule):
                 ``gauge_invariant_mse`` (``spectral_weight``, roadmap 4.4). A string reads
                 that file instead, with any S-orthonormal columns (e.g. the near-null
                 directions of S, roadmap 4.7).
+            predict_labels: bool
+                Also load the labels of the structures to predict: a model with
+                ``long_range`` needs their overlap S (geometry only, as in H0).
 
         """
         super().__init__()
@@ -260,6 +264,7 @@ class MatrixDataModule(pl.LightningDataModule):
         self.store_in_memory = store_in_memory
         self.rotating_pool_size = rotating_pool_size
         self.spectral_window = spectral_window
+        self.predict_labels = predict_labels
         self.prepare_data_per_node = True
         if self.copy_root_to_tmp:
             # One directory per user and data root (shared by the ranks of a job), instead
@@ -340,7 +345,7 @@ class MatrixDataModule(pl.LightningDataModule):
                     list(runs),
                     data_processor=self.data_processor,
                     data_cls=TorchBasisMatrixData,
-                    load_labels=split != "predict",
+                    load_labels=split != "predict" or self.predict_labels,
                     spectral_window=self.spectral_window if split != "predict" else False,
                 )
 
