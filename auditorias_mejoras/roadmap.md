@@ -712,25 +712,6 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   muy distintas pero el desplazamiento on-site está bien definido (Ti-d, O-p) y perjudica con el 2s difuso del Li.
 - **7.2 en BaTiO3 (con Δ):** validación 2,44 → 2,43 meV, pruebas −4 a −6 % (0,46 → 0,44 y 0,48 → 0,45), gap algo peor
   (±40 → ±50 meV): neutra.
-- **8.4 (largo alcance) en BaTiO3 (con Δ):** validación 2,44 → **2,27 meV** (−7 %), H de las pruebas igual
-  (0,47 / 0,49 frente a 0,46 / 0,48), y lo que mejora es el espectro: **gap 30 / 44 → 23 / 24 meV** y bandas
-  14 / 20 → 11 / 13 (pared de dominio / modo polar). +80 min por semilla frente a 111 de la receta con Δ, así que
-  no cuesta tiempo. Modesto pero del signo esperado en un ferroeléctrico.
-
-**8.4 en los tres materiales (3 semillas cada uno): depende de qué rompe el largo alcance.**
-
-| | BaTiO3 | LiF (+ defectos) | ZnO (+ láminas no polares) |
-|---|---|---|---|
-| validación | **−7 %** | −5 % | +1 % |
-| H fuera de distribución | igual | −9 % nanocubo, −15 % Schottky | **+135 % láminas polares** |
-| gap / bandas | **−30 % / −30 %** | mejor salvo nanocubo a 300 K | **×2 peor en polares**, ×7 mejor en volumen |
-
-Donde el largo alcance entra como corrección suave de un cristal polarizado (BaTiO3) o de defectos cargados en
-volumen (LiF), ayuda poco pero ayuda, y además hace que el H predicho ya no necesite la ortogonalización canónica
-(objetivo de 4.7, visible en ZnO: bruto 38 frente a canónico 42 meV). Donde hay un campo macroscópico con
-superficie (láminas polares de ZnO) lo empeora, y el error crece con el grosor: las cargas aprendidas no son
-neutras por capa. **Conclusión: 8.4 se queda como 🔶, útil en volumen, no utilizable en láminas polares hasta
-imponer neutralidad por capa o por trozo.**
 
 **Resumen de la fase 1 del banco (2026-10-04, 3 semillas por casilla; mejora respecto a la receta con Δ):**
 
@@ -754,19 +735,12 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
   neutra, una con desplazamientos y otra de MD a 600 K cada una, y lámina (001) de 6 capas; la partición congelada no
   cambia; 3 semillas, con Δ; H / gap tras ortogonalización canónica / bandas):**
 
-  | prueba | sin defectos | con defectos | con defectos + **8.4** |
-  |---|---|---|---|
-  | validación (volumen) | 1,73 meV | 1,98 meV | 1,88 meV |
-  | par de Schottky, 126 átomos | 4,6 / +2,3 eV / 370 | 3,8 / +1,6 eV / 248 | **3,2 / +1,3 eV / 182** |
-  | centro F neutro / +1 | 4,7 / 6,9 meV | 5,3 / 6,6 meV | 4,8 / 6,9 meV |
-  | nanocubo / con MD 300 K | 16,8 / 18,2 meV, gap +3,1 / +3,0 eV, bandas 1269 / 1178 | **10,4 / 11,1** meV, gap de −3,2 a +2,6 eV según la semilla, bandas 634 / 472 | 9,5 / 11,9 meV, gap +1,8 / +3,1 eV, bandas **589** / 695 |
-
-  **Largo alcance (8.4) en LiF: ligeramente positivo, al contrario que en ZnO.** Gana en el par de Schottky
-  (H −15 %, gap 1,6 → 1,3 eV, bandas 248 → 182) y en el nanocubo estático (10,4 → 9,5 meV, gap 2,2 → 1,8 eV);
-  neutro en el centro F; **peor en el nanocubo a 300 K** (gap 1,8 → 3,1 eV, bandas 472 → 695). La diferencia con
-  ZnO encaja con la hipótesis de las cargas: aquí las pruebas son defectos cargados o neutros en un volumen, no
-  superficies polares con campo macroscópico. En LiF el gap bruto sigue siendo de 2,9–5,4 eV con y sin 8.4, así que
-  la equivalencia bruto ≈ canónico que sí aparece en ZnO no se reproduce.
+  | prueba | sin defectos | con defectos |
+  |---|---|---|
+  | validación (volumen) | 1,73 meV | 1,98 meV |
+  | par de Schottky, 126 átomos | 4,6 / +2,3 eV / 370 | **3,8** / +1,6 eV / **248** |
+  | centro F neutro / +1 | 4,7 / 6,9 meV | 5,3 / 6,6 meV |
+  | nanocubo / con MD 300 K | 16,8 / 18,2 meV, gap +3,1 / +3,0 eV, bandas 1269 / 1178 | **10,4 / 11,1** meV, gap de −3,2 a +2,6 eV según la semilla, bandas **634 / 472** |
 
   Dos láminas pequeñas bastan para quitar un 38 % del error del nanocubo y la mitad del de bandas: la superficie era en
   parte falta de datos. Pero el gap del nanocubo oscila ±3 eV entre semillas, los niveles del par de Schottky siguen
@@ -794,19 +768,6 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
   | con Δ | **1,66** | **0,90 / 37 / 10** | 25,8 / 677 / 253 | 31,4 / 1236 / 935 | 11,1 / 1104 / 673 | 6,1 / 1085 / 583 |
   | Δ + 5.2 | **1,20** | 0,64 / 51 / 10 | 16,4 / 1031 / 397 | 25,0 / 1183 / 1105 | 9,5 / 1108 / 805 | 5,3 / 1064 / 679 |
   | Δ + 7.2 | 1,50 | 0,82 / 50 / 9 | 25,1 / 810 / 278 | 31,7 / 1227 / 1006 | 11,2 / 1191 / 759 | 6,1 / 1153 / 642 |
-  | Δ + láminas no polares | 1,63 | 0,90 / 67 / 11 | **3,9 / 144 / 44** | **11,3 / 368 / 419** | **6,9 / 267 / 374** | **4,3 / 238 / 338** |
-  | Δ + no polares + **8.4** | 1,65 | 0,89 / 42 / **7** | 3,7 / **71** / 42 | 26,5 / 796 / 866 | 20,7 / 649 / 654 | 16,3 / 587 / 829 |
-
-  **Entrenar con la lámina no polar era lo que faltaba:** el gap de las polares pasa de ~1,1 eV de error a
-  0,24–0,37 eV y la no polar de 677 a 144 meV, con la misma validación. Es decir, lo que fallaba era la superficie
-  no vista, no el campo de largo alcance.
-  **Largo alcance (8.4) sobre esa receta: no ayuda donde debía.** En el volumen y en la lámina no polar mejora algo
-  (bandas 11 → 7, gap de la no polar 144 → 71), y **la predicción ya no necesita la ortogonalización canónica**
-  (bruto ≈ canónico: 38 frente a 42 meV en el volumen, mientras que sin 8.4 son 489 frente a 67), que era el objetivo
-  de 4.7. Pero en las **láminas polares (0001) empeora por un factor 2–3** en H (11,3 → 26,5), en gap (368 → 796) y en
-  bandas (419 → 866), justo donde el campo macroscópico debería importar. +24 % de tiempo (42 frente a 34 min).
-  Hipótesis a comprobar: las cargas aprendidas no son neutras por capa en una lámina polar, así que el potencial de
-  Ewald mete un término espurio que crece con el grosor (el error sí crece: 26,5 / 20,7 / 16,3 frente a 11,3 / 6,9 / 4,3).
 
   Δ: −84 % en validación y el volumen grande igual de bien. Las láminas fallan con todas las recetas (gap ~1,1 eV de
   error con gaps de 0,3–0,8 eV); el H medio baja con el grosor solo porque pesa menos la superficie. Como en el LiF, la
