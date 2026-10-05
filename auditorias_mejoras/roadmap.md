@@ -768,6 +768,19 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
   | con Δ | **1,66** | **0,90 / 37 / 10** | 25,8 / 677 / 253 | 31,4 / 1236 / 935 | 11,1 / 1104 / 673 | 6,1 / 1085 / 583 |
   | Δ + 5.2 | **1,20** | 0,64 / 51 / 10 | 16,4 / 1031 / 397 | 25,0 / 1183 / 1105 | 9,5 / 1108 / 805 | 5,3 / 1064 / 679 |
   | Δ + 7.2 | 1,50 | 0,82 / 50 / 9 | 25,1 / 810 / 278 | 31,7 / 1227 / 1006 | 11,2 / 1191 / 759 | 6,1 / 1153 / 642 |
+  | Δ + láminas no polares | 1,63 | 0,90 / 67 / 11 | **3,9 / 144 / 44** | **11,3 / 368 / 419** | **6,9 / 267 / 374** | **4,3 / 238 / 338** |
+  | Δ + no polares + **8.4** | 1,65 | 0,89 / 42 / **7** | 3,7 / **71** / 42 | 26,5 / 796 / 866 | 20,7 / 649 / 654 | 16,3 / 587 / 829 |
+
+  **Entrenar con la lámina no polar era lo que faltaba:** el gap de las polares pasa de ~1,1 eV de error a
+  0,24–0,37 eV y la no polar de 677 a 144 meV, con la misma validación. Es decir, lo que fallaba era la superficie
+  no vista, no el campo de largo alcance.
+  **Largo alcance (8.4) sobre esa receta: no ayuda donde debía.** En el volumen y en la lámina no polar mejora algo
+  (bandas 11 → 7, gap de la no polar 144 → 71), y **la predicción ya no necesita la ortogonalización canónica**
+  (bruto ≈ canónico: 38 frente a 42 meV en el volumen, mientras que sin 8.4 son 489 frente a 67), que era el objetivo
+  de 4.7. Pero en las **láminas polares (0001) empeora por un factor 2–3** en H (11,3 → 26,5), en gap (368 → 796) y en
+  bandas (419 → 866), justo donde el campo macroscópico debería importar. +24 % de tiempo (42 frente a 34 min).
+  Hipótesis a comprobar: las cargas aprendidas no son neutras por capa en una lámina polar, así que el potencial de
+  Ewald mete un término espurio que crece con el grosor (el error sí crece: 26,5 / 20,7 / 16,3 frente a 11,3 / 6,9 / 4,3).
 
   Δ: −84 % en validación y el volumen grande igual de bien. Las láminas fallan con todas las recetas (gap ~1,1 eV de
   error con gaps de 0,3–0,8 eV); el H medio baja con el grosor solo porque pesa menos la superficie. Como en el LiF, la
