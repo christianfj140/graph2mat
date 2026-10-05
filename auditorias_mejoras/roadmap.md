@@ -533,7 +533,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ sin el desplazamiento c·S, por on-site/capa de vecinos/par l, y fuera de alcance orbital. `6x6` (semilla 0, meV por elemento): lin 1,79 → 0,93 quitó el 82 % del error a ~4,3 Å; la pérdida de gauge 0,93 → 0,62 mejora todas las capas (primeros vecinos 6,1 → 3,6, terceros 2,8 → 1,4) pero el **on-site** solo 12,3 → 10,3: es ya el 23 % del error y el mayor por elemento, el siguiente objetivo |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | 🔶 **pérdida espectral de primer orden implementada** (`gauge_invariant_mse(spectral_weight=…)` + `MatrixDataModule(spectral_window=True)`): por estructura, `‖Cᵀ ΔH(Γ) C − media(diag)·I‖²` con C los autovectores S-ortonormales de la H de referencia completa en una ventana alrededor de E_F en Γ (`spectral_window.npz` junto a cada muestra, columnas de relleno a cero). La diagonal es el error de primer orden de cada autovalor y el resto el acoplamiento dentro de la ventana; CᵀSC = I, así que el desplazamiento cS se va con la media: no depende del gauge y solo necesita ΔH = predicción − etiqueta, luego vale tal cual con Δ (no hace falta H0 como componente auxiliar). El collate calcula en los workers el orbital (fila, columna) de cada elemento de etiqueta. Test: el H(Γ) ensamblado coincide con `matrix_from_data` (1e-12; homo/heteronuclear, imágenes periódicas, 2 estructuras), H + cS no cuesta nada y la diagonal reproduce el cambio exacto de los autovalores. `6x6` ±3 eV: 34 estados (±2 eV solo los 4 de Dirac); en el mejor modelo, error espectral de entrenamiento 1,5 meV RMSE frente a 2,1 de H. Solo Γ: sirve para superceldas (`6x6`, bicapa), no para `w90` (2 átomos, sin estados cerca de E_F en Γ). **Medido en `6x6` (mejor receta, 3 semillas; validación / bicapa H, bandas / MD AB H, bandas / moiré H, bandas, meV): sin el término 0,136 / 4,43, 15,1 / 5,17, 10,6 / 0,86, 9,7; peso 1: 0,134 / 5,38, 15,3 / 5,74, 11,3 / 1,11, 10,8; peso 10: 0,166 / 4,27, 20,3 / 5,04, 13,5 / 0,84, 13,2.** No mejora las bandas fuera de distribución: con peso 1 empeora el H de fuera (+20 %, sobre todo intracapa) sin cambiar las bandas; con peso 10 el H se mantiene pero las bandas empeoran un 35 % y la validación un 22 %. El entrenamiento tarda ~40 % más (62–64 min frente a 45, con la carga de la noche). La ventana en Γ de la monocapa no representa el error de bandas de la bicapa y el moiré, que viene sobre todo del acoplamiento entre capas, ausente en el entrenamiento. ⚪ en grafeno (monocapa → bicapa/moiré) en esta forma; podría servir entrenando con el sistema objetivo (bicapa) o con varios puntos k |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
-| 4.7 | Pérdida en la métrica de S (Löwdin S^−1/2 ΔH S^−1/2) o penalización de ΔH en el espacio casi nulo de S | P | M | medio | ⏳ motivada por el banco: en (H2O)32 con 2,4 meV de error en H el gap se cierra por estados que viven en el espacio casi nulo de S (base difusa); la ortogonalización canónica lo recupera en la evaluación |
+| 4.7 | Pérdida en la métrica de S (Löwdin S^−1/2 ΔH S^−1/2) o penalización de ΔH en el espacio casi nulo de S | P | M | medio | 🔶 **implementada** como término espectral con las direcciones casi nulas de S (λ < 10⁻², columnas u/√max(λ, 10⁻³), métrica de Löwdin en ese subespacio; `spectral_window` admite el nombre del fichero, `spectral_null.npz`). **H2O en clústeres (con Δ, 3 semillas):** con peso 10⁻⁴ el gap de (H2O)32 sin ortogonalización canónica pasa de 1847 a **260 meV** de error medio (de 3/9 a 0/9 gaps cerrados) y las bandas brutas de 386 a 121 meV, igual que con la ortogonalización canónica; cuesta +17 % en validación (4,16 → 4,86 meV) y +8 % en (H2O)32. Pesos 10⁻³ y 10⁻² peores en todo. Pendiente: pesos menores y LiF/ZnO (ver «Banco de materiales») |
 | 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ⚪ (solo medido en grafeno (base SZ)) en grafeno (base SZ) el error fuera del alcance de los orbitales es ≤1 % del total y los ceros exactos ya salen a cero: no hay nada que enmascarar |
 
 ## Ola 5 — El objetivo: residuo y normalización
@@ -578,7 +578,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 8.1 | Spin colineal y SOC; referencia atómica coherente con spin | C P | L | medio | 🔶 `spin_h_only` del fork |
 | 8.2 | Bloques de H mediados por proyectores KB (aristas de readout más largas) | P | L | medio | ⚪ (solo medido en grafeno) para grafeno (despreciable según la Fase 0); sí para elementos pesados |
 | 8.3 | Tipos de punto por Z: dos especies con la misma Z y distinta base (ghosts) | C | M | bajo | ⏳ |
-| 8.4 | **(GPT Astra, Maths and Physics)** Electrostática de largo alcance para sistemas polares | P | L | alto | ⏳ **señal en el banco:** nanocubo de LiF 3,7 veces peor que el volumen con defecto y gap 3 eV demasiado grande con Δ; propuesta común de los 4 GPT: ΔH_LR ≈ (V_i + V_j)/2 · S_ij con V de cargas aprendidas + Ewald (compatible con el gauge) |
+| 8.4 | **(GPT Astra, Maths and Physics)** Electrostática de largo alcance para sistemas polares | P | L | alto | ⏳ **señal en el banco:** nanocubo de LiF 3,7 veces peor que el volumen con defecto y gap 3 eV demasiado grande con Δ; con superficies en el entrenamiento mejora un 38 % pero el gap sigue ±3 eV según la semilla; en ZnO las láminas fallan (gap ±1,1 eV) con todas las recetas; propuesta común de los 4 GPT: ΔH_LR ≈ (V_i + V_j)/2 · S_ij con V de cargas aprendidas + Ewald (compatible con el gauge) |
 
 ## Banco de materiales (pendiente de definir)
 
@@ -728,6 +728,52 @@ física nueva: **largo alcance** (nanocubo de LiF 3,7 veces peor que el volumen,
 como entrada (centro F) y **niveles de defecto**, más la **pérdida en la métrica de S (4.7)** para bases difusas,
 y los **elementos KB más allá del grafo (8.2)** en BaTiO3. Siguiente, por valor: 8.4 (electrostática de largo
 alcance, con LiF como prueba), la carga total como entrada y 4.7.
+
+**Etapas siguientes (2026-10-04/05).**
+
+- **Defectos como datos (LiF, conjunto extra `defects`, 8 estructuras: par de Schottky cercano y lejano, vacante de F
+  neutra, una con desplazamientos y otra de MD a 600 K cada una, y lámina (001) de 6 capas; la partición congelada no
+  cambia; 3 semillas, con Δ; H / gap tras ortogonalización canónica / bandas):**
+
+  | prueba | sin defectos | con defectos |
+  |---|---|---|
+  | validación (volumen) | 1,73 meV | 1,98 meV |
+  | par de Schottky, 126 átomos | 4,6 / +2,3 eV / 370 | **3,8** / +1,6 eV / **248** |
+  | centro F neutro / +1 | 4,7 / 6,9 meV | 5,3 / 6,6 meV |
+  | nanocubo / con MD 300 K | 16,8 / 18,2 meV, gap +3,1 / +3,0 eV, bandas 1269 / 1178 | **10,4 / 11,1** meV, gap de −3,2 a +2,6 eV según la semilla, bandas **634 / 472** |
+
+  Dos láminas pequeñas bastan para quitar un 38 % del error del nanocubo y la mitad del de bandas: la superficie era en
+  parte falta de datos. Pero el gap del nanocubo oscila ±3 eV entre semillas, los niveles del par de Schottky siguen
+  1,6 eV desplazados y el centro F +1 no mejora: hace falta física (8.4 y la carga como entrada), no solo datos. Cuesta
+  +14 % en validación.
+- **4.7 (pérdida en las direcciones casi nulas de S), H2O en clústeres, 3 semillas, con Δ:**
+
+  | peso | validación H | (H2O)32 H | gap bruto (gaps cerrados) | bandas brutas | bandas canónicas |
+  |---|---|---|---|---|---|
+  | 0 | 4,16 | 2,40 | 1847 meV (3/9) | 386 | 112 |
+  | **10⁻⁴** | 4,86 | 2,60 | **260 meV (0/9)** | **121** | 119 |
+  | 10⁻³ | 7,46 | 3,52 | 836 meV (1/9) | 202 | 145 |
+  | 10⁻² | 12,7 | 3,99 | 910 meV (1/9) | 209 | 152 |
+
+  Con 10⁻⁴ el espectro de la predicción ya no necesita la ortogonalización canónica (es la mejora que buscaba 4.7), a
+  cambio de +17 % en validación. Pesos mayores empeoran todo.
+- **ZnO (fase 2; wurtzita PBE/DZP a = 3,287, c = 5,265 Å, u = 0,381; 550 Ry, 20 Å; entrenado solo con volumen de 32
+  átomos: desplazamientos, deformación, MD 300–1000 K; pruebas: volumen de 72 átomos, lámina no polar (10-10) y láminas
+  polares (0001) de 2/4/6 celdas, cuyo gap de Γ baja de 0,51 a 0,33 eV con el grosor por el campo; auditoría: elementos
+  KB fuera del grafo despreciables, máximo 2,9 meV; 3 semillas; H / |error del gap| / bandas, meV):**
+
+  | | validación | volumen 72 | (10-10) | (0001) × 2 | × 4 | × 6 |
+  |---|---|---|---|---|---|---|
+  | referencia | 10,6 | 6,2 / 397 / 42 | 155 / 1196 / 718 | 133 / 878 / 635 | 40 / 1283 / 580 | 19 / 1191 / 617 |
+  | con Δ | **1,66** | **0,90 / 37 / 10** | 25,8 / 677 / 253 | 31,4 / 1236 / 935 | 11,1 / 1104 / 673 | 6,1 / 1085 / 583 |
+  | Δ + 5.2 | **1,20** | 0,64 / 51 / 10 | 16,4 / 1031 / 397 | 25,0 / 1183 / 1105 | 9,5 / 1108 / 805 | 5,3 / 1064 / 679 |
+  | Δ + 7.2 | 1,50 | 0,82 / 50 / 9 | 25,1 / 810 / 278 | 31,7 / 1227 / 1006 | 11,2 / 1191 / 759 | 6,1 / 1153 / 642 |
+
+  Δ: −84 % en validación y el volumen grande igual de bien. Las láminas fallan con todas las recetas (gap ~1,1 eV de
+  error con gaps de 0,3–0,8 eV); el H medio baja con el grosor solo porque pesa menos la superficie. Como en el LiF, la
+  prueba mezcla superficie no vista y campo de largo alcance (la lámina no polar también falla): para separar ambas
+  cosas falta entrenar con láminas no polares y mirar lo que queda en las polares. 5.2 vuelve a ganar dentro de
+  distribución (−28 %, como en BaTiO3) y a empeorar gap y bandas fuera; 7.2 neutra (−10 % en validación).
 
 ## Descartado
 

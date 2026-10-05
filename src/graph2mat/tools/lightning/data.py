@@ -177,7 +177,7 @@ class MatrixDataModule(pl.LightningDataModule):
         store_in_memory: bool = False,
         rotating_pool_size: Optional[int] = None,
         initial_node_feats: str = "OneHotZ",
-        spectral_window: bool = False,
+        spectral_window: Union[bool, str] = False,
     ):
         """
 
@@ -219,12 +219,14 @@ class MatrixDataModule(pl.LightningDataModule):
                 with new data. This is useful if the data loading is slow. Note that the notion of
                 epochs will not be meaningful when this kind of loading is used.
                 This will not affect test/val/predict data.
-            spectral_window: bool
+            spectral_window: bool or str
                 Attach to every labelled structure the reference eigenvectors of a window around
                 E_F at Gamma (``spectral_C``), read from ``spectral_window.npz`` (array ``C``,
                 one row per orbital, the same number of columns in every structure, zero
                 columns as padding) next to its run file. Needed by the spectral term of
-                ``gauge_invariant_mse`` (``spectral_weight``, roadmap 4.4).
+                ``gauge_invariant_mse`` (``spectral_weight``, roadmap 4.4). A string reads
+                that file instead, with any S-orthonormal columns (e.g. the near-null
+                directions of S, roadmap 4.7).
 
         """
         super().__init__()
@@ -339,7 +341,7 @@ class MatrixDataModule(pl.LightningDataModule):
                     data_processor=self.data_processor,
                     data_cls=TorchBasisMatrixData,
                     load_labels=split != "predict",
-                    spectral_window=self.spectral_window and split != "predict",
+                    spectral_window=self.spectral_window if split != "predict" else False,
                 )
 
                 if self.store_in_memory:

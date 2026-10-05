@@ -86,7 +86,7 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         data_processor: MatrixDataProcessor,
         data_cls: Type[TorchBasisMatrixData] = TorchBasisMatrixData,
         load_labels: bool = True,
-        spectral_window: bool = False,
+        spectral_window: Union[bool, str] = False,
     ):
         self.input_data = input_data
         self.data_processor = data_processor
@@ -109,11 +109,12 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
             item, data_processor=self.data_processor, labels=self.load_labels
         )
         if self.spectral_window:
-            # Reference eigenvectors of a window around E_F (MatrixDataModule.spectral_window).
-            with np.load(Path(str(item)).parent / "spectral_window.npz") as f:
+            # Projection columns of the spectral loss (MatrixDataModule.spectral_window).
+            name = self.spectral_window if isinstance(self.spectral_window, str) else "spectral_window.npz"
+            with np.load(Path(str(item)).parent / name) as f:
                 data.spectral_C = torch.as_tensor(f["C"], dtype=torch.get_default_dtype())
             if data.spectral_C.shape[0] != self._n_orbitals(data):
-                raise ValueError(f"spectral_window.npz of {item} does not match its number of orbitals.")
+                raise ValueError(f"{name} of {item} does not match its number of orbitals.")
         return data
 
     def _n_orbitals(self, data) -> int:
