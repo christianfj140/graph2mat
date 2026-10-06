@@ -798,8 +798,8 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
   | centro F neutro | 5,27 / 500 / 157 | 4,78 / 349 / 125 | **3,99 / 254 / 93** |
   | centro F +1 | 6,62 / 1232 / 164 | 6,94 / 1325 / 176 | 7,55 / 1404 / 186 |
   | nanocubo / con MD 300 K | 10,4 / 11,1 | 9,5 / 11,9 | 10,1 / 13,2 |
-  | BaTiO3: validación | 2,44 | **2,27** | |
-  | pared de dominio / modo polar | 0,46 / 30 / 14 · 0,48 / 44 / 20 | 0,46 / **23 / 11** · 0,49 / **24 / 13** | |
+  | BaTiO3: validación | 2,44 | **2,27** | 2,42 |
+  | pared de dominio / modo polar | 0,46 / 30 / 14 · 0,48 / 44 / 20 | 0,46 / **23 / 11** · 0,49 / **24 / 13** | 0,48 / 29 / 12 · 0,48 / 37 / 16 |
 
   - **Cargas fijas** (función del entorno local): ayudan en sistemas sin superficie polar (BaTiO3 −7 % en validación y
     gap/bandas −25 a −45 %; LiF −5 % en validación y −15 % en el par de Schottky), pero en las láminas polares de ZnO
@@ -808,9 +808,14 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
   - **Qeq** (cargas del mínimo de Σχq + ½Jq² + Coulomb con Σq = Q): ya no rompe las láminas polares (H igual que sin
     8.4, gap −20 a −37 %, bandas +8 a +26 %), da el mejor gap de la lámina no polar (144 → 20 meV), la mejor validación
     de LiF (−10 %) y el mejor centro F neutro (−24 % en H, gap 500 → 254 meV). No arregla el nanocubo (con MD, peor).
-  - **Carga total:** con Qeq entra en el modelo (F +1 ya no recibe la misma H que el neutro), pero el entrenamiento no
-    tiene estructuras cargadas y χ/J no saben qué hacer con ella: F +1 empeora (6,6 → 7,6 meV). Falta entrenar con
-    defectos cargados.
+  - **Carga total:** con Qeq entra en el modelo (F +1 ya no recibe la misma H que el neutro), pero el entrenamiento sin
+    estructuras cargadas no permite aprender su efecto: F +1 empeora (6,6 → 7,6 meV). Añadiendo seis estructuras de
+    vacantes cargadas al entrenamiento (3 semillas), F +1 mejora a **4,80 meV sin Qeq y 4,71 con Qeq** (−27/−38 %
+    frente al conjunto de defectos sin carga), pero el F neutro empeora de 5,27/3,99 a **7,14/7,20 meV**. Qeq apenas
+    aporta sobre los datos cargados; queda un compromiso entre estados de carga que el modelo actual no resuelve.
+  - **Controles Qeq:** en BaTiO3 es neutro (validación 2,44 → 2,42 meV; las cargas fijas siguen ganando con 2,27) y en
+    H2O aporta una mejora pequeña pero consistente (validación 4,16 → 3,80; (H2O)32 2,40 → 2,21; bandas canónicas
+    112 → 104 meV). No justifica sustituir la receta base; se mantiene como opción para sistemas polares/cargados.
   - Lo que sigue sin resolver en las polares es sobre todo el de bandas: posible metalización de superficie (gap de
     0,3–0,5 eV) que una corrección de primer orden V·S no captura.
 
