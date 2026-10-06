@@ -819,6 +819,21 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
   - Lo que sigue sin resolver en las polares es sobre todo el de bandas: posible metalización de superficie (gap de
     0,3–0,5 eV) que una corrección de primer orden V·S no captura.
 
+- **Fase 2, TMD sin SOC (MoSe2/WSe2):** 51/51 estructuras etiquetadas y con H0 (36 entrenamiento, 12 validación,
+  3 pruebas: heterobicapa, aleación y MoSe2 5x5). La auditoría encuentra bloques Se-Se fuera del grafo de hasta
+  **23,2 meV** a 7,86 Å, pero solo 3,2·10⁻⁷ de la norma² de H fuera de sitio; Mo-Se y Se-W no superan 2,3 y
+  1,3 meV. Por tanto, 8.2 puede afectar niveles locales concretos, pero no justifica ampliar el grafo antes de medir
+  el suelo de error del modelo completo. S tiene λ_min = 1,62·10⁻⁴ y κ_max = 3,75·10⁴. El smoke de 40
+  actualizaciones confirma el pipeline y el valor de Δ: validación 210,9 → **6,0 meV**, con 2,27 GiB de pico;
+  referencia y Δ quedan en ejecución con tres semillas completas.
+- **4.7 en sólidos, control de una semilla (peso 10⁻⁴):** en LiF reduce el error espectral de validación
+  24,4 → 10,0 eV, pero empeora H 1,76 → **5,33 meV** y la mayoría de pruebas; en ZnO empeora tanto H
+  (1,72 → **4,23 meV**) como el error espectral (1,46 → 3,17 eV). El peso útil en H2O no transfiere a estos
+  sólidos; no se gastan dos semillas adicionales.
+- **a-SiO2:** la puerta de calidad permanece estricta (Si4/O2 ≥ 95 %, Si-Si ≥ 2,8 Å). Se aceptaron los seis
+  vidrios de entrenamiento, pero 0/8 candidatos de validación; el límite de los vidrios pequeños se amplía a
+  24 semillas deterministas sin rebajar el criterio y se repite la fase.
+
 ## Descartado
 
 | # | Cambio | Motivo |
