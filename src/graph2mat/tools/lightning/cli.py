@@ -197,7 +197,10 @@ class OrbitalMatrixCLI(LightningCLI):
         # We only need to load hyperparameters, not weights. Therefore, we don't care whether things were in
         # the GPU. The torch tensors might be located on GPU (or any other device), which is possibly not
         # available when we load the checkpoint. Map those tensors to CPU so that there are no loading errors.
-        checkpoint = torch.load(ckpt_path, map_location=torch.device("cpu"))
+        # Lightning checkpoints contain Python objects; only load trusted files.
+        checkpoint = torch.load(
+            ckpt_path, map_location=torch.device("cpu"), weights_only=False
+        )
         checkpoint = sanitize_checkpoint(checkpoint)
 
         config = {}
@@ -233,8 +236,8 @@ class OrbitalMatrixCLI(LightningCLI):
         ]:
             basis_table = checkpoint.get("basis_table")
             if basis_table:
-                config["model"]["basis_table"] = basis_table
-                config["data"]["basis_table"] = basis_table
+                config.setdefault("model", {})["basis_table"] = basis_table
+                config.setdefault("data", {})["basis_table"] = basis_table
 
         return config
 
