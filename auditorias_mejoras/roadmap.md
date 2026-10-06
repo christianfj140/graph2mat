@@ -465,7 +465,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 0.4 | Métricas mal definidas o duplicadas (`mapestdmix`, `mapemaemix`, `mapemsemix`) | C | S | bajo | ✅ |
 | 0.5 | CI que ejecuta pytest | C | S | bajo | ✅ `.github/workflows/tests.yaml` |
 | 0.6 | Tests: equivariancia con rotación genérica, localidad de bloques, reordenación, asserts que siempre pasan | C | M | bajo | 🔶 los 14 tests del fork que ya fallaban en a5e8134 están arreglados (72b468c; suite: 470 pasan). Faltan ENG_QUALITY-04 y los tests del modelo completo con supercelda |
-| 0.7 | Carga con torch ≥ 2.6 (e3nn, checkpoints) | C | S | bajo | 🔶 falta el KeyError con variables `E3MAT_*` |
+| 0.7 | Carga con torch ≥ 2.6 (e3nn, checkpoints) | C | S | bajo | ✅ la CLI carga objetos Lightning con `weights_only=False` (solo checkpoints de confianza) y conserva la tabla de base aunque `E3MAT_FROMCKPT_MODEL` o `E3MAT_FROMCKPT_DATAPROC` desactiven el resto de defaults (cae9955; 3 regresiones) |
 | 0.8 | `initial_node_feats` ignorado; rama `version != "new"` rota | C | S | bajo | ✅ `initial_node_feats` validado; la rama `version != "new"` (llamaba a `init_model` con argumentos que `MatrixMACE` ya no acepta) eliminada: el argumento se conserva para los checkpoints y cualquier otro valor da error |
 | 0.9 | Batch sin aristas o sin nodos con base | C | S | bajo | ✅ |
 | 0.10 | Benchmark reproducible, perfilado y regresión numérica | — | M | bajo | 🔶 existe `g2m_improvements_benchmark.py` (`w90`/`6x6`); falta el perfilado (2.9) |
