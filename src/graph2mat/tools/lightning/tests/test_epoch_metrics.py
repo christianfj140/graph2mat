@@ -92,7 +92,8 @@ def test_epoch_gauge_rmse_counts_elements_after_alignment():
         assert result["val_overlap_rmse"] == 0
 
 
-def test_training_rmse_resets_each_epoch():
+@pytest.mark.parametrize("loss_name,want_loss", [("elementwise_mse", 1.5), ("block_type_huber", 1.)])
+def test_training_rmse_resets_each_epoch(loss_name, want_loss):
     class TrainModel(LitBasisMatrixModel):
         def configure_optimizers(self):
             return torch.optim.SGD(self.parameters(), lr=0)
@@ -110,7 +111,7 @@ def test_training_rmse_resets_each_epoch():
                     edge_labels=torch.zeros(2), edge_prediction=torch.zeros(2))
                for n, error in ((3, 1.0), (1, 3.0))]
     table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
-    model = TrainModel(model_cls=_PredictionModel, basis_table=table, loss=elementwise_mse)
+    model = TrainModel(model_cls=_PredictionModel, basis_table=table, loss=getattr(metrics_module, loss_name))
     model.init_model()
     recorder = RecordEpoch()
     trainer = pl.Trainer(accelerator="cpu", max_epochs=2, logger=False, callbacks=[recorder],
@@ -118,7 +119,48 @@ def test_training_rmse_resets_each_epoch():
                          enable_model_summary=False)
     trainer.fit(model, train_dataloaders=DataLoader(samples, batch_size=1))
     assert recorder.values == pytest.approx([math.sqrt(3), math.sqrt(3)])
-    assert recorder.losses == pytest.approx([1.5, 1.5])
+    assert recorder.losses == pytest.approx([want_loss, want_loss])
+
+
+@pytest.mark.parametrize("split", ["val", "test"])
+@pytest.mark.parametrize("missing_nodes", [False, True])
+@pytest.mark.parametrize("components,loss_name,loss_kwargs,want_node,want_edge", [
+    (1, "block_type_huber", {"beta": 1.}, 1.3, 3.),
+    (2, "block_type_huber", {"beta": 1.}, 2.2, 4.75),
+    (1, "block_type_smooth_l1", {"delta": 2.}, .95, 2.5),
+    (2, "block_type_smooth_l1", {"delta": 2.}, 1.775, 4.25),
+])
+def test_epoch_huber_loss_and_branch_means_use_valid_element_counts(split, missing_nodes, components, loss_name, loss_kwargs, want_node, want_edge):
+    # beta=1: node Huber sum 6.5/5, edge 12/4; two channels give 22/10, 38/8.
+    # delta=2: scalar 4.75/5 + 10/4; two channels 17.75/10 + 34/8.
+    samples = [
+        Data(num_nodes=3, point_labels=torch.zeros(3), node_prediction=torch.ones(3),
+             edge_labels=torch.tensor([0., float("nan")]), edge_prediction=torch.tensor([2., 99.])),
+        Data(num_nodes=2, point_labels=torch.zeros(2), node_prediction=torch.full((2,), 3.),
+             edge_labels=torch.zeros(3), edge_prediction=torch.full((3,), 4.)),
+    ]
+    if missing_nodes:
+        for sample in samples:
+            sample.point_labels[:] = float("nan")
+        want_node = 0.
+    if components == 2:
+        for sample in samples:
+            for key in ("point_labels", "node_prediction", "edge_labels", "edge_prediction"):
+                sample[key] = torch.stack([sample[key], 2 * sample[key]], dim=1)
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
+    model = LitBasisMatrixModel(model_cls=_PredictionModel, basis_table=table,
+                               loss=getattr(metrics_module, loss_name), loss_kwargs=loss_kwargs)
+    model.init_model()
+    trainer = pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                         enable_progress_bar=False, enable_model_summary=False)
+    evaluate = trainer.validate if split == "val" else trainer.test
+    for batch_size in (1, 2, 1):
+        result = evaluate(model, dataloaders=DataLoader(samples, batch_size=batch_size), verbose=False)[0]
+        assert result[f"{split}_loss"] == pytest.approx(want_node + want_edge)
+        assert result[f"{split}_node_smooth_l1"] == pytest.approx(want_node)
+        assert result[f"{split}_edge_smooth_l1"] == pytest.approx(want_edge)
+        if split == "val":
+            assert result["hp_metric"] == pytest.approx(want_node + want_edge)
 
 
 @pytest.mark.parametrize("split", ["val", "test"])

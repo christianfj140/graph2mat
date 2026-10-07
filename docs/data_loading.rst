@@ -64,15 +64,18 @@ excludes those energy heads. This adds zero-gradient materialization/communicati
 in DDP; the single-process path is unchanged. It does not by itself establish
 distributed epoch-metric correctness, which is verified separately.
 
-Epoch metrics for the basic block-type/elementwise MSE and MAE objectives, and
-node-only/edge-only MSE, use valid matrix-element sums and counts, not averages of
+Epoch metrics for the basic block-type/elementwise MSE and MAE objectives,
+node-only/edge-only MSE and block-type Huber/Smooth L1 use valid matrix-element
+sums and counts, not averages of
 batch losses. ``val_loss`` and ``hp_metric`` share that global objective. Per-step
 training losses and their gradients are unchanged. Absolute-error means, sample
 standard deviations and maxima also reduce across batches and distributed ranks;
 standard deviation is zero with fewer than two valid elements. Special objectives
-(coefficient, pair, spectral, domain and Huber losses) still have separate pending
+(coefficient, pair, spectral, domain and physical-block/composite Huber losses) still have separate pending
 aggregation work. Distributed samplers may pad uneven datasets with repeated
 samples: the metrics count the samples actually evaluated, including those repeats.
+Block-type Huber's per-branch ``node_smooth_l1`` and ``edge_smooth_l1`` statistics
+use those same valid-element means, including scalar and spin labels.
 The basic matrix losses ignore node and edge rows with any NaN label component,
 using the same mask for relative-error references and epoch denominators. Empty
 branches contribute zero with connected zero gradients. Empty threshold selections

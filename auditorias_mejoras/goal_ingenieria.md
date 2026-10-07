@@ -444,6 +444,7 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 
 ### Sublote 3.9.e — bloques sparse completamente ausentes
 
+- Commit local **6cf523f**, gate completo 931/2 y wheel base verificada.
 - Traza: csr_to_block_dict conserva fill_value dentro de los bloques existentes,
   pero no crea bloques sin ninguna entrada sparse. BasisMatrix.to_flat_nodes_and_edges
   los indexaba obligatoriamente. Una matriz completamente cero o solo diagonal
@@ -483,6 +484,32 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   el siguiente lote de instalación debe resolver su cadena real de imports.
 - Este sublote no completa la cobertura de pérdidas ni los oráculos independientes
   spin no collinear/S/d-f; 3.9 y los demás frentes/revisión final siguen abiertos.
+
+### Sublote 3.1.e — Huber básico global por época
+
+- La interrupción de cuota ocurrió después de escribir las pruebas RED, antes
+  del parche. Reanudación solicitada por el usuario; HEAD 6cf523f y únicamente
+  las dos pruebas de epochs/DDP modificadas, sin procesos pytest vivos.
+  get_goal aún informa usageLimited; no se altera su estado mediante update_goal.
+- RED real de train/val/test: **17 failed, 1 passed**, 34 deselected, 108 warnings,
+  0.89 s (huber-epochs-red.log). Huber de validación daba 4 frente al global 4.3;
+  train_loss_epoch daba 1.5 frente a 1.0. Valores literales con beta/delta,
+  uno/dos componentes, nodos totalmente ausentes y batches 1,2,1/reset.
+- RED de dos rangos CPU/Gloo: **2 failed, 1 passed**, 3 deselected, 52 warnings,
+  15.78 s (huber-ddp-red.log). Huber scalar/spin daba 4/6.5 frente a 4.3/6.95.
+  El tercer caso MSE existente pasó: no se omite ni se redefine su prueba.
+- Parche: reutilizar los acumuladores existentes de objetivo y momentos sobre
+  los términos Smooth L1. Pérdida Huber/su alias y medias por rama reducen sumas
+  y conteos válidos por época/rango; beta/delta y los gradientes del paso no
+  cambian. No se aplica esta política a pérdidas Huber físicas/composite, que
+  tienen denominadores diferentes y siguen pendientes.
+- GREEN enfocado: **285 passed**, 211 warnings, 2.22 s
+  (huber-epochs-focused.log). DDP scalar/spin MSE/Huber: **4 passed**,
+  52 warnings, 19.90 s (huber-ddp-green.log); todos los rangos comprueban pérdidas,
+  medias por rama y estadísticas globales contra valores literales, sin padding.
+- Gate completo CPU: **950 passed, 2 skipped**, 6722 warnings, 104.30 s,
+  exit 0 (huber-epochs-full-cpu.log). Los objetivos/denominadores especiales de
+  3.1 y los otros frentes conservan todo su alcance; no se marca completo el goal.
 
 ## Cierre del goal
 

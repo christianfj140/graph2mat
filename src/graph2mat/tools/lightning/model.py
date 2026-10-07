@@ -311,12 +311,17 @@ class LitBasisMatrixModel(pl.LightningModule):
             metrics_module.elementwise_mae: (1, True, 1., 1.),
         } if hasattr(self.loss_fn, "metric_kwargs") else {}
         policy = policies.get(type(self.loss_fn))
+        huber = type(self.loss_fn) in (metrics_module.block_type_huber, metrics_module.block_type_smooth_l1)
+        if huber:
+            policy = (1, False, 1., 1.)
         key = f"{split}_loss"
         value, attribute = loss, None
         if policy is not None:
             errors = metrics_module.get_predictions_error(
                 out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
             )
+            if huber:
+                errors = tuple(metrics_module._smooth_l1(error, self.loss_fn.beta) for error in errors)
             if key not in self._epoch_losses:
                 self._epoch_losses[key] = _EpochMatrixLoss().to(self.device)
             value = self._epoch_losses[key]
@@ -332,6 +337,8 @@ class LitBasisMatrixModel(pl.LightningModule):
     def _log_stats(self, split, stats, batch, out):
         errors = None
         for name, value in stats.items():
+            huber_mean = (type(self.loss_fn) in (metrics_module.block_type_huber, metrics_module.block_type_smooth_l1)
+                          and name in ("node_smooth_l1", "edge_smooth_l1"))
             count = self._rmse_count(name, batch)
             key = f"{split}_{name}"
             attribute = None
@@ -342,15 +349,19 @@ class LitBasisMatrixModel(pl.LightningModule):
                 metric(value, count)
                 value = metric
                 attribute = f"_epoch_rmse.{key}"
-            elif name in {f"{kind}_{stat}" for kind in ("node", "edge") for stat in ("mean", "std", "max")}:
+            elif huber_mean or name in {f"{kind}_{stat}" for kind in ("node", "edge") for stat in ("mean", "std", "max")}:
                 if errors is None:
                     errors = metrics_module.get_predictions_error(
                         out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
                     )
                 if key not in self._epoch_errors:
-                    self._epoch_errors[key] = _EpochErrorMoments(name.rsplit("_", 1)[1]).to(self.device)
+                    statistic = "mean" if huber_mean else name.rsplit("_", 1)[1]
+                    self._epoch_errors[key] = _EpochErrorMoments(statistic).to(self.device)
                 value = self._epoch_errors[key]
-                value(errors[0 if name.startswith("node_") else 1])
+                terms = errors[0 if name.startswith("node_") else 1]
+                if huber_mean:
+                    terms = metrics_module._smooth_l1(terms, self.loss_fn.beta)
+                value(terms)
                 attribute = f"_epoch_errors.{key}"
             self.log(key, value, on_step=split == "train", on_epoch=True,
                      batch_size=batch.num_graphs, reduce_fx=_epoch_reduce(name),

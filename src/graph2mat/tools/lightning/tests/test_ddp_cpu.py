@@ -84,7 +84,7 @@ def _run_training_script(output_dir, layout):
     return json.loads((output_dir / "result.json").read_text())
 
 
-def _evaluate_epoch_metrics(output_dir, spin):
+def _evaluate_epoch_metrics(output_dir, spin, huber=False):
     import pytorch_lightning as pl
     import torch
     from pytorch_lightning.strategies import DDPStrategy
@@ -92,7 +92,7 @@ def _evaluate_epoch_metrics(output_dir, spin):
     from torch_geometric.loader import DataLoader
 
     from graph2mat import BasisTableWithEdges, PointBasis
-    from graph2mat.core.data.metrics import block_type_mse
+    from graph2mat.core.data.metrics import block_type_mse, block_type_huber
     from graph2mat.tools.lightning.model import LitBasisMatrixModel
 
     class Predictions(torch.nn.Module):
@@ -116,7 +116,8 @@ def _evaluate_epoch_metrics(output_dir, spin):
                 values = sample[key]
                 sample[key] = torch.stack([values, 2 * values], dim=1)
     table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
-    model = LitBasisMatrixModel(model_cls=Predictions, basis_table=table, loss=block_type_mse)
+    model = LitBasisMatrixModel(model_cls=Predictions, basis_table=table,
+                               loss=block_type_huber if huber else block_type_mse)
     model.init_model()
     trainer = pl.Trainer(
         accelerator="cpu", devices=2,
@@ -154,10 +155,12 @@ def test_two_cpu_ranks_train_real_mace_for_multiple_steps(tmp_path, layout):
 
 
 @pytest.mark.parametrize("spin", [False, True])
-def test_two_cpu_ranks_reduce_global_epoch_statistics(tmp_path, spin):
+@pytest.mark.parametrize("huber", [False, True])
+def test_two_cpu_ranks_reduce_global_epoch_statistics(tmp_path, spin, huber):
     import math
 
-    _run_training_script(tmp_path, "epoch_metrics_spin" if spin else "epoch_metrics")
+    layout = "epoch_metrics" + ("_huber" if huber else "") + ("_spin" if spin else "")
+    _run_training_script(tmp_path, layout)
     for rank in (0, 1):
         result = json.loads((tmp_path / f"rank{rank}.json").read_text())
         assert result["world_size"] == 2
@@ -178,12 +181,17 @@ def test_two_cpu_ranks_reduce_global_epoch_statistics(tmp_path, spin):
             expected.update({"val_node_rmse_spin0": math.sqrt(21 / 5),
                              "val_node_rmse_spin1": math.sqrt(84 / 5),
                              "val_edge_rmse_spin1": math.sqrt(52)})
+        if huber:
+            expected.update({"val_loss": 6.95 if spin else 4.3,
+                             "hp_metric": 6.95 if spin else 4.3,
+                             "val_node_smooth_l1": 2.2 if spin else 1.3,
+                             "val_edge_smooth_l1": 4.75 if spin else 3.})
         for key, value in expected.items():
             assert metrics[key] == pytest.approx(value), f"Rank {rank}, {key}"
 
 
 if __name__ == "__main__":
     if sys.argv[2].startswith("epoch_metrics"):
-        _evaluate_epoch_metrics(sys.argv[1], sys.argv[2].endswith("spin"))
+        _evaluate_epoch_metrics(sys.argv[1], sys.argv[2].endswith("spin"), "huber" in sys.argv[2])
     else:
         _fit(sys.argv[1], sys.argv[2])
