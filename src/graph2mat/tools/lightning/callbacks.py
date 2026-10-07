@@ -20,9 +20,8 @@ import pytorch_lightning as pl
 import sisl
 from pytorch_lightning.callbacks import BasePredictionWriter, Callback
 
-from graph2mat import AtomicTableWithEdges, MatrixDataProcessor
-from graph2mat.core.data.metrics import OrbitalMatrixMetric
-from graph2mat.core.data.sparse import nodes_and_edges_to_sparse_orbital
+from graph2mat import AtomicTableWithEdges, BasisMatrixData, MatrixDataProcessor
+from graph2mat.core.data.metrics import OrbitalMatrixMetric, _valid_label_rows
 from graph2mat.tools.viz import plot_basis_matrix
 
 
@@ -393,6 +392,12 @@ class PlotMatrixError(Callback):
     This callback is then useful to visualize how the errors are distributed
     within the matrix.
 
+    Atom types, matrix components and edge/image ordering must match throughout
+    the split; changing MD coordinates is allowed. Missing label rows do not
+    contribute to entry counts, and unobserved entries stay blank. Multiple
+    components are plotted separately without interpreting errors as a physical
+    Hamiltonian, overlap or density matrix.
+
     Parameters
     ----------
     split :
@@ -416,190 +421,128 @@ class PlotMatrixError(Callback):
         self.store_in_logger = store_in_logger
 
     def _setup(self):
-        self.node_running_ae = None
-        self.node_running_se = None
-        self.edge_running_ae = None
-        self.edge_running_se = None
+        self._matrix_data = None
+        for branch in ("node", "edge"):
+            for reduction in ("ae", "se", "count"):
+                setattr(self, f"{branch}_running_{reduction}", None)
         self.matrix_count = 0
-        self.positions = None
-        self.point_types = None
-        self.cell = None
+        self.positions = self.point_types = self.cell = None
 
     def _on_batch_end(
         self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
     ):
-        # And the atomic table, which will help us constructing the matrices from
-        # the batched flat arrays.
-        basis_table: AtomicTableWithEdges = trainer.datamodule.basis_table
-        # Find out whether the model was trained with the imposition that the matrix
-        # is symmetric.
-        symmetric_matrix = trainer.datamodule.symmetric_matrix
-
-        # Pointer arrays to understand where the data for each structure starts in the batch.
-        atom_ptr = batch.ptr.numpy(force=True)
-        edge_ptr = np.zeros_like(atom_ptr)
-        np.cumsum(batch.n_edges.numpy(force=True), out=edge_ptr[1:])
-
-        # Types for both atoms and edges.
-        point_types = batch.point_types.numpy(force=True)
-        edge_types = batch.edge_types.numpy(force=True)
-
-        # Get the values for the node blocks and the pointer to the start of each block.
-        node_labels = outputs["node_labels"].numpy(force=True)
-        node_labels_ptr = basis_table.point_block_pointer(point_types)
-
-        # Get the values for the edge blocks and the pointer to the start of each block.
-        edge_index = batch.edge_index.numpy(force=True)
-        if symmetric_matrix:
-            full_edge_ptr = edge_ptr
-            n_edges = batch.n_edges.numpy(force=True)
-
-            edge_ptr = np.zeros_like(atom_ptr)
-            np.cumsum((n_edges + 1) // 2, out=edge_ptr[1:])
-
-            edge_slices = [
-                slice(start, end, 2)
-                for start, end in zip(full_edge_ptr[:-1], full_edge_ptr[1:])
-            ]
-            selected_edge_types = [edge_types[s] for s in edge_slices]
-            selected_edge_indices = [edge_index[:, s] for s in edge_slices]
-            if len(selected_edge_types) > 0:
-                edge_types = np.concatenate(selected_edge_types)
-                edge_index = np.concatenate(selected_edge_indices, axis=1)
+        processor = trainer.datamodule.data_processor
+        references = processor.yield_from_batch(batch, as_matrix=False)
+        predictions = processor.yield_from_batch(
+            batch, predictions=outputs, as_matrix=False
+        )
+        for reference, prediction in zip(references, predictions):
+            arrays = reference.numpy_arrays()
+            predicted = prediction.numpy_arrays()
+            if self._matrix_data is None:
+                self._matrix_data = reference.copy(cls=BasisMatrixData)
+                self.positions = arrays.positions.copy()
+                self.point_types = arrays.point_types.copy()
+                self.cell = arrays.cell.copy()
+                self.nsc = arrays.nsc.squeeze().copy()
+                self.edge_index = arrays.edge_index.copy()
+                self.neigh_isc = arrays.neigh_isc.copy()
             else:
-                edge_types = np.empty(0, dtype=edge_types.dtype)
-                edge_index = np.empty((2, 0), dtype=edge_index.dtype)
+                first = self._matrix_data.numpy_arrays()
+                for key in ("point_types", "edge_index", "edge_types", "neigh_isc", "nsc"):
+                    if not np.array_equal(first[key], arrays[key]):
+                        raise ValueError(
+                            f"PlotMatrixError requires an identical matrix layout: {key} differs."
+                        )
+                for key in ("point_labels", "edge_labels"):
+                    if first[key].shape != arrays[key].shape:
+                        raise ValueError(
+                            f"PlotMatrixError requires an identical matrix layout: {key} shape differs."
+                        )
 
-        edge_labels = outputs["edge_labels"].numpy(force=True)
-        edge_labels_ptr = basis_table.edge_block_pointer(edge_types)
-
-        # Save the relevant information for use when plotting
-        # We only save the information for one configuration and assume the
-        # rest are the same
-        self.positions = batch.positions.numpy(force=True)[atom_ptr[0] : atom_ptr[1]]
-        self.cell = batch.cell.numpy(force=True)[0:3]
-        self.nsc = batch.nsc[0].numpy(force=True)
-        self.point_types = point_types[atom_ptr[0] : atom_ptr[1]]
-        self.node_labels_ptr = node_labels_ptr[atom_ptr[0] : (atom_ptr[1] + 1)]
-        self.edge_labels_ptr = edge_labels_ptr[edge_ptr[0] : (edge_ptr[1] + 1)]
-        self.edge_index = edge_index[:, edge_ptr[0] : edge_ptr[1]]
-
-        # Calculate errors on the flat arrays
-        node_error = node_labels - batch["point_labels"].numpy(force=True)
-        edge_error = edge_labels - batch["edge_labels"].numpy(force=True)
-
-        # Some edge labels are np.nan (which means no entry), manually set the error
-        # for those to 0.
-        edge_error[np.isnan(edge_error)] = 0
-
-        # Sum the errors across the different configurations
-        # First get the pointers that split the labels...
-        atom_split = atom_ptr[1:-1]
-        edge_split = edge_ptr[1:-1]
-
-        edge_labels_split = edge_labels_ptr[edge_split]
-        node_labels_split = node_labels_ptr[atom_split]
-        np.testing.assert_array_equal(edge_labels_split.shape, node_labels_split.shape)
-        # ..and then sum across the configurations
-        self.matrix_count += edge_labels_split.shape[0] + 1
-        nae, eae, nse, ese = (
-            sum(np.split(np.abs(node_error), node_labels_split)),
-            sum(np.split(np.abs(edge_error), edge_labels_split)),
-            sum(np.split(np.square(node_error), node_labels_split)),
-            sum(np.split(np.square(edge_error), edge_labels_split)),
-        )
-        self.node_running_ae = (
-            nae + self.node_running_ae if self.node_running_ae is not None else nae
-        )
-        self.edge_running_ae = (
-            eae + self.edge_running_ae if self.edge_running_ae is not None else eae
-        )
-        self.node_running_se = (
-            nse + self.node_running_se if self.node_running_se is not None else nse
-        )
-        self.edge_running_se = (
-            ese + self.edge_running_se if self.edge_running_se is not None else ese
-        )
+            for branch, key in (("node", "point_labels"), ("edge", "edge_labels")):
+                target = arrays[key]
+                values = predicted[key]
+                if values.shape != target.shape:
+                    raise ValueError(
+                        f"PlotMatrixError prediction/reference shapes differ for {key}."
+                    )
+                valid = _valid_label_rows(target)
+                if target.ndim == 2:
+                    valid = valid[:, None]
+                error = np.where(valid, values.astype(np.float64) - target, 0.)
+                if not np.isfinite(error).all():
+                    raise ValueError(
+                        f"PlotMatrixError has non-finite predictions for valid {key}."
+                    )
+                terms = (
+                    np.abs(error), np.square(error),
+                    np.broadcast_to(valid, error.shape).astype(np.int64),
+                )
+                for reduction, term in zip(("ae", "se", "count"), terms):
+                    name = f"{branch}_running_{reduction}"
+                    previous = getattr(self, name)
+                    setattr(self, name, term.copy() if previous is None else previous + term)
+            self.matrix_count += 1
 
     def _on_epoch_end(self, trainer, pl_module):
-        # Find out which matrix class we should use based on what matrix type the data
-        # has been trained on.
-        matrix_cls = {
-            "density_matrix": sisl.DensityMatrix,
-            "energy_density_matrix": sisl.EnergyDensityMatrix,
-            "hamiltonian": sisl.Hamiltonian,
-            "dynamical_matrix": sisl.DynamicalMatrix,
-        }[trainer.datamodule.out_matrix]
+        if self._matrix_data is None:
+            return
 
-        # The basis_table helps us arrange the errors into matrix format
-        basis_table: AtomicTableWithEdges = trainer.datamodule.basis_table
+        # Errors are not physical matrices: do not restore an atomic reference or
+        # serialize spin/overlap channels as a single Hamiltonian or density matrix.
+        processor = trainer.datamodule.data_processor.copy(sub_point_matrix=False)
+        unique_atoms = processor.basis_table.get_sisl_atoms()
+        geometry = sisl.Geometry(
+            processor.basis_to_cartesian(self.positions),
+            atoms=[unique_atoms[k] for k in self.point_types],
+            lattice=processor.basis_to_cartesian(self.cell),
+        )
+        geometry.set_nsc(self.nsc)
 
-        labels = ["MAE", "RMSE"]
-        node_errors = [self.node_running_ae, self.node_running_se]
-        edge_errors = [self.edge_running_ae, self.edge_running_se]
-
-        assert self.point_types is not None
-        for i, (label, node_error, edge_error) in enumerate(
-            zip(labels, node_errors, edge_errors)
+        for label, node_total, edge_total in (
+            ("MAE", self.node_running_ae, self.edge_running_ae),
+            ("RMSE", self.node_running_se, self.edge_running_se),
         ):
-            unique_atoms = basis_table.get_sisl_atoms()
-
-            geometry = sisl.Geometry(
-                self.positions,
-                atoms=[unique_atoms[at_type] for at_type in self.point_types],
-                lattice=self.cell,
+            # Entries with no observations stay blank in the existing sparse plot.
+            ne = np.divide(
+                node_total, self.node_running_count,
+                out=np.zeros_like(node_total), where=self.node_running_count > 0,
             )
-
-            geometry.set_nsc(self.nsc)
-
-            assert node_error is not None
-            assert edge_error is not None
+            ee = np.divide(
+                edge_total, self.edge_running_count,
+                out=np.zeros_like(edge_total), where=self.edge_running_count > 0,
+            )
             if label == "RMSE":
-                ne = np.sqrt(node_error / self.matrix_count)
-                ee = np.sqrt(edge_error / self.matrix_count)
-            else:
-                ne = node_error / self.matrix_count
-                ee = edge_error / self.matrix_count
-
-            # Convert flat error array to matrix format
-            matrix = nodes_and_edges_to_sparse_orbital(
-                node_vals=ne,
-                edge_vals=ee,
-                edge_index=self.edge_index,
-                geometry=geometry,
-                sp_class=matrix_cls,
-                symmetrize_edges=trainer.datamodule.symmetric_matrix,
-                matrix_component_policy=getattr(
-                    trainer.datamodule, "matrix_component_policy", None
-                ),
-            ).tocsr()
-
-            # Plot image to figure object
-            fig = plot_basis_matrix(
-                matrix,
-                configuration=geometry,
-                point_lines=True,
-                basis_lines=True,
-                text=".3f",
-                colorscale="temps",
-            ).update_layout(title=label)
-
-            if self.show:
-                fig.show("browser")
-            if self.store_in_logger:
-                import PIL.Image
-
-                # Convert image to png
-                img_bytes = fig.to_image(format="png", width=800, height=600)
-                img_buf = io.BytesIO(img_bytes)
-                img = PIL.Image.open(img_buf, formats=["PNG"])
-                # Convert to numpy array
-                img_array = np.array(img)
-                # Add to tensorboard
-                tensorboard = trainer.logger.experiment
-                tensorboard.add_image(
-                    label, img_array, dataformats="HWC", global_step=trainer.global_step
+                ne, ee = np.sqrt(ne), np.sqrt(ee)
+            components = ne.shape[1] if ne.ndim == 2 else 1
+            for component in range(components):
+                title = label if components == 1 else f"{label}_component{component}"
+                matrix = processor.labels_to(
+                    "scipy_csr",
+                    data={
+                        **self._matrix_data._data,
+                        "point_labels": ne[:, component] if ne.ndim == 2 else ne,
+                        "edge_labels": ee[:, component] if ee.ndim == 2 else ee,
+                    },
+                    threshold=None,
                 )
+                fig = plot_basis_matrix(
+                    matrix, configuration=geometry, point_lines=True, basis_lines=True,
+                    text=".3f", colorscale="temps",
+                ).update_layout(title=title)
+                if self.show:
+                    fig.show("browser")
+                if self.store_in_logger:
+                    import PIL.Image
+
+                    img_bytes = fig.to_image(format="png", width=800, height=600)
+                    img_buf = io.BytesIO(img_bytes)
+                    img = PIL.Image.open(img_buf, formats=["PNG"])
+                    img_array = np.array(img)
+                    trainer.logger.experiment.add_image(
+                        title, img_array, dataformats="HWC", global_step=trainer.global_step
+                    )
 
     def on_validation_epoch_start(self, trainer, pl_module):
         if self.split in [None, "val"]:

@@ -556,6 +556,63 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   constraints reproducibles y perfil completo limpio. El resto del goal y la
   revisión final mantienen todo su alcance original.
 
+### Sublote 3.4.b / 3.5.b / 3.9.f — mapas periódicos y cliente independiente
+
+- Commit CLI anterior: **024fecb**. Este lote continúa sobre él, sin revisión
+  delegada por tarea; la revisión independiente sigue reservada al goal completo.
+- Cliente: RED **1 failed, 20 deselected**, 0.53 s
+  (client-without-server-red.log), al importar Torch desde server_app para usar
+  ServerClient. Las funciones públicas de servidor se resuelven perezosamente
+  con __getattr__; el cliente conserva la API y no carga el stack de modelos.
+  GREEN **30 passed**, 53 warnings, 16.04 s (client-without-server-green.log),
+  incluidos nueve tests HTTP existentes y consulta real a un servidor HTTP local
+  con ausencia simulada de ML/FastAPI/YAML/Jinja. Sin mocks de Requests.
+- Mapas: la primera fixture rectangular se declaró erróneamente nsc=1; sus 23
+  fallos precedían el callback y no prueban el bug. Se construyó una BasisMatrix
+  real con nsc=[3,1,1] y los tres bloques, sin relajar validaciones de periodicidad.
+- RED auténtico **21 failed, 2 passed**, 52 warnings, 0.76 s
+  (periodic-plot-real-red.log). MAE resultaba [[8,0,0]] en vez de [[2,3,3]]:
+  las imágenes se sumaban en la columna central. NaN contaminaba nodos o diluía
+  aristas; dos componentes DM fallaban al intentar serializar errores como DM;
+  layouts diferentes se sumaban en silencio. Dos casos completamente vacíos
+  ya conservaban el mapa blanco y permanecen como caracterización.
+- Diseño mínimo: reutilizar yield_from_batch y labels_to para mapas, conservando
+  neigh_isc y máscaras simétricas de cada configuración. Comprobar identidad de
+  tipos, índices/aristas/imágenes/nsc y shapes entre muestras y batches; no exigir
+  igualdad de coordenadas MD. Medias por entrada usan conteos int64 de targets
+  válidos, excluyendo filas parcialmente NaN. Errores no finitos en targets válidos
+  se rechazan. Componentes se dibujan por separado; no se añade referencia atómica
+  ni se interpreta el error como H/DM/S. Vacíos quedan blancos; reset por split/época.
+- Primer parche aún dio **15 failed, 10 passed**, 233 warnings, 2.88 s
+  (periodic-plot-green.log): conteos booleanos y una ruta NumPy que ignoraba
+  reemplazos de labels. Corregidos conteos enteros; el callback usa labels_to,
+  directamente con los arrays de error. GREEN **25 passed**, 233 warnings,
+  2.72 s (periodic-plot-focused.log), con ambas integraciones Lightning existentes.
+  Las pruebas solo capturan el límite de visualización; la conversión es real.
+- Regresión adicional NumPy del wrapper matrix_from_data: **1 failed, 1 passed**,
+  111 deselected, 47 warnings, 0.04 s (numpy-prediction-red.log). El diccionario
+  _data compartido no reflejaba labels reemplazadas por atributos; se devolvía
+  la referencia en vez de la predicción. El wrapper crea su diccionario propio
+  al reemplazar labels NumPy, sin mutar el original; Torch no cambia. Valores
+  literales [[2,3],[3,4]], identidad y valores de las referencias preservados.
+- GREEN cercano definitivo: **138 passed**, 358 warnings, 3.85 s
+  (periodic-plot-numpy-focused.log). Gate completo CPU del producto: **993 passed,
+  2 skipped**, 6722 warnings, 118.57 s (client-periodic-plot-full-cpu.log), exit 0.
+- Wheel actual compilada (client-wheel-build.log), sha256
+  a1311b2c33da274af335da6a7e92dbe66a3ec1ab20130beccbd8fed157942d55;
+  instalada en otro venv limpio /tmp/g2m-client-wheel.uOFAJP/venv con base,
+  Requests y pytest, sin Torch/e3nn/FastAPI/YAML/Jinja/Cython runtime.
+  Cliente desde site-packages sin importar server_app, consulta HTTP real y ayudas:
+  **17 passed, 4 deselected**, 9.31 s (client-installed-minimal-tests.log).
+  pip check exit 0. Perfil es base+cliente, no una instalación completa ML.
+- Añadido al smoke base el valor literal de la reconstrucción NumPy con
+  predicciones y entrada preservada; el gate completo precede solo esas nuevas
+  aserciones del script. Smoke instalado definitivo: **17 passed, 4 deselected**,
+  9.12 s (client-installed-final-smoke.log). Corrección NumPy comprometida en
+  **69a8f08**. 3.4 sigue pendiente de extrapolación, /info y formatos
+  físicos H/EDM; 3.5 de rangos/constraints y perfil completo; 3.9 de gates/pérdidas,
+  CLI --ckpt_path y oráculos científicos independientes. Revisión final pendiente.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

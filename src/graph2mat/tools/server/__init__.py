@@ -13,6 +13,14 @@ You can also use ``e3mat request``, which uses the client.
 """
 
 from .api_client import ServerClient
-from .server_app import create_server_app, create_server_app_from_filesystem
 
 __all__ = ["ServerClient", "create_server_app", "create_server_app_from_filesystem"]
+
+
+def __getattr__(name):
+    # A remote client does not need to import the local model-serving stack.
+    if name in ("create_server_app", "create_server_app_from_filesystem"):
+        from . import server_app
+
+        return getattr(server_app, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

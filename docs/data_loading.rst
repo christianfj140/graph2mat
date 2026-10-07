@@ -92,6 +92,16 @@ metric writes NaN to its sample rows and emits a warning on its first failure pe
 metric class and callback instance. Explicit metric lists retain the strict policy
 that raises the original exception.
 
+``PlotMatrixError`` preserves periodic image columns and averages each entry over
+its valid observations, not the total number of matrices. Partially missing label
+rows exclude all their components, consistently with the losses; unobserved entries
+stay blank. It plots separate ``MAE_componentN``/``RMSE_componentN`` maps for
+multi-component data instead of treating errors as a physical spin/overlap matrix.
+Atom types, edge/image ordering and label shapes must match throughout the split;
+an incompatible layout raises an error instead of summing unrelated entries.
+MD coordinates may move. Each epoch/split resets the accumulated maps, and the
+matrix processor's atomic reference is never added to an error map.
+
 Checkpoints include a ``provenance`` dictionary with Python and installed
 versions of Torch, PyG, Lightning, e3nn, MACE and sisl, plus the tracked source
 checkout's Git commit and dirty flag. Missing optional distributions or a

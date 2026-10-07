@@ -50,6 +50,12 @@ config = g.BasisConfiguration(
 )
 data = g.BasisMatrixData.new(config, processor)
 assert len(data.point_labels) == 2 and len(data.edge_labels) == 1
+prediction = processor.matrix_from_data(data, predictions={
+    "node_labels": data.point_labels + 1, "edge_labels": data.edge_labels + .5,
+}, out_format="numpy")
+np.testing.assert_array_equal(prediction, [[2., .75], [.75, 2.]])
+np.testing.assert_array_equal(data.point_labels, [1., 1.])
+np.testing.assert_array_equal(data.edge_labels, [.25])
 loss, _ = elementwise_mse(
     nodes_pred=data.point_labels+1, nodes_ref=data.point_labels,
     edges_pred=data.edge_labels+1, edges_ref=data.edge_labels,
@@ -220,3 +226,53 @@ def test_cli_setup_store_renders_with_siesta_extra(tmp_path):
     assert 'local store_files = "*XV *DM"' in script
     assert "function store_step(istep)" in script
     assert "server_address" not in script
+
+
+def test_http_client_does_not_import_server_or_ml_dependencies():
+    code = r'''
+import importlib.abc
+import importlib.util
+import json
+import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+blocked = {"torch", "torch_geometric", "e3nn", "mace", "pytorch_lightning",
+           "fastapi", "uvicorn", "yaml", "jinja2"}
+class MissingServer(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        root = fullname.partition(".")[0]
+        if root in blocked:
+            raise ModuleNotFoundError("simulated missing server dependency", name=root)
+sys.meta_path.insert(0, MissingServer())
+original_find_spec = importlib.util.find_spec
+importlib.util.find_spec = lambda name, *a, **kw: None if name.partition(".")[0] in blocked else original_find_spec(name, *a, **kw)
+from graph2mat.tools.server import ServerClient
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        assert self.path == "/api/avail_models"
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(["density"]).encode())
+    def log_message(self, *args):
+        pass
+
+server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+thread = threading.Thread(target=server.serve_forever, daemon=True)
+thread.start()
+try:
+    client = ServerClient(url=f"http://127.0.0.1:{server.server_port}")
+    assert client.avail_models() == ["density"]
+finally:
+    server.shutdown()
+    server.server_close()
+    thread.join(timeout=5)
+assert not thread.is_alive()
+assert not blocked.intersection(sys.modules)
+assert "graph2mat.tools.server.server_app" not in sys.modules
+'''
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                            text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
