@@ -509,10 +509,10 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
-| 3.1 | Agregación de métricas por época (media de RMSE por batch, media de máximos) y `batch_size` en `self.log` | C | S | bajo | 🔶 ponderado por estructuras y máximo de máximos (commit 28d9d9e); falta el RMSE global acumulado |
+| 3.1 | Agregación de métricas por época (media de RMSE por batch, media de máximos) y `batch_size` en `self.log` | C | S | bajo | 🔶 **RMSE global acumulado para nodos, aristas, canales de spin, H alineado de gauge y S**: suma de errores cuadrados y denominadores antes de sacar la raíz, con el número real de elementos válidos (sin NaN), o estructuras con etiquetas válidas si la pérdida las pondera por igual. La pérdida no cambia, salvo reparar el reshape de las etiquetas vacías en la ponderación por estructura. Nueve regresiones verifican particiones de batch, reset entre épocas y splits, spin, gauge y estructuras sin aristas; una época sin etiquetas de aristas conserva RMSE = 0. Máximo de máximos ya corregido (28d9d9e). Quedan los denominadores de los diagnósticos especiales de coeficientes, pares y ventana espectral |
 | 3.2 | Pérdidas MAPE/mix con H: división por cero → NaN | C | S | bajo | ✅ se enmascara antes de dividir; test de gradientes finitos (4239aa1) |
 | 3.3 | `SamplewiseMetricsLogger` (fuga de ficheros); `MatrixWriter` (escribe en cada paso, H sin S) | C T | S | bajo | ✅ un fichero por split, sin sanity check, solo rango 0; `MatrixWriter` solo en `predict` por defecto (48897b2). Adjuntar S a H: ver 4.1 |
-| 3.4 | Servidor (`/test` roto, `/predict`), `local_write_predict`, extrapolación, `PlotMatrixError` con `neigh_isc` | C | S | bajo | ⏳ |
+| 3.4 | Servidor (`/test` roto, `/predict`), `local_write_predict`, extrapolación, `PlotMatrixError` con `neigh_isc` | C | S | bajo | 🔶 **`/test` reparado**: usa `TorchBasisMatrixData`, calcula MSE/MAE con el procesador real y elimina el temporal de la matriz. `compute_metrics` compara solo H cuando S es únicamente etiqueta, sin broadcasting ni diluir el error; conserva S para las métricas que lo necesitan. **Escritura local reparada**: rutas relativas junto a la geometría, nombre por defecto según el tipo de matriz y HTTP 409 si existe el destino sin permiso de sobrescritura. Nueve pruebas HTTP, incluyendo `/predict` y cargas reales DM/TSHS. CI instala los extras del servidor. Pendientes: extrapolación y `PlotMatrixError` con imágenes periódicas |
 | 3.5 | `import graph2mat` sin torch; dependencias de la CLI; versiones fijadas | C | S | bajo | ⏳ |
 | 3.6 | DataModule: `copy_root_to_tmp`, `setup` carga todos los splits, carrera de zipfile, filtros de labels descartados, `torch_predict`, `node_types_subgraph` | C | S | bajo | 🔶 `torch_predict` y `copy_root_to_tmp` (2778903); el resto pendiente |
 | 3.7 | RTPs: caché vacía, dtype congelado, RTP lento en cada llamada | T | S | bajo | 🔶 `irreps_from_data` sigue el dtype de las etiquetas (72b468c); caché vacía y RTP lento pendientes |
@@ -524,6 +524,11 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 3.13 | Multi-GPU: parámetros sin gradiente, métricas no sincronizadas | C | M | medio | ⏳ no verificable con una sola GPU |
 | 3.14 | **(GPT Astra)** Incompatibilidades de las pérdidas de coeficientes | C | S | bajo | ⏳ |
 
+Verificación local de esta tanda (2026-10-07): **512 tests pasan y 1 se omite**, con los extras HTTP cargados
+en un directorio temporal para no modificar el entorno de los entrenamientos. Revisión independiente de 3.1/3.4
+realizada y sus dos hallazgos corregidos con regresiones. La configuración de CI está actualizada; no se ha
+ejecutado CI remota ni se ha hecho push.
+
 ## Ola 4 — Paquete S (4.1 primero; el resto depende de ella)
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
@@ -533,7 +538,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ sin el desplazamiento c·S, por on-site/capa de vecinos/par l, y fuera de alcance orbital. `6x6` (semilla 0, meV por elemento): lin 1,79 → 0,93 quitó el 82 % del error a ~4,3 Å; la pérdida de gauge 0,93 → 0,62 mejora todas las capas (primeros vecinos 6,1 → 3,6, terceros 2,8 → 1,4) pero el **on-site** solo 12,3 → 10,3: es ya el 23 % del error y el mayor por elemento, el siguiente objetivo |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | 🔶 **pérdida espectral de primer orden implementada** (`gauge_invariant_mse(spectral_weight=…)` + `MatrixDataModule(spectral_window=True)`): por estructura, `‖Cᵀ ΔH(Γ) C − media(diag)·I‖²` con C los autovectores S-ortonormales de la H de referencia completa en una ventana alrededor de E_F en Γ (`spectral_window.npz` junto a cada muestra, columnas de relleno a cero). La diagonal es el error de primer orden de cada autovalor y el resto el acoplamiento dentro de la ventana; CᵀSC = I, así que el desplazamiento cS se va con la media: no depende del gauge y solo necesita ΔH = predicción − etiqueta, luego vale tal cual con Δ (no hace falta H0 como componente auxiliar). El collate calcula en los workers el orbital (fila, columna) de cada elemento de etiqueta. Test: el H(Γ) ensamblado coincide con `matrix_from_data` (1e-12; homo/heteronuclear, imágenes periódicas, 2 estructuras), H + cS no cuesta nada y la diagonal reproduce el cambio exacto de los autovalores. `6x6` ±3 eV: 34 estados (±2 eV solo los 4 de Dirac); en el mejor modelo, error espectral de entrenamiento 1,5 meV RMSE frente a 2,1 de H. Solo Γ: sirve para superceldas (`6x6`, bicapa), no para `w90` (2 átomos, sin estados cerca de E_F en Γ). **Medido en `6x6` (mejor receta, 3 semillas; validación / bicapa H, bandas / MD AB H, bandas / moiré H, bandas, meV): sin el término 0,136 / 4,43, 15,1 / 5,17, 10,6 / 0,86, 9,7; peso 1: 0,134 / 5,38, 15,3 / 5,74, 11,3 / 1,11, 10,8; peso 10: 0,166 / 4,27, 20,3 / 5,04, 13,5 / 0,84, 13,2.** No mejora las bandas fuera de distribución: con peso 1 empeora el H de fuera (+20 %, sobre todo intracapa) sin cambiar las bandas; con peso 10 el H se mantiene pero las bandas empeoran un 35 % y la validación un 22 %. El entrenamiento tarda ~40 % más (62–64 min frente a 45, con la carga de la noche). La ventana en Γ de la monocapa no representa el error de bandas de la bicapa y el moiré, que viene sobre todo del acoplamiento entre capas, ausente en el entrenamiento. ⚪ en grafeno (monocapa → bicapa/moiré) en esta forma; podría servir entrenando con el sistema objetivo (bicapa) o con varios puntos k |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
-| 4.7 | Pérdida en la métrica de S (Löwdin S^−1/2 ΔH S^−1/2) o penalización de ΔH en el espacio casi nulo de S | P | M | medio | 🔶 **implementada** como término espectral con las direcciones casi nulas de S (λ < 10⁻², columnas u/√max(λ, 10⁻³), métrica de Löwdin en ese subespacio; `spectral_window` admite el nombre del fichero, `spectral_null.npz`). **H2O en clústeres (con Δ, 3 semillas):** con peso 10⁻⁴ el gap de (H2O)32 sin ortogonalización canónica pasa de 1847 a **260 meV** de error medio (de 3/9 a 0/9 gaps cerrados) y las bandas brutas de 386 a 121 meV, igual que con la ortogonalización canónica; cuesta +17 % en validación (4,16 → 4,86 meV) y +8 % en (H2O)32. Pesos 10⁻³ y 10⁻² peores en todo. Pendiente: pesos menores y LiF/ZnO (ver «Banco de materiales») |
+| 4.7 | Pérdida en la métrica de S (Löwdin S^−1/2 ΔH S^−1/2) o penalización de ΔH en el espacio casi nulo de S | P | M | medio | 🔶 **implementada** como término espectral con las direcciones casi nulas de S (λ < 10⁻², columnas u/√max(λ, 10⁻³), métrica de Löwdin en ese subespacio; `spectral_window` admite el nombre del fichero, `spectral_null.npz`). **H2O en clústeres (con Δ, 3 semillas):** con peso 10⁻⁴ el gap de (H2O)32 sin ortogonalización canónica pasa de 1847 a **260 meV** de error medio (de 3/9 a 0/9 gaps cerrados) y las bandas brutas de 386 a 121 meV, igual que con la ortogonalización canónica; cuesta +17 % en validación (4,16 → 4,86 meV) y +8 % en (H2O)32. Pesos 10⁻³ y 10⁻² peores en todo; 10⁻⁵ y 3·10⁻⁵ no arreglan el espectro. En controles de una semilla, 10⁻⁴ empeora H de validación en LiF (1,76 → 5,33 meV) y ZnO (1,72 → 4,23), por lo que no se amplía a tres semillas en sólidos |
 | 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ⚪ (solo medido en grafeno (base SZ)) en grafeno (base SZ) el error fuera del alcance de los orbitales es ≤1 % del total y los ceros exactos ya salen a cero: no hay nada que enmascarar |
 
 ## Ola 5 — El objetivo: residuo y normalización
@@ -576,7 +581,7 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 8.1 | Spin colineal y SOC; referencia atómica coherente con spin | C P | L | medio | 🔶 `spin_h_only` del fork |
-| 8.2 | Bloques de H mediados por proyectores KB (aristas de readout más largas) | P | L | medio | ⚪ (solo medido en grafeno) para grafeno (despreciable según la Fase 0); sí para elementos pesados |
+| 8.2 | Bloques de H mediados por proyectores KB (aristas de readout más largas) | P | L | medio | 🔶 **Controles de representación H y H−H0 medidos sin entrenar en BaTiO3 y TMD** (ver banco). Sin H0, quitar la cola cambia las bandas canónicas ≤0,56 y ≤0,064 meV, respectivamente. **Con Δ, H0 ya recupera la cola completa**: H−H0 fuera del grafo es cero en TMD y ≤3,4·10⁻¹⁸ meV en BaTiO3. No limita estas recetas Δ. Aristas largas todavía no implementadas; aplazadas a materiales o recetas donde la cola residual sea relevante |
 | 8.3 | Tipos de punto por Z: dos especies con la misma Z y distinta base (ghosts) | C | M | bajo | ⏳ |
 | 8.4 | **(GPT Astra, Maths and Physics)** Electrostática de largo alcance para sistemas polares | P | L | alto | 🔶 **implementada** (`long_range`: `"charges"` = cargas locales neutralizadas, `"qeq"` = equilibrado de cargas con electronegatividad y dureza aprendidas y la carga total de `NetCharge`; potencial de Ewald de cargas gaussianas de 2 Å y H += (V_i + V_j)/2 · S_ij; S de H0 en la predicción). Ganancias moderadas y dependientes del material (ver «Banco de materiales»): cargas fijas −7 % en validación de BaTiO3 y gap/bandas −25 a −45 %, pero rompen las láminas polares de ZnO (×2,4–3,8); Qeq las deja como sin término y mejora el gap de la lámina no polar (144 → 20 meV) y el centro F neutro (−24 %); sin estructuras cargadas en el entrenamiento la carga total aún no ayuda (F +1 peor). Origen: nanocubo de LiF 3,7 veces peor que el volumen con defecto y gap 3 eV demasiado grande con Δ; propuesta común de los 4 GPT: ΔH_LR ≈ (V_i + V_j)/2 · S_ij con V de cargas aprendidas + Ewald (compatible con el gauge) |
 
@@ -631,9 +636,10 @@ ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/W
   más caliente; con trabajos de GPU activos, 4 núcleos E no pausaron ningún entrenamiento.
 - **Auditoría de las etiquetas (sin entrenar, `g2m_bench_materials.py audit`):**
   - Elementos de H más allá del grafo de graph2mat (pares a más de R_i + R_j, acoplados por proyectores KB de un
-    tercer átomo; nunca se predicen): despreciables en H2O (≤0,03 meV) y LiF (F–F hasta 5 meV), pero en BaTiO3
+    tercer átomo; el readout no los predice, pero Δ suma el H0 completo): despreciables en H2O (≤0,03 meV) y LiF (F–F hasta 5 meV), pero en BaTiO3
     los O–O llegan a **50 meV** (hasta 6,1 Å, alcance del grafo 5,0 Å). Pocos (8·10⁻⁶ de |H|²), pero por encima
-    del error esperado de los modelos: **8.2 deja de ser neutro en BaTiO3**, hay que medir su efecto.
+    del error esperado de los modelos. Inicialmente motivó medir 8.2; el control del 2026-10-07 al final del banco
+    confirma que H0 ya recupera esa cola en la receta Δ.
   - Condicionamiento de S en Γ: λ_min 1,3·10⁻³ en H2O (base de 0,03 eV), 5·10⁻⁵ en LiF y 3·10⁻⁵ en BaTiO3
     (κ hasta 3·10⁵): las bases difusas (EnergyShift pequeño) amplifican en los autovalores errores pequeños de H.
     Hay que vigilar el gap y las bandas, no solo el H medio.
@@ -726,8 +732,9 @@ Conclusiones: Δ es la mejora general en todos los materiales. Las modificacione
 material (5.2 y 7.2) o no aportan (7.3). Lo que el banco ha descubierto que falta no es arquitectura local sino
 física nueva: **largo alcance** (nanocubo de LiF 3,7 veces peor que el volumen, gap +3 eV), **estado de carga**
 como entrada (centro F) y **niveles de defecto**, más la **pérdida en la métrica de S (4.7)** para bases difusas,
-y los **elementos KB más allá del grafo (8.2)** en BaTiO3. Siguiente, por valor: 8.4 (electrostática de largo
-alcance, con LiF como prueba), la carga total como entrada y 4.7.
+y el control de los **elementos KB más allá del grafo (8.2)** en BaTiO3 (resuelto para la receta Δ en los controles
+del 2026-10-07). En ese momento, lo siguiente por valor era 8.4 (electrostática de largo alcance, con LiF como
+prueba), la carga total como entrada y 4.7; sus resultados posteriores están debajo.
 
 **Etapas siguientes (2026-10-04/05).**
 
@@ -822,17 +829,46 @@ alcance, con LiF como prueba), la carga total como entrada y 4.7.
 - **Fase 2, TMD sin SOC (MoSe2/WSe2):** 51/51 estructuras etiquetadas y con H0 (36 entrenamiento, 12 validación,
   3 pruebas: heterobicapa, aleación y MoSe2 5x5). La auditoría encuentra bloques Se-Se fuera del grafo de hasta
   **23,2 meV** a 7,86 Å, pero solo 3,2·10⁻⁷ de la norma² de H fuera de sitio; Mo-Se y Se-W no superan 2,3 y
-  1,3 meV. Por tanto, 8.2 puede afectar niveles locales concretos, pero no justifica ampliar el grafo antes de medir
-  el suelo de error del modelo completo. S tiene λ_min = 1,62·10⁻⁴ y κ_max = 3,75·10⁴. El smoke de 40
-  actualizaciones confirma el pipeline y el valor de Δ: validación 210,9 → **6,0 meV**, con 2,27 GiB de pico;
-  referencia y Δ quedan en ejecución con tres semillas completas.
+  1,3 meV. El control posterior confirma que H0 recupera toda esa cola: el residuo H−H0 fuera del grafo es cero
+  en las estructuras medidas. S tiene λ_min = 1,62·10⁻⁴ y κ_max = 3,75·10⁴. En tres semillas completas,
+  **Δ baja H de validación 12,10 → 1,09 meV (−91 %)**. H / |error del gap| / bandas pasan de 52,63 / 1581 / 533
+  a **3,22 / 670 / 152 meV** en la aleación, de 11,06 / 1399 / 487 a **1,17 / 77 / 37** en la heterobicapa y de
+  9,22 / 1379 / 383 a **0,89 / 23 / 5,9** en MoSe2 5x5. La dispersión del gap de la aleación con Δ sigue alta
+  (−1669, −42 y −299 meV), señal de extrapolación composicional, no de la cola Se-Se.
 - **4.7 en sólidos, control de una semilla (peso 10⁻⁴):** en LiF reduce el error espectral de validación
   24,4 → 10,0 eV, pero empeora H 1,76 → **5,33 meV** y la mayoría de pruebas; en ZnO empeora tanto H
   (1,72 → **4,23 meV**) como el error espectral (1,46 → 3,17 eV). El peso útil en H2O no transfiere a estos
   sólidos; no se gastan dos semillas adicionales.
-- **a-SiO2:** la puerta de calidad permanece estricta (Si4/O2 ≥ 95 %, Si-Si ≥ 2,8 Å). Se aceptaron los seis
-  vidrios de entrenamiento, pero 0/8 candidatos de validación; el límite de los vidrios pequeños se amplía a
-  24 semillas deterministas sin rebajar el criterio y se repite la fase.
+- **a-SiO2:** la puerta de calidad permanece estricta (Si4/O2 ≥ 95 %, Si-Si ≥ 2,8 Å). La dinámica MACE/CUDA no es
+  reproducible bit a bit: dos ejecuciones con las mismas semillas dieron aceptaciones distintas, y antes se perdían
+  todos los candidatos si fallaba una partición posterior. Cada quench, aceptado o rechazado, se guarda ahora de
+  forma atómica en una caché versionada (`mq_v1`) antes de evaluar la puerta; las repeticiones reutilizan exactamente
+  esos átomos. El límite de los vidrios pequeños se amplía de 24 a 96 semillas sin rebajar el criterio (el vidrio de
+  216 átomos conserva su límite corto); estructuras → etiquetas → H0 → auditoría → smokes se relanza como v4.
+  Las seis ejecuciones completas (referencia/Δ, semillas 0–2) quedan en cola, condicionadas al éxito de ambos smokes,
+  encadenadas una a una y con estimación conservadora de 18.000 MiB por job hasta medir el pico de SiO2.
+- **8.2, control del suelo espectral (2026-10-07):** `g2m_bench_kb_control.py` pone a cero únicamente los elementos
+  de H entre átomos a distancia ≥ R_i + R_j en una copia de la etiqueta; conserva S y todos los ficheros originales.
+  Una estructura de entrenamiento y todas las pruebas congeladas por material; mismo camino k, ventana
+  [VBM − 2 eV, CBM + 2 eV] y umbral canónico 10⁻² del benchmark. Resultados en `bench/<material>/kb_tail_control.json`:
+
+  | material / prueba | máximo eliminado (meV) | H alineado MAE (meV) | cambio de gap canónico (meV) | bandas canónicas alineadas (meV) |
+  |---|---|---|---|---|
+  | BaTiO3 / pared de dominio | 30,14 | 0,00567 | −2,20 | 0,558 |
+  | BaTiO3 / modo polar | 28,78 | 0,00806 | −1,47 | 0,507 |
+  | TMD / heterobicapa | 6,47 | 0,00247 | +0,248 | 0,0641 |
+  | TMD / aleación | 0,037 | 0,000022 | −0,000118 | 0,000244 |
+  | TMD / MoSe2 5x5 | 21,53 | 0,00157 | −0,0720 | 0,0525 |
+
+  **Es el control de predicción directa, sin H0.** Para la receta Δ se ejecuta el mismo script con `--delta`:
+  se quita la cola de H−H0 y se suma de nuevo todo el H0 cacheado, igual que hace `g2m_delta.py add_h0`.
+  En la misma selección, el máximo residual eliminado es **cero en TMD y ≤3,4·10⁻¹⁸ meV en BaTiO3**
+  (`kb_delta_tail_control.json`); el cambio de gap y bandas canónicas es <10⁻¹⁰ meV, redondeo del solver.
+  H0 ya contiene la cola KB; atribuirle los errores actuales de estas recetas Δ
+  sería incorrecto. La regresión comprueba que se conserva S, se recupera la cola con H0 y no se muta ninguna matriz.
+  Son controles de representación con los demás elementos exactos, no un entrenamiento con aristas largas ni una
+  cota de toda posible ganancia de esas aristas. No se amplía el grafo todavía; queda condicionado a materiales o
+  recetas donde la cola residual sea relevante.
 
 ## Descartado
 
