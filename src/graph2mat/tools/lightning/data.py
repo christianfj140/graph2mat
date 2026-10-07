@@ -187,6 +187,8 @@ class MatrixDataModule(pl.LightningDataModule):
         initial_node_feats: str = "OneHotZ",
         spectral_window: Union[bool, str] = False,
         predict_labels: bool = False,
+        split_seed: int = 32,
+        val_fraction: float = 0.1,
     ):
         """
 
@@ -239,9 +241,18 @@ class MatrixDataModule(pl.LightningDataModule):
             predict_labels: bool
                 Also load the labels of the structures to predict: a model with
                 ``long_range`` needs their overlap S (geometry only, as in H0).
+            split_seed: int
+                Seed for the automatic train/validation split (default 32).
+            val_fraction: float
+                Fraction drawn for validation if no explicit validation data is given.
+                Must be in [0, 1); at least one training sample is retained.
 
         """
         super().__init__()
+        if not isinstance(split_seed, (int, np.integer)) or not 0 <= split_seed < 2**32:
+            raise ValueError("split_seed must be an integer in [0, 2**32)")
+        if not 0 <= val_fraction < 1:
+            raise ValueError("val_fraction must be in [0, 1)")
         self.save_hyperparameters()
 
         self.root_dir = maybe_zip_path(root_dir)
@@ -277,6 +288,8 @@ class MatrixDataModule(pl.LightningDataModule):
         self.rotating_pool_size = rotating_pool_size
         self.spectral_window = spectral_window
         self.predict_labels = predict_labels
+        self.split_seed = split_seed
+        self.val_fraction = val_fraction
         self.prepare_data_per_node = True
         self.tmp_dir = None
         self._tmp_root = None
@@ -438,10 +451,11 @@ class MatrixDataModule(pl.LightningDataModule):
                 val_indices = np.array([])
             else:
                 # Instantiate a random state to sample from data
-                rng = np.random.RandomState(32)
-                # User didn't specify a validation directory, just randomly draw 10 percent from the training.
+                rng = np.random.RandomState(self.split_seed)
+                # Draw the configured fraction, retaining at least one training sample.
                 perms = rng.permutation(len(self.train_dataset))
-                num_val = int(math.ceil(len(self.train_dataset) / 10))
+                num_val = min(math.ceil(len(self.train_dataset) * self.val_fraction),
+                              max(len(self.train_dataset)-1, 0))
                 val_indices = np.sort(perms[0:num_val]).tolist()
                 train_indices = np.sort(perms[num_val:]).tolist()
 

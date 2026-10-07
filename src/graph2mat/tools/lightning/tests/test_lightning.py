@@ -75,7 +75,8 @@ def test_lightning_tools_python(out_matrix):
 
     # Create the trainer
     trainer = pl.Trainer(
-        callbacks=callbacks, max_epochs=1, logger=False, enable_checkpointing=False
+        callbacks=callbacks, max_epochs=1, logger=False, enable_checkpointing=False,
+        accelerator="cpu", devices=1,
     )
 
     # Run training (1 epoch)

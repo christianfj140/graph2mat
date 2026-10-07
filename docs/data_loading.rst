@@ -8,6 +8,13 @@ Repeated setup calls reuse existing datasets. Without explicit validation data,
 validation can draw its subset lazily from training data; ``store_in_memory``
 materializes only the splits requested by the current stage.
 
+The automatic validation split accepts ``split_seed`` (default 32) and
+``val_fraction`` (default 0.1, in [0, 1)). Explicit ``val_runs`` take priority;
+an explicit empty list disables validation. The automatic split keeps at least
+one training sample when data are available. For correlated trajectories, use
+explicit validation runs from separate trajectories rather than a random split
+of adjacent frames.
+
 With ``copy_root_to_tmp=True``, each process owns a unique temporary directory.
 A ZIP root is copied as an archive, preserving any internal root subdirectory.
 Other DDP ranks create their own copy during setup. This avoids shared deletion
@@ -32,3 +39,21 @@ dataset instead when exact reproducibility is required.
 File-backed ZIP datasets reopen every archive independently after fork, even
 when the parent has read a sample first. Their ``close()`` method closes only
 readers they own, not archives supplied by the caller.
+
+Reproducibility and checkpoint provenance
+----------------------------------------
+
+Use ``seed_everything: 0`` in the Lightning CLI YAML (or
+``pytorch_lightning.seed_everything(0, workers=True)`` in Python) to seed the
+model, data loading and rotating pool. ``trainer.deterministic: true`` requests
+deterministic kernels, which can reduce throughput and may reject operations
+without a deterministic implementation. It does not remove the rotating pool's
+asynchronous scheduling dependence.
+
+Checkpoints include a ``provenance`` dictionary with Python and installed
+versions of Torch, PyG, Lightning, e3nn, MACE and sisl, plus the tracked source
+checkout's Git commit and dirty flag. Missing optional distributions or a
+checkout unavailable in an installed wheel are represented by ``None``.
+The Git directory comes from the module, not the caller's working directory;
+untracked files do not set the dirty flag. Provenance is informational: old
+checkpoints without it still load, and prediction weights are unchanged.

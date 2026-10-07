@@ -1,6 +1,9 @@
 """Wrapping of raw models to use them in pytorch_lightning."""
 
 import importlib
+import importlib.metadata
+import platform
+import subprocess
 import warnings
 import zipfile
 from pathlib import Path
@@ -22,6 +25,33 @@ from graph2mat.core.data.metrics import OrbitalMatrixMetric, elementwise_mse
 from graph2mat.core.data.node_feats import NodeFeature
 
 from ._helpers import glob, maybe_zip_path
+
+
+def _training_provenance():
+    """Record the installed stack and tracked source checkout, when available."""
+    versions = {}
+    for name in ("torch", "torch-geometric", "pytorch-lightning", "e3nn", "mace-torch", "sisl"):
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            versions[name] = None
+
+    commit = dirty = None
+    source = Path(__file__).resolve()
+    git = ["git", "-C", str(source.parent)]
+    try:
+        # A wheel inside another repository must not inherit that repository's HEAD.
+        subprocess.run(git + ["ls-files", "--error-unmatch", source.name],
+                       check=True, capture_output=True, text=True, timeout=2)
+        commit = subprocess.run(git + ["rev-parse", "HEAD"], check=True,
+                                capture_output=True, text=True, timeout=2).stdout.strip()
+        dirty = bool(subprocess.run(git + ["status", "--porcelain", "--untracked-files=no"],
+                                    check=True, capture_output=True, text=True,
+                                    timeout=2).stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        commit = dirty = None
+    return {"python": platform.python_version(), "versions": versions,
+            "git_commit": commit, "git_dirty": dirty}
 
 
 def _epoch_reduce(stat_name: str) -> str:
@@ -314,6 +344,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         checkpoint["version"] = __version__
         checkpoint["training_stages"] = self.training_stages_config
         checkpoint["active_training_stage"] = self._active_training_stage_name
+        checkpoint["provenance"] = _training_provenance()
 
     def on_load_checkpoint(self, checkpoint) -> None:
         "Objects to retrieve from checkpoint file"

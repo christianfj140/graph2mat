@@ -16,6 +16,14 @@ con código, regresiones y evidencia. Un sublote verde no completa el goal.
 - Evidencia inicial: `/tmp/g2m-engineering-goal.mJBRD9/baseline.log`.
 - Línea base reproducida: **515 passed, 1 skipped, 6023 warnings**, 62.05 s.
 - Turno de goal anterior interrumpido: solo lectura de skills/estado del goal, sin cambios de producto.
+- La última consulta de estado fue **sin progreso de producto**; get_goal sigue
+  active, HEAD=6227edf y no hay bloqueo. Esta continuación retoma los tests RED
+  existentes de checkpoints, sin repetir las correcciones comprometidas.
+- Corrección de evidencia CPU: el entorno compartido ve CUDA y los Trainer
+  originales usaban accelerator=auto. Los gates anteriores prueban resultados
+  verdes, **no uso exclusivo de CPU**. Desde este sublote se ejecutan con
+  CUDA_VISIBLE_DEVICES='' y el Trainer de integración declara accelerator=cpu,
+  devices=1. No se cambió el entorno ni los entrenamientos.
 
 ## Cobertura obligatoria y auditorías leídas
 
@@ -134,7 +142,7 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 - Reanudación tras usageLimited: get_goal confirma active. El último turno de
   estado no implementó código; este turno reproduce y corrige teardown y ownership.
 
-### Próximo sublote 3.9.a — split reproducible configurable
+### Sublote 3.9.a — split reproducible configurable
 
 - Añadir split_seed=32 y val_fraction=0.1 al final de los parámetros existentes,
   preservando llamadas posicionales/checkpoints y el split por defecto.
@@ -144,6 +152,51 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 - Regresiones de partición disjunta/completa, repetición, cambio de semilla/fracción,
   defaults históricos y casos cero, un solo dato y fracciones inválidas.
 - Después: provenance, gates de calidad y pruebas científicas/DDP; siguen abiertos.
+- RED: 13 fallos y una caracterización pasan por kwargs ausentes (`split-red.log`).
+  Implementación de split_seed/val_fraction, guardas antes de leer archivos y
+  fracción limitada para retener train. GREEN inicial: 31 pruebas con stages y
+  temporales (`split-green.log`). Se añadió caracterización de val_runs=[]:
+  conserva todo train aunque val_fraction=0.99, sin crear un split automático.
+
+### Sublote 3.9.b — provenance aditiva de checkpoints
+
+- Usar on_save_checkpoint existente, sin tocar state_dict ni necesitar nuevos campos
+  en on_load_checkpoint. Versiones mediante importlib.metadata (sin imports nuevos
+  del stack ML); Python y Git del directorio del módulo, no del cwd del usuario.
+- Registrar commit y dirty de archivos tracked; None explícito si falta Git o el
+  paquete instalado no tiene checkout. Dependencias opcionales ausentes → None.
+- Reproducir falta de provenance; verificar que un cwd externo no cambia el commit,
+  fallback sin checkout y carga de checkpoints antiguos sin ese nuevo campo.
+- RED reproducido en esta continuación, CPU forzada: **5 failed, 2 passed**,
+  223 warnings, 2.20 s (`provenance-resume-red.log`). Todos los fallos se deben
+  al campo ausente; el roundtrip real de MACE de formato antiguo ya pasa.
+- Parche en el hook existente: importlib.metadata para seis distribuciones, Python,
+  git ls-files para comprobar que el módulo está tracked antes de registrar HEAD
+  y dirty. Una wheel dentro de otro repo no hereda un hash ajeno; Git ausente,
+  sin checkout o fallido → None, sin impedir guardar. Sin cambios a state_dict,
+  strict_loading ni al hook de carga.
+- Fixture corregida antes del parche: hidden_irreps con multiplicidades distintas
+  (2 escalares/1 vector) viola el número uniforme de canales de symmetric_contraction
+  en MACE instalado y causaba un error TorchScript de reshape. La fixture soportada
+  usa 2 escalares/2 vectores; no se parcheó el modelo para esconder el fallo.
+- Primer comando enfocado tenía un nombre de archivo incorrecto
+  (test_datamodule_temporary_data.py), exit 4; corregido al archivo real
+  test_datamodule_temporary_roots.py, sin cambio de producto por este error.
+- GREEN enfocado en CPU: **44 passed**, 274 warnings, 8.29 s
+  (`reproducibility-focused.log`). Incluye entrenamiento de un batch, guardar,
+  cargar checkpoints reales antiguos/nuevos y predicciones idénticas (rtol=atol=0).
+  Las dos caracterizaciones posteriores cubren Git no instalado y val_runs=[].
+- Documentado seed_everything, trainer.deterministic y su coste/límites, prioridad
+  de val_runs y metadatos de checkpoint en docs/data_loading.rst.
+- Gate completo **CPU forzada**: **571 passed, 2 skipped**, 6216 warnings,
+  63.27 s (`reproducibility-full-cpu.log`), exit 0. Comando: el gate completo de
+  arriba con CUDA_VISIBLE_DEVICES='' antes de PYTHONPATH. Son 23 regresiones
+  añadidas sobre las 549 previas, menos una prueba GPU que ahora se omite porque
+  CUDA está oculta. La otra omisión era la fixture local de H ya ausente en la
+  línea base. No hay fallo nuevo silenciado. Los warnings existentes se conservan
+  como evidencia, no se afirma una suite libre de warnings.
+- Los cuatro frentes todavía abiertos y la revisión final no quedan cerrados
+  por este sublote. Próximo: fixtures válidas/deterministas y pruebas científicas.
 
 ## Cierre del goal
 
