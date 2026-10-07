@@ -130,7 +130,8 @@ class _EpochMatrixLoss(Metric):
     def compute(self):
         weights = self.totals.new_tensor(self.weights)
         if self.joint:
-            return (weights * self.totals).sum() / (weights * self.counts).sum().clamp_min(1)
+            denominator = (weights * self.counts).sum()
+            return (weights * self.totals).sum() / torch.where(denominator != 0, denominator, 1.)
         return (weights * self.totals / self.counts.clamp_min(1)).sum()
 
 
@@ -292,18 +293,9 @@ class LitBasisMatrixModel(pl.LightningModule):
                     batch.point_labels, batch.edge_labels, batch, self.basis_table,
                 )
                 ids = (node_ids if kind == "node" else edge_ids).to(labels.device)
-                if kind == "edge":
-                    valid = ~torch.isnan(labels)
-                    if labels.ndim == 2:
-                        valid = valid.all(dim=1)
-                    ids = ids[valid]
+                ids = ids[metrics_module._valid_label_rows(labels)]
                 return torch.bincount(ids, minlength=batch.num_graphs).count_nonzero()
-            count = labels.shape[0]
-            if kind == "edge":
-                invalid = torch.isnan(labels)
-                if labels.ndim == 2:
-                    invalid = invalid.any(dim=1)
-                count = (~invalid).sum()
+            count = metrics_module._valid_label_rows(labels).sum()
             if name == f"{kind}_rmse" and labels.ndim == 2:
                 count *= labels.shape[1]
             return count

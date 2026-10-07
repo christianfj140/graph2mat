@@ -65,22 +65,36 @@ def _isnan(values):
     return values != values
 
 
+def _valid_label_rows(values):
+    invalid = _isnan(values)
+    return ~invalid.any(axis=1) if getattr(values, "ndim", 1) == 2 else ~invalid
+
+
+def _numel(values):
+    return values.numel() if _is_torch_tensor(values) else values.size
+
+
+def _mean(values):
+    return values.mean() if _numel(values) else values.sum()
+
+
+def _std(values):
+    return values.std() if _numel(values) > 1 else values.sum() * 0
+
+
+def _max(values):
+    return values.max() if _numel(values) else values.sum()
+
+
 def get_predictions_error(
     nodes_pred, nodes_ref, edges_pred, edges_ref, remove_nan=True
 ):
     """Returns errors (pred - ref) for both nodes and edges, removing NaN values."""
-    node_error = nodes_pred - nodes_ref
-
     if remove_nan:
-        if getattr(edges_ref, "ndim", 1) == 2:
-            notnan = ~_isnan(edges_ref).any(axis=1)
-        else:
-            notnan = ~_isnan(edges_ref)
-        edge_error = edges_pred[notnan] - edges_ref[notnan]
-    else:
-        edge_error = edges_pred - edges_ref
-
-    return node_error, edge_error
+        nodes = _valid_label_rows(nodes_ref)
+        edges = _valid_label_rows(edges_ref)
+        return nodes_pred[nodes] - nodes_ref[nodes], edges_pred[edges] - edges_ref[edges]
+    return nodes_pred - nodes_ref, edges_pred - edges_ref
 
 
 def _relative_error(error, ref, eps: float = 1e-6):
@@ -89,6 +103,7 @@ def _relative_error(error, ref, eps: float = 1e-6):
     Dividing by the whole reference and filtering afterwards is not enough: exact zeros
     (e.g. symmetry-zero elements of H) give inf, and 0 * inf = NaN in the backward pass.
     """
+    ref = ref[_valid_label_rows(ref)]
     mask = abs(ref) > eps
     ones = torch.ones_like(ref) if _is_torch_tensor(ref) else np.ones_like(ref)
     safe = ref * mask + ones * ~mask
@@ -112,10 +127,10 @@ def _spin_channel_stats(node_error, edge_error):
 
     stats = {}
     for i in range(node_error.shape[1]):
-        stats[f"node_rmse_spin{i}"] = (node_error[:, i] ** 2).mean() ** (1 / 2)
+        stats[f"node_rmse_spin{i}"] = _mean(node_error[:, i] ** 2) ** (1 / 2)
     if getattr(edge_error, "ndim", 1) == 2:
         for i in range(edge_error.shape[1]):
-            stats[f"edge_rmse_spin{i}"] = (edge_error[:, i] ** 2).mean() ** (1 / 2)
+            stats[f"edge_rmse_spin{i}"] = _mean(edge_error[:, i] ** 2) ** (1 / 2)
     return stats
 
 
@@ -493,7 +508,7 @@ def _coefficient_space_metric(
 
 def _loss_mean(values, pointers=None):
     if pointers is None:
-        return values.mean()
+        return _mean(values)
     losses = []
     for start, end in zip(pointers[:-1], pointers[1:]):
         start = int(start)
@@ -502,7 +517,7 @@ def _loss_mean(values, pointers=None):
             continue
         losses.append(values[start:end].mean())
     if not losses:
-        return values.mean()
+        return _mean(values)
     if _is_torch_tensor(values):
         return torch.stack(losses).mean()
     return np.stack(losses).mean()
@@ -522,9 +537,21 @@ def _loss_blocks(values, pointers):
         if end <= start:
             continue
         losses.append(values[start:end].mean())
-    if not losses:
-        raise ValueError("Block-normalized loss received no non-empty blocks.")
     return losses
+
+
+def _valid_block_pointers(pointers, reference):
+    """Keep physical block boundaries aligned after dropping missing label rows."""
+    if reference is None:
+        return pointers
+    valid = _as_numpy_int(_valid_label_rows(reference))
+    if int(pointers[-1]) != len(valid):
+        raise ValueError(
+            "Block-normalized loss pointer mismatch: "
+            f"last pointer is {int(pointers[-1])}, but labels have length {len(valid)}."
+        )
+    prefix = np.concatenate(([0], np.cumsum(valid)))
+    return prefix[np.asarray(pointers, dtype=int)]
 
 
 def _node_edge_block_pointers(
@@ -532,6 +559,8 @@ def _node_edge_block_pointers(
     basis_table,
     model=None,
     expected_edge_nlabels: Optional[int] = None,
+    nodes_ref=None,
+    edges_ref=None,
 ):
     if batch is None or basis_table is None:
         raise ValueError(
@@ -546,10 +575,11 @@ def _node_edge_block_pointers(
         readout=readout,
         batch=batch,
         basis_table=basis_table,
-        expected_nlabels=expected_edge_nlabels,
+        expected_nlabels=len(edges_ref) if edges_ref is not None else expected_edge_nlabels,
     )
     edge_pointers = basis_table.edge_block_pointer(np.abs(edge_types))
-    return node_pointers, edge_pointers
+    return (_valid_block_pointers(node_pointers, nodes_ref),
+            _valid_block_pointers(edge_pointers, edges_ref))
 
 
 def _single_component_labels_or_raise(nodes_ref, edges_ref, loss_name: str):
@@ -565,6 +595,7 @@ def _block_type_stats(values, pointers, types, prefix: str):
         return {}
 
     block_losses = _loss_blocks(values, pointers)
+    types = np.asarray(types)[np.diff(pointers) > 0]
     stats = {}
     for type_id in sorted({int(type_value) for type_value in types}):
         selected = [
@@ -592,6 +623,8 @@ def _weighted_label_huber(
     batch=None,
     basis_table=None,
     model=None,
+    nodes_ref=None,
+    edges_ref=None,
 ):
     node_losses = _smooth_l1(node_error, beta)
     edge_losses = _smooth_l1(edge_error, beta)
@@ -602,6 +635,8 @@ def _weighted_label_huber(
             basis_table=basis_table,
             model=model,
             expected_edge_nlabels=_flat_length(edge_error),
+            nodes_ref=nodes_ref,
+            edges_ref=edges_ref,
         )
 
     node_loss = _loss_mean(node_losses, node_pointers)
@@ -731,8 +766,8 @@ def block_type_mse(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_loss = (node_error**2).mean()
-    edge_loss = (edge_error**2).mean()
+    node_loss = _mean(node_error**2)
+    edge_loss = _mean(edge_error**2)
 
     stats = {
         "node_rmse": node_loss ** (1 / 2),
@@ -746,12 +781,12 @@ def block_type_mse(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -925,15 +960,9 @@ def _per_structure_losses(
     # "indices should be either on cpu or on the same device".
     node_struct = node_struct.to(nodes_pred.device)
     edge_struct = edge_struct.to(edges_pred.device)
-    node_error = nodes_pred - nodes_ref
-    # Same NaN filtering as get_predictions_error, kept aligned with ids.
-    if getattr(edges_ref, "ndim", 1) == 2:
-        notnan = ~_isnan(edges_ref).any(axis=1)
-    else:
-        notnan = ~_isnan(edges_ref)
-    edge_error = edges_ref[notnan] - edges_pred[notnan]
-    edge_notnan = notnan if _is_torch_tensor(notnan) else torch.as_tensor(np.asarray(notnan))
-    edge_struct = edge_struct[edge_notnan.to(edge_struct.device)]
+    node_error, edge_error = get_predictions_error(nodes_pred, nodes_ref, edges_pred, edges_ref)
+    node_struct = node_struct[torch.as_tensor(_valid_label_rows(nodes_ref), device=node_struct.device)]
+    edge_struct = edge_struct[torch.as_tensor(_valid_label_rows(edges_ref), device=edge_struct.device)]
     node_loss_s, node_present = _structure_mean_sq(node_error, node_struct, n_structures)
     edge_loss_s, edge_present = _structure_mean_sq(edge_error, edge_struct, n_structures)
     loss_s = node_weight * node_loss_s + edge_weight * edge_loss_s
@@ -1053,8 +1082,8 @@ def block_type_mae(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_loss = abs(node_error).mean()
-    edge_loss = abs(edge_error).mean()
+    node_loss = _mean(abs(node_error))
+    edge_loss = _mean(abs(edge_error))
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1067,12 +1096,12 @@ def block_type_mae(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1103,14 +1132,14 @@ class block_type_huber(OrbitalMatrixMetric):
             nodes_pred, nodes_ref, edges_pred, edges_ref
         )
 
-        node_loss = _smooth_l1(node_error, self.beta).mean()
-        edge_loss = _smooth_l1(edge_error, self.beta).mean()
+        node_loss = _mean(_smooth_l1(node_error, self.beta))
+        edge_loss = _mean(_smooth_l1(edge_error, self.beta))
 
         stats = {
             "node_smooth_l1": node_loss,
             "edge_smooth_l1": edge_loss,
-            "node_rmse": (node_error**2).mean() ** (1 / 2),
-            "edge_rmse": (edge_error**2).mean() ** (1 / 2),
+            "node_rmse": _mean(node_error**2) ** (1 / 2),
+            "edge_rmse": _mean(edge_error**2) ** (1 / 2),
         }
         stats.update(_spin_channel_stats(node_error, edge_error))
 
@@ -1119,12 +1148,12 @@ class block_type_huber(OrbitalMatrixMetric):
             abs_edge_error = abs(edge_error)
             stats.update(
                 {
-                    "node_mean": abs_node_error.mean(),
-                    "edge_mean": abs_edge_error.mean(),
-                    "node_std": abs_node_error.std(),
-                    "edge_std": abs_edge_error.std(),
-                    "node_max": abs_node_error.max(),
-                    "edge_max": abs_edge_error.max(),
+                    "node_mean": _mean(abs_node_error),
+                    "edge_mean": _mean(abs_edge_error),
+                    "node_std": _std(abs_node_error),
+                    "edge_std": _std(abs_edge_error),
+                    "node_max": _max(abs_node_error),
+                    "edge_max": _max(abs_edge_error),
                     "smooth_l1_beta": node_error.new_tensor(self.beta)
                     if _is_torch_tensor(node_error)
                     else self.beta,
@@ -1192,6 +1221,8 @@ class block_normalized_huber(OrbitalMatrixMetric):
             basis_table=kwargs.get("basis_table"),
             model=kwargs.get("model"),
             expected_edge_nlabels=_flat_length(edge_error),
+            nodes_ref=nodes_ref,
+            edges_ref=edges_ref,
         )
 
         node_losses = _smooth_l1(node_error, self.beta)
@@ -1199,11 +1230,15 @@ class block_normalized_huber(OrbitalMatrixMetric):
         node_block_losses = _loss_blocks(node_losses, node_pointers)
         edge_block_losses = _loss_blocks(edge_losses, edge_pointers)
 
-        if _is_torch_tensor(node_losses):
+        if not node_block_losses:
+            node_loss = node_losses.sum()
+        elif _is_torch_tensor(node_losses):
             node_loss = torch.stack(node_block_losses).mean()
         else:
             node_loss = np.stack(node_block_losses).mean()
-        if _is_torch_tensor(edge_losses):
+        if not edge_block_losses:
+            edge_loss = edge_losses.sum()
+        elif _is_torch_tensor(edge_losses):
             edge_loss = torch.stack(edge_block_losses).mean()
         else:
             edge_loss = np.stack(edge_block_losses).mean()
@@ -1212,8 +1247,8 @@ class block_normalized_huber(OrbitalMatrixMetric):
         stats = {
             "node_block_huber": node_loss,
             "edge_block_huber": edge_loss,
-            "node_rmse": (node_error**2).mean() ** (1 / 2),
-            "edge_rmse": (edge_error**2).mean() ** (1 / 2),
+            "node_rmse": _mean(node_error**2) ** (1 / 2),
+            "edge_rmse": _mean(edge_error**2) ** (1 / 2),
             "block_huber_beta": _as_stat_tensor(node_error, self.beta),
             "node_blocks": _as_stat_tensor(node_error, len(node_block_losses)),
             "edge_blocks": _as_stat_tensor(edge_error, len(edge_block_losses)),
@@ -1231,7 +1266,7 @@ class block_normalized_huber(OrbitalMatrixMetric):
                     readout=readout,
                     batch=batch,
                     basis_table=kwargs.get("basis_table"),
-                    expected_nlabels=_flat_length(edge_error),
+                    expected_nlabels=len(edges_ref),
                 )
                 edge_types = np.abs(edge_types)
             stats.update(
@@ -1256,12 +1291,12 @@ class block_normalized_huber(OrbitalMatrixMetric):
             abs_edge_error = abs(edge_error)
             stats.update(
                 {
-                    "node_mean": abs_node_error.mean(),
-                    "edge_mean": abs_edge_error.mean(),
-                    "node_std": abs_node_error.std(),
-                    "edge_std": abs_edge_error.std(),
-                    "node_max": abs_node_error.max(),
-                    "edge_max": abs_edge_error.max(),
+                    "node_mean": _mean(abs_node_error),
+                    "edge_mean": _mean(abs_edge_error),
+                    "node_std": _std(abs_node_error),
+                    "edge_std": _std(abs_edge_error),
+                    "node_max": _max(abs_node_error),
+                    "edge_max": _max(abs_edge_error),
                 }
             )
 
@@ -1332,6 +1367,8 @@ class hamiltonian_composite_loss(OrbitalMatrixMetric):
             batch=kwargs.get("batch"),
             basis_table=kwargs.get("basis_table"),
             model=kwargs.get("model"),
+            nodes_ref=nodes_ref,
+            edges_ref=edges_ref,
         )
 
         loss = label_loss
@@ -1339,8 +1376,8 @@ class hamiltonian_composite_loss(OrbitalMatrixMetric):
             "label_huber": label_loss,
             "node_smooth_l1": node_loss,
             "edge_smooth_l1": edge_loss,
-            "node_rmse": (node_error**2).mean() ** (1 / 2),
-            "edge_rmse": (edge_error**2).mean() ** (1 / 2),
+            "node_rmse": _mean(node_error**2) ** (1 / 2),
+            "edge_rmse": _mean(edge_error**2) ** (1 / 2),
             "coefficient_mse_weight": _as_stat_tensor(
                 node_error,
                 self.coefficient_mse_weight,
@@ -1369,12 +1406,12 @@ class hamiltonian_composite_loss(OrbitalMatrixMetric):
             abs_edge_error = abs(edge_error)
             stats.update(
                 {
-                    "node_mean": abs_node_error.mean(),
-                    "edge_mean": abs_edge_error.mean(),
-                    "node_std": abs_node_error.std(),
-                    "edge_std": abs_edge_error.std(),
-                    "node_max": abs_node_error.max(),
-                    "edge_max": abs_edge_error.max(),
+                    "node_mean": _mean(abs_node_error),
+                    "edge_mean": _mean(abs_edge_error),
+                    "node_std": _std(abs_node_error),
+                    "edge_std": _std(abs_edge_error),
+                    "node_max": _max(abs_node_error),
+                    "edge_max": _max(abs_edge_error),
                     "smooth_l1_beta": _as_stat_tensor(node_error, self.beta),
                 }
             )
@@ -1431,8 +1468,8 @@ def block_type_mape(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_loss = _relative_error(node_error, nodes_ref).mean()
-    edge_loss = _relative_error(edge_error, edges_ref[~_isnan(edges_ref)]).mean()
+    node_loss = _mean(_relative_error(node_error, nodes_ref))
+    edge_loss = _mean(_relative_error(edge_error, edges_ref))
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1445,12 +1482,12 @@ def block_type_mape(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1466,10 +1503,10 @@ def block_type_mapemaemix(
     )
 
     node_mape = _relative_error(node_error, nodes_ref)
-    edge_mape = _relative_error(edge_error, edges_ref[~_isnan(edges_ref)])
+    edge_mape = _relative_error(edge_error, edges_ref)
 
-    node_loss = node_mape.mean() + (100 * abs(node_error).mean())
-    edge_loss = edge_mape.mean() + (100 * abs(edge_error).mean())
+    node_loss = _mean(node_mape) + (100 * _mean(abs(node_error)))
+    edge_loss = _mean(edge_mape) + (100 * _mean(abs(edge_error)))
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1482,12 +1519,12 @@ def block_type_mapemaemix(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1503,10 +1540,10 @@ def block_type_mapemsemix(
     )
 
     node_mape = _relative_error(node_error, nodes_ref)
-    edge_mape = _relative_error(edge_error, edges_ref[~_isnan(edges_ref)])
+    edge_mape = _relative_error(edge_error, edges_ref)
 
-    node_loss = node_mape.mean() + ((100 * node_error) ** 2).mean()
-    edge_loss = edge_mape.mean() + ((100 * edge_error) ** 2).mean()
+    node_loss = _mean(node_mape) + _mean((100 * node_error) ** 2)
+    edge_loss = _mean(edge_mape) + _mean((100 * edge_error) ** 2)
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1519,12 +1556,12 @@ def block_type_mapemsemix(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1540,10 +1577,10 @@ def block_type_mapestdmix(
     )
 
     node_mape = _relative_error(node_error, nodes_ref)
-    edge_mape = _relative_error(edge_error, edges_ref[~_isnan(edges_ref)])
+    edge_mape = _relative_error(edge_error, edges_ref)
 
-    node_loss = node_mape.mean() + node_mape.std()
-    edge_loss = edge_mape.mean() + edge_mape.std()
+    node_loss = _mean(node_mape) + _std(node_mape)
+    edge_loss = _mean(edge_mape) + _std(edge_mape)
 
     stats = {
         # "node_rmse": node_loss ** (1 / 2),
@@ -1556,12 +1593,12 @@ def block_type_mapestdmix(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1582,13 +1619,13 @@ def elementwise_mse(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_loss = (node_error**2).mean()
-    edge_loss = (edge_error**2).mean()
+    node_loss = _mean(node_error**2)
+    edge_loss = _mean(edge_error**2)
 
-    n_node_els = node_error.shape[0]
-    n_edge_els = edge_error.shape[0] * edge_weight
+    n_node_els = _numel(node_error)
+    n_edge_els = _numel(edge_error) * edge_weight
 
-    loss = (n_node_els * node_loss + edge_loss * n_edge_els) / (n_node_els + n_edge_els)
+    loss = (n_node_els * node_loss + edge_loss * n_edge_els) / (n_node_els + n_edge_els or 1)
 
     stats = {"node_rmse": node_loss ** (1 / 2), "edge_rmse": edge_loss ** (1 / 2)}
 
@@ -1598,12 +1635,12 @@ def elementwise_mse(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1802,17 +1839,17 @@ def elementwise_mae(
 
     abs_node_error = abs(node_error)
     abs_edge_error = abs(edge_error)
-    node_loss = abs_node_error.mean()
-    edge_loss = abs_edge_error.mean()
+    node_loss = _mean(abs_node_error)
+    edge_loss = _mean(abs_edge_error)
 
-    n_node_els = node_error.shape[0]
-    n_edge_els = edge_error.shape[0]
+    n_node_els = _numel(node_error)
+    n_edge_els = _numel(edge_error)
 
-    loss = (n_node_els * node_loss + edge_loss * n_edge_els) / (n_node_els + n_edge_els)
+    loss = (n_node_els * node_loss + edge_loss * n_edge_els) / (n_node_els + n_edge_els or 1)
 
     stats = {
-        "node_rmse": (node_error**2).mean() ** (1 / 2),
-        "edge_rmse": (edge_error**2).mean() ** (1 / 2),
+        "node_rmse": _mean(node_error**2) ** (1 / 2),
+        "edge_rmse": _mean(edge_error**2) ** (1 / 2),
     }
 
     if log_verbose:
@@ -1820,10 +1857,10 @@ def elementwise_mae(
             {
                 "node_mean": node_loss,
                 "edge_mean": edge_loss,
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1838,8 +1875,8 @@ def node_mse(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_loss = (node_error**2).mean()
-    edge_loss = (edge_error**2).mean()
+    node_loss = _mean(node_error**2)
+    edge_loss = _mean(edge_error**2)
 
     stats = {"node_rmse": node_loss ** (1 / 2), "edge_rmse": edge_loss ** (1 / 2)}
 
@@ -1849,12 +1886,12 @@ def node_mse(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1869,8 +1906,8 @@ def edge_mse(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    node_loss = (node_error**2).mean()
-    edge_loss = (edge_error**2).mean()
+    node_loss = _mean(node_error**2)
+    edge_loss = _mean(edge_error**2)
 
     stats = {"node_rmse": node_loss ** (1 / 2), "edge_rmse": edge_loss ** (1 / 2)}
 
@@ -1880,12 +1917,12 @@ def edge_mse(
 
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1906,8 +1943,8 @@ def block_type_mse_threshold(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    n_node_els = node_error.shape[0]
-    n_edge_els = edge_error.shape[0]
+    n_node_els = _numel(node_error)
+    n_edge_els = _numel(edge_error)
 
     abs_node_error = abs(node_error)
     abs_edge_error = abs(edge_error)
@@ -1921,23 +1958,23 @@ def block_type_mse_threshold(
     edge_loss = (edge_error_above_thresh**2).sum()
 
     stats = {
-        "node_rmse": (node_error**2).mean() ** (1 / 2),
-        "edge_rmse": (edge_error**2).mean() ** (1 / 2),
-        "node_above_threshold_frac": node_error_above_thresh.shape[0] / n_node_els,
-        "edge_above_threshold_frac": edge_error_above_thresh.shape[0] / n_edge_els,
-        "node_above_threshold_mean": abs_node_error[abs_node_error > threshold].mean(),
-        "edge_above_threshold_mean": abs_edge_error[abs_edge_error > threshold].mean(),
+        "node_rmse": _mean(node_error**2) ** (1 / 2),
+        "edge_rmse": _mean(edge_error**2) ** (1 / 2),
+        "node_above_threshold_frac": _numel(node_error_above_thresh) / (n_node_els or 1),
+        "edge_above_threshold_frac": _numel(edge_error_above_thresh) / (n_edge_els or 1),
+        "node_above_threshold_mean": _mean(abs_node_error[abs_node_error > threshold]),
+        "edge_above_threshold_mean": _mean(abs_edge_error[abs_edge_error > threshold]),
     }
 
     if log_verbose:
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -1959,8 +1996,8 @@ def block_type_mse_sigmoid_thresh(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    n_node_els = node_error.shape[0]
-    n_edge_els = edge_error.shape[0]
+    n_node_els = _numel(node_error)
+    n_edge_els = _numel(edge_error)
 
     abs_node_error = abs(node_error)
     abs_edge_error = abs(edge_error)
@@ -1982,23 +2019,23 @@ def block_type_mse_sigmoid_thresh(
     abs_edge_error_above_thresh = abs_edge_error[abs_edge_error > threshold]
 
     stats = {
-        "node_rmse": (node_error**2).mean() ** (1 / 2),
-        "edge_rmse": (edge_error**2).mean() ** (1 / 2),
-        "node_above_threshold_frac": abs_node_error_above_thresh.shape[0] / n_node_els,
-        "edge_above_threshold_frac": abs_edge_error_above_thresh.shape[0] / n_edge_els,
-        "node_above_threshold_mean": abs_node_error_above_thresh.mean(),
-        "edge_above_threshold_mean": abs_edge_error_above_thresh.mean(),
+        "node_rmse": _mean(node_error**2) ** (1 / 2),
+        "edge_rmse": _mean(edge_error**2) ** (1 / 2),
+        "node_above_threshold_frac": _numel(abs_node_error_above_thresh) / (n_node_els or 1),
+        "edge_above_threshold_frac": _numel(abs_edge_error_above_thresh) / (n_edge_els or 1),
+        "node_above_threshold_mean": _mean(abs_node_error_above_thresh),
+        "edge_above_threshold_mean": _mean(abs_edge_error_above_thresh),
     }
 
     if log_verbose:
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 
@@ -2020,8 +2057,8 @@ def block_type_mae_sigmoid_thresh(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
 
-    n_node_els = node_error.shape[0]
-    n_edge_els = edge_error.shape[0]
+    n_node_els = _numel(node_error)
+    n_edge_els = _numel(edge_error)
 
     abs_node_error = abs(node_error)
     abs_edge_error = abs(edge_error)
@@ -2043,23 +2080,23 @@ def block_type_mae_sigmoid_thresh(
     abs_edge_error_above_thresh = abs_edge_error[abs_edge_error > threshold]
 
     stats = {
-        "node_rmse": (node_error**2).mean() ** (1 / 2),
-        "edge_rmse": (edge_error**2).mean() ** (1 / 2),
-        "node_above_threshold_frac": abs_node_error_above_thresh.shape[0] / n_node_els,
-        "edge_above_threshold_frac": abs_edge_error_above_thresh.shape[0] / n_edge_els,
-        "node_above_threshold_mean": abs_node_error_above_thresh.mean(),
-        "edge_above_threshold_mean": abs_edge_error_above_thresh.mean(),
+        "node_rmse": _mean(node_error**2) ** (1 / 2),
+        "edge_rmse": _mean(edge_error**2) ** (1 / 2),
+        "node_above_threshold_frac": _numel(abs_node_error_above_thresh) / (n_node_els or 1),
+        "edge_above_threshold_frac": _numel(abs_edge_error_above_thresh) / (n_edge_els or 1),
+        "node_above_threshold_mean": _mean(abs_node_error_above_thresh),
+        "edge_above_threshold_mean": _mean(abs_edge_error_above_thresh),
     }
 
     if log_verbose:
         stats.update(
             {
-                "node_mean": abs_node_error.mean(),
-                "edge_mean": abs_edge_error.mean(),
-                "node_std": abs_node_error.std(),
-                "edge_std": abs_edge_error.std(),
-                "node_max": abs_node_error.max(),
-                "edge_max": abs_edge_error.max(),
+                "node_mean": _mean(abs_node_error),
+                "edge_mean": _mean(abs_edge_error),
+                "node_std": _std(abs_node_error),
+                "edge_std": _std(abs_edge_error),
+                "node_max": _max(abs_node_error),
+                "edge_max": _max(abs_edge_error),
             }
         )
 

@@ -360,6 +360,87 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   completo de nodos NaN/vacíos y de umbrales sin elementos; no se declara cerrado
   ese requisito porque el logging de std con una sola muestra ya sea finito.
 
+### Sublote 3.1.c / 3.9 — pérdidas con NaN y ramas vacías
+
+- Turno anterior: progreso verificado, commits aaa5eb8 y **0f3529f**, suite CPU
+  653 passed/2 skipped. HEAD y árbol tracked limpios confirmados; no se repite ese trabajo.
+- Traza: get_predictions_error filtra NaN solo en aristas; las pérdidas relativas
+  además filtran la referencia de aristas por escalar, incompatible con canales.
+  mean/std/max vacíos y std Torch de un solo elemento contaminan pérdidas y stats;
+  elementwise multiplica un NaN por un conteo cero. Los umbrales dividen por filas,
+  no por elementos cuando hay canales, y promedian conjuntos vacíos.
+- Regresiones con resultados literales en NumPy/Torch y una/dos componentes:
+  15 pérdidas básicas, filas parcialmente NaN y cuatro políticas de rama vacía.
+  Gradientes finitos, cero en etiquetas ausentes; node_mse/edge_mse conservan su
+  exclusión intencional de la otra rama. Este lote no redefine esas pérdidas.
+- Ruling: conservar la máscara por fila (cualquier componente NaN excluye la fila)
+  ya usada en aristas, aplicarla también a nodos; las referencias relativas usan
+  la misma máscara. Reducciones vacías contribuyen cero conectado al grafo; std
+  de menos de dos elementos es cero, conservando std existente con más datos.
+  Coste: se descartan también los canales válidos de una fila parcialmente ausente,
+  como ya declaraba la política de etiquetas multicomponente.
+- RED básico: **180 failed**, 507 warnings, 3.02 s (`valid-labels-red.log`).
+  Parche: una máscara compartida por fila, referencias relativas alineadas y
+  mean/std/max seguros para vacío/singleton; conteo escalar en elementwise/umbrales.
+  La actualización mecánica se hizo con apply_patch. Un chequeo del script detectó
+  nombres solapados antes de escribir: se ordenaron los patrones por longitud;
+  no se aplicó el reemplazo inválido. GREEN básico: **180 passed**, 48 warnings,
+  0.15 s (`valid-labels-green.log`), con valores y gradientes reales.
+- RED por época: **10 failed, 3 passed**, 20 deselected, 91 warnings, 0.77 s
+  (`node-nan-epochs-red.log`). El conteo RMSE de nodos seguía incluyendo etiquetas
+  filtradas; per_structure calculaba su propia resta sin máscara de nodos.
+- Parche en los dos consumidores: _rmse_count usa la máscara común en ambas ramas
+  y per_structure alinea los IDs de estructura con ella, conservando peso igual
+  por estructura. Se unifica pred−ref allí sin alterar el MSE.
+- GREEN enfocado: **325 passed**, 153 warnings, 3.43 s
+  (`valid-labels-focused.log`), con pérdidas normales/composite/Huber, gradientes,
+  epochs y nodos NaN. Gate CPU completo: **843 passed, 2 skipped**, 6648 warnings,
+  96.47 s (`valid-labels-full-cpu.log`), exit 0. Este gate precede las pruebas
+  nuevas de bloques físicos y pesos fraccionarios; no prueba el árbol posterior.
+- Los bloques físicos con etiquetas parcialmente ausentes y los objetivos
+  coeficiente/gauge/parejas aún necesitan comprobaciones propias; no se consideran
+  cubiertos por las 15 pérdidas básicas ni se cierra 3.1/3.9 con este lote.
+
+### Sublote 3.1.d / 3.9 — máscaras de bloques físicos y pesos fraccionarios
+
+- Consulta de estado anterior: sin cambios de producto; goal active, HEAD 0f3529f,
+  lote NaN sin commit. No hay bloqueo ni pruebas previas vivas.
+- Las 30 pruebas iniciales de Huber fallaban en la preparación del fixture:
+  una matriz densa cero perdía sus bloques onsite al pasar a sparse; cambiarla
+  por identidad conservaba onsite pero perdía las aristas. Esos KeyError no
+  demuestran fallos de Huber. Se aisló su prueba usando una matriz de unos con
+  todos los bloques y targets NaN explícitos. Se retiró el parche prematuro antes
+  de repetir RED; no se contabiliza el intento anterior como prueba del arreglo.
+- RED real: **28 failed, 4 passed**, 213 deselected, 74 warnings, 1.15 s
+  (`masked-blocks-real-red.log`). Falla la selección de representantes usando
+  longitud ya filtrada, los punteros físicos no coinciden con ella y las medias
+  vacías producen NaN. Dos casos composite sin ramas vacías y dos pruebas de
+  pesos fraccionarios ya pasan; se preservan como caracterización.
+- Parche: seleccionar las aristas con la longitud de referencia completa,
+  comprimir límites con el prefijo de la máscara de filas, omitir bloques sin
+  target y conservar las etiquetas de tipo de los bloques restantes. Rama vacía
+  aporta cero conectado al grafo. Se conserva la validación de longitudes, los
+  pesos y las fórmulas para datos válidos; solo helpers privados reciben refs.
+- Regresión adicional ya RED en masked-blocks-red.log: dos pérdidas globales
+  elementwise con todos los nodos NaN y edge_weight=0.125 daban 2.5/12.5 en vez
+  de 10/25. La reducción por época limitaba erróneamente el denominador a 1.
+  Ahora protege solo denominadores exactamente cero; valores y gradientes del
+  paso no cambian. Los dos casos pasan con distintos batches y resets.
+- Un comando enfocado nombró test_hamiltonian_losses.py, que no existe: exit 4,
+  sin ejecución de pruebas. Se localizó test_hamiltonian_training_losses.py y
+  se ejecutó realmente: **23 passed**, 47 warnings, 0.09 s.
+- GREEN de pérdidas básicas/bloques/epochs: **334 passed**, 159 warnings,
+  3.41 s (`masked-blocks-real-focused.log`). Gate CPU completo: **875 passed,
+  2 skipped**, 6654 warnings, 96.10 s (`masked-blocks-full-cpu.log`), exit 0.
+  Comando: gate completo anterior con CUDA_VISIBLE_DEVICES='' y el mismo overlay
+  temporal del servidor, OMP/OPENBLAS/MKL=2. Subapartado básico/bloques verificado;
+  objetivos y diagnósticos especiales, servidor, CLI/gates y revisión final siguen
+  abiertos. No se cierran 3.1 ni 3.9 por este resultado.
+- Pendiente adicional 3.9: investigar y probar el pipeline de matrices con
+  bloques completamente cero/ausentes. No rellenar DM con cero por conveniencia:
+  csr_to_block_dict declara fill_value NaN para DM/EDM y cero para H. Deben
+  preservarse ambos contratos, incluidos componentes y periodicidad.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

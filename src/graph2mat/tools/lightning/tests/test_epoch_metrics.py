@@ -155,7 +155,8 @@ def test_epoch_loss_uses_its_objective_denominators(split, loss_name, loss_kwarg
 
 
 @pytest.mark.parametrize("missing_edges", ["none", "first", "all"])
-def test_epoch_structure_weighted_rmse_preserves_equal_structure_weight(missing_edges):
+@pytest.mark.parametrize("missing_nodes", ["none", "first", "all"])
+def test_epoch_structure_weighted_rmse_preserves_equal_structure_weight(missing_edges, missing_nodes):
     samples = [Data(num_nodes=n, point_types=torch.zeros(n, dtype=torch.long),
                     point_labels=torch.zeros(n), node_prediction=torch.full((n,), error),
                     edge_labels=torch.zeros(n), edge_prediction=torch.zeros(n),
@@ -169,6 +170,9 @@ def test_epoch_structure_weighted_rmse_preserves_equal_structure_weight(missing_
             sample.edge_index = torch.empty((2, 0), dtype=torch.long)
     if missing_edges == "first":
         samples[1].edge_prediction.fill_(3)
+    if missing_nodes != "none":
+        for sample in samples[:2 if missing_nodes == "all" else 1]:
+            sample.point_labels.fill_(float("nan"))
     table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
     model = LitBasisMatrixModel(model_cls=_PredictionModel, basis_table=table,
                                loss=block_type_mse_per_structure)
@@ -178,5 +182,59 @@ def test_epoch_structure_weighted_rmse_preserves_equal_structure_weight(missing_
     for batch_size in (1, 2):
         result = trainer.validate(model, dataloaders=DataLoader(samples, batch_size=batch_size),
                                   verbose=False)[0]
-        assert result["val_node_rmse"] == pytest.approx(math.sqrt(5))
+        assert result["val_node_rmse"] == pytest.approx(
+            math.sqrt(5) if missing_nodes == "none" else 3 if missing_nodes == "first" else 0
+        )
         assert result["val_edge_rmse"] == pytest.approx(3 if missing_edges == "first" else 0)
+
+
+@pytest.mark.parametrize("components", [1, 2])
+@pytest.mark.parametrize("loss_name", ["block_type_mse", "elementwise_mse"])
+def test_epoch_metrics_count_only_valid_node_labels(components, loss_name):
+    # Four valid node errors [1,1,3,3], edge errors [2,4,4,4].
+    samples = [
+        Data(num_nodes=3, point_labels=torch.tensor([0., float("nan"), 0.]),
+             node_prediction=torch.tensor([1., 99., 1.]),
+             edge_labels=torch.tensor([0., float("nan")]), edge_prediction=torch.tensor([2., 99.])),
+        Data(num_nodes=2, point_labels=torch.zeros(2), node_prediction=torch.full((2,), 3.),
+             edge_labels=torch.zeros(3), edge_prediction=torch.full((3,), 4.)),
+    ]
+    if components == 2:
+        for sample in samples:
+            for key in ("point_labels", "node_prediction", "edge_labels", "edge_prediction"):
+                sample[key] = torch.stack([sample[key], 2 * sample[key]], dim=1)
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
+    model = LitBasisMatrixModel(model_cls=_PredictionModel, basis_table=table,
+                               loss=getattr(metrics_module, loss_name))
+    model.init_model()
+    trainer = pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                         enable_progress_bar=False, enable_model_summary=False)
+    for batch_size in (1, 2, 1):
+        result = trainer.validate(model, dataloaders=DataLoader(samples, batch_size=batch_size), verbose=False)[0]
+        assert result["val_node_rmse"] == pytest.approx(math.sqrt(5 if components == 1 else 12.5))
+        assert result["val_node_mean"] == pytest.approx(2 if components == 1 else 3)
+        assert result["val_node_std"] == pytest.approx(math.sqrt(4 / 3) if components == 1 else 2)
+        want = (18 if components == 1 else 45) if loss_name == "block_type_mse" else (9 if components == 1 else 22.5)
+        assert result["val_loss"] == pytest.approx(want)
+
+
+@pytest.mark.parametrize("components", [1, 2])
+def test_epoch_elementwise_loss_preserves_fractional_edge_weights_with_missing_nodes(components):
+    samples = [Data(num_nodes=1, point_labels=torch.tensor([float("nan")]),
+                    node_prediction=torch.tensor([99.]), edge_labels=torch.zeros(1),
+                    edge_prediction=torch.tensor([error])) for error in (2., 4.)]
+    if components == 2:
+        for sample in samples:
+            for key in ("point_labels", "node_prediction", "edge_labels", "edge_prediction"):
+                sample[key] = torch.stack([sample[key], 2 * sample[key]], dim=1)
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
+    model = LitBasisMatrixModel(model_cls=_PredictionModel, basis_table=table,
+                               loss=elementwise_mse, loss_kwargs={"edge_weight": 0.125})
+    model.init_model()
+    trainer = pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                         enable_progress_bar=False, enable_model_summary=False)
+    for batch_size in (1, 2, 1):
+        result = trainer.validate(model, dataloaders=DataLoader(samples, batch_size=batch_size), verbose=False)[0]
+        assert result["val_loss"] == pytest.approx(10 if components == 1 else 25)
+        assert result["hp_metric"] == pytest.approx(10 if components == 1 else 25)
+        assert result["val_node_rmse"] == 0

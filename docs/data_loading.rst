@@ -68,8 +68,16 @@ standard deviation is zero with fewer than two valid elements. Special objective
 (coefficient, pair, spectral, domain and Huber losses) still have separate pending
 aggregation work. Distributed samplers may pad uneven datasets with repeated
 samples: the metrics count the samples actually evaluated, including those repeats.
-NaN edge rows follow the existing loss mask; comprehensive node-NaN and empty-label
-handling in the underlying loss functions remains separate pending work.
+The basic matrix losses ignore node and edge rows with any NaN label component,
+using the same mask for relative-error references and epoch denominators. Empty
+branches contribute zero with connected zero gradients. Empty threshold selections
+have zero mean/fraction, and fractions count scalar elements, including channels.
+Loss-side standard deviation retains its existing backend convention (sample std
+in Torch, population std in NumPy) when there are at least two values, and is zero
+otherwise. Physical-block Huber and the composite label-Huber component retain
+block boundaries after masking; wholly missing blocks are excluded from the
+block mean and per-type statistics. A wholly missing branch contributes zero.
+Coefficient, gauge and pair objectives have separate missing-label requirements.
 
 With the default ``SamplewiseMetricsLogger`` failure-tolerant policy, a failed
 metric writes NaN to its sample rows and emits a warning on its first failure per
