@@ -9,10 +9,16 @@ import sisl
 import numpy as np
 import pandas as pd
 
-from jinja2 import Environment, FileSystemLoader
-
 
 def _write_template(template_name, out, **kwargs):
+    try:
+        from jinja2 import Environment, FileSystemLoader
+    except ModuleNotFoundError as exc:
+        if exc.name != "jinja2":
+            raise
+        raise ModuleNotFoundError(
+            "Template generation requires graph2mat[siesta].", name="jinja2"
+        ) from exc
     environment = Environment(
         loader=FileSystemLoader(Path(__file__).parent / "templates")
     )

@@ -21,6 +21,7 @@ jobs:
         run: |
           python -c "import importlib.util; assert importlib.util.find_spec('torch') is None"
           python -c "import graph2mat; assert graph2mat.MatrixDataProcessor"
+          graph2mat --help
           pytest -q tests/test_minimal_install.py -k base
 
   pytest-cpu:

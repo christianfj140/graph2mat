@@ -25,6 +25,13 @@ Using ``pip``, installation is as simple as:
 
     pip install graph2mat
 
+The base profile supports NumPy processing and ``graph2mat --help`` without
+Torch or server dependencies. Optional commands load their dependencies when
+used: ``graph2mat[siesta]`` provides input templates and YAML options,
+``graph2mat[analysis]`` provides performance tables, and
+``graph2mat[server]`` provides the prediction server and client.
+``graph2mat[tools]`` installs the complete toolset.
+
 I would like to...
 ------------------
 

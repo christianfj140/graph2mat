@@ -53,6 +53,7 @@ wheel.packages = ["src/graph2mat"]
 
 [project.optional-dependencies]
 server = [
+    "requests",
     "pyyaml",
     "fastapi",
     "uvicorn",
@@ -62,7 +63,8 @@ server = [
 
 analysis = [
     "plotly",
-    "pandas"
+    "pandas",
+    "jinja2"
 ]
 
 lightning = [
@@ -72,7 +74,8 @@ lightning = [
 ]
 
 siesta = [
-    "jinja2"
+    "jinja2",
+    "pyyaml"
 ]
 
 torch = [
@@ -93,6 +96,7 @@ mace = [
 ]
 
 tools = [
+    "requests",
     "pyyaml",
     "fastapi",
     "uvicorn",

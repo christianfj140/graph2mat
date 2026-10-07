@@ -1,6 +1,5 @@
 from typing import Optional
 from typing_extensions import Annotated
-from requests.exceptions import HTTPError
 import warnings
 
 import typer
@@ -71,6 +70,8 @@ def predict(
     ] = None,
 ):
     """Predict the matrix for a given geometry."""
+    from requests.exceptions import HTTPError
+
     # Import the server client class, which will be used to interact with the server.
     from graph2mat.tools.server import ServerClient
 

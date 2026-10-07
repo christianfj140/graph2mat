@@ -24,8 +24,18 @@ to make the usage of `graph2mat`'s tools as simple as possible. It has two objec
 Installation
 ------------
 
-It can be installed with pip. Adding the tools extra will also install all the dependencies
-needed to use the tools provided.
+The base package supports NumPy processing and CLI help without the ML or server
+extras:
+
+```bash
+pip install graph2mat
+graph2mat --help
+```
+
+Install `graph2mat[siesta]` to generate SIESTA input templates,
+`graph2mat[analysis]` for performance tables, or `graph2mat[server]` for the
+prediction server and client. Adding the tools extra installs the dependencies
+for the complete toolset.
 
 ```
 pip install graph2mat[tools]

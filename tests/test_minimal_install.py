@@ -79,3 +79,144 @@ def test_core_optional_torch(mode):
         assert "simulated missing dependency: sympy" in result.stderr
     else:
         assert result.returncode == 0, result.stderr
+
+
+CLI_SMOKE = r'''
+import importlib.abc
+import importlib.util
+import sys
+
+blocked = {"torch", "torch_geometric", "e3nn", "mace", "pytorch_lightning",
+           "requests", "yaml", "jinja2", "fastapi", "uvicorn"}
+# pandas is a transitive base dependency of sisl[viz], not a missing CLI extra.
+
+class MissingOptional(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        root = fullname.partition(".")[0]
+        if root in blocked:
+            raise ModuleNotFoundError("simulated missing dependency: " + root, name=root)
+
+sys.meta_path.insert(0, MissingOptional())
+# Optional availability probes should see absence, just as in a clean profile.
+original_find_spec = importlib.util.find_spec
+importlib.util.find_spec = lambda name, *a, **kw: None if name.partition(".")[0] in blocked else original_find_spec(name, *a, **kw)
+from typer.testing import CliRunner
+from graph2mat.tools.cli.cli import app
+result = CliRunner().invoke(app, [*sys.argv[1:], "--help"])
+assert result.exit_code == 0, (result.output, repr(result.exception))
+assert "Usage:" in result.output
+assert not blocked.intersection(sys.modules)
+'''
+
+
+@pytest.mark.parametrize("command", [
+    [], ["request"], ["request", "predict"], ["request", "avail-models"],
+    ["serve"], ["utils"], ["models"], ["siesta"], ["siesta", "md"],
+    ["siesta", "md", "setup"], ["siesta", "md", "setup-store"],
+    ["siesta", "md", "analyze"],
+])
+def test_base_cli_help_does_not_import_optional_command_dependencies(command):
+    result = subprocess.run([sys.executable, "-c", CLI_SMOKE, *command],
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_importing_graph2mat_cli_does_not_reformat_other_typer_apps():
+    code = r'''
+import os
+os.environ["FORCE_COLOR"] = "1"
+import typer
+from typer.testing import CliRunner
+other = typer.Typer(rich_markup_mode="markdown")
+@other.command()
+def main():
+    """First paragraph.
+
+    Second paragraph with a **bold** word.
+    """
+runner = CliRunner()
+before = runner.invoke(other, ["--help"], color=True)
+assert before.exit_code == 0
+import graph2mat.tools.cli.cli
+after = runner.invoke(other, ["--help"], color=True)
+assert after.exit_code == 0
+assert after.output == before.output
+'''
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_cli_yaml_parser_preserves_options():
+    from graph2mat.tools.cli._typer import get_dict_param_kwargs
+
+    parser = get_dict_param_kwargs((str, int))["parser"]
+    options = {"steps": 2}
+    assert parser(options) is options
+    assert parser("{steps: 2, enabled: true}") == {"steps": 2, "enabled": True}
+
+
+@pytest.mark.parametrize("missing", ["yaml", "jinja2"])
+def test_base_optional_command_reports_required_extra(missing):
+    code = r'''
+import importlib.abc
+import importlib.util
+import sys
+import tempfile
+from pathlib import Path
+
+missing = sys.argv[1]
+class MissingOptional(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.partition(".")[0] == missing:
+            raise ModuleNotFoundError("simulated missing dependency", name=missing)
+sys.meta_path.insert(0, MissingOptional())
+original_find_spec = importlib.util.find_spec
+importlib.util.find_spec = lambda name, *a, **kw: None if name.partition(".")[0] == missing else original_find_spec(name, *a, **kw)
+
+if missing == "yaml":
+    import typer
+    from graph2mat.tools.cli._typer import get_dict_param_kwargs
+    parser = get_dict_param_kwargs((str, int))["parser"]
+    options = {"steps": 2}
+    assert parser(options) is options
+    try:
+        parser("{steps: 2}")
+    except typer.BadParameter as exc:
+        assert "graph2mat[siesta]" in str(exc)
+    else:
+        raise AssertionError("missing YAML must produce a usage error")
+else:
+    from graph2mat.tools.siesta.md import setup_store
+    with tempfile.TemporaryDirectory() as folder:
+        output = Path(folder) / "store.lua"
+        try:
+            setup_store(out=output)
+        except ModuleNotFoundError as exc:
+            assert exc.name == "jinja2"
+            assert "graph2mat[siesta]" in str(exc)
+        else:
+            raise AssertionError("missing template dependency must be explicit")
+        assert not output.exists()
+'''
+    result = subprocess.run([sys.executable, "-c", code, missing],
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_cli_setup_store_renders_with_siesta_extra(tmp_path):
+    from typer.testing import CliRunner
+    from graph2mat.tools.cli.cli import app
+
+    output = tmp_path / "store.lua"
+    result = CliRunner().invoke(app, [
+        "siesta", "md", "setup-store", "--dir", "frames", "--interval", "3",
+        "--step-prefix", "sample_", "--files", "*XV *DM", "--out", str(output),
+    ])
+    assert result.exit_code == 0, (result.output, result.exception)
+    script = output.read_text()
+    assert 'local store_dir = "frames"' in script
+    assert "local store_interval = 3" in script
+    assert 'local store_step_prefix = "sample_"' in script
+    assert 'local store_files = "*XV *DM"' in script
+    assert "function store_step(istep)" in script
+    assert "server_address" not in script

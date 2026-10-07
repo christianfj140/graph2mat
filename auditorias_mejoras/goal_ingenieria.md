@@ -511,6 +511,51 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   exit 0 (huber-epochs-full-cpu.log). Los objetivos/denominadores especiales de
   3.1 y los otros frentes conservan todo su alcance; no se marca completo el goal.
 
+### Sublote 3.5.a — CLI base y extras de comandos
+
+- Reanudación solicitada tras agotar cuota; get_goal volvió a informar **active**
+  en esta continuación. HEAD inicial 234102b; seis archivos del lote CLI propios
+  sin commit. Sin cambios en entrenamientos, autorun ni entornos compartidos.
+- RED instalado real previo: graph2mat --help fallaba sin requests
+  (base-cli-help-red.log). RED de aislamiento Typer: la importación de Graph2Mat
+  cambiaba la ayuda de una aplicación ajena (base-cli-markdown-red.log).
+- Parche mínimo: importar HTTPError al ejecutar predict, YAML al parsear opciones
+  y Jinja al generar plantillas. Mensajes de extra requerido para YAML/Jinja;
+  dicts existentes no necesitan YAML. Requests declarado en server/tools, Jinja
+  en analysis y YAML en siesta. Se elimina el parche global de API privada Typer;
+  su rich_markup_mode nativo conserva la ayuda Markdown de los comandos.
+- Las primeras simulaciones daban doce fallos de fixture, no de CLI: bloquear
+  pandas impedía importar xarray/Sisl antes del comando. pandas es dependencia
+  transitiva del perfil base sisl[viz], por lo que no se simula su ausencia.
+  Se deshizo su import perezoso innecesario para conservar anotaciones públicas.
+- RED aislado auténtico para YAML/Jinja: **2 failed, 18 deselected**, 3.83 s
+  (base-cli-real-consumers-red.log), al reinstaurar temporalmente sus imports
+  originales. Restaurado el parche solo después de comprobar ambos fallos.
+- GREEN enfocado inicial: **20 passed**, 47 warnings, 16.92 s
+  (base-cli-final-focused.log). Doce ayudas, parser YAML real, generación CLI
+  de Lua con opciones literales, ausencia de extras y aislamiento de otras apps.
+- Wheel actual construida con build isolation, exit 0 (cli-wheel-build.log),
+  sha256 868c2bc7835bea7a1596326a6879ba84c8124662c8894aaaff6d780639e1a752.
+  Instalada con dependencias base y pytest en nuevo venv
+  /tmp/g2m-cli-wheel.XcBn5L/venv (cli-base-install.log), sin alterar los anteriores.
+  Compilado Cython real y módulo desde site-packages; Torch, requests, YAML,
+  Jinja, FastAPI, uvicorn y Cython runtime realmente ausentes. graph2mat --help
+  exit 0; pip check exit 0. Logs cli-installed-base-profile.log y cli-installed-help.log.
+- El primer gate de pruebas instalado falló antes de Graph2Mat porque el script
+  suponía importlib.util cargado por importlib.abc. El entorno compartido ocultaba
+  ese error de fixture. Añadido import explícito de util, sin cambio de producto.
+  Gate instalado final: **16 passed, 4 deselected**, 8.28 s
+  (cli-installed-base-tests-final.log). No es una simulación de instalación.
+- Suite CPU completa del producto: **967 passed, 2 skipped**, 6722 warnings,
+  116.38 s (base-cli-full-cpu.log), exit 0; precede únicamente los dos imports
+  explícitos añadidos a los scripts de prueba. La CI base incluye el ejecutable
+  graph2mat --help y las regresiones base; no se afirma ejecución remota.
+  Scripts definitivos en el entorno de referencia: **20 passed**, 47 warnings,
+  16.84 s (base-cli-final-test-imports.log), exit 0.
+- 3.5 sigue abierto: cliente independiente del servidor/ML, rangos/versiones,
+  constraints reproducibles y perfil completo limpio. El resto del goal y la
+  revisión final mantienen todo su alcance original.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

@@ -12,7 +12,7 @@ from graph2mat.tools.siesta.md import (
     setup_store,
 )
 
-app = typer.Typer(help="Utilities for molecular dynamics runs.")
+app = typer.Typer(help="Utilities for molecular dynamics runs.", rich_markup_mode="markdown")
 
 app.command("analyze")(annotate_typer(visualize_performance_table))
 
