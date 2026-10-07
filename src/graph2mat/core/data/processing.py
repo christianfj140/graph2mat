@@ -44,7 +44,13 @@ from typing import (
 
 import numpy as np
 import sisl
-import torch
+
+try:
+    import torch
+except ModuleNotFoundError as exc:
+    if exc.name != "torch":
+        raise
+    torch = None
 
 try:
     from torch_geometric.data import Batch
@@ -657,6 +663,8 @@ class MatrixDataProcessor:
 
     def irreps_from_data(self, data):
         """Converts the matrix data into irreps."""
+        import torch
+
         from e3nn import o3
 
         if not self.symmetric_matrix:

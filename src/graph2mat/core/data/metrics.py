@@ -12,7 +12,13 @@ from copy import copy
 
 from typing import Any, Tuple, Dict, Type, Callable, Union, Optional
 import numpy as np
-import torch
+
+try:
+    import torch
+except ModuleNotFoundError as exc:
+    if exc.name != "torch":
+        raise
+    torch = None
 
 from .formats import Formats
 from .processing import MatrixDataProcessor
@@ -50,6 +56,10 @@ __all__ = [
 ]
 
 
+def _is_torch_tensor(value):
+    return torch is not None and torch.is_tensor(value)
+
+
 def _isnan(values):
     """NaN checking compatible with both torch and numpy"""
     return values != values
@@ -80,7 +90,7 @@ def _relative_error(error, ref, eps: float = 1e-6):
     (e.g. symmetry-zero elements of H) give inf, and 0 * inf = NaN in the backward pass.
     """
     mask = abs(ref) > eps
-    ones = torch.ones_like(ref) if torch.is_tensor(ref) else np.ones_like(ref)
+    ones = torch.ones_like(ref) if _is_torch_tensor(ref) else np.ones_like(ref)
     safe = ref * mask + ones * ~mask
     return abs(error / safe)[mask]
 
@@ -91,7 +101,7 @@ def _smooth_l1(values, beta: float):
     abs_values = abs(values)
     quadratic = 0.5 * values**2 / beta
     linear = abs_values - 0.5 * beta
-    if torch.is_tensor(values):
+    if _is_torch_tensor(values):
         return torch.where(abs_values < beta, quadratic, linear)
     return np.where(abs_values < beta, quadratic, linear)
 
@@ -117,20 +127,20 @@ def _validate_nonnegative(value: float, name: str) -> float:
 
 
 def _as_stat_tensor(reference, value):
-    if torch.is_tensor(reference):
+    if _is_torch_tensor(reference):
         return reference.new_tensor(value)
     return value
 
 
 def _as_numpy_int(values) -> np.ndarray:
-    if torch.is_tensor(values):
+    if _is_torch_tensor(values):
         return values.detach().cpu().numpy().astype(int)
     return np.asarray(values).astype(int)
 
 
 def _map_types(type_map, values) -> np.ndarray:
     values = _as_numpy_int(values)
-    if torch.is_tensor(type_map):
+    if _is_torch_tensor(type_map):
         mapped = type_map[
             torch.as_tensor(values, dtype=torch.long, device=type_map.device)
         ]
@@ -211,7 +221,7 @@ def _batch_field(batch, name: str, default=None):
 
 
 def _flat_length(values) -> int:
-    if torch.is_tensor(values):
+    if _is_torch_tensor(values):
         return int(values.reshape(-1).shape[0])
     return int(np.asarray(values).reshape(-1).shape[0])
 
@@ -412,7 +422,7 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
     if edge_labels:
         edge_labels = torch.cat(edge_labels, dim=0)
     else:
-        device = node_labels.device if torch.is_tensor(node_labels) else None
+        device = node_labels.device if _is_torch_tensor(node_labels) else None
         edge_labels = torch.empty(0, dtype=node_labels.dtype, device=device)
 
     return {"node_labels": node_labels, "edge_labels": edge_labels}
@@ -493,7 +503,7 @@ def _loss_mean(values, pointers=None):
         losses.append(values[start:end].mean())
     if not losses:
         return values.mean()
-    if torch.is_tensor(values):
+    if _is_torch_tensor(values):
         return torch.stack(losses).mean()
     return np.stack(losses).mean()
 
@@ -564,7 +574,7 @@ def _block_type_stats(values, pointers, types, prefix: str):
         ]
         if not selected:
             continue
-        if torch.is_tensor(values):
+        if _is_torch_tensor(values):
             stats[f"{prefix}_type{type_id}_block_huber"] = torch.stack(selected).mean()
         else:
             stats[f"{prefix}_type{type_id}_block_huber"] = np.stack(selected).mean()
@@ -890,7 +900,7 @@ def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
 
 def _structure_mean_sq(error, struct_ids, n_structures):
     """Differentiable per-structure mean of squared errors. NaN-safe counts."""
-    error = error if torch.is_tensor(error) else torch.as_tensor(np.asarray(error))
+    error = error if _is_torch_tensor(error) else torch.as_tensor(np.asarray(error))
     n_components = int(np.prod(error.shape[1:]))
     squared = error.reshape(error.shape[0], n_components).pow(2).sum(dim=1)
     sums = torch.zeros(n_structures, dtype=squared.dtype, device=squared.device)
@@ -922,7 +932,7 @@ def _per_structure_losses(
     else:
         notnan = ~_isnan(edges_ref)
     edge_error = edges_ref[notnan] - edges_pred[notnan]
-    edge_notnan = notnan if torch.is_tensor(notnan) else torch.as_tensor(np.asarray(notnan))
+    edge_notnan = notnan if _is_torch_tensor(notnan) else torch.as_tensor(np.asarray(notnan))
     edge_struct = edge_struct[edge_notnan.to(edge_struct.device)]
     node_loss_s, node_present = _structure_mean_sq(node_error, node_struct, n_structures)
     edge_loss_s, edge_present = _structure_mean_sq(edge_error, edge_struct, n_structures)
@@ -1116,7 +1126,7 @@ class block_type_huber(OrbitalMatrixMetric):
                     "node_max": abs_node_error.max(),
                     "edge_max": abs_edge_error.max(),
                     "smooth_l1_beta": node_error.new_tensor(self.beta)
-                    if torch.is_tensor(node_error)
+                    if _is_torch_tensor(node_error)
                     else self.beta,
                 }
             )
@@ -1189,11 +1199,11 @@ class block_normalized_huber(OrbitalMatrixMetric):
         node_block_losses = _loss_blocks(node_losses, node_pointers)
         edge_block_losses = _loss_blocks(edge_losses, edge_pointers)
 
-        if torch.is_tensor(node_losses):
+        if _is_torch_tensor(node_losses):
             node_loss = torch.stack(node_block_losses).mean()
         else:
             node_loss = np.stack(node_block_losses).mean()
-        if torch.is_tensor(edge_losses):
+        if _is_torch_tensor(edge_losses):
             edge_loss = torch.stack(edge_block_losses).mean()
         else:
             edge_loss = np.stack(edge_block_losses).mean()
@@ -1610,11 +1620,11 @@ def find_displacement_pairs(batch, max_displacement: float, min_displacement: fl
     the same order (the pairs come from the same template). Ambiguous matches raise.
     """
     positions = _batch_field(batch, "positions")
-    positions = np.asarray(positions.detach().cpu() if torch.is_tensor(positions) else positions, dtype=float)
+    positions = np.asarray(positions.detach().cpu() if _is_torch_tensor(positions) else positions, dtype=float)
     node_graph = _node_graph(batch)
     n_structures = int(node_graph.max()) + 1 if node_graph.size else 0
     cell = _batch_field(batch, "cell")
-    cell = None if cell is None else np.asarray(cell.detach().cpu() if torch.is_tensor(cell) else cell,
+    cell = None if cell is None else np.asarray(cell.detach().cpu() if _is_torch_tensor(cell) else cell,
                                                 dtype=float).reshape(n_structures, 3, 3)
     atoms = [np.flatnonzero(node_graph == s) for s in range(n_structures)]
     pairs, used = [], set()
