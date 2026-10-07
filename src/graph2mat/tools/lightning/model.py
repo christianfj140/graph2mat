@@ -205,6 +205,14 @@ class LitBasisMatrixModel(pl.LightningModule):
             model=self.model,
         )
 
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            # A rank can lack species/pairs; MACE energy heads are not in the loss.
+            # DDP needs zero gradients for those parameters, not disconnected graphs.
+            # ponytail: one zero dependency per tensor in DDP; evaluate empty blocks
+            # instead if the extra zero-gradient materialization becomes costly.
+            loss = loss + sum(parameter.reshape(-1)[:1].sum() * 0
+                              for parameter in self.model.parameters() if parameter.requires_grad)
+
         n = batch.num_graphs
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True,

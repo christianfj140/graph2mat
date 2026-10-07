@@ -222,6 +222,81 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 - Persisten las omisiones justificadas y los warnings. Próximo: reactivar las
   pruebas comentadas de equivariancia/supercelda con MatrixMACE real, float64 y
   rotaciones aleatorias sembradas, y completar las demás pruebas/gates del goal.
+- Commit local de fixtures: **d35f1a6**.
+
+### Sublote 3.9.d — MACE completo y DDP CPU
+
+- Sustituido test_models.py (antes enteramente comentado y con imports/API viejos)
+  por las pruebas reales equivalentes: dos bases (s/p y DZP desigual con d),
+  bimolécula/cuadrado/cadena periódica, float64 restaurando el dtype al salir.
+- 64 rotaciones propias aleatorias sembradas por caso: **384 rotaciones** del
+  pipeline geometría→datos→MatrixMACE→matriz, comparadas con D·H·Dᵀ por imagen.
+  Se exige salida finita/no nula y tolerancia 1e-8 relativa/1e-10 absoluta.
+- La predicción debe conmutar con tile(2) en los tres ejes, incluyendo las imágenes
+  de la cadena. No se cambió producción. Las 12 pruebas pasan, 337 warnings,
+  5.95 s (`mace-properties-first.log`). No prueba aún un oráculo independiente
+  de armónicos d/f de SIESTA; ese requisito de ENG_QUALITY-20 sigue abierto.
+- Nuevo smoke DDP real aislado: dos rangos CPU, Gloo, dos pasos, pesos actualizados
+  y loss finita, con todos los tipos presentes y con especies ausentes del batch.
+- Primer harness con fork: **2 failed** por timeout de 90 s, 180.89 s total
+  (`ddp-red.log`); procesos hijos en futex. La primera pareja quedó huérfana al
+  expirar el padre y se cerró solo esa pareja de PIDs verificados; la segunda
+  ya no existía al finalizar. Ningún entrenamiento del usuario fue tocado.
+- Ruling: usar lanzamiento normal de scripts (`popen`) documentado por Lightning
+  en lugar de fork — evita heredar el estado de hilos al bifurcar el modelo
+  ya construido — no acredita el modo notebook/fork, fuera del smoke pedido.
+  El harness aislado ahora limpia su propio process group si expira.
+- RED con scripts: **2 failed**, 13.47 s (`ddp-script-red.log`), fallo DDP en el
+  segundo paso por parámetros desconectados. Callback de cobertura real después
+  del backward reproduce los dos fallos (`ddp-gradient-red.log`, 13.43 s) y nombra
+  exactamente las tres capas de energía de MACE y los bloques de especies/pares
+  ausentes. No es un fallo de Gloo ni del launcher.
+- Ruling: conectar una dependencia de valor cero por tensor trainable **solo
+  con proceso distribuido inicializado**, en training_step compartido — no cambia
+  la función de pérdida, los checkpoints, la ruta single-process ni los grupos
+  existentes del optimizador; produce gradientes cero de módulos ausentes para
+  que DDP reduzca todos los parámetros. Coste: materializar/comunicar esos ceros.
+  Evita cambiar APIs de bloques o confiar en que todo operador acepte batch vacío.
+- Parche mínimo en model.py, con comprobación de gradientes de todos los parámetros
+  y entrenamiento real de dos pasos. GREEN enfocado: **28 passed**, 548 warnings,
+  20.97 s (`mace-ddp-focused.log`), con modelos/roundtrip/checkpoints/stages.
+- Comprobación adicional independiente: dos rangos con samples idénticos deben
+  producir los mismos pesos/buffers que dos pasos single-process sin DDP, con
+  rtol=1e-6/atol=1e-7 sobre todo el state_dict. Pasa, igual que el caso con especies
+  ausentes: **2 passed**, 52 warnings, 17.00 s (`ddp-serial-proof.log`). Los workers
+  guardan sus logs completos en el tmp_path del test, aunque no fallen.
+- Gate completo CPU: **6 failed, 627 passed, 2 skipped**, 6392 warnings,
+  82.44 s (`mace-ddp-full-cpu.log`), exit 1. Los seis fallos son las nuevas
+  pruebas de equivariancia: pasan en proceso fresco, fallan después de otros tests
+  que llenan la caché RTP con float32. DDP y superceldas pasan. No se han relajado
+  tolerancias ni ocultado fallos. DDP métrico global sigue siendo requisito
+  separado de 3.1, no cerrado por el smoke.
+- La consulta de estado anterior no cambió producto (no progress). Esta
+  continuación vuelve a verificar HEAD=d35f1a6 y reproduce la pérdida de precisión
+  al cambiar el dtype tras calentar la caché; no repite los cuatro commits verdes.
+- Hipótesis trazada: LazyDict conserva el change_of_basis creado con el dtype de
+  la primera llamada; ReducedTensorProducts lo copia a float64 sin recuperar los
+  bits perdidos. Dos regresiones del consumidor real comparan float32→float64→
+  float32 con el RTP de e3nn, para ij y ij=ji.
+- RED confirmado: **2 failed**, 99 deselected, 96 warnings, 0.35 s
+  (`rtp-dtype-red.log`); diferencias de hasta 2.97e-8 respecto a e3nn float64.
+  El primer sondeo de ij=ji con l=1 ya pasaba tras normalizar; el caso l=2
+  reproduce la pérdida de precisión también en esa rama, sin cambiar tolerancias.
+- Ruling: regenerar una entrada cuando su dtype difiere del default actual —
+  conserva las claves triples y la API de Mapping, no cambia el dtype global ni
+  obliga a todas las llamadas a usar float64. Coste: recomputación al alternar
+  dtypes, aceptada en vez de añadir otra caché por dtype. Es la corrección mínima
+  de la dependencia 3.7 necesaria para verificar la equivariancia de 3.9; no se
+  amplía este goal a optimizaciones de RTP.
+- GREEN ordenado RTP→MACE→DDP: **115 passed**, 3989 warnings, 47.82 s
+  (`rtp-mace-ddp-green.log`); reproduce la caché calentada por pruebas anteriores.
+- Gate completo CPU: **635 passed, 2 skipped**, 6579 warnings, 84.16 s
+  (`mace-ddp-rtp-full-cpu.log`), exit 0. Las seis pruebas de equivariancia antes
+  fallidas ahora pasan con las mismas tolerancias. Son 16 pruebas más que las 619
+  del gate anterior: 12 MACE, dos DDP y dos de dtype de RTP. Las omisiones siguen
+  siendo la fixture local ausente y la prueba GPU; no se ha omitido ningún fallo.
+- El resto de 3.9, las métricas pendientes de 3.1, servidor/instalación y la revisión
+  independiente final permanecen abiertos. Próximo: diagnósticos y denominadores.
 
 ## Cierre del goal
 

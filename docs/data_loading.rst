@@ -50,6 +50,15 @@ deterministic kernels, which can reduce throughput and may reject operations
 without a deterministic implementation. It does not remove the rotating pool's
 asynchronous scheduling dependence.
 
+For script-based distributed CPU training, set ``trainer.accelerator: cpu``,
+``trainer.devices: 2`` and ``trainer.strategy: ddp`` (Gloo). During distributed
+training, parameters absent from a rank's matrix loss receive connected zero
+gradients, including MACE's unused energy heads. The loss value is unchanged;
+this permits ordinary DDP without unused-parameter detection. The optimizer still
+excludes those energy heads. This adds zero-gradient materialization/communication
+in DDP; the single-process path is unchanged. It does not by itself establish
+distributed epoch-metric correctness, which is verified separately.
+
 Checkpoints include a ``provenance`` dictionary with Python and installed
 versions of Torch, PyG, Lightning, e3nn, MACE and sisl, plus the tracked source
 checkout's Git commit and dirty flag. Missing optional distributions or a

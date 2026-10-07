@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 
+import torch
 from e3nn import o3
 
 from ._stored_rtps import ALL_RTPS
@@ -16,7 +17,10 @@ class LazyDict(Mapping):
         self._raw_dict = raw_dict
 
     def __getitem__(self, key: tuple[str, str, str]):
-        if key not in self._raw_dict:
+        # Casting cached float32 coefficients to float64 cannot recover precision.
+        # ponytail: cache one dtype per key; cache by dtype if alternation is costly.
+        if (key not in self._raw_dict
+                or self._raw_dict[key]["change_of_basis"].dtype != torch.get_default_dtype()):
             i_irrep, j_irrep, symmetry = key
             rtp = o3.ReducedTensorProducts(symmetry, i=i_irrep, j=j_irrep)
 
