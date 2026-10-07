@@ -18,6 +18,7 @@ import pandas as pd
 import torch
 
 from graph2mat import MatrixDataProcessor, BasisMatrixData
+from graph2mat.core.data.metrics import elementwise_mae, elementwise_mse
 from graph2mat.bindings.torch import TorchBasisMatrixData
 from graph2mat.bindings.torch.load import load_from_lit_ckpt
 
@@ -300,7 +301,7 @@ def create_server_app(
             str
                 Absolute path to the file where the matrix was written.
             """
-            model = models[model_name]
+            model = models[model_name.value]
 
             # First, the input file, which we resolve to an absolute path to avoid
             # ambiguity.
@@ -308,22 +309,25 @@ def create_server_app(
 
             # Then the output path where we should write the matrix.
             if output_path is None:
-                output_path = model.get("output_file_name")
+                output_path = model.get("output_file_name") or (
+                    "ML_prediction" + out_matrix_to_suffix.get(model["data_processor"].out_matrix, ".mtx")
+                )
 
-            out_file = Path(output_path).resolve()
+            out_file = Path(output_path)
             if not out_file.is_absolute():
                 out_file = runfile.parent / out_file
             out_file = Path(out_file).resolve()
+
+            if out_file.exists() and not allow_overwrite:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Output file {out_file} already exists and overwrite is not allowed.",
+                )
 
             geometry = sisl.get_sile(runfile).read_geometry()
 
             # USE THE MODEL
             matrix = predict_from_geometry(model, geometry)
-
-            if allow_overwrite and out_file.exists():
-                raise ValueError(
-                    f"Output file {out_file} already exists and overwrite is not allowed."
-                )
 
             # And write the matrix to it.
             matrix.write(out_file)
@@ -384,24 +388,19 @@ def create_server_app(
         geometry = model["data_processor"].add_basis_to_geometry(geometry)
 
         # Parse the contents of the matrix file.
-        provided_matrix_file = tempfile.NamedTemporaryFile(
-            suffix=output_matrix_file.filename, delete=False
-        )
-        with output_matrix_file.file as f:
-            with open(provided_matrix_file.name, "wb") as f2:
-                f2.write(f.read())
-
-        matrix_parser = sisl.get_sile_class(output_matrix_file.filename)
-        matrix_sile = matrix_parser(provided_matrix_file.name)
-
-        # Find out which type of matrix should we read and read it.
-        read_method = f"read_{model['data_processor'].out_matrix}"
-        target_matrix = getattr(matrix_sile, read_method)(geometry=geometry)
+        with tempfile.NamedTemporaryFile(suffix=output_matrix_file.filename) as matrix_file:
+            with output_matrix_file.file as f:
+                matrix_file.write(f.read())
+            matrix_file.flush()
+            matrix_parser = sisl.get_sile_class(output_matrix_file.filename)
+            with matrix_parser(matrix_file.name) as matrix_sile:
+                read_method = f"read_{model['data_processor'].out_matrix}"
+                target_matrix = getattr(matrix_sile, read_method)(geometry=geometry)
 
         with torch.no_grad():
             # USE THE MODEL
             # First, we need to process the input data, to get inputs as the model expects.
-            input_data = BasisMatrixTorchData.new(
+            input_data = TorchBasisMatrixData.new(
                 target_matrix, data_processor=model["data_processor"], labels=True
             )
 
@@ -410,7 +409,7 @@ def create_server_app(
 
             # And finally, we convert the output to a matrix.
             metrics = model["data_processor"].compute_metrics(
-                out, input_data, config_resolved=False
+                out, input_data, metrics=[elementwise_mse, elementwise_mae]
             )
 
         return metrics

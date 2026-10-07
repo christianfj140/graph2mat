@@ -563,6 +563,8 @@ class MatrixDataProcessor:
             The input that was passed to the model.
         metrics: Sequence[OrbitalMatrixMetric], optional
             Metrics to compute. If None, all known metrics are computed.
+            With ``h_and_overlap`` labels and H-only predictions, ordinary metrics
+            compare H only; metrics that explicitly use S retain the full labels.
 
         Returns
         ---------
@@ -578,13 +580,23 @@ class MatrixDataProcessor:
             ]
 
         input_arrays = input.numpy_arrays()
+        nodes_pred = input.ensure_numpy(output["node_labels"])
+        edges_pred = input.ensure_numpy(output["edge_labels"])
+
+        def reference_for(prediction, reference, metric):
+            n_pred = 1 if prediction.ndim == 1 else prediction.shape[1]
+            if (self.matrix_component_policy == "h_and_overlap"
+                    and not getattr(metric, "overlap_prediction_optional", False)
+                    and reference.ndim == 2 and n_pred == reference.shape[1] - 1):
+                return reference[:, 0] if prediction.ndim == 1 else reference[:, :-1]
+            return reference
 
         metrics_values = [
             metric(
-                nodes_pred=input.ensure_numpy(output["node_labels"]),
-                nodes_ref=input_arrays.point_labels,
-                edges_pred=input.ensure_numpy(output["edge_labels"]),
-                edges_ref=input_arrays.edge_labels,
+                nodes_pred=nodes_pred,
+                nodes_ref=reference_for(nodes_pred, input_arrays.point_labels, metric),
+                edges_pred=edges_pred,
+                edges_ref=reference_for(edges_pred, input_arrays.edge_labels, metric),
                 batch=input,
                 basis_table=self.basis_table,
                 config_resolved=False,
