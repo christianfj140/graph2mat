@@ -9,6 +9,7 @@ from typing import Any, Optional, Type, Union
 import pytorch_lightning as pl
 import torch
 from e3nn import o3
+from torchmetrics import Metric
 
 from graph2mat import AtomicTableWithEdges, BasisTableWithEdges, __version__
 from graph2mat.bindings.torch.load import sanitize_checkpoint
@@ -26,6 +27,26 @@ from ._helpers import glob, maybe_zip_path
 def _epoch_reduce(stat_name: str) -> str:
     """Epoch aggregation of a per-batch stat: the maximum of maxima, else the mean."""
     return "max" if stat_name.endswith("_max") else "mean"
+
+
+class _EpochRMSE(Metric):
+    """Accumulate squared errors; take the root only after summing all batches."""
+
+    full_state_update = False
+
+    def __init__(self):
+        super().__init__()
+        self.add_state("squared_error", torch.tensor(0.0, dtype=torch.float64), dist_reduce_fx="sum")
+        self.add_state("count", torch.tensor(0.0, dtype=torch.float64), dist_reduce_fx="sum")
+
+    def update(self, rmse, count):
+        rmse = torch.as_tensor(rmse, device=self.device).detach().double()
+        count = torch.as_tensor(count, device=self.device).double()
+        self.squared_error += torch.where(count > 0, rmse.square() * count, 0.0)
+        self.count += count
+
+    def compute(self):
+        return torch.where(self.count > 0, self.squared_error / self.count, 0.0).sqrt()
 
 
 class LitBasisMatrixModel(pl.LightningModule):
@@ -78,6 +99,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         self._validated_training_stages = []
         self._active_training_stage_index = None
         self._active_training_stage_name = None
+        self._epoch_rmse = torch.nn.ModuleDict()
 
         self.model_cls = model_cls
         self.model = None  # Subclasses are responsible for initializing the model by calling init_model.
@@ -159,21 +181,57 @@ class LitBasisMatrixModel(pl.LightningModule):
             batch_size=n,
         )
 
-        for k, v in stats.items():
-            self.log(
-                f"train_{k}",
-                v,
-                on_step=True,
-                on_epoch=True,
-                prog_bar=False,
-                logger=True,
-                batch_size=n,
-                reduce_fx=_epoch_reduce(k),
-            )
+        self._log_stats("train", stats, batch)
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
         return {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"]}
+
+    def _rmse_count(self, name, batch):
+        """Number of terms used by the standard matrix RMSE statistics."""
+        if name in ("gauge_h_rmse", "overlap_rmse"):
+            edge_weight = self.loss_fn.metric_kwargs.get("edge_weight", 1.0)
+            count = batch.point_labels.shape[0] + edge_weight * batch.edge_labels.shape[0]
+            return count * (batch.point_labels.shape[1] - 1) if name == "gauge_h_rmse" else count
+        for kind, labels in (("node", batch.point_labels), ("edge", batch.edge_labels)):
+            if name != f"{kind}_rmse" and not name.startswith(f"{kind}_rmse_spin"):
+                continue
+            if isinstance(self.loss_fn, (metrics_module.block_type_mse_per_structure,
+                                         metrics_module.block_type_mse_per_domain)):
+                node_ids, edge_ids, _ = metrics_module._per_element_structure_ids(
+                    batch.point_labels, batch.edge_labels, batch, self.basis_table,
+                )
+                ids = (node_ids if kind == "node" else edge_ids).to(labels.device)
+                if kind == "edge":
+                    valid = ~torch.isnan(labels)
+                    if labels.ndim == 2:
+                        valid = valid.all(dim=1)
+                    ids = ids[valid]
+                return torch.bincount(ids, minlength=batch.num_graphs).count_nonzero()
+            count = labels.shape[0]
+            if kind == "edge":
+                invalid = torch.isnan(labels)
+                if labels.ndim == 2:
+                    invalid = invalid.any(dim=1)
+                count = (~invalid).sum()
+            if name == f"{kind}_rmse" and labels.ndim == 2:
+                count *= labels.shape[1]
+            return count
+        return None
+
+    def _log_stats(self, split, stats, batch):
+        for name, value in stats.items():
+            count = self._rmse_count(name, batch)
+            key = f"{split}_{name}"
+            if count is not None:
+                if key not in self._epoch_rmse:
+                    self._epoch_rmse[key] = _EpochRMSE().to(self.device)
+                metric = self._epoch_rmse[key]
+                metric(value, count)
+                value = metric
+            self.log(key, value, on_step=split == "train", on_epoch=True,
+                     batch_size=batch.num_graphs, reduce_fx=_epoch_reduce(name),
+                     metric_attribute=f"_epoch_rmse.{key}" if count is not None else None)
 
     def on_fit_start(self) -> None:
         self._apply_training_stage_for_epoch(getattr(self, "current_epoch", 0))
@@ -219,8 +277,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         # save validation loss as the hyperparameter opt metric (used by tensorboard)
         self.log("hp_metric", loss, batch_size=n)
 
-        for k, v in stats.items():
-            self.log(f"val_{k}", v, batch_size=n, reduce_fx=_epoch_reduce(k))
+        self._log_stats("val", stats, batch)
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
@@ -247,8 +304,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         n = batch.num_graphs
         self.log("test_loss", loss, prog_bar=True, logger=True, batch_size=n)
 
-        for k, v in stats.items():
-            self.log(f"test_{k}", v, batch_size=n, reduce_fx=_epoch_reduce(k))
+        self._log_stats("test", stats, batch)
 
         return out
 

@@ -891,8 +891,8 @@ def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
 def _structure_mean_sq(error, struct_ids, n_structures):
     """Differentiable per-structure mean of squared errors. NaN-safe counts."""
     error = error if torch.is_tensor(error) else torch.as_tensor(np.asarray(error))
-    squared = error.reshape(error.shape[0], -1).pow(2).sum(dim=1)
-    n_components = int(error.reshape(error.shape[0], -1).shape[1])
+    n_components = int(np.prod(error.shape[1:]))
+    squared = error.reshape(error.shape[0], n_components).pow(2).sum(dim=1)
     sums = torch.zeros(n_structures, dtype=squared.dtype, device=squared.device)
     sums = sums.index_add(0, struct_ids.to(squared.device), squared)
     counts = torch.zeros(n_structures, dtype=squared.dtype, device=squared.device)
