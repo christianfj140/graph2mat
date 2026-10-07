@@ -255,6 +255,10 @@ class MatrixDataModule(pl.LightningDataModule):
         self.runs_json = runs_json
 
         self.predict_runs = predict_structs
+        self.train_dataset = None
+        self.val_dataset = None
+        self.test_dataset = None
+        self.predict_dataset = None
         self.sub_point_matrix = sub_point_matrix
         self.n_matrix_components = n_matrix_components
         self.matrix_component_policy = matrix_component_policy
@@ -286,7 +290,18 @@ class MatrixDataModule(pl.LightningDataModule):
             logging.info("deleting dir %s" % (self.tmp_dir))
             shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
-    def setup(self, stage: str):
+    def setup(self, stage: Optional[str] = None):
+        stage_splits = {
+            None: ("train", "val", "test", "predict"),
+            "fit": ("train", "val"),
+            "validate": ("val",),
+            "test": ("test",),
+            "predict": ("predict",),
+        }
+        if stage not in stage_splits:
+            raise ValueError(f"Unknown setup stage: {stage!r}")
+        requested_splits = stage_splits[stage]
+
         if self.copy_root_to_tmp:
             assert self.tmp_dir is not None
             root = self.tmp_dir
@@ -298,12 +313,6 @@ class MatrixDataModule(pl.LightningDataModule):
             self.basis_table = AtomicTableWithEdges.from_basis_glob(
                 glob(root, self.basis_files), no_basis_atoms=self.no_basis
             )
-
-        # Initialize the data.
-        self.train_dataset = None
-        self.val_dataset = None
-        self.test_dataset = None
-        self.predict_dataset = None
 
         # Load json file with paths for each split
         if self.runs_json is not None:
@@ -317,18 +326,29 @@ class MatrixDataModule(pl.LightningDataModule):
         else:
             runs_dict = {}
 
-        self.data_processor = MatrixDataProcessor(
-            basis_table=self.basis_table,
-            out_matrix=self.out_matrix,
-            matrix_component_policy=self.matrix_component_policy,
-            symmetric_matrix=self.symmetric_matrix,
-            sub_point_matrix=self.sub_point_matrix,
-            n_matrix_components=self.n_matrix_components,
-            node_attr_getters=self.initial_node_feats,
-        )
+        if getattr(self, "data_processor", None) is None:
+            self.data_processor = MatrixDataProcessor(
+                basis_table=self.basis_table,
+                out_matrix=self.out_matrix,
+                matrix_component_policy=self.matrix_component_policy,
+                symmetric_matrix=self.symmetric_matrix,
+                sub_point_matrix=self.sub_point_matrix,
+                n_matrix_components=self.n_matrix_components,
+                node_attr_getters=self.initial_node_feats,
+            )
 
+        needed_splits = list(requested_splits)
+        if (
+            "val" in requested_splits and self.val_dataset is None
+            and self.val_runs is None and "val" not in runs_dict
+            and "train" not in needed_splits and self.train_dataset is None
+        ):
+            # Validation may need the automatic split, but not all train samples in memory.
+            needed_splits.append("train")
         # Set the paths for each split
-        for split in ["train", "val", "test", "predict"]:
+        for split in needed_splits:
+            if getattr(self, "%s_dataset" % split) is not None:
+                continue
             runs = getattr(self, "%s_runs" % split)
             if isinstance(runs, str):
                 # This is a glob pattern
@@ -349,22 +369,11 @@ class MatrixDataModule(pl.LightningDataModule):
                     spectral_window=self.spectral_window if split != "predict" else False,
                 )
 
-                if self.store_in_memory:
-                    if self.rotating_pool_size and split == "train":
-                        logging.warning(
-                            "Does not load training data to memory because rotating_pool_size is set"
-                        )
-                    else:
-                        logging.debug("Loading dataset split=%s into memory" % split)
-                        dataset = InMemoryData(dataset)
-
                 setattr(self, "%s_dataset" % split, dataset)
-
-        self._validate_n_matrix_components()
 
         # Now check if we should take some data out of the training data to use it for
         # validation.
-        if self.val_dataset is None and self.train_dataset is not None:
+        if "val" in requested_splits and self.val_dataset is None and self.train_dataset is not None:
             if len(self.train_dataset) == 1:
                 logging.warning(
                     "There is only one training sample and no validation samples."
@@ -388,16 +397,36 @@ class MatrixDataModule(pl.LightningDataModule):
                 self.train_dataset, train_indices
             )
 
+        if self.store_in_memory:
+            for split in requested_splits:
+                dataset = getattr(self, "%s_dataset" % split)
+                if dataset is None or isinstance(dataset, (InMemoryData, RotatingPoolData)):
+                    continue
+                if self.rotating_pool_size and split == "train":
+                    logging.warning(
+                        "Does not load training data to memory because rotating_pool_size is set"
+                    )
+                else:
+                    logging.debug("Loading dataset split=%s into memory" % split)
+                    setattr(self, "%s_dataset" % split, InMemoryData(dataset))
+
+        self._validate_n_matrix_components(requested_splits)
+
         # Wrap training dataset in rotating pool
-        if self.rotating_pool_size:
+        if (
+            self.rotating_pool_size and "train" in requested_splits
+            and self.train_dataset is not None
+            and not isinstance(self.train_dataset, RotatingPoolData)
+        ):
             self.train_dataset = RotatingPoolData(
                 self.train_dataset, self.rotating_pool_size
             )
 
-    def _infer_dataset_matrix_components(self) -> Optional[int]:
+    def _infer_dataset_matrix_components(self, splits=("train", "val", "test")) -> Optional[int]:
         """Infer matrix components from the first labeled sample available."""
-        for dataset in (self.train_dataset, self.val_dataset, self.test_dataset):
-            if dataset is None:
+        for split in splits:
+            dataset = getattr(self, "%s_dataset" % split)
+            if dataset is None or len(dataset) == 0:
                 continue
 
             sample = dataset[0]
@@ -409,8 +438,8 @@ class MatrixDataModule(pl.LightningDataModule):
 
         return None
 
-    def _validate_n_matrix_components(self) -> None:
-        inferred = self._infer_dataset_matrix_components()
+    def _validate_n_matrix_components(self, splits=("train", "val", "test")) -> None:
+        inferred = self._infer_dataset_matrix_components(splits)
         if inferred is None:
             return
 

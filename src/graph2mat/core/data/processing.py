@@ -1434,6 +1434,8 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         "nsc",
         "point_labels",
         "edge_labels",
+        "labels_point_filter",
+        "labels_edge_filter",
         "point_types",
         "edge_types",
     )
@@ -1534,6 +1536,8 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             "node_attrs": node_attrs,
             "point_labels": point_labels,
             "edge_labels": edge_labels,
+            "labels_point_filter": labels_point_filter,
+            "labels_edge_filter": labels_edge_filter,
             "point_types": point_types,
             "edge_types": edge_types,
             "metadata": {
@@ -1579,7 +1583,10 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             cls = self.__class__
 
         np_arrays = self.numpy_arrays()
-        kwargs = {k: np_arrays[k] for k in self._init_keys}
+        kwargs = {
+            k: np_arrays[k] if self._data.get(k) is not None else None
+            for k in self._init_keys
+        }
         kwargs["metadata"] = self._data["metadata"]
         kwargs["data_processor"] = kwargs["metadata"].get("data_processor")
 
@@ -1833,20 +1840,21 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         """
         # Initialize the data dictionary, removing the num_nodes and n_edges keys
         # which should be recomputed on init. Also, pass the data processor as an argument.
-        new_data = {**self._data}
+        # Constructors consume NumPy arrays, even for the Torch subclass.
+        new_data = {**self.copy(cls=BasisMatrixData)._data}
         new_data.pop("num_nodes")
         new_data.pop("n_edges")
         new_data["metadata"] = new_data["metadata"].copy()
         new_data["data_processor"] = new_data["metadata"].pop("data_processor", None)
 
         # Filtering point labels and edge labels is complicated, we don't support it yet
-        if "point_labels" in new_data or "edge_labels" in new_data:
+        if new_data.get("point_labels") is not None or new_data.get("edge_labels") is not None:
             raise ValueError("point_labels and edge_labels are not supported yet")
 
         # Find the indices of the nodes that belong to the requested types
-        mask = np.isin(self.point_types, node_types)
+        mask = np.isin(new_data["point_types"], node_types)
         # And the edge indices for edges between nodes that we will keep
-        edge_mask = np.all(mask[self.edge_index], axis=0)
+        edge_mask = np.all(mask[new_data["edge_index"]], axis=0)
 
         # Filter node attributes
         for k in self._node_attr_keys:
@@ -1854,14 +1862,15 @@ class BasisMatrixDataBase(Generic[ArrayType]):
                 new_data[k] = new_data[k][mask]
 
         # Filter edge indices
-        new_data["edge_index"] = new_data["edge_index"][:, edge_mask]
+        new_indices = np.cumsum(mask) - 1
+        new_data["edge_index"] = new_indices[new_data["edge_index"][:, edge_mask]]
 
         # Filter edge attributes
         for k in self._edge_attr_keys:
             if new_data.get(k) is not None:
                 new_data[k] = new_data[k][edge_mask]
 
-        return self.__class__(**new_data)
+        return self.__class__(**new_data, already_basis=True)
 
     def is_node_attr(self, key: str) -> bool:
         return key in self._node_attr_keys
