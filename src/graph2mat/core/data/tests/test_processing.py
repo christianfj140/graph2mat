@@ -91,6 +91,36 @@ def test_sub_point_matrix_disabled_for_hamiltonian(basis_table):
     assert any("sub_point_matrix is only supported for density_matrix" in str(w.message) for w in caught)
 
 
+@pytest.mark.parametrize("backend", ["numpy", "torch"])
+def test_matrix_from_data_uses_predictions_without_mutating_reference(backend):
+    from graph2mat import BasisMatrixData
+
+    if backend == "torch":
+        from graph2mat.bindings.torch import TorchBasisMatrixData
+        data_cls = TorchBasisMatrixData
+    else:
+        data_cls = BasisMatrixData
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1], basis_convention="cartesian")])
+    processor = MatrixDataProcessor(basis_table=table, symmetric_matrix=True, sub_point_matrix=False)
+    config = BasisConfiguration(
+        point_types=["A", "A"], positions=np.array([[0., 0., 0.], [1., 0., 0.]]),
+        basis=table, cell=np.eye(3) * 10, pbc=(False, False, False), matrix=np.ones((2, 2)),
+    )
+    data = data_cls.new(config, processor)
+    reference_nodes, reference_edges = data.point_labels, data.edge_labels
+    node_values = reference_nodes + 1
+    node_values[1] += 2
+    edge_values = reference_edges + 2
+    matrix = processor.matrix_from_data(data, predictions={
+        "node_labels": node_values, "edge_labels": edge_values,
+    }, out_format="scipy_csr")
+    np.testing.assert_array_equal(matrix.toarray(), [[2., 3.], [3., 4.]])
+    assert data.point_labels is reference_nodes
+    assert data.edge_labels is reference_edges
+    np.testing.assert_array_equal(data.numpy_arrays().point_labels, [1., 1.])
+    np.testing.assert_array_equal(data.numpy_arrays().edge_labels, [1.])
+
+
 def test_yield_from_batch_with_symmetric_matrix_handles_odd_edges_per_graph():
     basis_table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1])])
     processor = MatrixDataProcessor(

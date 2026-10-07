@@ -251,6 +251,12 @@ class MatrixDataProcessor:
             data = copy(data)
             data.point_labels = predictions["node_labels"]
             data.edge_labels = predictions["edge_labels"]
+            if isinstance(data, BasisMatrixData):
+                # NumPy indexing uses _data, which a shallow copy still shares.
+                data._data = {
+                    **data._data, "point_labels": data.point_labels,
+                    "edge_labels": data.edge_labels,
+                }
 
         if out_format is None:
             out_format = self.default_out_format
