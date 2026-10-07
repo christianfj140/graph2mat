@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Tuple, Union
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 
 from ..table import BasisTableWithEdges
@@ -34,6 +34,22 @@ class BasisMatrix:
     nsc: np.ndarray
     # Array containing the number of basis functions for each point
     basis_count: BasisCount
+
+    # Sparse conversion retains the meaning/shape of entries absent from all blocks.
+    # init=False preserves positional constructors, including OrbitalMatrix aliases.
+    _fill_value: float = field(default=0.0, init=False, repr=False, compare=False)
+    _n_components: int = field(default=1, init=False, repr=False, compare=False)
+
+    def _get_block(self, i, j, sc):
+        block = self.block_dict.get((i, j, sc))
+        if block is not None:
+            return block
+        sample = next(iter(self.block_dict.values()), None)
+        component_shape = (() if self._n_components == 1 else (self._n_components,))
+        if sample is not None:
+            component_shape = sample.shape[2:]
+        shape = (self.basis_count[i], self.basis_count[j], *component_shape)
+        return np.full(shape, self._fill_value, dtype=sample.dtype if sample is not None else float)
 
     @staticmethod
     def _flatten_block(block: np.ndarray) -> np.ndarray:
@@ -86,14 +102,14 @@ class BasisMatrix:
             point_matrices = self.get_point_matrices(basis_table)
             blocks = [
                 self._flatten_block(
-                    self.block_dict[i, i, 0] - point_matrices[point_types[i]]
+                    self._get_block(i, i, 0) - point_matrices[point_types[i]]
                 )
                 for i in order
                 if self.basis_count[i] > 0
             ]
         else:
             blocks = [
-                self._flatten_block(self.block_dict[i, i, 0])
+                self._flatten_block(self._get_block(i, i, 0))
                 for i in order
                 if self.basis_count[i] > 0
             ]
@@ -102,7 +118,7 @@ class BasisMatrix:
 
         assert edge_index.shape[0] == 2, "edge_index is assumed to be [2, n_edges]"
         blocks = [
-            self._flatten_block(self.block_dict[edge[0], edge[1], sc_shift])
+            self._flatten_block(self._get_block(edge[0], edge[1], sc_shift))
             for edge, sc_shift in zip(edge_index.transpose(), edge_sc_shifts)
             if self.basis_count[edge[0]] > 0 and self.basis_count[edge[1]] > 0
         ]

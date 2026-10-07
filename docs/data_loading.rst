@@ -40,6 +40,11 @@ File-backed ZIP datasets reopen every archive independently after fork, even
 when the parent has read a sample first. Their ``close()`` method closes only
 readers they own, not archives supplied by the caller.
 
+Completely absent sparse blocks are supplied lazily when labels are flattened,
+without inserting them into the input matrix. They retain the converter's
+missing-entry policy: zero for Hamiltonians and NaN for density/energy-density
+matrices. A wholly empty multi-component matrix retains its component axis.
+
 Reproducibility and checkpoint provenance
 ----------------------------------------
 

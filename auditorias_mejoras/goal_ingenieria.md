@@ -403,6 +403,7 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 
 ### Sublote 3.1.d / 3.9 — máscaras de bloques físicos y pesos fraccionarios
 
+- Commit local del lote NaN/bloques: **35585f7**, suite completa 875/2.
 - Consulta de estado anterior: sin cambios de producto; goal active, HEAD 0f3529f,
   lote NaN sin commit. No hay bloqueo ni pruebas previas vivas.
 - Las 30 pruebas iniciales de Huber fallaban en la preparación del fixture:
@@ -440,6 +441,48 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   bloques completamente cero/ausentes. No rellenar DM con cero por conveniencia:
   csr_to_block_dict declara fill_value NaN para DM/EDM y cero para H. Deben
   preservarse ambos contratos, incluidos componentes y periodicidad.
+
+### Sublote 3.9.e — bloques sparse completamente ausentes
+
+- Traza: csr_to_block_dict conserva fill_value dentro de los bloques existentes,
+  pero no crea bloques sin ninguna entrada sparse. BasisMatrix.to_flat_nodes_and_edges
+  los indexaba obligatoriamente. Una matriz completamente cero o solo diagonal
+  lanzaba KeyError; DM/EDM perdían además la política NaN al faltar el bloque entero.
+- RED: **56 failed**, 63 warnings, 0.72 s (`zero-blocks-red.log`), KeyError real
+  en onsite/arista. Ocho roundtrips NumPy/CSR con bloques desiguales, y 48 casos
+  H/DM/EDM: una/dos componentes, periódico/no periódico, una entrada/todo ausente,
+  almacenamiento simétrico/no simétrico. Valores esperados literales; H además
+  reconstruye los canales completos por separado, incluidas imágenes periódicas.
+- Parche: retener fill_value y número de componentes seleccionados como campos
+  privados init=False del contenedor; no cambian sus argumentos posicionales.
+  Al aplanar, devolver un bloque de relleno solo si no existe, sin insertarlo ni
+  densificar la entrada. Bloques existentes no cambian; dtype/componentes de
+  un contenedor antiguo se infieren del primer bloque presente, y el núcleo no
+  adquiere dependencia ML. H conserva 0; DM/EDM conserva NaN.
+- Ruling: la primera salida post-parche mostró **8 failed, 48 passed** porque
+  el fixture pedía serializar H spin con raw_components. Se mantuvo el rechazo
+  deliberado del escritor y se corrigió la política de la prueba a spin_h_only;
+  no se permite escribir una H física ambigua para obtener verde. Coste si esta
+  política fuera errónea: se perdería distinción spin/overlap; las regresiones
+  existentes siguen comprobando ese rechazo.
+- GREEN cercano: **205 passed**, 205 warnings, 1.42 s (`zero-blocks-focused.log`):
+  pruebas nuevas y processing/spin/sparse/matrices. Gate completo CPU: **931 passed,
+  2 skipped**, 6670 warnings, 96.23 s (`zero-blocks-full-cpu.log`), exit 0.
+- El chequeo directo vía PYTHONPATH del source sin compilar falló por ausencia de
+  Cython en el venv base (zero-blocks-core-only.log), no por Torch ni por bloques.
+  No se usa como prueba de instalación. Se construyó la wheel actual con build
+  isolation: exit 0, zero-blocks-wheel-build.log. Wheel cp312, sha256
+  1e455dd8511f41c817261d12bb8059c3f586bdde3fe4071b8688c49dc7d6f6be.
+  Instalada con sus dependencias base en un **nuevo** venv temporal
+  /tmp/g2m-zero-blocks-wheel.35HRaK/venv: exit 0, zero-blocks-base-install.log.
+  Núcleo instalado verificado sin Torch ni Cython runtime: extensión .so real,
+  roundtrip NumPy de matriz cero y DM spin vacía con NaN y ejes (2,2)/(1,2);
+  exit 0, zero-blocks-installed-core.log. El venv de la línea base permanece intacto.
+- Diagnóstico 3.5 en esa instalación base limpia: graph2mat --help sigue fallando
+  (exit 1, base-cli-help-red.log). No se presenta el núcleo verde como CLI verde;
+  el siguiente lote de instalación debe resolver su cadena real de imports.
+- Este sublote no completa la cobertura de pérdidas ni los oráculos independientes
+  spin no collinear/S/d-f; 3.9 y los demás frentes/revisión final siguen abiertos.
 
 ## Cierre del goal
 

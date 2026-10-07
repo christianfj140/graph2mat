@@ -142,9 +142,12 @@ def csr_to_block_dict(
     orbitals = geometry_atoms.orbitals if geometry_atoms is not None else atoms.orbitals
 
     if issubclass(matrix_cls, OrbitalMatrix):
-        return matrix_cls(block_dict=block_dict, nsc=nsc, orbital_count=orbitals)
+        matrix = matrix_cls(block_dict=block_dict, nsc=nsc, orbital_count=orbitals)
     else:
-        return matrix_cls(block_dict=block_dict, nsc=nsc, basis_count=orbitals)
+        matrix = matrix_cls(block_dict=block_dict, nsc=nsc, basis_count=orbitals)
+    matrix._fill_value = float(fill_value)
+    matrix._n_components = data.shape[1]
+    return matrix
 
 
 @converter(Formats.BLOCK_DICT, Formats.SCIPY_COO)
