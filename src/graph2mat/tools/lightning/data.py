@@ -1,6 +1,5 @@
 """Data loading for pytorch_lightning workflows."""
-import getpass
-import hashlib
+import atexit
 import json
 import logging
 import math
@@ -29,6 +28,15 @@ from graph2mat.core.data.configuration import MatrixComponentPolicy, PhysicsMatr
 from graph2mat.core.data.node_feats import NodeFeature
 
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
+
+
+def _cleanup_temporary_root(directory, root, owner_pid):
+    """Never remove another process's temporary data after fork."""
+    if os.getpid() != owner_pid:
+        return
+    if isinstance(root, zipfile.Path):
+        root.root.close()
+    shutil.rmtree(directory, ignore_errors=True)
 
 
 class TypeLayoutCollate:
@@ -270,25 +278,65 @@ class MatrixDataModule(pl.LightningDataModule):
         self.spectral_window = spectral_window
         self.predict_labels = predict_labels
         self.prepare_data_per_node = True
-        if self.copy_root_to_tmp:
-            # One directory per user and data root (shared by the ranks of a job), instead
-            # of a single global one that the next run could not create again.
-            key = hashlib.sha1(str(Path(str(root_dir)).resolve()).encode()).hexdigest()[:12]
-            self.tmp_dir = Path(tempfile.gettempdir()) / f"graph2mat_{getpass.getuser()}_{key}"
-        else:
-            self.tmp_dir = None
+        self.tmp_dir = None
+        self._tmp_root = None
+        self._tmp_pid = None
 
     def prepare_data(self):
-        if self.copy_root_to_tmp:
-            assert self.tmp_dir is not None
-            os.makedirs(self.tmp_dir, exist_ok=True)
-            logging.info("copying %s to %s" % (self.root_dir, self.tmp_dir))
-            shutil.copytree(self.root_dir, self.tmp_dir, dirs_exist_ok=True)
-
-    def teardown(self, stage: str):
+        if not self.copy_root_to_tmp:
+            return
+        if self.tmp_dir is not None and self._tmp_pid == os.getpid():
+            return
         if self.tmp_dir is not None:
-            logging.info("deleting dir %s" % (self.tmp_dir))
-            shutil.rmtree(self.tmp_dir, ignore_errors=True)
+            # Cached lazy datasets inherited after fork still point at the parent's copy.
+            for split in ("train", "val", "test", "predict"):
+                setattr(self, "%s_dataset" % split, None)
+            if isinstance(self._tmp_root, zipfile.Path):
+                self._tmp_root.root.close()
+        self.tmp_dir = Path(tempfile.mkdtemp(prefix="graph2mat_"))
+        self._tmp_pid = os.getpid()
+        self._tmp_root = None
+        logging.info("copying %s to %s", self.root_dir, self.tmp_dir)
+        try:
+            if isinstance(self.root_dir, zipfile.Path):
+                destination = self.tmp_dir / Path(self.root_dir.root.filename).name
+                shutil.copy2(self.root_dir.root.filename, destination)
+                self._tmp_root = zipfile.Path(
+                    zipfile.ZipFile(destination),
+                    at=self.root_dir.at if self.root_dir.at != "." else "",
+                )
+            else:
+                shutil.copytree(self.root_dir, self.tmp_dir, dirs_exist_ok=True)
+                self._tmp_root = self.tmp_dir
+        except BaseException:
+            _cleanup_temporary_root(self.tmp_dir, self._tmp_root, self._tmp_pid)
+            self.tmp_dir = None
+            raise
+        atexit.register(_cleanup_temporary_root, self.tmp_dir, self._tmp_root, self._tmp_pid)
+
+    def teardown(self, stage: Optional[str] = None):
+        if stage in (None, "fit") and isinstance(self.train_dataset, RotatingPoolData):
+            pool = self.train_dataset
+            pool.close()
+            self.train_dataset = pool.parent_data
+        # Lightning tears down every fit/test/predict call. Lazy datasets must remain
+        # readable for the next call; None (or process exit) performs final cleanup.
+        if stage is None:
+            for split in ("train", "val", "test", "predict"):
+                dataset = getattr(self, "%s_dataset" % split)
+                while isinstance(dataset, torch.utils.data.Subset):
+                    dataset = dataset.dataset
+                if isinstance(dataset, TorchBasisMatrixDataset):
+                    dataset.close()
+                setattr(self, "%s_dataset" % split, None)
+            if isinstance(self.root_dir, zipfile.Path):
+                self.root_dir.root.close()
+            if self.tmp_dir is not None:
+                logging.info("deleting dir %s", self.tmp_dir)
+                _cleanup_temporary_root(self.tmp_dir, self._tmp_root, self._tmp_pid)
+            self.tmp_dir = None
+            self._tmp_root = None
+            self._tmp_pid = None
 
     def setup(self, stage: Optional[str] = None):
         stage_splits = {
@@ -302,9 +350,14 @@ class MatrixDataModule(pl.LightningDataModule):
             raise ValueError(f"Unknown setup stage: {stage!r}")
         requested_splits = stage_splits[stage]
 
+        if isinstance(self.root_dir, zipfile.Path) and self.root_dir.root.fp is None:
+            self.root_dir = maybe_zip_path(str(self.root_dir))
+
         if self.copy_root_to_tmp:
-            assert self.tmp_dir is not None
-            root = self.tmp_dir
+            # prepare_data runs only on local rank zero; each other rank owns its copy.
+            # ponytail: per-rank copies avoid shared cleanup races; share if I/O proves costly.
+            self.prepare_data()
+            root = self._tmp_root
         else:
             root = self.root_dir
         if self.basis_table is None:

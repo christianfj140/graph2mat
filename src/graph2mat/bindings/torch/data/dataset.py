@@ -5,6 +5,7 @@ import threading
 import zipfile
 from copy import deepcopy
 from pathlib import Path
+from queue import Empty
 from typing import Generic, Optional, Sequence, Type, TypeVar, Union
 
 import numpy as np
@@ -97,6 +98,7 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
 
         self._root_pid = os.getpid()
         self._worker_pid = None
+        self._worker_zips = {}
 
     def __len__(self):
         return len(self.input_data)
@@ -104,7 +106,7 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
     def __getitem__(self, index: int) -> TorchBasisMatrixData:
         item = self.input_data[index]
 
-        self._fix_multiprocessing_zipfile(item)
+        item = self._fix_multiprocessing_zipfile(item)
 
         data = self.data_cls.new(
             item, data_processor=self.data_processor, labels=self.load_labels
@@ -112,12 +114,14 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         if str(item).endswith(".fdf"):
             # Total charge of the structure (SIESTA NetCharge, 0 by default), for models whose
             # charges depend on it (long_range="qeq", roadmap 8.4).
-            match = re.search(r"(?im)^\s*NetCharge\s+(\S+)", Path(str(item)).read_text(errors="ignore"))
+            path = item if isinstance(item, zipfile.Path) else Path(item)
+            match = re.search(r"(?im)^\s*NetCharge\s+(\S+)", path.read_text(errors="ignore"))
             data.total_charge = torch.tensor([float(match.group(1)) if match else 0.0], dtype=torch.get_default_dtype())
         if self.spectral_window:
             # Projection columns of the spectral loss (MatrixDataModule.spectral_window).
             name = self.spectral_window if isinstance(self.spectral_window, str) else "spectral_window.npz"
-            with np.load(Path(str(item)).parent / name) as f:
+            path = item if isinstance(item, zipfile.Path) else Path(item)
+            with (path.parent / name).open("rb") as stream, np.load(stream) as f:
                 data.spectral_C = torch.as_tensor(f["C"], dtype=torch.get_default_dtype())
             if data.spectral_C.shape[0] != self._n_orbitals(data):
                 raise ValueError(f"{name} of {item} does not match its number of orbitals.")
@@ -128,44 +132,25 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         return int(self.data_processor.basis_table.basis_size[types].sum())
 
     def _fix_multiprocessing_zipfile(self, item):
-        """Fix issues with zipfiles when using multiprocessing.
-
-        The buffered reader of zipfile for some reason can't be shared
-        between processes. This function checks if
-            1. The item is a zipfile.Path
-            2. We are in a different process than the one that created the zipfile
-
-        If so, it substitutes the buffered reader of the zipfile with a new one.
-        This is done only once because (we assume) the zipfile is shared between
-        all zipfile.Path.
-
-        An alternative would be to substitute the zipfile with a new one, but then
-        you'd have to do it for each item, because they all have a reference to the
-        original zipfile.
-
-        By just substituting the buffered reader, the zipfile also keeps the
-        table used to access files fast. If we substituted the zipfile, it would
-        need to re-read the table, which takes some time if the file is large.
-        """
-
-        if self._worker_pid is not None:
-            # We already dealt with multiprocessing
+        """Give each child process its own reader for every file-backed ZIP."""
+        if not isinstance(item, zipfile.Path) or os.getpid() == self._root_pid:
             return item
+        if self._worker_pid != os.getpid():
+            self.close()
+            self._worker_pid = os.getpid()
+        filename = item.root.filename
+        if filename is None:
+            # Memory-backed archives have no shared OS file offset to reopen.
+            return item
+        if filename not in self._worker_zips:
+            self._worker_zips[filename] = zipfile.ZipFile(filename)
+        return zipfile.Path(self._worker_zips[filename], at=item.at)
 
-        # Get the id of the process we are in, and store it so that we
-        # can later skip if it is already saved.
-        self._worker_pid = os.getpid()
-
-        if isinstance(item, zipfile.Path) and self._worker_pid != self._root_pid:
-            # Init a zipfile so that it inits a new buffered reader
-            aux_zip = zipfile.ZipFile(item.root.filename)
-            # Set the buffered reader to the new one
-            item.root.fp = aux_zip.fp
-            # Unlink the buffered reader from the auxiliary zipfile
-            # so that it doesn't get closed on garbage collection
-            aux_zip.fp = None
-
-        return item
+    def close(self):
+        """Close readers owned by this dataset, never caller-owned archives."""
+        for archive in self._worker_zips.values():
+            archive.close()
+        self._worker_zips.clear()
 
 
 class InMemoryData(torch.utils.data.Dataset):
@@ -214,12 +199,18 @@ def _rotating_pool_worker(dataset, rng, queue):
 
 
 def _transfer_thread(
-    queue: multiprocessing.Queue, datalist: list, counter: SimpleCounter
+    queue: multiprocessing.Queue, datalist: list, counter: SimpleCounter,
+    stop: threading.Event,
 ):
-    while True:
-        for index in range(len(datalist)):
-            datalist[index] = queue.get()
-            counter.inc()
+    index = 0
+    while not stop.is_set():
+        try:
+            data = queue.get(timeout=0.1)
+        except Empty:
+            continue
+        datalist[index] = data
+        counter.inc()
+        index = (index + 1) % len(datalist)
 
 
 class RotatingPoolData(torch.utils.data.Dataset):
@@ -233,15 +224,21 @@ class RotatingPoolData(torch.utils.data.Dataset):
         The dataset to wrap.
     pool_size:
         The size of the pool to keep in memory.
+    seed:
+        Seed for sampling. None draws a seed from NumPy's global seeded RNG.
+        Sampling order is reproducible, but asynchronous replacement timing is not.
     """
 
-    def __init__(self, dataset: TorchBasisMatrixDataset, pool_size: int, **kwargs):
+    def __init__(self, dataset: TorchBasisMatrixDataset, pool_size: int, seed=None, **kwargs):
         super().__init__(**kwargs)
+        if pool_size < 1 or len(dataset) == 0:
+            raise ValueError("RotatingPoolData needs a positive pool_size and nonempty dataset")
         self.pool_size = pool_size
         self.parent_data = dataset
-        self.rng = np.random.default_rng()
+        if seed is None:
+            seed = int(np.random.randint(0, 2**32))
+        self.rng = np.random.default_rng(seed)
         self.counter = SimpleCounter()
-        self.manager = multiprocessing.Manager()
         logging.debug("Filling rotating data pool of size %d" % pool_size)
         data_list = [
             self.parent_data[i]
@@ -249,8 +246,11 @@ class RotatingPoolData(torch.utils.data.Dataset):
                 0, high=len(self.parent_data), size=self.pool_size, endpoint=False
             ).tolist()
         ]
+        self.manager = multiprocessing.Manager()
         self.data_pool = self.manager.list(data_list)
         self.loader_queue = multiprocessing.Queue(2)
+        self._stop_transfer = threading.Event()
+        self._closed = False
 
         # Start loaders
         self.loader_process = multiprocessing.Process(
@@ -260,11 +260,33 @@ class RotatingPoolData(torch.utils.data.Dataset):
         )
         self.transfer_thread = threading.Thread(
             target=_transfer_thread,
-            args=(self.loader_queue, self.data_pool, self.counter),
+            args=(self.loader_queue, self.data_pool, self.counter, self._stop_transfer),
             daemon=True,
         )
-        self.loader_process.start()
-        self.transfer_thread.start()
+        try:
+            self.loader_process.start()
+            self.transfer_thread.start()
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self):
+        """Stop the owned thread, reader, queue and manager; safe to call twice."""
+        if self._closed:
+            return
+        self._stop_transfer.set()
+        # Keep the tensor sender alive while the thread finishes unpickling its item.
+        if self.transfer_thread.ident is not None:
+            self.transfer_thread.join(timeout=5)
+            if self.transfer_thread.is_alive():
+                raise RuntimeError("RotatingPoolData transfer thread did not stop")
+        if self.loader_process.pid is not None:
+            self.loader_process.terminate()
+            self.loader_process.join(timeout=5)
+        self.loader_queue.cancel_join_thread()
+        self.loader_queue.close()
+        self.manager.shutdown()
+        self._closed = True
 
     def __len__(self):
         return self.pool_size

@@ -2,6 +2,7 @@ import pytest
 
 import numpy as np
 import torch
+import sisl
 
 from graph2mat import (
     PointBasis,
@@ -12,6 +13,25 @@ from graph2mat import (
 )
 
 from graph2mat.bindings.torch import TorchBasisMatrixData, TorchBasisMatrixDataset
+
+
+def test_torch_predict_supplies_batch_for_every_node_and_ptr():
+    """A real pooling operation must see all three nodes in the single graph."""
+    processor = MatrixDataProcessor(
+        basis_table=BasisTableWithEdges([PointBasis(1, R=1.5, basis=[1])]),
+        symmetric_matrix=True, sub_point_matrix=False,
+    )
+    geometry = sisl.Geometry([[0., 0., 0.], [1., 0., 0.], [2., 0., 0.]],
+                             atoms=[1, 1, 1], lattice=[10]*3)
+
+    def pooled_model(data):
+        torch.testing.assert_close(data.ptr, torch.tensor([0, 3]))
+        totals = torch.zeros(1).scatter_add(0, data.batch, torch.tensor([1., 2., 3.]))
+        return {"node_labels": totals[data.batch],
+                "edge_labels": torch.zeros(data.edge_index.shape[1]//2)}
+
+    matrix = processor.torch_predict(pooled_model, geometry)
+    np.testing.assert_array_equal(matrix.toarray(), np.eye(3)*6)
 
 
 @pytest.fixture(scope="module")

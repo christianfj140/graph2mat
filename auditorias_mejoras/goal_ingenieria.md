@@ -27,8 +27,8 @@ con código, regresiones y evidencia. Un sublote verde no completa el goal.
 | 3.6 | DATA_PIPE-21, ENG_QUALITY-24, DATA_PIPE-12/09/08/24/25 | Temporales aislados con ZIP y supervivencia entre stages; setup por stage sin reconstrucción; cierre de pools; reapertura por PID y archivo ZIP después de lectura parental; filtros preservados; subgrafos reindexados; torch_predict conserva batch por nodo |
 | 3.9 | ENG_QUALITY-18/26, LOSS_TRAIN-25/29, ENG_QUALITY-20 | Gates efectivos de lint/tipos, tests deterministas/temporales limpios, split configurable y pool sembrado, provenance/versiones, pruebas numéricas de pérdidas/gradientes, equivariancia/supercelda, checkpoints, DDP CPU y simetría periódica/spin/S/d-f |
 
-Todos estos puntos continúan **abiertos** hasta verificar cada requisito; no se cierran
-mediante etiquetas de aplazado ni por tener configurada una CI.
+Cada punto requiere verificar todos sus requisitos; no se cierra mediante etiquetas
+de aplazado ni por tener configurada una CI. La revisión final cubrirá los cinco.
 
 ## Secuencia de ejecución
 
@@ -92,6 +92,58 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 - Lifecycle/ZIP/temporales siguen abiertos; los otros cuatro frentes permanecen abiertos.
 - Turno previo: entrega del prompt y lectura de estado, sin progreso de producto.
   No había bloqueo; esta continuación implementa y verifica la transición de etapas.
+
+### Sublote 3.6.c — ZIP, temporales y lifecycle
+
+- Diseño: lectores ZIP propios por PID y archivo, sin mutar archivos prestados.
+  Guardar la ruta reabierta devuelta por el dataset; carga y fichero espectral usan
+  la API real de zipfile.Path, no un Path ficticio dentro del archivo.
+- RED: tres fallos de ZIP (`zip-red.log`), con/sin lectura previa del padre y dos
+  archivos; fallo real de NetCharge dentro de ZIP. GREEN: tres regresiones, con
+  cierre de descriptores propios y lectura posterior de los archivos prestados.
+- Temporales: mkdtemp por instancia/proceso, archivo ZIP copiado sin extraer,
+  subdirectorio interno conservado; stage teardown retiene los datos. Cierre final
+  explícito y atexit limpian solo su carpeta. Cada rango DDP tiene copia propia:
+  evita carreras de borrado, a costa de I/O/espacio duplicados por rango.
+- RED: cuatro fallos de aislamiento, borrado entre stages y copytree de ZIP
+  (`temp-roots-red.log`). Dos regresiones adicionales reprodujeron un descriptor
+  de origen que seguía abierto y datasets heredados que seguían apuntando al
+  temporal parental (`temp-ownership-red.log`). Parche en la capa de lifecycle:
+  cerrar fuentes/cache, permitir reutilizar el módulo tras cierre final e invalidar
+  datasets heredados cuando cambia el PID. Las ocho regresiones de temporales
+  pasan, incluidas salidas de procesos reales que ejecutan atexit.
+- Pool: stop Event + lectura de cola con timeout, parar primero el hilo manteniendo
+  vivo el emisor de tensores, terminar/join del lector, cerrar cola/Manager.
+  Muestreo sembrado desde NumPy global o seed explícita; validar tamaño positivo
+  y dataset no vacío antes de crear recursos. close es idempotente.
+- RED: ausencia de close, muestreo no reproducible y pool vacío de tamaño cero
+  (`pool-red.log`, `pool-invalid-red.log`). Regresión del DataModule confirma fuga
+  tras teardown (`pool-teardown-red.log`). Ahora fit/None cierran el pool, conservan
+  parent_data y permiten un nuevo fit; validate no abre otro pool. Cinco pruebas
+  pasan con tensores y datos reales. La sustitución asíncrona depende del scheduling:
+  no se promete entrenamiento idéntico solo por sembrar el pool.
+- torch_predict: regresión de pooling real sobre tres nodos exige batch por nodo
+  y ptr=[0,3], y reconstruye la matriz diagonal esperada de valor 6.
+- Documentación pública: docs/data_loading.rst, enlazada desde docs/index.rst.
+- GREEN enfocado: 48 pruebas, 60 warnings, 1.25 s (`lifecycle-focused.log`);
+  temporales con exit: ocho pasan (`temp-exit-green.log`).
+- Gate completo: **549 passed, 1 skipped**, 6031 warnings, 73.30 s
+  (`lifecycle-full.log`). Incremento frente a la línea base: 34 regresiones nuevas.
+- 3.6 implementado/verificado localmente; pendiente la revisión transversal final.
+  Ningún otro frente queda cerrado por este sublote.
+- Reanudación tras usageLimited: get_goal confirma active. El último turno de
+  estado no implementó código; este turno reproduce y corrige teardown y ownership.
+
+### Próximo sublote 3.9.a — split reproducible configurable
+
+- Añadir split_seed=32 y val_fraction=0.1 al final de los parámetros existentes,
+  preservando llamadas posicionales/checkpoints y el split por defecto.
+- Semilla válida de RandomState y fracción en [0,1); conservar al menos una muestra
+  de entrenamiento cuando el dataset no esté vacío. Configuraciones explícitas de
+  val_runs conservan prioridad; guardar los parámetros con save_hyperparameters.
+- Regresiones de partición disjunta/completa, repetición, cambio de semilla/fracción,
+  defaults históricos y casos cero, un solo dato y fracciones inválidas.
+- Después: provenance, gates de calidad y pruebas científicas/DDP; siguen abiertos.
 
 ## Cierre del goal
 
