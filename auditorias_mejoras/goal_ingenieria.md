@@ -297,6 +297,68 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   siendo la fixture local ausente y la prueba GPU; no se ha omitido ningún fallo.
 - El resto de 3.9, las métricas pendientes de 3.1, servidor/instalación y la revisión
   independiente final permanecen abiertos. Próximo: diagnósticos y denominadores.
+- Commit local del bloque MACE/DDP y precisión: **aaa5eb8**.
+
+### Sublote 3.1.a — denominadores de objetivos básicos y momentos de errores
+
+- Releídos LOSS_TRAIN-06 y ENG_QUALITY-23 y las rutas de train/val/test. El
+  batch_size explícito por estructuras no convierte una media de elementos en la
+  media global correcta cuando cambian los tamaños. Las desviaciones de cada
+  batch tampoco se pueden promediar para obtener la desviación de toda la época.
+- Regresiones de valores literales para los MSE/MAE por bloque, elemento y rama,
+  edge_weight=2, hp_metric y train_loss; repetir particiones y épocas para probar
+  reset. Mantener el valor y gradiente de la pérdida de cada paso sin cambios.
+- Ruling: usar estadísticos suficientes de errores válidos en TorchMetrics —
+  sumas y conteos por rama; medias/std/máximos independientes de la partición.
+  Mantener la desviación muestral de Torch cuando hay al menos dos elementos,
+  definir cero con menos elementos para logging. Coste: acumuladores float64 y
+  reducciones distribuidas; no cambia la pérdida científica de entrenamiento.
+- Siguen abiertos los objetivos/diagnósticos especiales de coeficientes, pares,
+  espectral, dominios/Huber, tratamiento de NaN/vacíos de todas las pérdidas,
+  fail_ok y la prueba distribuida de estos valores. Este sublote no cierra 3.1.
+- RED: **19 failed, 4 passed**, 140 warnings, 0.91 s
+  (`epoch-objectives-red.log`). La primera fixture hacía coincidir algunas medias
+  por cancelación; se cambió a cinco etiquetas de nodo y cuatro de arista para que
+  todos los nuevos casos de objetivos detecten el denominador incorrecto.
+- Parche compartido de logging, sin cambiar funciones de pérdida ni el loss
+  devuelto por training_step: acumular sumas/conteos por rama antes de aplicar
+  el objetivo básico (seis clases MSE/MAE), y momentos para mean/std/max. Mantener
+  nombres train_loss_step/epoch, val_loss, test_loss y hp_metric. Objetivos especiales
+  conservan por ahora su agregación por estructuras, con sync_dist explícito.
+- GREEN con epochs/stages y DDP existente: **31 passed**, 140 warnings, 17.65 s
+  (`epoch-objectives-green.log`). TorchMetrics reinicia entre épocas/splits como
+  antes; los estados nuevos no son persistentes ni alteran state_dict/checkpoints.
+- Prueba distribuida adicional con scripts reales: dos rangos CPU/Gloo reciben
+  muestras de tamaños distintos, sin padding del sampler. Ambos deben producir
+  los mismos valores globales literales de loss/hp_metric, RMSE, mean/std/max y
+  spin. **2 passed**, 2 deselected, 52 warnings, 10.64 s
+  (`epoch-metrics-ddp.log`). Esto no prueba los diagnósticos especiales pendientes.
+
+### Sublote 3.1.b — errores fail_ok visibles
+
+- El callback SamplewiseMetricsLogger captura fallos por métrica y escribe NaN en
+  el CSV por defecto, pero no informa del fallo. Añadir aviso la primera vez por
+  clase de métrica/callback, manteniendo CSV y re-raise cuando fail_ok=False.
+- Dos casos ejercitan el callback real y sus filas CSV con una métrica que falla
+  deliberadamente: tres batches solo avisan una vez; la política estricta sigue
+  levantando la excepción original sin escribir filas falsas.
+- RED: **1 failed, 1 passed**, 5 deselected, 52 warnings, 0.60 s
+  (`fail-ok-red.log`); cero avisos con fail_ok=True, política estricta ya correcta.
+- Parche en el único except que oculta fallos: RuntimeWarning con clase, tipo y
+  mensaje de excepción; set de nombres por callback para no avisar cada batch.
+  No se cambian las excepciones de la política estricta ni las filas CSV.
+- GREEN conjunto: **36 passed**, 140 warnings, 1.12 s
+  (`epoch-and-callback-green.log`), con epochs, stages, escritura y warnings.
+- Documentados objetivos cubiertos, desviación muestral, política fail_ok y el
+  posible padding del sampler DDP (los tests distribuidos usan divisibilidad exacta).
+- Gate CPU completo: **653 passed, 2 skipped**, 6638 warnings, 94.93 s
+  (`epoch-objectives-full-cpu.log`), exit 0. Incremento: 14 casos nuevos de
+  objetivos, dos comprobaciones DDP de estadísticas y dos de fail_ok. Las pruebas
+  de mean/std/loss/reset también fortalecen las existentes, sin omitir fallos.
+- Los apartados especiales de 3.1 y los demás frentes/revisión final permanecen
+  abiertos. En particular, las pérdidas subyacentes aún necesitan tratamiento
+  completo de nodos NaN/vacíos y de umbrales sin elementos; no se declara cerrado
+  ese requisito porque el logging de std con una sola muestra ya sea finito.
 
 ## Cierre del goal
 

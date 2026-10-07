@@ -59,6 +59,23 @@ excludes those energy heads. This adds zero-gradient materialization/communicati
 in DDP; the single-process path is unchanged. It does not by itself establish
 distributed epoch-metric correctness, which is verified separately.
 
+Epoch metrics for the basic block-type/elementwise MSE and MAE objectives, and
+node-only/edge-only MSE, use valid matrix-element sums and counts, not averages of
+batch losses. ``val_loss`` and ``hp_metric`` share that global objective. Per-step
+training losses and their gradients are unchanged. Absolute-error means, sample
+standard deviations and maxima also reduce across batches and distributed ranks;
+standard deviation is zero with fewer than two valid elements. Special objectives
+(coefficient, pair, spectral, domain and Huber losses) still have separate pending
+aggregation work. Distributed samplers may pad uneven datasets with repeated
+samples: the metrics count the samples actually evaluated, including those repeats.
+NaN edge rows follow the existing loss mask; comprehensive node-NaN and empty-label
+handling in the underlying loss functions remains separate pending work.
+
+With the default ``SamplewiseMetricsLogger`` failure-tolerant policy, a failed
+metric writes NaN to its sample rows and emits a warning on its first failure per
+metric class and callback instance. Explicit metric lists retain the strict policy
+that raises the original exception.
+
 Checkpoints include a ``provenance`` dictionary with Python and installed
 versions of Torch, PyG, Lightning, e3nn, MACE and sisl, plus the tracked source
 checkout's Git commit and dirty flag. Missing optional distributions or a

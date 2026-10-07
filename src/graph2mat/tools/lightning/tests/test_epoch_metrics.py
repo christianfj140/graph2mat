@@ -9,6 +9,7 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 
 from graph2mat import BasisTableWithEdges, PointBasis
+from graph2mat.core.data import metrics as metrics_module
 from graph2mat.core.data.metrics import (
     block_type_mse, block_type_mse_per_structure, elementwise_mse, gauge_invariant_mse,
 )
@@ -54,6 +55,11 @@ def test_epoch_rmse_is_independent_of_batch_partition(split, components):
         assert result[f"{split}_edge_rmse"] == pytest.approx(math.sqrt(13 if components == 1 else 32.5))
         assert result[f"{split}_node_max"] == 3 * components
         assert result[f"{split}_edge_max"] == 4 * components
+        assert result[f"{split}_node_mean"] == pytest.approx(1.5 if components == 1 else 2.25)
+        assert result[f"{split}_edge_mean"] == pytest.approx(3.5 if components == 1 else 5.25)
+        assert result[f"{split}_node_std"] == pytest.approx(1 if components == 1 else math.sqrt(39 / 14))
+        assert result[f"{split}_edge_std"] == pytest.approx(1 if components == 1 else math.sqrt(79 / 14))
+        assert result[f"{split}_loss"] == pytest.approx(16 if components == 1 else 40)
         if components == 2:
             assert result[f"{split}_node_rmse_spin0"] == pytest.approx(math.sqrt(3))
             assert result[f"{split}_node_rmse_spin1"] == pytest.approx(math.sqrt(12))
@@ -94,9 +100,11 @@ def test_training_rmse_resets_each_epoch():
     class RecordEpoch(pl.Callback):
         def __init__(self):
             self.values = []
+            self.losses = []
 
         def on_train_epoch_end(self, trainer, pl_module):
             self.values.append(float(trainer.callback_metrics["train_node_rmse_epoch"]))
+            self.losses.append(float(trainer.callback_metrics["train_loss_epoch"]))
 
     samples = [Data(num_nodes=n, point_labels=torch.zeros(n), node_prediction=torch.full((n,), error),
                     edge_labels=torch.zeros(2), edge_prediction=torch.zeros(2))
@@ -110,6 +118,40 @@ def test_training_rmse_resets_each_epoch():
                          enable_model_summary=False)
     trainer.fit(model, train_dataloaders=DataLoader(samples, batch_size=1))
     assert recorder.values == pytest.approx([math.sqrt(3), math.sqrt(3)])
+    assert recorder.losses == pytest.approx([1.5, 1.5])
+
+
+@pytest.mark.parametrize("split", ["val", "test"])
+@pytest.mark.parametrize("loss_name,loss_kwargs,expected", [
+    ("block_type_mse", {}, 86 / 5),
+    ("elementwise_mse", {}, 73 / 9),
+    ("elementwise_mse", {"edge_weight": 2}, 125 / 13),
+    ("node_mse", {}, 21 / 5),
+    ("edge_mse", {}, 13),
+    ("block_type_mae", {}, 53 / 10),
+    ("elementwise_mae", {}, 23 / 9),
+])
+def test_epoch_loss_uses_its_objective_denominators(split, loss_name, loss_kwargs, expected):
+    # Node errors [1,1,1,3,3], valid edge errors [2,4,4,4]: different counts
+    # in each batch. Global sums are 21/52 squared and 9/14 absolute.
+    samples = [
+        Data(num_nodes=3, point_labels=torch.zeros(3), node_prediction=torch.ones(3),
+             edge_labels=torch.tensor([0., float("nan")]), edge_prediction=torch.tensor([2., 99.])),
+        Data(num_nodes=2, point_labels=torch.zeros(2), node_prediction=torch.full((2,), 3.),
+             edge_labels=torch.zeros(3), edge_prediction=torch.full((3,), 4.)),
+    ]
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
+    model = LitBasisMatrixModel(model_cls=_PredictionModel, basis_table=table,
+                               loss=getattr(metrics_module, loss_name), loss_kwargs=loss_kwargs)
+    model.init_model()
+    trainer = pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                         enable_progress_bar=False, enable_model_summary=False)
+    evaluate = trainer.validate if split == "val" else trainer.test
+    for batch_size in (1, 2, 1):
+        result = evaluate(model, dataloaders=DataLoader(samples, batch_size=batch_size), verbose=False)[0]
+        assert result[f"{split}_loss"] == pytest.approx(expected)
+        if split == "val":
+            assert result["hp_metric"] == pytest.approx(expected)
 
 
 @pytest.mark.parametrize("missing_edges", ["none", "first", "all"])

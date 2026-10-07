@@ -79,6 +79,61 @@ class _EpochRMSE(Metric):
         return torch.where(self.count > 0, self.squared_error / self.count, 0.0).sqrt()
 
 
+class _EpochErrorMoments(Metric):
+    """Global absolute-error mean, sample standard deviation or maximum."""
+
+    full_state_update = False
+
+    def __init__(self, statistic):
+        super().__init__()
+        self.statistic = statistic
+        for name in ("total", "squared", "count"):
+            self.add_state(name, torch.tensor(0., dtype=torch.float64), dist_reduce_fx="sum")
+        self.add_state("maximum", torch.tensor(0., dtype=torch.float64), dist_reduce_fx="max")
+
+    def update(self, errors):
+        values = errors.detach().double().abs()
+        self.total += values.sum()
+        self.squared += values.square().sum()
+        self.count += values.numel()
+        if values.numel():
+            self.maximum = torch.maximum(self.maximum, values.max())
+
+    def compute(self):
+        if self.statistic == "max":
+            return self.maximum
+        mean = self.total / self.count.clamp_min(1)
+        if self.statistic == "mean":
+            return mean
+        variance = (self.squared - self.total * mean) / (self.count - 1).clamp_min(1)
+        return torch.where(self.count > 1, variance.clamp_min(0), 0.).sqrt()
+
+
+class _EpochMatrixLoss(Metric):
+    """Apply the basic matrix objective after reducing its per-branch sums/counts."""
+
+    full_state_update = False
+
+    def __init__(self):
+        super().__init__()
+        self.add_state("totals", torch.zeros(2, dtype=torch.float64), dist_reduce_fx="sum")
+        self.add_state("counts", torch.zeros(2, dtype=torch.float64), dist_reduce_fx="sum")
+        self.joint = False
+        self.weights = (1., 1.)
+
+    def update(self, node_error, edge_error, power, joint, node_weight, edge_weight):
+        self.joint, self.weights = joint, (node_weight, edge_weight)
+        errors = (node_error.detach().double(), edge_error.detach().double())
+        self.totals += torch.stack([error.abs().pow(power).sum() for error in errors])
+        self.counts += self.counts.new_tensor([error.numel() for error in errors])
+
+    def compute(self):
+        weights = self.totals.new_tensor(self.weights)
+        if self.joint:
+            return (weights * self.totals).sum() / (weights * self.counts).sum().clamp_min(1)
+        return (weights * self.totals / self.counts.clamp_min(1)).sum()
+
+
 class LitBasisMatrixModel(pl.LightningModule):
     """Base class to wrap a matrix model to use it in pytorch_lightning."""
 
@@ -130,6 +185,8 @@ class LitBasisMatrixModel(pl.LightningModule):
         self._active_training_stage_index = None
         self._active_training_stage_name = None
         self._epoch_rmse = torch.nn.ModuleDict()
+        self._epoch_errors = torch.nn.ModuleDict()
+        self._epoch_losses = torch.nn.ModuleDict()
 
         self.model_cls = model_cls
         self.model = None  # Subclasses are responsible for initializing the model by calling init_model.
@@ -213,13 +270,8 @@ class LitBasisMatrixModel(pl.LightningModule):
             loss = loss + sum(parameter.reshape(-1)[:1].sum() * 0
                               for parameter in self.model.parameters() if parameter.requires_grad)
 
-        n = batch.num_graphs
-        self.log(
-            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True,
-            batch_size=n,
-        )
-
-        self._log_stats("train", stats, batch)
+        self._log_loss("train", loss, out, batch)
+        self._log_stats("train", stats, batch, out)
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
@@ -257,19 +309,60 @@ class LitBasisMatrixModel(pl.LightningModule):
             return count
         return None
 
-    def _log_stats(self, split, stats, batch):
+    def _log_loss(self, split, loss, out, batch):
+        policies = {
+            metrics_module.block_type_mse: (2, False, 1., 1.),
+            metrics_module.elementwise_mse: (2, True, 1., self.loss_fn.metric_kwargs.get("edge_weight", 1.)),
+            metrics_module.node_mse: (2, False, 1., 0.),
+            metrics_module.edge_mse: (2, False, 0., 1.),
+            metrics_module.block_type_mae: (1, False, 1., 1.),
+            metrics_module.elementwise_mae: (1, True, 1., 1.),
+        } if hasattr(self.loss_fn, "metric_kwargs") else {}
+        policy = policies.get(type(self.loss_fn))
+        key = f"{split}_loss"
+        value, attribute = loss, None
+        if policy is not None:
+            errors = metrics_module.get_predictions_error(
+                out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
+            )
+            if key not in self._epoch_losses:
+                self._epoch_losses[key] = _EpochMatrixLoss().to(self.device)
+            value = self._epoch_losses[key]
+            value(*errors, *policy)
+            attribute = f"_epoch_losses.{key}"
+        self.log(key, value, on_step=split == "train", on_epoch=True,
+                 prog_bar=True, logger=True, batch_size=batch.num_graphs,
+                 metric_attribute=attribute, sync_dist=policy is None)
+        if split == "val":
+            self.log("hp_metric", value, batch_size=batch.num_graphs,
+                     metric_attribute=attribute, sync_dist=policy is None)
+
+    def _log_stats(self, split, stats, batch, out):
+        errors = None
         for name, value in stats.items():
             count = self._rmse_count(name, batch)
             key = f"{split}_{name}"
+            attribute = None
             if count is not None:
                 if key not in self._epoch_rmse:
                     self._epoch_rmse[key] = _EpochRMSE().to(self.device)
                 metric = self._epoch_rmse[key]
                 metric(value, count)
                 value = metric
+                attribute = f"_epoch_rmse.{key}"
+            elif name in {f"{kind}_{stat}" for kind in ("node", "edge") for stat in ("mean", "std", "max")}:
+                if errors is None:
+                    errors = metrics_module.get_predictions_error(
+                        out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
+                    )
+                if key not in self._epoch_errors:
+                    self._epoch_errors[key] = _EpochErrorMoments(name.rsplit("_", 1)[1]).to(self.device)
+                value = self._epoch_errors[key]
+                value(errors[0 if name.startswith("node_") else 1])
+                attribute = f"_epoch_errors.{key}"
             self.log(key, value, on_step=split == "train", on_epoch=True,
                      batch_size=batch.num_graphs, reduce_fx=_epoch_reduce(name),
-                     metric_attribute=f"_epoch_rmse.{key}" if count is not None else None)
+                     metric_attribute=attribute, sync_dist=attribute is None)
 
     def on_fit_start(self) -> None:
         self._apply_training_stage_for_epoch(getattr(self, "current_epoch", 0))
@@ -308,14 +401,8 @@ class LitBasisMatrixModel(pl.LightningModule):
             model=self.model,
         )
 
-        # Epoch values are means weighted by structures (the last, smaller batch must not
-        # weigh as much as a full one), except maxima.
-        n = batch.num_graphs
-        self.log("val_loss", loss, prog_bar=True, logger=True, batch_size=n)
-        # save validation loss as the hyperparameter opt metric (used by tensorboard)
-        self.log("hp_metric", loss, batch_size=n)
-
-        self._log_stats("val", stats, batch)
+        self._log_loss("val", loss, out, batch)
+        self._log_stats("val", stats, batch, out)
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
@@ -339,10 +426,8 @@ class LitBasisMatrixModel(pl.LightningModule):
             model=self.model,
         )
 
-        n = batch.num_graphs
-        self.log("test_loss", loss, prog_bar=True, logger=True, batch_size=n)
-
-        self._log_stats("test", stats, batch)
+        self._log_loss("test", loss, out, batch)
+        self._log_stats("test", stats, batch, out)
 
         return out
 

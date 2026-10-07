@@ -84,6 +84,54 @@ def _run_training_script(output_dir, layout):
     return json.loads((output_dir / "result.json").read_text())
 
 
+def _evaluate_epoch_metrics(output_dir, spin):
+    import pytorch_lightning as pl
+    import torch
+    from pytorch_lightning.strategies import DDPStrategy
+    from torch_geometric.data import Data
+    from torch_geometric.loader import DataLoader
+
+    from graph2mat import BasisTableWithEdges, PointBasis
+    from graph2mat.core.data.metrics import block_type_mse
+    from graph2mat.tools.lightning.model import LitBasisMatrixModel
+
+    class Predictions(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.offset = torch.nn.Parameter(torch.zeros(()))
+
+        def forward(self, batch):
+            return {"node_labels": batch.node_prediction + self.offset,
+                    "edge_labels": batch.edge_prediction + self.offset}
+
+    samples = [
+        Data(num_nodes=3, point_labels=torch.zeros(3), node_prediction=torch.ones(3),
+             edge_labels=torch.tensor([0., float("nan")]), edge_prediction=torch.tensor([2., 99.])),
+        Data(num_nodes=2, point_labels=torch.zeros(2), node_prediction=torch.full((2,), 3.),
+             edge_labels=torch.zeros(3), edge_prediction=torch.full((3,), 4.)),
+    ]
+    if spin:
+        for sample in samples:
+            for key in ("point_labels", "node_prediction", "edge_labels", "edge_prediction"):
+                values = sample[key]
+                sample[key] = torch.stack([values, 2 * values], dim=1)
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
+    model = LitBasisMatrixModel(model_cls=Predictions, basis_table=table, loss=block_type_mse)
+    model.init_model()
+    trainer = pl.Trainer(
+        accelerator="cpu", devices=2,
+        strategy=DDPStrategy(process_group_backend="gloo", start_method="popen"),
+        logger=False, enable_checkpointing=False, enable_progress_bar=False,
+        enable_model_summary=False, default_root_dir=output_dir,
+    )
+    metrics = trainer.validate(model, dataloaders=DataLoader(samples, batch_size=1), verbose=False)[0]
+    # Exactly two samples for two ranks: DistributedSampler needs no padding/duplicates.
+    result = {"world_size": trainer.world_size, "metrics": metrics}
+    (Path(output_dir) / f"rank{trainer.global_rank}.json").write_text(json.dumps(result))
+    if trainer.is_global_zero:
+        (Path(output_dir) / "result.json").write_text(json.dumps(result))
+
+
 @pytest.mark.parametrize("layout", ["all_types", "missing_types"])
 def test_two_cpu_ranks_train_real_mace_for_multiple_steps(tmp_path, layout):
     import math
@@ -105,5 +153,37 @@ def test_two_cpu_ranks_train_real_mace_for_multiple_steps(tmp_path, layout):
             torch.testing.assert_close(actual[name], expected[name], rtol=1e-6, atol=1e-7, msg=name)
 
 
+@pytest.mark.parametrize("spin", [False, True])
+def test_two_cpu_ranks_reduce_global_epoch_statistics(tmp_path, spin):
+    import math
+
+    _run_training_script(tmp_path, "epoch_metrics_spin" if spin else "epoch_metrics")
+    for rank in (0, 1):
+        result = json.loads((tmp_path / f"rank{rank}.json").read_text())
+        assert result["world_size"] == 2
+        metrics = result["metrics"]
+        expected = {
+            "val_loss": 43 if spin else 86 / 5,
+            "hp_metric": 43 if spin else 86 / 5,
+            "val_node_rmse": math.sqrt(10.5 if spin else 21 / 5),
+            "val_edge_rmse": math.sqrt(32.5 if spin else 13),
+            "val_node_mean": 2.7 if spin else 1.8,
+            "val_edge_mean": 5.25 if spin else 3.5,
+            "val_node_std": math.sqrt(107 / 30 if spin else 1.2),
+            "val_edge_std": math.sqrt(79 / 14) if spin else 1,
+            "val_node_max": 6 if spin else 3,
+            "val_edge_max": 8 if spin else 4,
+        }
+        if spin:
+            expected.update({"val_node_rmse_spin0": math.sqrt(21 / 5),
+                             "val_node_rmse_spin1": math.sqrt(84 / 5),
+                             "val_edge_rmse_spin1": math.sqrt(52)})
+        for key, value in expected.items():
+            assert metrics[key] == pytest.approx(value), f"Rank {rank}, {key}"
+
+
 if __name__ == "__main__":
-    _fit(sys.argv[1], sys.argv[2])
+    if sys.argv[2].startswith("epoch_metrics"):
+        _evaluate_epoch_metrics(sys.argv[1], sys.argv[2].endswith("spin"))
+    else:
+        _fit(sys.argv[1], sys.argv[2])

@@ -11,6 +11,7 @@ for the matrix learning process.
 import csv
 import io
 import json
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Literal, Sequence, Type, Union
 
@@ -255,6 +256,7 @@ class SamplewiseMetricsLogger(Callback):
         self.metrics = [metric() for metric in metrics]
         self.output_file = output_file
         self._handles = {}
+        self._warned_metric_failures = set()
 
         self._init_file()
 
@@ -324,6 +326,14 @@ class SamplewiseMetricsLogger(Callback):
                 )
             except Exception as e:
                 if self.fail_ok:
+                    name = metric.__class__.__name__
+                    if name not in self._warned_metric_failures:
+                        warnings.warn(
+                            f"Metric {name} failed; recording NaN. {type(e).__name__}: {e}",
+                            RuntimeWarning,
+                            stacklevel=2,
+                        )
+                        self._warned_metric_failures.add(name)
                     metrics.append(np.full(len(batch), np.nan))
                 else:
                     raise e

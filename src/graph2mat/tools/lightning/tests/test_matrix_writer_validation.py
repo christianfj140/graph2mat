@@ -202,3 +202,55 @@ def test_samplewise_logger_survives_validation_inside_a_training_epoch(tmp_path)
     logger._writer("train").writerow(["c"])
     logger.close_file_handle("train")
     assert sorted((tmp_path / "m.csv").read_text().split()[1:]) == ["a", "b", "c"]
+
+
+@pytest.mark.parametrize("fail_ok", [True, False])
+def test_samplewise_metric_failure_warns_once_or_raises(tmp_path, fail_ok):
+    import csv
+    import math
+    import warnings
+
+    import torch
+    from torch_geometric.data import Batch, Data
+
+    from graph2mat.tools.lightning.callbacks import SamplewiseMetricsLogger
+
+    class BrokenMetric:
+        def __call__(self, **kwargs):
+            raise ValueError("intentional metric failure")
+
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1])])
+    batch = Batch.from_data_list([
+        Data(num_nodes=1, point_labels=torch.zeros(1), edge_labels=torch.empty(0),
+             metadata={"path": str(tmp_path / name / "matrix.DM")})
+        for name in ("first", "second")
+    ])
+    trainer = SimpleNamespace(sanity_checking=False, is_global_zero=True, current_epoch=0,
+                              datamodule=SimpleNamespace(basis_table=table,
+                                                         out_matrix="density_matrix", symmetric_matrix=True))
+    logger = SamplewiseMetricsLogger(metrics=[BrokenMetric], output_file=tmp_path / "metrics.csv")
+    logger.fail_ok = fail_ok
+    outputs = {"node_labels": batch.point_labels, "edge_labels": batch.edge_labels}
+    try:
+        if not fail_ok:
+            with pytest.raises(ValueError, match="intentional metric failure"):
+                logger.on_validation_batch_end(trainer, None, outputs, batch, 0)
+        else:
+            with warnings.catch_warnings(record=True) as emitted:
+                warnings.simplefilter("always")
+                for index in range(3):
+                    logger.on_validation_batch_end(trainer, None, outputs, batch, index)
+            failures = [warning for warning in emitted if "BrokenMetric" in str(warning.message)]
+            assert len(failures) == 1
+            assert "ValueError" in str(failures[0].message)
+            assert "intentional metric failure" in str(failures[0].message)
+    finally:
+        logger.close_file_handle("val")
+    with (tmp_path / "metrics.csv").open() as handle:
+        rows = list(csv.DictReader(handle))
+    if fail_ok:
+        assert len(rows) == 6
+        assert [row["sample_name"] for row in rows] == ["first", "second"] * 3
+        assert all(math.isnan(float(row["BrokenMetric"])) for row in rows)
+    else:
+        assert not rows
