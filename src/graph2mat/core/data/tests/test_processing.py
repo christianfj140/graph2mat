@@ -36,19 +36,24 @@ def basis_table(basis_convention):
 @pytest.mark.parametrize("n_ats", [1, 2])
 @pytest.mark.parametrize("config_cls", [BasisConfiguration, OrbitalConfiguration])
 @pytest.mark.parametrize("new_method", ["from_config", "new"])
+@pytest.mark.parametrize("symmetric", [True, False])
 def test_init_data(
-    positions, basis_table, basis_convention, n_ats, load_matrix, new_method, config_cls
+    positions, basis_table, basis_convention, n_ats, load_matrix, new_method, config_cls,
+    symmetric,
 ):
     # The data processor.
     processor = MatrixDataProcessor(
-        basis_table=basis_table, symmetric_matrix=True, sub_point_matrix=False
+        basis_table=basis_table, symmetric_matrix=symmetric, sub_point_matrix=False
     )
 
     positions = positions[:n_ats]
 
     matrix = None
     if load_matrix:
-        matrix = np.random.rand(6, 6)
+        size = 1 if n_ats == 1 else 6
+        matrix = np.random.default_rng(0).random((size, size))
+        if symmetric:
+            matrix = (matrix + matrix.T) / 2
 
     config = config_cls(
         point_types=["A", "B"][:n_ats],
@@ -67,6 +72,9 @@ def test_init_data(
         assert np.all(data.positions == positions)
     else:
         assert (data.positions != positions).sum() == n_ats * 2
+    if load_matrix:
+        reconstructed = processor.matrix_from_data(data, out_format="numpy")
+        np.testing.assert_allclose(reconstructed, matrix, rtol=0, atol=1e-12)
 
 
 def test_sub_point_matrix_disabled_for_hamiltonian(basis_table):

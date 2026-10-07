@@ -1,7 +1,6 @@
 import numpy as np
 import pytorch_lightning as pl
 import sisl
-import tempfile
 
 import pytest
 
@@ -21,7 +20,8 @@ from graph2mat.tools.lightning import (
 
 
 @pytest.mark.parametrize("out_matrix", ["density_matrix", "hamiltonian"])
-def test_lightning_tools_python(out_matrix):
+def test_lightning_tools_python(out_matrix, tmp_path):
+    pl.seed_everything(0, workers=True)
     # The basis
     point_1 = PointBasis("A", R=2, basis="0e", basis_convention="spherical")
     point_2 = PointBasis("B", R=5, basis="2x0e + 1o", basis_convention="spherical")
@@ -38,14 +38,17 @@ def test_lightning_tools_python(out_matrix):
         symmetric_matrix=True,
     )
 
-    # Configurations (just one with a random matrix)
+    # Symmetric labels with support restricted to the physical graph.
+    matrix = np.random.default_rng(0).random((7, 7))
+    matrix = (matrix + matrix.T) / 2
+    matrix[0, 6] = matrix[6, 0] = 0  # The distant A-A pair has no edge.
     config1 = BasisConfiguration(
         point_types=["A", "B", "A"],
         positions=np.array([[0, 0, 0], [6.0, 0, 0], [12, 0, 0]]),
         basis=basis,
         cell=np.eye(3) * 100,
         pbc=(False, False, False),
-        matrix=np.random.random((7, 7)),
+        matrix=matrix,
     )
     configs = [config1]
 
@@ -58,18 +61,17 @@ def test_lightning_tools_python(out_matrix):
         train_runs=configs,
         val_runs=configs,
         test_runs=configs,
+        loader_threads=0,
     )
 
     # Temporary files for the callbacks
-    matrix_file = tempfile.NamedTemporaryFile(
-        delete=False, suffix=".DM" if out_matrix == "density_matrix" else ".HSX"
-    )
-    metrics_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+    matrix_file = tmp_path / ("prediction.DM" if out_matrix == "density_matrix" else "prediction.HSX")
+    metrics_file = tmp_path / "metrics.csv"
 
     # List of callbacks to use during training
     callbacks = [
-        MatrixWriter(matrix_file.name, splits=["test"]),
-        SamplewiseMetricsLogger(splits=["val"], output_file=metrics_file.name),
+        MatrixWriter(str(matrix_file), splits=["test"]),
+        SamplewiseMetricsLogger(splits=["val"], output_file=str(metrics_file)),
         PlotMatrixError(split="test", show=False, store_in_logger=False),
     ]
 
@@ -77,6 +79,7 @@ def test_lightning_tools_python(out_matrix):
     trainer = pl.Trainer(
         callbacks=callbacks, max_epochs=1, logger=False, enable_checkpointing=False,
         accelerator="cpu", devices=1,
+        enable_progress_bar=False, enable_model_summary=False,
     )
 
     # Run training (1 epoch)
@@ -86,7 +89,8 @@ def test_lightning_tools_python(out_matrix):
     val_metrics, *_ = trainer.validate(model, datamodule=datamodule)
     # Make sure the matrix writer hasn't written anything yet
     # (it is set to only write on test)
-    assert matrix_file.read() == bytes()
+    assert not matrix_file.exists()
+    assert metrics_file.read_text().strip()
 
     # Run test to get the test metrics
     test_metrics, *_ = trainer.test(model, datamodule=datamodule)
@@ -107,8 +111,9 @@ def test_lightning_tools_python(out_matrix):
     out = model(data)
     pred_matrix = datamodule.data_processor.matrix_from_data(data, out)[0]
     if out_matrix == "density_matrix":
-        read_matrix = sisl.get_sile(matrix_file.name).read_density_matrix()
+        read_matrix = sisl.get_sile(matrix_file).read_density_matrix()
     elif out_matrix == "hamiltonian":
-        read_matrix = sisl.get_sile(matrix_file.name).read_hamiltonian()
+        read_matrix = sisl.get_sile(matrix_file).read_hamiltonian()
 
     assert np.allclose(read_matrix.tocsr().toarray(), pred_matrix.tocsr().toarray())
+    datamodule.teardown(None)

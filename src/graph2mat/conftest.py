@@ -3,10 +3,18 @@ import pytest
 import sisl
 from numpy.random import RandomState
 import numpy as np
+import torch
 
 from graph2mat.core.data.sparse import csr_to_block_dict
 from graph2mat import MatrixDataProcessor, OrbitalConfiguration, AtomicTableWithEdges
 from graph2mat.bindings.torch import TorchBasisMatrixData
+
+
+@pytest.fixture(autouse=True)
+def seed_random_generators():
+    """Keep legacy NumPy/Torch fixtures reproducible independently of test order."""
+    np.random.seed(0)
+    torch.manual_seed(0)
 
 
 @pytest.fixture(scope="session", params=[True, False])

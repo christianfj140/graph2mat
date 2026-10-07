@@ -197,6 +197,31 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   como evidencia, no se afirma una suite libre de warnings.
 - Los cuatro frentes todavía abiertos y la revisión final no quedan cerrados
   por este sublote. Próximo: fixtures válidas/deterministas y pruebas científicas.
+- Commit local: **7fe54b5**, split y provenance. Omisiones confirmadas con
+  pytest -rs sobre los dos nodos (`cpu-skips-confirmed.log`), exit 0. Un intento
+  anterior con -k torch_compile seleccionaba cero tests (exit 5); no se usó como
+  evidencia de la prueba GPU.
+
+### Sublote 3.9.c — fixtures deterministas, válidas y con comprobaciones de valor
+
+- Reutilizar los tests existentes: default_rng(0) para matrices/coordenadas,
+  semilla NumPy/Torch por test para legado, seed_everything en integración.
+  No alterar algoritmos de producción ni semillas explícitas ya repetibles.
+- test_processing genera la dimensión orbital correcta (1 o 6), matrices
+  simétricas solo cuando se declara esa propiedad y reconstruye valores originales
+  con matrix_from_data para ambas políticas, convenciones y clases de configuración.
+  Añade 48 casos; no se llama éxito solo por construir un objeto.
+- test_lightning usa matriz simétrica con soporte en el grafo, loader_threads=0,
+  CPU explícita y tmp_path en lugar de dos NamedTemporaryFile(delete=False).
+  Comprueba ausencia de escritura antes de test, CSV real y matriz escrita.
+- test_basis: tamaño, capas, radios, base vacía, tipo de átomo real y conversión
+  desde p de sisl; se conserva la prueba de paridad y capas ya corregida.
+- GREEN enfocado: **127 passed**, 355 warnings, 3.90 s (`fixtures-focused.log`).
+  Gate completo CPU: **619 passed, 2 skipped**, 6206 warnings, 62.20 s
+  (`fixtures-full-cpu.log`), exit 0. Sin cambios científicos de producción.
+- Persisten las omisiones justificadas y los warnings. Próximo: reactivar las
+  pruebas comentadas de equivariancia/supercelda con MatrixMACE real, float64 y
+  rotaciones aleatorias sembradas, y completar las demás pruebas/gates del goal.
 
 ## Cierre del goal
 

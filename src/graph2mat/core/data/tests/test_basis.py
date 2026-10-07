@@ -11,6 +11,9 @@ from graph2mat.core.data.basis import get_atom_basis, get_change_of_basis
 
 def test_simplest():
     basis = PointBasis("A", basis_convention="spherical", basis="3x0e + 2x1o", R=5)
+    assert basis.basis == ((3, 0, 1), (2, 1, -1))
+    assert basis.basis_size == 9 and basis.num_sets == 5
+    assert basis.maxR() == 5
 
 
 def test_list_basis():
@@ -25,10 +28,13 @@ def test_siesta_convention():
     basis = PointBasis(
         "A", basis_convention="siesta_spherical", basis="3x0e + 2x1o", R=5
     )
+    assert basis.basis == ((3, 0, 1), (2, 1, -1))
+    assert basis.basis_size == 9 and basis.basis_convention == "siesta_spherical"
 
 
 def test_no_basis():
     basis = PointBasis("A", R=5)
+    assert basis.basis == () and basis.basis_size == 0 and basis.maxR() == 5
 
 
 def test_multiple_R():
@@ -38,6 +44,8 @@ def test_multiple_R():
         basis="3x0e + 2x1o",
         R=np.array([5, 5, 5, 3, 3, 3, 3, 3, 3]),
     )
+    assert basis.basis_size == 9
+    np.testing.assert_array_equal(basis.R, [5, 5, 5, 3, 3, 3, 3, 3, 3])
 
     # Wrong number of Rs
     with pytest.raises(AssertionError):
@@ -56,7 +64,7 @@ def test_from_sisl_atom():
 
     assert basis.type == 1
     assert basis.basis_convention == "siesta_spherical"
-    # assert basis.irreps == o3.Irreps("1x1o")
+    assert basis.basis == ((1, 1, -1),) and basis.basis_size == 3
     assert isinstance(basis.R, np.ndarray)
     assert np.all(basis.R == 4)
 
@@ -71,7 +79,7 @@ def test_to_sisl_atom():
 
     atom = basis.to_sisl_atom()
 
-    isinstance(atom, sisl.Atom)
+    assert isinstance(atom, sisl.Atom)
     assert len(atom.orbitals) == 9
 
     for orbital in atom.orbitals[:3]:
@@ -112,7 +120,7 @@ def test_change_of_basis_works():
     """Check that we can go through different basis, go back
     to the original basis and get the original array."""
 
-    array = np.random.rand(4, 3)
+    array = np.random.default_rng(0).random((4, 3))
 
     cob, _ = get_change_of_basis("cartesian", "siesta_spherical")
 
