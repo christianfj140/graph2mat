@@ -52,16 +52,33 @@ class DescriptorManager(ABC):
         block_history_descriptors, block_history_labels, rcond=1e-8, **kwargs
     ):
         def predict_next(history_descriptors, history_labels):
+            history_descriptors = np.asarray(history_descriptors)
+            history_labels = np.asarray(history_labels)
+            if len(history_descriptors) == 0:
+                raise ValueError("Need at least one descriptor for the target.")
+            if len(history_descriptors) != len(history_labels) + 1:
+                raise ValueError("Need one more descriptor than historical labels.")
             if history_descriptors.shape[0] == 1:
                 return np.zeros(history_labels.shape[1:], dtype=float)
 
-            A = history_descriptors[:-1].T
-            b = history_descriptors[-1]
-
-            x_lstsq, r, rank, sv = np.linalg.lstsq(A, b, rcond=rcond)
-
             labels = history_labels.reshape(history_labels.shape[0], -1)
-            predicted_labels = labels.T @ x_lstsq.reshape(-1)
+            if np.isfinite(labels).all():
+                x_lstsq = DescriptorManager.block_coefficients(history_descriptors, rcond=rcond)
+                predicted_labels = labels.T @ x_lstsq.reshape(-1)
+            else:
+                # Each matrix component can have different missing observations.
+                predicted_labels = np.zeros(labels.shape[1], dtype=np.result_type(
+                    labels.dtype, history_descriptors.dtype, np.float32,
+                ))
+                for column in range(labels.shape[1]):
+                    valid = np.isfinite(labels[:, column])
+                    if not valid.any():
+                        continue
+                    descriptors = np.concatenate([
+                        history_descriptors[:-1][valid], history_descriptors[-1:],
+                    ])
+                    weights = DescriptorManager.block_coefficients(descriptors, rcond=rcond)
+                    predicted_labels[column] = labels[valid, column] @ weights
 
             return predicted_labels.reshape(*history_labels.shape[1:])
 
@@ -116,12 +133,24 @@ class DescriptorManager(ABC):
 
     @staticmethod
     def block_coefficients(block_history_descriptors, rcond=1e-8, **kwargs):
+        block_history_descriptors = np.asarray(block_history_descriptors)
+        if len(block_history_descriptors) == 0:
+            raise ValueError("Need at least one descriptor for the target.")
         A = block_history_descriptors[:-1].T
         b = block_history_descriptors[-1]
 
-        x_lstsq, r, rank, sv = np.linalg.lstsq(A, b, rcond=rcond)
+        if np.isfinite(block_history_descriptors).all():
+            # Keep the complete-data objective, dtype and numerical path unchanged.
+            x_lstsq, r, rank, sv = np.linalg.lstsq(A, b, rcond=rcond)
+            return x_lstsq
 
-        return x_lstsq
+        features = np.isfinite(b)
+        valid = np.isfinite(A[features]).all(axis=0)
+        coefficients = np.zeros(len(block_history_descriptors) - 1,
+                                dtype=np.result_type(block_history_descriptors.dtype, np.float32))
+        if valid.any():
+            coefficients[valid] = np.linalg.lstsq(A[features][:, valid], b[features], rcond=rcond)[0]
+        return coefficients
 
 
 class HistorySOAPs(DescriptorManager):
@@ -195,8 +224,9 @@ class HistorySOAPs(DescriptorManager):
 
             # Build all atom descriptors, we do this before edges so that
             # we can get the atom descriptors to add them to edge descriptors.
+            atom_descriptors = []
             for i in range(na):
-                all_descriptors[i, i, 0].append(
+                atom_descriptors.append(
                     [
                         *atom_soaps[i],
                         *cls.compute_atom_descriptor(
@@ -208,6 +238,9 @@ class HistorySOAPs(DescriptorManager):
                         ),
                     ]
                 )
+                key = (i, i, 0)
+                if key in all_descriptors and i_molec not in missing_block_steps.get(key, []):
+                    all_descriptors[key].append(atom_descriptors[-1])
 
             for k in all_descriptors:
                 i, j, isc = k
@@ -224,8 +257,8 @@ class HistorySOAPs(DescriptorManager):
 
                     shift = target_geom.sc_off[isc] @ geom.cell
 
-                    edge_sender_descriptors = all_descriptors[(i, i, 0)][-1]
-                    edge_receiver_descriptors = all_descriptors[(j, j, 0)][-1]
+                    edge_sender_descriptors = atom_descriptors[i]
+                    edge_receiver_descriptors = atom_descriptors[j]
 
                     edge_center = (geom.xyz[i] + geom.xyz[j] + shift) / 2
                     edge_soap = soap.create(atoms, [edge_center])
@@ -307,12 +340,31 @@ class HistoryCopy(DescriptorManager):
         data_processor,
         **kwargs,
     ):
-        descriptors = {k: v.reshape(len(v), -1) for k, v in hist_b_dict.items()}
-
-        all_descriptors = list(descriptors.values())
-
-        all_descriptors = np.concatenate(all_descriptors, axis=-1)
-        descriptors = {k: all_descriptors for k, v in descriptors.items()}
+        values = {k: v.reshape(len(v), -1) for k, v in hist_b_dict.items() if len(v)}
+        if not values:
+            return {}, None
+        history_len = (len(configs) - 1 if configs is not None else
+                       max(len(v) + len(missing_block_steps.get(k, [])) for k, v in values.items()))
+        all_descriptors = np.full(
+            (history_len, sum(v.shape[1] for v in values.values())), np.nan,
+            dtype=np.result_type(np.float32, *(v.dtype for v in values.values())),
+        )
+        rows = {}
+        offset = 0
+        for key, value in values.items():
+            present = np.ones(history_len, dtype=bool)
+            present[missing_block_steps.get(key, [])] = False
+            if present.sum() != len(value):
+                raise ValueError("Missing block steps do not align with historical labels.")
+            rows[key] = present
+            all_descriptors[present, offset:offset + value.shape[1]] = value
+            offset += value.shape[1]
+        # Keep the global matrix descriptor, selecting the same available frames
+        # as each block's compacted labels, and no columns containing missing data.
+        descriptors = {}
+        for key, present in rows.items():
+            value = all_descriptors[present]
+            descriptors[key] = value[:, np.isfinite(value).all(axis=0)]
 
         return descriptors, None
 
@@ -351,7 +403,6 @@ def get_history_block_dicts(configs, target_data):
 
     for i_step, step_config in enumerate(history_configs):
         step_geom = step_config.metadata["geometry"]
-        step_block_dict = step_config.matrix.block_dict
 
         for i, j, isc in hist_b_dict:
             if isc != 0:
@@ -363,12 +414,14 @@ def get_history_block_dicts(configs, target_data):
             else:
                 new_isc = 0
 
-            if (i, j, new_isc) in step_block_dict:
-                hist_b_dict[i, j, isc].append(step_block_dict[i, j, new_isc])
-            else:
+            block = (step_config.matrix._get_block(i, j, new_isc)
+                     if step_config.matrix is not None else None)
+            if block is None or not np.isfinite(block).any():
                 missing_block_steps[i, j, isc].append(i_step)
+            else:
+                hist_b_dict[i, j, isc].append(block)
 
-    hist_b_dict = {k: np.array(v) for k, v in hist_b_dict.items()}
+    hist_b_dict = {k: np.array(v) for k, v in hist_b_dict.items() if v}
 
     return hist_b_dict, missing_block_steps
 
@@ -428,8 +481,13 @@ def extrapolate_from_series(
     node_rcond: float = 1e-6,
     edge_rcond: float = 1e-6,
 ):
-    if len(series.configs) == 2:
-        return series.configs[-2].matrix.block_dict
+    if len(series.configs) < 2 or not any(config.matrix is not None for config in list(series.configs)[:-1]):
+        raise ValueError("Extrapolation needs at least one historical matrix.")
+    if series.processor is None:
+        if len(series.configs) == 2:
+            return {key: np.nan_to_num(value, nan=0., posinf=0., neginf=0.)
+                    for key, value in series.configs[-2].matrix.block_dict.items()}
+        raise ValueError("Extrapolation needs a data processor.")
 
     dataset = [
         BasisMatrixData.from_config(
@@ -451,6 +509,11 @@ def extrapolate_from_series(
     # configs[-1].metadata["geometry"] = geom
 
     hist_b_dict, missing_steps = get_history_block_dicts(configs, data[-1])
+    if not hist_b_dict:
+        raise ValueError("Extrapolation needs an observed historical matrix block.")
+    if len(configs) == 2:
+        return {key: np.nan_to_num(value[0], nan=0., posinf=0., neginf=0.)
+                for key, value in hist_b_dict.items()}
 
     descriptors, descriptors_irreps = descriptor_manager.get_descriptors(
         data,

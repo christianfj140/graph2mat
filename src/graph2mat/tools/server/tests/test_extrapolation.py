@@ -8,6 +8,7 @@ import sys
 
 from graph2mat import AtomicTableWithEdges, BasisMatrixData, MatrixDataProcessor, OrbitalConfiguration
 from graph2mat.tools.server.extrapolation import (
+    DescriptorManager,
     HistoryCopy, HistorySOAPs, MatrixTimeSeriesState, extrapolate_from_series,
     get_history_block_dicts,
 )
@@ -235,3 +236,197 @@ def test_history_blocks_preserve_all_directions_and_mark_absent_images(symmetric
         np.testing.assert_array_equal(history[key], [[[9.]]] if missing_images else [[[1.]], [[9.]]])
         assert missing.get(key, []) == ([0] if missing_images else [])
     np.testing.assert_array_equal(history[0, 0, 0], [[[1.]], [[9.]]])
+
+
+def test_history_copy_aligns_global_descriptors_to_available_block_steps():
+    history = {(0, 0, 0): np.array([[[1.]], [[2.]], [[4.]]]),
+               (0, 1, 0): np.array([[[10.]], [[40.]]])}
+    before = {key: value.copy() for key, value in history.items()}
+    descriptors, irreps = HistoryCopy.get_descriptors(
+        None, None, history, {(0, 1, 0): [1]}, None,
+    )
+    assert irreps is None
+    np.testing.assert_array_equal(descriptors[0, 0, 0], [[1.], [2.], [4.]])
+    np.testing.assert_array_equal(descriptors[0, 1, 0], [[1., 10.], [4., 40.]])
+    result = HistoryCopy.predict_from_descriptors(
+        descriptors, history, {"rcond": {key: 1e-8 for key in history}},
+    )
+    np.testing.assert_allclose(result[0, 0, 0], [[8.]], rtol=0, atol=1e-12)
+    np.testing.assert_allclose(result[0, 1, 0], [[160.]], rtol=0, atol=1e-12)
+    for key in history:
+        np.testing.assert_array_equal(history[key], before[key])
+
+
+@pytest.mark.parametrize("history", [{}, {(0, 0, 0): np.empty((0, 1, 1))}])
+def test_history_copy_empty_blocks_do_not_create_fake_predictions(history):
+    descriptors, irreps = HistoryCopy.get_descriptors(None, None, history, {}, None)
+    assert descriptors == {} and irreps is None
+    assert HistoryCopy.predict_from_descriptors(descriptors, history, {}) == {}
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("missing", ["labels", "all_labels", "historical_descriptor", "target_descriptor"])
+def test_descriptor_fit_uses_finite_observations_per_label_component(dtype, missing):
+    descriptors = np.array([[1., 1.], [2., 2.], [4., 4.]], dtype=dtype)
+    labels = np.array([[10., 20.], [20., 40.]], dtype=dtype)
+    expected = np.array([40., 80.])
+    if missing == "labels":
+        labels[0, 0], labels[1, 1] = np.nan, np.nan
+    elif missing == "all_labels":
+        labels[:] = np.nan
+        expected[:] = 0
+    elif missing == "historical_descriptor":
+        descriptors[0, 1] = np.nan
+    else:
+        descriptors[-1, 1] = np.nan
+    before_labels, before_descriptors = labels.copy(), descriptors.copy()
+    actual = DescriptorManager.predict_block(descriptors, labels)
+    np.testing.assert_allclose(actual, expected, rtol=0, atol=2e-5 if dtype == np.float32 else 1e-12)
+    assert np.isfinite(actual).all()
+    np.testing.assert_array_equal(labels, before_labels)
+    np.testing.assert_array_equal(descriptors, before_descriptors)
+
+
+def test_descriptor_fit_rejects_unaligned_observations_and_empty_target():
+    with pytest.raises(ValueError, match="one more descriptor"):
+        DescriptorManager.predict_block(np.ones((3, 2)), np.ones((3, 1, 1)))
+    with pytest.raises(ValueError, match="at least one descriptor"):
+        DescriptorManager.predict_block(np.empty((0, 2)), np.empty((0, 1, 1)))
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_complete_descriptor_fit_preserves_its_objective_and_dtype(dtype):
+    descriptors = np.array([[1., 1.], [2., 2.], [4., 4.]], dtype=dtype)
+    labels = np.array([[10., 20.], [20., 40.]], dtype=dtype)
+    coefficients = DescriptorManager.block_coefficients(descriptors)
+    prediction = DescriptorManager.predict_block(descriptors, labels)
+    tolerance = 2e-5 if dtype == np.float32 else 1e-12
+    np.testing.assert_allclose(coefficients, [.8, 1.6], rtol=0, atol=tolerance)
+    np.testing.assert_allclose(prediction, [40., 80.], rtol=0, atol=tolerance)
+    assert coefficients.dtype == prediction.dtype == dtype
+
+
+@pytest.mark.parametrize("missing", ["history", "target", "both"])
+def test_descriptor_coefficients_keep_zero_weights_for_unusable_history_rows(missing):
+    descriptors = np.array([[1., 1.], [2., 2.], [4., 4.]])
+    if missing in ("history", "both"):
+        descriptors[0, 1] = np.nan
+    if missing in ("target", "both"):
+        descriptors[-1, 1] = np.nan
+    expected = [0., 2.] if missing == "history" else [.8, 1.6]
+    actual = DescriptorManager.block_coefficients(descriptors)
+    np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize("manager", [HistoryCopy, HistorySOAPs])
+@pytest.mark.parametrize("components", [1, 2])
+@pytest.mark.parametrize("symmetric", [False, True])
+def test_real_extrapolation_with_missing_onsite_and_edge_blocks(manager, components, symmetric):
+    orbital = sisl.SphericalOrbital(0, _radial, R=1.).toAtomicOrbital(n=1)
+    geometry = sisl.Geometry([[0., 0., 0.], [.75, 0., 0.]],
+                             atoms=sisl.Atom(1, orbitals=orbital), lattice=[10.]*3)
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges(geometry.atoms.atom), out_matrix="density_matrix",
+        symmetric_matrix=symmetric, sub_point_matrix=False, n_matrix_components=components,
+    )
+    series = MatrixTimeSeriesState(3, processor)
+    for step, value in enumerate((1., 2., 4.)):
+        series.add_next_geometry(geometry.copy())
+        matrix = sisl.DensityMatrix(geometry, spin="polarized" if components == 2 else "unpolarized")
+        for i in range(2):
+            for j in range(2):
+                if step == 1 and (i != 0 or j != 0):
+                    continue
+                factor = 2 if symmetric and i != j else 1 + 2*i + j
+                raw = value * factor * np.array([1., 10.][:components])
+                matrix[i, j] = raw
+        matrix.finalize()
+        series.add_last_matrix(matrix)
+    before = [{key: value.copy() for key, value in config.matrix.block_dict.items()}
+              for config in series.configs]
+    series.add_next_geometry(geometry.copy())
+    actual = extrapolate_from_series(series, descriptor_manager=manager, descriptor_order=1)
+    # The series path includes the existing constant descriptor. With one
+    # observed pair, its least-squares weight is (1 + 4*S) / (1 + S).
+    squared_features = (21 if symmetric else 30) * (101 if components == 2 else 1)
+    weight = (1 + 4*squared_features) / (1 + squared_features)
+    expected = {(0, 0, 0): 8., (1, 1, 0): 16*weight, (0, 1, 0): 8*weight}
+    if manager is HistorySOAPs:
+        expected = {(0, 0, 0): 7/3, (1, 1, 0): 10., (0, 1, 0): 5.}
+    if not symmetric:
+        expected[1, 0, 0] = 12*weight if manager is HistoryCopy else 7.5
+    assert set(actual) == set(expected)
+    for key, value in expected.items():
+        block = value * np.array([1., 10.][:components])
+        block = block.reshape(1, 1, components) if components == 2 else block.reshape(1, 1)
+        np.testing.assert_allclose(actual[key], block, rtol=0, atol=1e-10)
+    for config, original in zip(list(series.configs)[:-1], before):
+        assert set(config.matrix.block_dict) == set(original)
+        for key, value in original.items():
+            np.testing.assert_array_equal(config.matrix.block_dict[key], value)
+
+
+@pytest.mark.parametrize("depth", [0, 1, 3])
+def test_extrapolation_without_any_historical_matrix_is_explicit(depth):
+    geometry = _geometry(two_orbitals=False)
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges(geometry.atoms.atom), out_matrix="density_matrix",
+        symmetric_matrix=True, sub_point_matrix=False,
+    )
+    series = MatrixTimeSeriesState(3, processor)
+    for _ in range(depth):
+        series.add_next_geometry(geometry.copy())
+    with pytest.raises(ValueError, match="historical matrix"):
+        extrapolate_from_series(series, descriptor_manager=HistoryCopy)
+
+
+@pytest.mark.parametrize("kind,cls,known", [
+    ("hamiltonian", sisl.Hamiltonian, True),
+    ("density_matrix", sisl.DensityMatrix, False),
+])
+def test_history_empty_sparse_blocks_keep_the_converters_missing_policy(kind, cls, known):
+    geometry = _geometry(two_orbitals=False)
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges(geometry.atoms.atom), out_matrix=kind,
+        symmetric_matrix=True, sub_point_matrix=False,
+    )
+    configs = [OrbitalConfiguration.from_matrix(
+        cls(geometry), metadata={"geometry": geometry},
+    ) for _ in range(2)]
+    configs.append(OrbitalConfiguration.from_geometry(geometry, metadata={"geometry": geometry}))
+    target = BasisMatrixData.from_config(configs[-1], processor, nsc=geometry.nsc)
+    history, missing = get_history_block_dicts(configs, target)
+    keys = {(0, 0, 0), (1, 1, 0), (0, 1, 0)}
+    assert set(history) == (keys if known else set())
+    for key in keys:
+        if known:
+            np.testing.assert_array_equal(history[key], np.zeros((2, 1, 1)))
+            assert not missing.get(key)
+        else:
+            assert missing[key] == [0, 1]
+    assert all(config.matrix.block_dict == {} for config in configs[:-1])
+
+
+@pytest.mark.parametrize("kind,cls,known", [
+    ("hamiltonian", sisl.Hamiltonian, True),
+    ("density_matrix", sisl.DensityMatrix, False),
+])
+def test_single_history_empty_sparse_matrix_is_zero_h_or_unknown_dm(kind, cls, known):
+    geometry = _geometry(two_orbitals=False)
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges(geometry.atoms.atom), out_matrix=kind,
+        symmetric_matrix=True, sub_point_matrix=False,
+    )
+    series = MatrixTimeSeriesState(1, processor)
+    series.add_next_geometry(geometry.copy())
+    series.add_last_matrix(cls(geometry))
+    series.add_next_geometry(geometry.copy())
+    if known:
+        result = extrapolate_from_series(series, descriptor_manager=HistoryCopy)
+        assert set(result) == {(0, 0, 0), (1, 1, 0), (0, 1, 0)}
+        for block in result.values():
+            np.testing.assert_array_equal(block, [[0.]])
+    else:
+        with pytest.raises(ValueError, match="observed historical matrix block"):
+            extrapolate_from_series(series, descriptor_manager=HistoryCopy)
+    assert series.configs[0].matrix.block_dict == {}

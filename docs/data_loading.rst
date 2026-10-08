@@ -54,6 +54,19 @@ its objective for complete histories. Histories retain both edge directions for
 non-symmetric matrices and mark image blocks outside an older auxiliary cell as
 missing instead of indexing a different image.
 
+Incomplete histories align descriptors with the available observations of each
+block. ``HistoryCopy`` retains its global matrix descriptor and existing
+constant/order terms; it selects columns present in those available frames.
+SOAP uses each frame's atom descriptors even when an onsite label is absent.
+NaN/Inf descriptor features in the target and unusable historical rows are
+excluded from the least-squares fit. Partially missing matrix labels are fitted
+independently per component; a component with no observation contributes zero
+correction. Entirely unknown DM/EDM blocks are omitted, while absent Hamiltonian
+entries retain their known-zero policy. Empty histories, or histories without
+any observed matrix block, raise ``ValueError`` instead of returning a fabricated
+prediction. Inputs are not modified, and complete histories keep the original
+least-squares objective and dtype.
+
 SOAP descriptors require ``graph2mat[extrapolation]``. They use atomic numbers,
 not arbitrary SIESTA atom tags, and honor each configuration's partial PBC.
 Local image vectors are Cartesian vectors from integer cell offsets and the

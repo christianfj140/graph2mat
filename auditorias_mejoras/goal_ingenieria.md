@@ -943,6 +943,45 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 - 3.5 implementado y verificado, sujeto a revisión final transversal, igual que
   3.6. Siguen abiertos **3.1, 3.4 y 3.9** y la revisión final de los cinco frentes.
 
+### Sublote 3.4.e — historiales incompletos, vacíos y no finitos
+
+- Lote previo de perfiles/ZIP comprometido como **ee337e9**. Este lote conserva
+  el alcance del goal; siguen abiertos 3.1, escritura física de 3.4 y cobertura 3.9.
+- RED reales: 23 fallos de alineación/vacíos/NaN (`incomplete-history-red.log`),
+  dos de política H-zero frente a DM-unknown (`history-missing-policy-red.log`)
+  y tres de coeficientes no finitos (`history-coefficients-red.log`). Sin mocks
+  del ajuste: series sisl y SOAP real, matrices simétricas/no simétricas, uno/dos
+  componentes, observaciones ausentes y entradas originales intactas.
+- HistoryCopy alinea el descriptor global con las observaciones disponibles de
+  cada bloque y selecciona sus columnas observadas. SOAP omite etiquetas onsite
+  ausentes sin reutilizar un descriptor atómico de otro frame para las aristas.
+  El helper existente block_coefficients conserva exactamente el least-squares
+  completo, y filtra features/filas no finitas. Etiquetas parciales se ajustan
+  por componente; sin observación contribuyen cero corrección. Bloques DM/EDM
+  totalmente desconocidos se omiten, H ausente conserva cero. Historia vacía o
+  sin bloque observado produce ValueError explícito, también con un solo frame.
+- Primera integración: **4 failed, 56 passed**; las cuatro expectativas nuevas
+  ignoraban el descriptor constante ya existente en extrapolate_from_series.
+  Se corrigió el oráculo literal (peso (1+4*S)/(1+S)), **no el objetivo del
+  producto**. 60 pruebas pasan, y cuatro caracterizaciones adicionales verifican
+  dtype/objetivo completo y la copia de un solo historial H-zero/DM-unknown.
+- Wheels nuevas con build constraints e instalación --force-reinstall --no-deps:
+  Python 3.9 sha256 `d4c1f180fc388c4dffd1de5800b1d1d8db5a65bf389877960732936755de3e45`,
+  Python 3.12 `42d4970f595f2702f38962e559179acefb878486888a966aa95d3afc31cdb8cd`.
+  Tests aislados -I/--pyargs desde /tmp: **64 passed** en cada versión,
+  49/55 warnings, 3.15/4.21 s (`python39-history-wheel-tests.log`,
+  `python312-history-wheel-tests.log`). No fallback a src ni instalación en el
+  entorno compartido. Los perfiles completos de ee337e9 son evidencia del lote
+  anterior, no de estas nuevas wheels completas.
+- Producto/tests congelados: suite CPU **1107 passed, 2 skipped**, 6765 warnings,
+  143.22 s, exit 0 (`incomplete-history-full-cpu.log`). Incremento: 32 casos.
+  Hooks reales Ruff/mypy Passed, exit 0 (`incomplete-history-ruff-hook.log`,
+  `incomplete-history-mypy-hook.log`); git diff --check limpio.
+- Documentación: docs/data_loading.rst explica compactación, no finitos y
+  política por tipo. No se modifican pérdidas, gradientes, API ni matrices
+  del llamador. Pendiente de 3.4: H con S/E_F/formato seguro, EDM en formato
+  escribible y rechazo explícito de H/EDM en la integración Lua de DM.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar
