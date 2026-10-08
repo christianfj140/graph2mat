@@ -496,3 +496,26 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   **2.64 s**, exit0, rango41a03f4..48a9f0f. Siguiente subplan concreto:
   `plan_forward_coeficientes.md`, flag por llamada Graph2Mat/MACE con defaults
   intactos. Collate/Lightning y medidas todavía no implementados/completados.
+
+### Task 1.e — forward coefficient-only Graph2Mat/MACE (verificado)
+
+- Subplan `plan_forward_coeficientes.md`, BASE `a5e6b63`. Flag por llamada,
+  defaults y state_dict intactos. Graph2Mat conserva filas por módulo y omite
+  bloques/flatten/merge/resorting; MACE agrega coeficientes single/sum/mean.
+  GC reentrante y long_range rechazan explícitamente esta ruta directa.
+- RED Graph **78 fallos**, 2.72 s; GREEN **78 pasan**, 2.43 s. RED MACE
+  **72 fallos**, 65.76 s; GREEN **72 pasan**, 66.65 s (63 no seleccionados).
+  Matrices reales, pérdidas y gradientes de todos los parámetros comparados;
+  reconstrucción prohibida durante la ruta nueva, geometrías periódicas incluidas.
+- RED adicional **2 fallos/1 control**: el helper robaba un keyword de la
+  operación. Flags internos posicional-only preservan ese dato legítimo.
+- Regresiones ampliadas **228 pasan**, 254 warnings, **4.11 s**, exit0.
+  Floor source Python3.9.25/Torch2.4.1cpu **244 pasan**, 63 no seleccionados,
+  1959 warnings, **85.96 s**, exit0. Sin nueva wheel.
+- Suite source CPU completa `forward-full-cpu.log`: **1974 pasan, 2 omitidos**,
+  20984 warnings, **461.56 s**, exit0. Logs en
+  `/tmp/g2m-precision-goal.A2Pbgk/`; producto sin cambios durante el gate.
+- Ruff explícito/all-files, mypy-core, compileall39 y diff --check verdes.
+- **Integración training aún abierta**: collate CPU, Lightning, métricas epoch/
+  DDP y fallback para callbacks/objetivos no certificados. No medida GPU,
+  entrenamiento de precisión ni cierre de 5.3/goal por estas pruebas CPU.

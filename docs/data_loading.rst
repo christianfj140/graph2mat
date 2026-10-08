@@ -151,8 +151,15 @@ orthogonal residual. ``coefficient_matrix_mse`` weights both edge SSE and elemen
 count by ``edge_weight`` and keeps its products outside external autocast.
 Whole missing blocks have connected zero gradients; partial NaN blocks, unsupported
 RTP groups or masks cutting a local support raise ``CoefficientMSEUnsupported``
-to request the ordinary matrix route. This candidate is not yet connected to the
-Graph2Mat/MACE/Lightning training loop and does not change any default loss.
+to request the ordinary matrix route. Graph2Mat and MatrixMACE expose
+``forward(..., coefficients_only=True)``: Graph2Mat returns node/edge/metadata
+dictionaries, and MatrixMACE returns node_coefficients/edge_coefficients plus
+metadata, without node/edge labels. Sum/mean per-interaction aggregation is
+unchanged. Default forwards still return their original matrix labels.
+MatrixMACE rejects coefficient-only calls with reentrant gradient checkpointing
+or long-range label corrections; their callers must use matrix mode. The new
+route is not yet connected to CPU collate or Lightning's training/epoch logging,
+and does not change any default loss.
 Factors in prepared targets share the CPU snapshot and must be consumed read-only.
 
 Gauge H and optional predicted S use independent valid-element means, with the

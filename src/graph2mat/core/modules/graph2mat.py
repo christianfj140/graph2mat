@@ -703,7 +703,8 @@ class Graph2Mat(Generic[ArrayType]):
         edge_operation_node_kwargs: Dict[str, ArrayType] = {},
         edge_operation_global_kwargs: dict = {},
         return_coefficients: bool = False,
-    ) -> Union[Tuple[ArrayType, ArrayType], Tuple[ArrayType, ArrayType, dict]]:
+        coefficients_only: bool = False,
+    ) -> Union[Tuple[ArrayType, ArrayType], Tuple[ArrayType, ArrayType, dict], dict]:
         """Computes the matrix elements.
 
         .. note::
@@ -770,6 +771,10 @@ class Graph2Mat(Generic[ArrayType]):
         edge_operation_global_kwargs: dict = {},
             Arguments to pass to edge operations that are global. They will be passed
             to each function as provided.
+        coefficients_only: bool = False
+            Return operation-wise node/edge coefficients and metadata, without
+            matrix labels or resorting. Delegates to each block's coefficient
+            API; callers must certify that API for matrix-free training.
 
         Returns
         -----------
@@ -779,6 +784,7 @@ class Graph2Mat(Generic[ArrayType]):
             All the edge blocks, flattened and concatenated.
         """
 
+        return_coefficients = return_coefficients or coefficients_only
         requested_edge_data = getattr(
             self.edge_operation_cls,
             "_data_get_edge_args",
@@ -870,8 +876,11 @@ class Graph2Mat(Generic[ArrayType]):
             global_kwargs=node_operation_global_kwargs,
             return_coefficients=return_coefficients,
             layout=layout,
+            coefficients_only=coefficients_only,
         )
-        if return_coefficients:
+        if coefficients_only:
+            node_coefficients = cast(dict, node_result)
+        elif return_coefficients:
             node_labels, node_coefficients = cast(Tuple[ArrayType, dict], node_result)
         else:
             node_labels = cast(ArrayType, node_result)
@@ -885,13 +894,19 @@ class Graph2Mat(Generic[ArrayType]):
             global_kwargs=edge_operation_global_kwargs,
             return_coefficients=return_coefficients,
             layout=layout,
+            coefficients_only=coefficients_only,
         )
-        if return_coefficients:
+        if coefficients_only:
+            edge_coefficients = cast(dict, edge_result)
+        elif return_coefficients:
             edge_labels, edge_coefficients = cast(Tuple[ArrayType, dict], edge_result)
         else:
             edge_labels = cast(ArrayType, edge_result)
 
         # Return both the node and edge labels.
+        if coefficients_only:
+            return {"node": node_coefficients, "edge": edge_coefficients,
+                    "metadata": self.coefficient_metadata()}
         if return_coefficients:
             return (
                 node_labels,
@@ -924,7 +939,8 @@ class Graph2Mat(Generic[ArrayType]):
         global_kwargs,
         return_coefficients: bool = False,
         layout: Optional[dict] = None,
-    ) -> Union[ArrayType, Tuple[ArrayType, dict]]:
+        coefficients_only: bool = False,
+    ) -> Union[ArrayType, Tuple[ArrayType, dict], dict]:
         outputs = []
         coefficients = {}
 
@@ -937,12 +953,17 @@ class Graph2Mat(Generic[ArrayType]):
                 output, coefficients[f"node:{node_type}"] = self._evaluate_block(
                     func,
                     return_coefficients,
+                    coefficients_only,
                     **{key: value[index] for key, value in node_kwargs.items()},
                     **global_kwargs,
                 )
+                if coefficients_only:
+                    continue
                 outputs.append(
                     output.reshape(-1, output.shape[-1]) if output.ndim == 4 else output.ravel()
                 )
+            if coefficients_only:
+                return coefficients
             if len(outputs) == 0:
                 empty = self._empty_labels(node_types)
                 return (empty, coefficients) if return_coefficients else empty
@@ -967,14 +988,18 @@ class Graph2Mat(Generic[ArrayType]):
 
             # If there are, compute the blocks.
             output, coefficients[f"node:{node_type}"] = self._evaluate_block(
-                func, return_coefficients, **filtered_kwargs, **global_kwargs
+                func, return_coefficients, coefficients_only, **filtered_kwargs, **global_kwargs
             )
+            if coefficients_only:
+                continue
             # Flatten the blocks
             if output.ndim == 4:
                 outputs.append(output.reshape(-1, output.shape[-1]))
             else:
                 outputs.append(output.ravel())
 
+        if coefficients_only:
+            return coefficients
         if len(outputs) == 0:
             # No point has basis functions.
             empty = self._empty_labels(node_types)
@@ -1004,7 +1029,8 @@ class Graph2Mat(Generic[ArrayType]):
         global_kwargs: dict = {},
         return_coefficients: bool = False,
         layout: Optional[dict] = None,
-    ) -> Union[ArrayType, Tuple[ArrayType, dict]]:
+        coefficients_only: bool = False,
+    ) -> Union[ArrayType, Tuple[ArrayType, dict], dict]:
         """Computation of edge blocks."""
 
         outputs = []
@@ -1024,6 +1050,7 @@ class Graph2Mat(Generic[ArrayType]):
                 output, coefficients[f"edge:{module_key}"] = self._evaluate_block(
                     func,
                     return_coefficients,
+                    coefficients_only,
                     **{key: (value[i_index], value[j_index]) for key, value in edge_kwargs.items()},
                     **{
                         key: (value[edge_index[0, i_index]], value[edge_index[1, i_index]])
@@ -1031,9 +1058,13 @@ class Graph2Mat(Generic[ArrayType]):
                     },
                     **global_kwargs,
                 )
+                if coefficients_only:
+                    continue
                 outputs.append(
                     output.reshape(-1, output.shape[-1]) if output.ndim == 4 else output.reshape(-1)
                 )
+            if coefficients_only:
+                return coefficients
             if len(outputs) == 0:
                 empty = self._empty_labels(edge_index)
                 return (empty, coefficients) if return_coefficients else empty
@@ -1114,10 +1145,14 @@ class Graph2Mat(Generic[ArrayType]):
             output, coefficients[f"edge:{module_key}"] = self._evaluate_block(
                 func,
                 return_coefficients,
+                coefficients_only,
                 **filtered_edge_kwargs,
                 **filtered_node_kwargs,
                 **global_kwargs,
             )
+
+            if coefficients_only:
+                continue
 
             # One flattened row per edge (the two directions of a heteronuclear edge type
             # have transposed block shapes, so they can only be joined once flattened).
@@ -1151,6 +1186,8 @@ class Graph2Mat(Generic[ArrayType]):
 
             outputs.append(output)
 
+        if coefficients_only:
+            return coefficients
         if len(outputs) == 0:
             # No edges (e.g. isolated atoms): nothing to resort.
             empty = self._empty_labels(edge_index)
@@ -1173,8 +1210,12 @@ class Graph2Mat(Generic[ArrayType]):
         return edge_labels
 
     @staticmethod
-    def _evaluate_block(func, return_coefficients: bool, **kwargs):
+    def _evaluate_block(func, return_coefficients: bool, coefficients_only: bool = False, /, **kwargs):
         """Returns (block, coefficients or None), evaluating the block operation once."""
+        if coefficients_only:
+            if not callable(getattr(func, "forward_coefficients", None)):
+                raise ValueError("coefficients_only=True requires forward_coefficients().")
+            return None, func.forward_coefficients(**kwargs)
         if not return_coefficients:
             return func(**kwargs), None
         if hasattr(func, "forward_with_coefficients"):

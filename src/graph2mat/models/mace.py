@@ -403,7 +403,8 @@ class MatrixMACE(torch.nn.Module):
         }
 
     def forward(
-        self, data: TorchBasisMatrixData, compute_force: bool = False, **kwargs
+        self, data: TorchBasisMatrixData, compute_force: bool = False,
+        coefficients_only: bool = False, **kwargs
     ) -> dict[str, torch.Tensor]:
         """Forward pass of the model.
 
@@ -413,6 +414,10 @@ class MatrixMACE(torch.nn.Module):
             Input data.
         compute_force :
             Passed directly to the ``compute_force`` argument of the MACE model.
+        coefficients_only :
+            Return only the matrix readout's coefficient dictionaries, not its
+            labels. Default outputs/checkpoints are unchanged. Reentrant
+            gradient checkpointing and long-range labels require matrix mode.
         **kwargs :
             Additional keyword arguments to pass to the MACE
             model for the forward pass.
@@ -423,19 +428,21 @@ class MatrixMACE(torch.nn.Module):
             The output of the MACE model, with the additional keys "node_labels"
             and "edge_labels" containing the output of ``Graph2Mat``.
         """
+        if coefficients_only and (self.gradient_checkpointing or self.charge_readout is not None):
+            raise ValueError("coefficients_only is unsupported with gradient_checkpointing or long_range; use matrix mode.")
         mp_data = self._message_passing_data(data)
         if self.lean_mace and not compute_force:
             mace_out = {"node_feats": mace_node_feats(self.mace, mp_data, self.gradient_checkpointing)}
         else:
             mace_out = self.mace(mp_data, compute_force=compute_force, **kwargs)
         if not self.readout_fp32:
-            return self._checkpointed_readout(data, mace_out)
+            return self._checkpointed_readout(data, mace_out, coefficients_only)
 
         # MACE may run in reduced precision (bf16/fp16 autocast), but matrix elements
         # need ~1e-4 relative precision (bf16 rounds a 10 eV element in steps of ~60 meV).
         node_feats = mace_out["node_feats"]
         with torch.autocast(device_type=node_feats.device.type, enabled=False):
-            return self._checkpointed_readout(data, {**mace_out, "node_feats": node_feats.float()})
+            return self._checkpointed_readout(data, {**mace_out, "node_feats": node_feats.float()}, coefficients_only)
 
     def compile_submodules(self, mode: Optional[str] = None) -> None:
         """torch.compile, in place, the MACE layers and every readout operation.
@@ -465,9 +472,9 @@ class MatrixMACE(torch.nn.Module):
         for module in modules:
             module.compile(dynamic=True, mode=mode)
 
-    def _checkpointed_readout(self, data: TorchBasisMatrixData, mace_out: dict) -> dict:
+    def _checkpointed_readout(self, data: TorchBasisMatrixData, mace_out: dict, coefficients_only: bool = False) -> dict:
         if not (self.gradient_checkpointing and torch.is_grad_enabled()):
-            return self._readout(data, mace_out)
+            return self._readout(data, mace_out, coefficients_only)
 
         # Reentrant (see mace_node_feats): only tensor arguments and outputs.
         def labels(node_feats):
@@ -492,7 +499,7 @@ class MatrixMACE(torch.nn.Module):
         mp_data["shifts"] = data["shifts"][short]
         return mp_data
 
-    def _readout(self, data: TorchBasisMatrixData, mace_out: dict) -> dict:
+    def _readout(self, data: TorchBasisMatrixData, mace_out: dict, coefficients_only: bool = False) -> dict:
         """Applies the Graph2Mat readout(s) to the MACE output."""
         # Compute edge feats and edge attrs from the modules in the mace model
         # (we can't access them from the model because they are not stored/outputted,
@@ -541,14 +548,19 @@ class MatrixMACE(torch.nn.Module):
         # data._edge_attrs_keys = (*data._edge_attrs_keys, "edge_attrs", "edge_feats")
 
         # Apply the readouts.
+        need_coefficients = self.return_coefficients or coefficients_only
+        coefficient_kwargs = {"coefficients_only": True} if coefficients_only else {}
         if not self.readout_per_interaction:
             # Readout from the whole set of features
             readout_output = self.matrix_readouts(
                 data=data_for_readout,
                 node_feats=node_feats,
-                return_coefficients=self.return_coefficients,
+                return_coefficients=need_coefficients,
+                **coefficient_kwargs,
             )
-            if self.return_coefficients:
+            if coefficients_only:
+                coefficients = readout_output
+            elif self.return_coefficients:
                 node_labels, edge_labels, coefficients = readout_output
             else:
                 node_labels, edge_labels = readout_output
@@ -574,16 +586,20 @@ class MatrixMACE(torch.nn.Module):
                 readout_output = readout(
                     data=data_for_readout,
                     node_feats=inter_node_feats,
-                    return_coefficients=self.return_coefficients,
+                    return_coefficients=need_coefficients,
+                    **coefficient_kwargs,
                 )
-                if self.return_coefficients:
-                    if len(readout_output) != 3:
+                if need_coefficients:
+                    if not coefficients_only and len(readout_output) != 3:
                         raise ValueError(
                             "return_coefficients=True with "
                             "readout_per_interaction=True requires every readout "
                             "to return (node_labels, edge_labels, coefficients)."
                         )
-                    node_labels, edge_labels, readout_coefficients = readout_output
+                    if coefficients_only:
+                        readout_coefficients = readout_output
+                    else:
+                        node_labels, edge_labels, readout_coefficients = readout_output
                     node_coefficients_list.append(readout_coefficients["node"])
                     edge_coefficients_list.append(readout_coefficients["edge"])
                     coefficient_metadata = readout_coefficients.get(
@@ -592,12 +608,14 @@ class MatrixMACE(torch.nn.Module):
                 else:
                     node_labels, edge_labels = readout_output
 
-                node_labels_list.append(node_labels)
-                edge_labels_list.append(edge_labels)
+                if not coefficients_only:
+                    node_labels_list.append(node_labels)
+                    edge_labels_list.append(edge_labels)
 
-            node_labels = self._aggregate_interaction_tensors(node_labels_list)
-            edge_labels = self._aggregate_interaction_tensors(edge_labels_list)
-            if self.return_coefficients:
+            if not coefficients_only:
+                node_labels = self._aggregate_interaction_tensors(node_labels_list)
+                edge_labels = self._aggregate_interaction_tensors(edge_labels_list)
+            if need_coefficients:
                 coefficients = {
                     "node": self._aggregate_interaction_coefficients(
                         node_coefficients_list, kind="node"
@@ -608,8 +626,10 @@ class MatrixMACE(torch.nn.Module):
                     "metadata": coefficient_metadata,
                 }
 
-        output = {**mace_out, "node_labels": node_labels, "edge_labels": edge_labels}
-        if self.return_coefficients:
+        output = {**mace_out}
+        if not coefficients_only:
+            output.update(node_labels=node_labels, edge_labels=edge_labels)
+        if need_coefficients:
             output["node_coefficients"] = coefficients["node"]
             output["edge_coefficients"] = coefficients["edge"]
             output["coefficient_metadata"] = coefficients.get("metadata", {})

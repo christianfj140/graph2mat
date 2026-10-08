@@ -156,3 +156,65 @@ def test_full_mace_interaction_coefficients_match_matrix_targets(model_and_proce
     loss.backward()
     assert any(parameter.grad is not None and torch.any(parameter.grad != 0)
                for parameter in model.parameters())
+
+
+@pytest.mark.parametrize("components", [1, 2])
+@pytest.mark.parametrize("readout_mode", ["single", "sum", "mean"])
+def test_full_mace_coefficient_only_matches_matrix_mse(monkeypatch, model_and_processor, geometry, components, readout_mode):
+    from graph2mat.bindings.torch.data.coefficient_targets import CoefficientMatrixMSEProjector, coefficient_matrix_mse
+
+    original, processor, _ = model_and_processor
+    torch.manual_seed(4)
+    grouping = {"single": "point_type", "sum": "max", "mean": "basis_shape"}[readout_mode]
+    wrapper = LitMACEMatrixModel(
+        basis_table=original.basis_table, symmetric_matrix=True,
+        hidden_irreps="2x0e+2x1o+2x2e", edge_hidden_irreps="2x0e+2x1o+2x2e",
+        num_bessel=3, max_ell=2, num_interactions=2, correlation=2,
+        n_matrix_components=components, basis_grouping=grouping,
+        readout_per_interaction=readout_mode != "single",
+        readout_interaction_aggregation="mean" if readout_mode == "mean" else "sum",
+    ).eval()
+    model = wrapper.model
+    data = TorchBasisMatrixData.from_config(OrbitalConfiguration.from_geometry(geometry), data_processor=processor)
+    dense = model(data)
+    data.point_labels = torch.randn_like(dense["node_labels"])
+    data.edge_labels = torch.randn_like(dense["edge_labels"])
+    targets = CoefficientMatrixMSEProjector(model.matrix_readouts)(data, data.point_labels, data.edge_labels)
+    expected = ((dense["node_labels"] - data.point_labels).square().sum()
+                + 2 * (dense["edge_labels"] - data.edge_labels).square().sum())
+    expected = expected / (data.point_labels.numel() + 2 * data.edge_labels.numel())
+    parameters = list(model.parameters())
+    expected_gradients = torch.autograd.grad(expected, parameters, allow_unused=True)
+    state_keys = set(model.state_dict())
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("MatrixMACE reconstructed a block in coefficient-only mode")
+
+    readouts = model.matrix_readouts if isinstance(model.matrix_readouts, torch.nn.ModuleList) else [model.matrix_readouts]
+    for readout in readouts:
+        for operation in [*readout.self_interactions, *readout.interactions.values()]:
+            if operation is not None:
+                monkeypatch.setattr(operation, "coefficients_to_block", forbidden)
+    out = model(data, coefficients_only=True)
+    assert "node_labels" not in out and "edge_labels" not in out
+    assert not model.return_coefficients and set(model.state_dict()) == state_keys
+    predictions = {kind: out[f"{kind}_coefficients"] for kind in ("node", "edge")}
+    actual, _ = coefficient_matrix_mse(predictions, targets, edge_weight=2.)
+    torch.testing.assert_close(actual, expected, atol=1e-12, rtol=1e-12)
+    for gradient, reference in zip(torch.autograd.grad(actual, parameters, allow_unused=True), expected_gradients):
+        assert (gradient is None) == (reference is None)
+        if gradient is not None:
+            torch.testing.assert_close(gradient, reference, atol=1e-12, rtol=1e-12)
+
+
+@pytest.mark.parametrize("unsupported", ["gradient_checkpointing", "long_range"])
+def test_mace_coefficient_only_rejects_matrix_dependencies(monkeypatch, model_and_processor, geometry, unsupported):
+    wrapper, processor, _ = model_and_processor
+    model = wrapper.model
+    data = TorchBasisMatrixData.from_config(OrbitalConfiguration.from_geometry(geometry), data_processor=processor)
+    if unsupported == "gradient_checkpointing":
+        monkeypatch.setattr(model, "gradient_checkpointing", True)
+    else:
+        monkeypatch.setattr(model, "charge_readout", torch.nn.Identity())
+    with pytest.raises(ValueError, match="coefficients_only|coefficient-only"):
+        model(data, coefficients_only=True)
