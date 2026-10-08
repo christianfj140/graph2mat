@@ -77,7 +77,7 @@ El atributo externo contiene dict node/edge o string de fallback.
   no cast que descarta imaginarios. Expected: fallback explícito, real sin cambios.
 - [x] Step 5: selección nueva+MSE+orientation+workers previos, floor3.9, suite
   CPU completa, Ruff/mypy/compile39/diff. Expected: exit0 con outputs leídos.
-- [ ] Step 6: documentar runtime/ownership/límites, commit explícito y task-done:
+- [x] Step 6: documentar runtime/ownership/límites, commit explícito y task-done:
   `python -m pytest -q src/graph2mat/tools/lightning/tests/test_coefficient_target_collate.py`.
   Expected: exit0; sin cerrar5.3/goal ni atribuir ganancia GPU.
 

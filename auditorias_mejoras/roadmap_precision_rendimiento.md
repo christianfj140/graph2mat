@@ -546,3 +546,5 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
 - Ruff selección explícita/all-files, mypy-core, compileall39 y diff verdes.
   Sin wheels/GPU nuevos. **Training_step/epoch/DDP todavía pendientes**;
   siguiente subplan `plan_training_irreps_lightning.md`. 5.3/goal no cerrados.
+- Producto **5999120**. Task-done real **29 pasan**, 150 warnings,
+  **37.03 s**, exit0, rango6b40f2c..5999120.
