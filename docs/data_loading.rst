@@ -132,6 +132,15 @@ are concatenated within each coefficient row, not mixed with matrix-element
 indices. Compatible per-interaction readouts share one target coordinate system;
 their aggregated coefficients use the same epoch denominators. These extensions
 do not change the single-component contract of the physical Huber/composite loss.
+Coefficient projection/reconstruction follows the signed operation and physical
+orbital orientation for ``point_type`` and ``basis_shape`` grouping. Points and
+edges without basis functions do not require coefficients. Reconstruction with
+``max`` grouping crops the padded blocks to their physical basis, including
+directed edges and multiple components. Direct coefficient targets with genuine
+padding are rejected: the labels do not uniquely determine unobserved grouped
+coefficients, and zero-padding would impose additional targets. Use a matrix
+loss until a separately certified masked coefficient objective is available.
+``max`` without padding still admits the exact projection.
 Gauge H and optional predicted S use independent valid-element means, with the
 configured edge weight. Alignment ignores any H/S reference row with a NaN
 component before subtraction; missing rows have zero gradients. Empty gauge

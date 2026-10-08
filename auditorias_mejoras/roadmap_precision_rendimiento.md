@@ -345,3 +345,60 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   preparar targets fuera del hot path y el camino de entrenamiento en irreps.
 - No hay procesos de prueba de este sublote pendientes; GPU/autorun/colas
   ajenos permanecen intactos. Goal general sigue **active**, sin cierre solicitado.
+
+### Task 1.b — orientación y observación física (implementación verificada)
+
+- Plan `plan_coeficientes_orientacion.md`; BASE
+  `e2a906afe35712faa2ead980eb7f0a6b093e3153`; ejecución directa, misma rama.
+- Callers de targets/reconstrucción/pérdidas/Lightning/output_scaleshift y
+  forward/resorting de Graph2Mat leídos. Sin cambios en pesos ni componentes.
+- RED inicial: **33 fallos, 9 pasan**, 189 warnings, 1.45 s;
+  `/tmp/g2m-precision-goal.A2Pbgk/orientation-red.log`. Cuatro fallos eran la
+  fixture de ghost: PointBasis usa [] para ausencia, no string vacío.
+  Corregida la fixture y observado **RED 4 fallos reales** (módulo None).
+- Causas: abs agrupado mezclaba módulos +/− en matrices dirigidas; bloques
+  físicos negativos no invertían dimensiones; agrupación basis_shape puede
+  invertir la orientación original. Padding requería filtros y conteos físicos.
+- Parche compartido: conservar signo al seleccionar módulos, transponer ejes
+  orbitales en la orientación agrupada simétrica invertida y respetar forma
+  dirigida original. Omitir operaciones None, sin exigir coeficientes ghost.
+  Reconstrucción max recorta con los filtros existentes por tipo físico.
+- Ruling: **targets completos con padding no están determinados** por las
+  etiquetas observadas. Rechazar con ValueError que solicita pérdida en
+  matrices/enmascarada; no agregar ceros como nuevos objetivos. Max sin padding
+  sí admite proyección. No se da por cerrada la equivalencia padded de 5.3.
+- Ruling de compatibilidad: los readouts ligeros pueden carecer de filtros;
+  usar getattr. Mantener el conteo por coeficientes sin padding, porque la
+  selección histórica admite representantes no pareados. Con padding, usar
+  filas de edge_labels si existen, o el conteo físico de pares del forward.
+- GREEN enfocado final: **130 pasan**, 345 warnings, **3.76 s**, exit 0;
+  `orientation-green-final2.log`. Incluye 42 casos nuevos: rectángulos s/p,
+  sp/s, d/f, 1/2 componentes, ambos signos, readouts reales, fantasmas, targets
+  no observables y max sin padding. Valores/gradientes con tolerancia 1e-12.
+- Primer gate completo se lanzó antes del último ajuste de conteo: **1 falla,
+  1643 pasan, 2 omitidos**, 351.99 s (`orientation-full-cpu.log`). El proceso
+  ya había importado el módulo anterior; se registra rojo, no como evidencia
+  del último source. Fallo: test_coefficient_space_mse_aligns_targets_with_symmetric_label_reconstruction.
+- Repetición completa desde proceso nuevo, source final: **1644 pasan,
+  2 omitidos**, 11931 warnings, **353.01 s**, exit 0;
+  `orientation-full-cpu-final.log`, con el comando CPU de Task 1.a sin selección.
+- Ruff all-files y selección con el nuevo test, mypy-core py39, compileall
+  con Python3.9 y git diff --check pasan. No se han reconstruido wheels para
+  este sublote; las wheels/155 tests del bloque previo no lo certifican.
+- GPU read-only actualizada: RTX5090 **22559/32607 MiB, 95%**; sin lanzamientos
+  propios ni interrupciones/cambios en procesos ajenos.
+- **Beneficio: corrección de asociación verificada, no ganancia GPU/precisión
+  de entrenamiento medida.** Goal general activo; Task 1 aún en curso.
+- Siguiente subproyecto diseñado: `plan_irreps_sin_bloques.md`, kernel
+  forward_coefficients simetrizado con mapas locales O(K), sin operador K×K.
+  Exploración matemática CPU: 1/16/256/1024 coeficientes, residuo de intercambio
+  0 float32 y <=1.56e-15 float64. No es un benchmark. Error de ortogonalidad
+  de Q <=1.2e-7 float32 y <=3.11e-15 float64; considerar dtype real al certificar
+  MSE, no asumir identidad numérica bit a bit tras cast.
+- Nota de diseño para 5.3: filtros max seleccionan copias angulares completas.
+  En RTP ij y nodos ij=ji pueden definir coeficientes observables por sus soportes
+  locales; probarlo antes de implementar una máscara de pérdida. Simetrías
+  ajenas y NaN parciales requieren certificado específico o fallback en matrices.
+- Todavía faltan ruta integrada Graph2Mat/MACE/Lightning, targets CPU,
+  equivalencia de pesos/MSE, fallback/diagnósticos/callbacks y medidas. Tasks 2–4
+  no se reemplazan por estos prerrequisitos.

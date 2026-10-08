@@ -208,12 +208,12 @@ def _flatten_reconstructed_block(block):
 
 
 def _edge_module_for_unique_type(readout, edge_type: int):
-    graph_edge_type = int(
-        abs(_map_types(readout.edge_types_to_graph2mat, [edge_type])[0])
-    )
+    graph_edge_type = int(_map_types(readout.edge_types_to_graph2mat, [edge_type])[0])
+    if readout.symmetric:
+        graph_edge_type = abs(graph_edge_type)
     for module_key, operation in readout.interactions.items():
         _, _, op_edge_type = map(int, module_key[1:-1].split(","))
-        if abs(op_edge_type) == graph_edge_type:
+        if op_edge_type == graph_edge_type:
             return module_key, operation
     raise KeyError(f"No readout edge operation found for edge type {edge_type}")
 
@@ -348,6 +348,12 @@ def target_coefficients_from_labels(
     readout operation, plus ``metadata`` describing those operations.
     """
     readout = _coefficient_readout(readout)
+    basis_filters = getattr(readout, "basis_filters", None)
+    if basis_filters is not None and not np.all(basis_filters):
+        raise ValueError(
+            "Coefficient targets with padding require a masked matrix loss; "
+            "unobserved grouped elements cannot be assigned zero targets."
+        )
     n_components = getattr(readout, "n_matrix_components", 1)
     component_shape = () if n_components == 1 else (n_components,)
     for reference in (nodes_ref, edges_ref):
@@ -367,6 +373,8 @@ def target_coefficients_from_labels(
     for atom_index, point_type in enumerate(point_types):
         op_key = f"node:{graph_node_types[atom_index]}"
         operation = readout.self_interactions[int(graph_node_types[atom_index])]
+        if operation is None:
+            continue
         shape = tuple(int(x) for x in basis_table.point_block_shape[:, point_type])
         block = point_labels[
             point_pointers[atom_index] : point_pointers[atom_index + 1]
@@ -387,11 +395,17 @@ def target_coefficients_from_labels(
     edge_coeffs: Dict[str, list[Any]] = {}
     for unique_edge_index, edge_type in enumerate(edge_types):
         module_key, operation = _edge_module_for_unique_type(readout, int(edge_type))
+        if operation is None:
+            continue
         op_key = f"edge:{module_key}"
         shape = tuple(int(x) for x in basis_table.edge_block_shape[:, abs(edge_type)])
+        if edge_type < 0:
+            shape = shape[::-1]
         block = edge_labels[
             edge_pointers[unique_edge_index] : edge_pointers[unique_edge_index + 1]
         ].reshape(shape + component_shape)
+        if readout.symmetric and _map_types(readout.edge_types_to_graph2mat, [edge_type])[0] < 0:
+            block = block.transpose(0, 1)
         coeff = project_block_to_coefficients(
             block.unsqueeze(0), operation.change_of_basis
         ).squeeze(0)
@@ -416,32 +430,48 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
     node_coeffs = _coefficient_values(coefficients, "node")
     node_offsets = {key: 0 for key in node_coeffs}
     node_parts = []
+    node_filters = getattr(readout, "node_filters", None)
 
-    for graph_node_type in graph_node_types:
+    for point_type, graph_node_type in zip(point_types, graph_node_types):
         op_key = f"node:{graph_node_type}"
+        operation = readout.self_interactions[int(graph_node_type)]
+        if operation is None:
+            continue
         if op_key not in node_coeffs:
             raise ValueError(f"Missing predicted node coefficients for {op_key}.")
 
-        operation = readout.self_interactions[int(graph_node_type)]
         offset = node_offsets[op_key]
         coeff = node_coeffs[op_key][offset : offset + 1]
         node_offsets[op_key] += 1
-        node_parts.append(
-            _flatten_reconstructed_block(_coefficients_to_block(operation, coeff))
-        )
+        labels = _flatten_reconstructed_block(_coefficients_to_block(operation, coeff))
+        if node_filters is not None:
+            labels = labels[node_filters[point_type].ravel()]
+        node_parts.append(labels)
 
     edge_coeffs = _coefficient_values(coefficients, "edge")
+    edge_filters = getattr(readout, "edge_filters", None)
+    if (getattr(readout, "symmetric", None) is True
+            and edge_filters is not None and not np.all(edge_filters)):
+        # Counts must describe physical rows, not padded grouped block elements.
+        original_types = _as_numpy_int(_batch_field(batch, "edge_types"))
+        reference = _batch_field(batch, "edge_labels")
+        expected_nlabels = (len(reference) if reference is not None else
+                            int(basis_table.edge_block_pointer(np.abs(original_types[::2]))[-1]))
+    else:
+        expected_nlabels = _edge_label_count_from_coefficients(readout, coefficients)
     edge_types = _symmetric_edge_types_for_labels(
         readout=readout,
         batch=batch,
         basis_table=basis_table,
-        expected_nlabels=_edge_label_count_from_coefficients(readout, coefficients),
+        expected_nlabels=expected_nlabels,
     )
     edge_offsets = {key: 0 for key in edge_coeffs}
     edge_parts = []
 
     for edge_type in edge_types:
         module_key, operation = _edge_module_for_unique_type(readout, int(edge_type))
+        if operation is None:
+            continue
         op_key = f"edge:{module_key}"
         if op_key not in edge_coeffs:
             raise ValueError(f"Missing predicted edge coefficients for {op_key}.")
@@ -449,9 +479,13 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
         offset = edge_offsets[op_key]
         coeff = edge_coeffs[op_key][offset : offset + 1]
         edge_offsets[op_key] += 1
-        edge_parts.append(
-            _flatten_reconstructed_block(_coefficients_to_block(operation, coeff))
-        )
+        block = _coefficients_to_block(operation, coeff)
+        if readout.symmetric and _map_types(readout.edge_types_to_graph2mat, [edge_type])[0] < 0:
+            block = block.transpose(1, 2)
+        labels = _flatten_reconstructed_block(block)
+        if edge_filters is not None:
+            labels = labels[edge_filters[edge_type].ravel()]
+        edge_parts.append(labels)
 
     for kind, offsets, values in (
         ("node", node_offsets, node_coeffs),
