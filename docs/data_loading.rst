@@ -126,7 +126,12 @@ sum of batch counts. Missing operations contribute no weight; all ranks log the
 same ordered schema, even with disjoint species/pairs. A projected block with a
 NaN coefficient is unobserved as a whole: partial matrix labels cannot determine
 its full irreducible coefficients. Empty/unobserved coefficients have connected
-zero gradients. The existing flat single-component H-only contract is unchanged.
+zero gradients. Coefficient targets and MSE/MAE also accept label rows with
+multiple matrix components, provided their count matches the readout. Components
+are concatenated within each coefficient row, not mixed with matrix-element
+indices. Compatible per-interaction readouts share one target coordinate system;
+their aggregated coefficients use the same epoch denominators. These extensions
+do not change the single-component contract of the physical Huber/composite loss.
 Gauge H and optional predicted S use independent valid-element means, with the
 configured edge weight. Alignment ignores any H/S reference row with a NaN
 component before subtraction; missing rows have zero gradients. Empty gauge

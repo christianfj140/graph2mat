@@ -224,6 +224,25 @@ def _readout_coefficient_metadata(readout) -> dict:
     return {}
 
 
+def _coefficient_readout(readout):
+    """Resolve the common output coordinates of per-interaction readouts."""
+    if torch is None or not isinstance(readout, torch.nn.ModuleList):
+        return readout
+    if len(readout) == 0:
+        raise ValueError("Coefficient targets require at least one readout.")
+    first = readout[0]
+    metadata = _readout_coefficient_metadata(first)
+    if not metadata:
+        raise ValueError("Coefficient targets require readout coefficient metadata.")
+    for other in readout[1:]:
+        if (_readout_coefficient_metadata(other) != metadata
+                or other.basis_table != first.basis_table
+                or other.basis_grouping != first.basis_grouping
+                or other.symmetric != first.symmetric):
+            raise ValueError("Per-interaction readouts must have compatible coefficient coordinates.")
+    return first
+
+
 def _coefficient_values(coefficients: dict, kind: str) -> dict:
     if kind not in coefficients:
         raise ValueError(f"Missing {kind} coefficient outputs.")
@@ -323,19 +342,24 @@ def target_coefficients_from_labels(
     nodes_ref,
     edges_ref,
 ) -> dict:
-    """Project flat target labels into the readout coefficient space.
+    """Project target label rows into the readout coefficient space.
 
     Returns a dictionary with ``node`` and ``edge`` coefficient tensors keyed by
     readout operation, plus ``metadata`` describing those operations.
     """
-    if nodes_ref.ndim != 1 or edges_ref.ndim != 1:
-        raise ValueError(
-            "coefficient-space metrics currently support only flat single-component "
-            "labels. Use n_matrix_components=1 with an H-only target."
-        )
+    readout = _coefficient_readout(readout)
+    n_components = getattr(readout, "n_matrix_components", 1)
+    component_shape = () if n_components == 1 else (n_components,)
+    for reference in (nodes_ref, edges_ref):
+        if (reference.ndim not in (1, 2)
+                or (1 if reference.ndim == 1 else reference.shape[1]) != n_components):
+            raise ValueError(
+                f"Coefficient targets must have {n_components} matrix components "
+                f"matching the readout, got shape {tuple(reference.shape)}."
+            )
 
     point_types = _as_numpy_int(batch.point_types)
-    point_labels = nodes_ref.reshape(-1)
+    point_labels = nodes_ref
     point_pointers = basis_table.point_block_pointer(point_types)
     graph_node_types = _map_types(readout.types_to_graph2mat, point_types)
 
@@ -346,18 +370,18 @@ def target_coefficients_from_labels(
         shape = tuple(int(x) for x in basis_table.point_block_shape[:, point_type])
         block = point_labels[
             point_pointers[atom_index] : point_pointers[atom_index + 1]
-        ].reshape(shape)
+        ].reshape(shape + component_shape)
         coeff = project_block_to_coefficients(
-            block, operation.change_of_basis
+            block.unsqueeze(0), operation.change_of_basis
         ).squeeze(0)
         node_coeffs.setdefault(op_key, []).append(coeff)
 
-    edge_labels = edges_ref.reshape(-1)
+    edge_labels = edges_ref
     edge_types = _symmetric_edge_types_for_labels(
         readout=readout,
         batch=batch,
         basis_table=basis_table,
-        expected_nlabels=_flat_length(edge_labels),
+        expected_nlabels=len(edge_labels),
     )
     edge_pointers = basis_table.edge_block_pointer(np.abs(edge_types))
     edge_coeffs: Dict[str, list[Any]] = {}
@@ -367,9 +391,9 @@ def target_coefficients_from_labels(
         shape = tuple(int(x) for x in basis_table.edge_block_shape[:, abs(edge_type)])
         block = edge_labels[
             edge_pointers[unique_edge_index] : edge_pointers[unique_edge_index + 1]
-        ].reshape(shape)
+        ].reshape(shape + component_shape)
         coeff = project_block_to_coefficients(
-            block, operation.change_of_basis
+            block.unsqueeze(0), operation.change_of_basis
         ).squeeze(0)
         edge_coeffs.setdefault(op_key, []).append(coeff)
 
@@ -386,6 +410,7 @@ _target_coefficients_from_labels = target_coefficients_from_labels
 def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> dict:
     """Map operation-wise coefficients back to flat node and edge labels."""
 
+    readout = _coefficient_readout(readout)
     point_types = _as_numpy_int(batch.point_types)
     graph_node_types = _map_types(readout.types_to_graph2mat, point_types)
     node_coeffs = _coefficient_values(coefficients, "node")
@@ -440,13 +465,15 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
                 )
 
     template = next(iter(node_coeffs.values()), next(iter(edge_coeffs.values()), None))
+    n_components = getattr(readout, "n_matrix_components", 1)
+    empty_shape = (0,) if n_components == 1 else (0, n_components)
     node_labels = torch.cat(node_parts, dim=0) if node_parts else (
-        template.new_empty(0) if template is not None else torch.empty(0)
+        template.new_empty(empty_shape) if template is not None else torch.empty(empty_shape)
     )
     if edge_parts:
         edge_labels = torch.cat(edge_parts, dim=0)
     else:
-        edge_labels = node_labels.new_empty(0)
+        edge_labels = node_labels.new_empty(empty_shape)
 
     return {"node_labels": node_labels, "edge_labels": edge_labels}
 

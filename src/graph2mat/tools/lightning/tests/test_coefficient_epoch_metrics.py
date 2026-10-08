@@ -1,6 +1,7 @@
 """Coefficient diagnostics use observed coefficients and equal operation weights."""
 
 import math
+from copy import deepcopy
 
 import pytest
 import pytorch_lightning as pl
@@ -19,21 +20,23 @@ from graph2mat.tools.lightning.model import LitBasisMatrixModel
 class CoefficientPredictions(torch.nn.Module):
     """Literal s-orbital predictions, projected by a real e3nn readout."""
 
-    def __init__(self):
+    def __init__(self, n_matrix_components=1):
         super().__init__()
         self.offset = torch.nn.Parameter(torch.zeros(()))
         self.matrix_readouts = E3nnGraph2Mat(
             unique_basis=[PointBasis(kind, R=2, basis=[1]) for kind in ("A", "B")],
             irreps={"node_feats_irreps": o3.Irreps("1x0e")}, symmetric=True,
+            n_matrix_components=n_matrix_components,
             preprocessing_edges=None, node_operation=E3nnDiagnosticDenseNodeBlock,
             edge_operation=E3nnDiagnosticDenseEdgeBlock,
         )
+        self.basis_table = self.matrix_readouts.basis_table
 
     def forward(self, batch):
         node = batch.node_prediction + self.offset
         edge = batch.edge_prediction + self.offset
         coefficients = metrics.target_coefficients_from_labels(
-            self.matrix_readouts, batch, self.matrix_readouts.basis_table, node, edge,
+            self.matrix_readouts, batch, self.basis_table, node, edge,
         )
         return {"node_labels": node, "edge_labels": edge,
                 "node_coefficients": coefficients["node"], "edge_coefficients": coefficients["edge"]}
@@ -58,7 +61,7 @@ def coefficient_samples(missing_b=False):
     return samples
 
 
-def coefficient_model(loss_name, train=False):
+def coefficient_model(loss_name, train=False, n_components=1):
     class TrainModel(LitBasisMatrixModel):
         def configure_optimizers(self):
             return torch.optim.SGD(self.parameters(), lr=0)
@@ -70,8 +73,53 @@ def coefficient_model(loss_name, train=False):
         model_cls=CoefficientPredictions, basis_table=table,
         loss=getattr(metrics, loss_name), loss_kwargs=kwargs,
     )
-    model.init_model()
+    model.init_model(n_matrix_components=n_components)
     return model
+
+
+@pytest.mark.parametrize("loss_name", ["coefficient_space_mse", "coefficient_space_mae", "hamiltonian_composite_loss"])
+def test_coefficient_epochs_resolve_compatible_interaction_readouts(loss_name):
+    model = coefficient_model(loss_name)
+    readout = model.model.matrix_readouts
+    model.model.matrix_readouts = torch.nn.ModuleList([readout, deepcopy(readout)])
+    trainer = pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                         enable_progress_bar=False, enable_model_summary=False)
+    expected = {"coefficient_space_mse": 12., "coefficient_space_mae": 55 / 18,
+                "hamiltonian_composite_loss": 613 / 120}[loss_name]
+    for batch_size in (1, 2, 3, 1):
+        result = trainer.validate(model, dataloaders=DataLoader(coefficient_samples(), batch_size=batch_size), verbose=False)[0]
+        assert result["val_loss"] == pytest.approx(expected)
+        assert result["hp_metric"] == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("loss_name", ["coefficient_space_mse", "coefficient_space_mae"])
+@pytest.mark.parametrize("missing_b", [False, True])
+def test_multicomponent_coefficient_epochs_keep_nan_denominators_and_gradients(loss_name, missing_b):
+    model = coefficient_model(loss_name, n_components=2)
+    samples = coefficient_samples()
+    for sample in samples:
+        for name in ("point_labels", "edge_labels", "node_prediction", "edge_prediction"):
+            value = sample[name]
+            sample[name] = torch.stack([value, 2 * value], dim=1)
+    if missing_b:
+        samples[-1].point_labels[:, 1] = float("nan")
+    expected = ((25 / 8 if missing_b else 55 / 12) if loss_name == "coefficient_space_mae"
+                else (13.75 if missing_b else 30.))
+    trainer = pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                         enable_progress_bar=False, enable_model_summary=False)
+    for batch_size in (1, 2, 3, 1):
+        result = trainer.validate(model, dataloaders=DataLoader(samples, batch_size=batch_size), verbose=False)[0]
+        assert result["val_loss"] == pytest.approx(expected)
+        assert result["val_coefficient_blocks"] == (2 if missing_b else 3)
+    batch = next(iter(DataLoader(samples, batch_size=3)))
+    out = model(batch)
+    loss, _ = model.loss_fn(nodes_pred=out["node_labels"], nodes_ref=batch.point_labels,
+                           edges_pred=out["edge_labels"], edges_ref=batch.edge_labels,
+                           batch=batch, basis_table=model.basis_table, out=out, model=model.model)
+    assert float(loss) == pytest.approx(expected)
+    loss.backward()
+    gradient = 1. if loss_name == "coefficient_space_mae" else (25 / 4 if missing_b else 55 / 6)
+    assert float(model.model.offset.grad) == pytest.approx(gradient)
 
 
 @pytest.mark.parametrize("split", ["val", "test"])

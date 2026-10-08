@@ -533,7 +533,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         )
 
     def _coefficient_epoch_terms(self, out, batch):
-        readout = self.model.matrix_readouts
+        readout = metrics_module._coefficient_readout(self.model.matrix_readouts)
         keys = tuple(sorted(
             [f"node_node:{i}" for i, operation in enumerate(readout.self_interactions) if operation is not None]
             + [f"edge_edge:{key}" for key in readout.interactions]

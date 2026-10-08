@@ -9,6 +9,7 @@ from scipy.spatial.transform import Rotation
 
 from graph2mat import AtomicTableWithEdges, MatrixDataProcessor, OrbitalConfiguration
 from graph2mat.bindings.torch import TorchBasisMatrixData
+from graph2mat.core.data import metrics
 from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
 
 
@@ -121,3 +122,37 @@ def test_full_mace_prediction_commutes_with_supercell_tiling(model_and_processor
     actual = _matrix(model, processor, geometry.tile(2, 0).tile(2, 1).tile(2, 2), out_format="sisl_DM")
     assert np.max(np.abs(expected.tocsr().toarray())) > 1e-6
     np.testing.assert_allclose(actual.tocsr().toarray(), expected.tocsr().toarray(), rtol=1e-9, atol=1e-11)
+
+
+@pytest.mark.parametrize("n_components", [1, 2])
+@pytest.mark.parametrize("aggregation", ["sum", "mean"])
+def test_full_mace_interaction_coefficients_match_matrix_targets(model_and_processor, geometry, n_components, aggregation):
+    original, processor, _ = model_and_processor
+    torch.manual_seed(1)
+    model = LitMACEMatrixModel(
+        basis_table=original.basis_table, symmetric_matrix=True,
+        hidden_irreps="2x0e+2x1o+2x2e", edge_hidden_irreps="2x0e+2x1o+2x2e",
+        num_bessel=3, max_ell=2, num_interactions=2, correlation=2,
+        n_matrix_components=n_components, readout_per_interaction=True,
+        readout_interaction_aggregation=aggregation, return_coefficients=True,
+        loss=metrics.coefficient_space_mse,
+    ).eval()
+    data = TorchBasisMatrixData.from_config(
+        OrbitalConfiguration.from_geometry(geometry), data_processor=processor,
+    )
+    out = model(data)
+    data.point_labels = out["node_labels"].detach()
+    data.edge_labels = out["edge_labels"].detach()
+    perturbed = {**out, "node_coefficients": {key: value + .03 for key, value in out["node_coefficients"].items()},
+                 "edge_coefficients": {key: value + .03 for key, value in out["edge_coefficients"].items()}}
+    loss, _ = model.loss_fn(
+        nodes_pred=out["node_labels"], edges_pred=out["edge_labels"],
+        nodes_ref=data.point_labels, edges_ref=data.edge_labels,
+        batch=data, basis_table=model.basis_table, out=perturbed, model=model.model,
+    )
+    assert float(loss) == pytest.approx(.0009, rel=1e-10, abs=1e-12)
+    keys, errors = model._coefficient_epoch_terms(perturbed, data)
+    assert set(errors).issubset(keys)
+    loss.backward()
+    assert any(parameter.grad is not None and torch.any(parameter.grad != 0)
+               for parameter in model.parameters())

@@ -243,7 +243,7 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
 - Ruling: mantener checkout `g2m-v2`, como eligió el usuario; ejecución directa.
 - Preparación: HEAD confirmado; tracked limpio; archivos untracked ajenos preservados.
 - Estado: **goal activo**, sin presupuesto de tokens solicitado; **Task 0
-  completada**, Tasks 1–4 pendientes de implementación y evaluación.
+  completada**, **Task 1 en curso**, Tasks 2–4 pendientes de implementación y evaluación.
 - Comandos, logs y cambios de estado se añaden aquí al ejecutar cada sublote.
 
 ### Task 0 — referencia reproducida
@@ -274,3 +274,58 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   no se ha cambiado código de producto ni repetido la suite completa en este arranque.
 - Siguiente acción: plan concreto y primer RED de las incompatibilidades de
   coeficientes de Task 1, comenzando por multi-componente y readout por interacción.
+
+### Task 1.a — componentes y readouts por interacción (en curso)
+
+- Turno previo clasificado como **progreso**: commit f1bb647, documentos,
+  goal activo y referencia de 67 tests. No se reabre el goal anterior.
+- Plan concreto: `plan_coeficientes_multicomponente.md`; BASE
+  `f1bb6472867d16cc8cff04760c5ce600f4cdb09e`. Ejecución directa con TDD.
+- RED inicial: **15 fallos, 2 pasan, 24 no seleccionados**;
+  `components-red.log`. Fixture sintética ajustada para conservar basis_table
+  fuera del ModuleList; segundo RED de producción: **3 fallos**,
+  `interactions-red.log`, acceso a types_to_graph2mat del ModuleList.
+- Parche: mantener filas de etiquetas/componentes en la proyección, contar
+  filas de arista (no componentes), validar dimensiones, conservar vacíos
+  `(0, n_components)` y resolver espacios compatibles de readouts. Lightning
+  usa el mismo resolver para su schema; firmas/ponderación no cambian.
+- Ruling: los tests de precisión construyen RTP directamente en float64,
+  en lugar de construir float32 y castear después; no se relaja atol/rtol.
+- GREEN de coeficientes y pérdidas existentes: **84 pasan**, 289 warnings,
+  2.90 s (`components-green-final.log`).
+- Integración adicional: **40 pasan**, 54 no seleccionados, 3874 warnings,
+  51.71 s (`components-integration.log`): cuatro casos de NaN/denominadores/
+  gradientes multicomponente y 36 MACE reales, sum/mean, una/dos componentes,
+  geometrías periódicas y bases s/p/d/f. No es una medición de precisión de entrenamiento.
+- Primer gate completo desde source Python: **122 fallos, 1476 pasan,
+  2 omitidos**, 335.49 s (`components-full-cpu.log`). No se oculta este gate rojo.
+- Diagnóstico: CSR en Python recibe fill_value=0 entero desde el wrapper y
+  np.full crea bloques enteros; trunca decimales. Cython convierte el argumento
+  anotado a float y no tiene ese fallo. La wheel anterior pasa **90 tests de
+  métricas**, mientras source falla en el primer MSE con edge_labels Long.
+- Ruling: adelantar la corrección mínima de precisión de 6.2 como prerrequisito
+  del gate: `fill_value = float(fill_value)` replica la coerción ya aplicada por
+  Cython. No se altera la función de pérdida. Regresión literal .125/-.375:
+  **RED 2 fallos/2 pasan**, luego **214 pasan** con métricas/procesamiento,
+  176 warnings, 2.75 s (`sparse-fill-red.log`, `sparse-fill-green.log`).
+- Ruff y mypy-core py39 pasan tras el parche de CSR; git diff --check limpio.
+- Wheels 3.12/3.9 construidas con éxito, con extensión Cython y tests nuevos;
+  hashes: 3.12 `81f9d46663ddbb9ba18bf75b2669a74b30a3b0c9924466d785d15a2fdb68eeb8`,
+  3.9 `2e611627c3a307362aab54732979b01520ecd3352e768ac2934dec282dcc0d0d`.
+- Suite source CPU reparada **1602 pasan, 2 omitidos**, 11911 warnings,
+  **363.43 s**, exit 0; log
+  `/tmp/g2m-precision-goal.A2Pbgk/components-full-cpu-fixed.log`.
+- Wheel 3.9 instalada solo en su venv aislado; pip check pasa. Gate enfocado
+  instalado **155 pasan**, 1829 warnings, **79.25 s**, exit 0;
+  `components-wheel39-tests.log`. Las siete fuentes Python modificadas/nuevas
+  coinciden byte por byte con ambas wheels (unzip -p | cmp), incluidas las regresiones.
+- Wheel 3.12 instalada solo en su venv aislado; pip check pasa. El gate
+  enfocado instalado final es la siguiente comprobación.
+- Corrección de precisión CSR comprometida como **bb01435**, con su regresión.
+- Revisión propia: callers de proyección/reconstrucción/fit_output_scaleshift/
+  pérdidas y schema de épocas leídos; cambios de dimensiones coherentes.
+  No sustituye la revisión independiente final del goal amplio.
+- Pendiente en este sublote: gate instalado 3.12 y registro definitivo del commit.
+- Task 1 general sigue abierta: agrupación/orientación/padding, targets fuera
+  del hot path y entrenamiento sin reconstrucción, equivalencia científica y
+  mediciones GPU. Tasks 2–4 no se sustituyen por esta compatibilidad.
