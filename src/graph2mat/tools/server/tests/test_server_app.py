@@ -71,7 +71,7 @@ def test_frontend_route_names_and_operation_ids_are_preserved():
 
 
 class _DummyMatrix:
-    def write(self, path):
+    def write(self, path, **kwargs):
         with open(path, "wb") as fd:
             fd.write(b"dummy")
 
@@ -120,7 +120,7 @@ def test_predict_uses_hamiltonian_suffix(monkeypatch):
     )
 
     assert response.status_code == 200
-    assert ".TSHS" in response.headers["content-disposition"]
+    assert ".nc" in response.headers["content-disposition"]
 
 
 @pytest.mark.parametrize("output_path", [None, "prediction.TSHS"])
@@ -145,7 +145,7 @@ def test_local_prediction_resolves_output_beside_geometry(tmp_path, monkeypatch,
     response = TestClient(app).get("/api/models/h_model/local_write_predict", params=params)
 
     assert response.status_code == 200
-    expected = tmp_path / (output_path or "ML_prediction.TSHS")
+    expected = tmp_path / (output_path or "ML_prediction.nc")
     assert Path(response.json()) == expected
     assert expected.read_bytes() == b"dummy"
 

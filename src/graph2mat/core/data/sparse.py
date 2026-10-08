@@ -525,8 +525,12 @@ def csr_to_sisl_sparse_orbital(
                 "physical Hamiltonian."
             )
 
+        if issubclass(sp_class, (sisl.DensityMatrix, sisl.EnergyDensityMatrix)) and len(csr) == 2:
+            return sp_class.fromsp(geometry, list(csr), spin=sisl.Spin("polarized"))
+
         raise ValueError(
-            f"Multi-component CSR conversion is only supported for Hamiltonian. Got {sp_class.__name__}."
+            "Multi-component CSR conversion requires an explicit Hamiltonian policy "
+            f"or two polarized DM/EDM channels. Got {sp_class.__name__} with {len(csr)} components."
         )
 
     return sp_class.fromsp(geometry, csr)

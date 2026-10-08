@@ -982,6 +982,72 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   del llamador. Pendiente de 3.4: H con S/E_F/formato seguro, EDM en formato
   escribible y rechazo explícito de H/EDM en la integración Lua de DM.
 
+### Sublote 3.4.f — serialización física, referencias y contrato Lua DM
+
+- Historial incompleto comprometido como **3172bc9**. Trace completo de writers,
+  conversor común, cliente, referencias, app de extrapolación y plantilla Lua.
+  API/source reales de sisl confirman nc H/EDM, read_H = H-Ef*S, TSHS sin
+  preservación de Ef y ausencia de un writer .EDM independiente.
+- RED HTTP/writers: **32 failed, 4 passed**, 1.01 s
+  (`physical-serialization-red.log`). Uno era un oráculo incorrecto del test:
+  una H ortogonal no almacena S en S_idx; corregido a assert orthogonal. Los
+  otros fallos reproducen H sin Ef/S válido, formatos inconsistentes, spin DM/EDM,
+  escritura local/despliegue y aceptación silenciosa de H/EDM en Lua.
+- Parche mínimo compartido: _serialization.py selecciona formatos, requiere
+  Ef finito explícito para H y S real o declaración de base ortogonal; valida
+  entradas finitas/diagonal de S. H/EDM usan .nc; TSHS admite solo Ef=0 declarado.
+  EDM independiente conserva su gauge con Ef=0, sin inventar DM para desplazarlo.
+  .EDM/TSDE aislada y Ef no cero en EDM se rechazan. El conversor existente ahora
+  admite los dos canales físicos DM/EDM polarizados además de H.
+- Writer atómico: temporal propio con mismo suffix, replace para sobrescritura
+  autorizada y link no-clobber para impedir una carrera. Fallos preservan el
+  destino y limpian temporales; uploads se cierran y borran tras respuesta/error.
+- Lua declara matrix_type=density_matrix. Init/setup rechazan H/EDM; curl --fail
+  y comprobación de retorno abortan ante errores. No se ejecutó SIESTA ni Lua
+  (no hay intérprete Lua disponible); contrato probado con plantilla renderizada
+  real y los endpoints reales. H/EDM standalone siguen soportados con su formato.
+- Cliente Requests: sufijos .TSHS/.EDM antiguos fallaban, y los temporales
+  precreados provocaban HTTP 409/fugas. Primer intento de test no tenía uvicorn:
+  **8 fallos de entorno y 2 RED HTTP reales**, no evidencia de los ocho bugs.
+  Uvicorn 0.54 instalado solo en /tmp/g2m-http-runtime.LOcBGk; RED válido:
+  **9 failed, 1 passed**, 2.18 s (`physical-client-actual-red.log`).
+  Ahora usa TemporaryDirectory, formatos compartidos, output_suffix explícito,
+  cierre de archivos/limpieza también tras errores y geometría suministrada al
+  leer DM. Pruebas con Requests sobre Uvicorn real, no mocks de red.
+- Referencias: **6 failed, 1 passed**, 0.51 s (`physical-reference-red.log`).
+  sisl puede broadcast H escalar sobre S o rechazar dimensiones con spin.
+  Antes de restar se excluye S si no es canal predicho; se valida tipo/spin/
+  orbitales/imágenes. H-only restaura S desde referencia explícita de la geometría
+  objetivo; H+S añade una vez el delta de S. Sin mutación de matrices del llamador.
+- 58 pruebas nuevas: roundtrips H/DM/EDM y spin, S/Ef literales, errores/formatos,
+  cliente real y lifecycle, Lua, delta/referencias, H+S sin duplicación, fallos del
+  writer y carrera de publicación. Enfocado **136 passed**, 59 warnings, 5.63 s
+  (`physical-serialization-focused-final.log`).
+- Suite CPU congelada: **1165 passed, 2 skipped**, 6767 warnings, 152.77 s, exit 0
+  (`physical-serialization-full-cpu.log`). Hooks reales Ruff/mypy Passed
+  (`physical-final-ruff-hook.log`, `physical-final-mypy-hook.log`), diff --check
+  limpio. Las dos omisiones conocidas se conservan, sin skips nuevos.
+- Nuevas wheels compiladas con build constraints, reinstaladas --force-reinstall
+  --no-deps en los cinco venvs; sha256 cp39
+  `5ddadf36327949b90291107992b7043d2a5880162de9de120203061e32380095`, cp312
+  `5bf92623b29f035433f9740c7be1016d941af1d8d2952404626e22eb5a6f120a`.
+  Paquete completo: 3.9 mínimo **1140 passed, 2 skipped**, 2525 warnings, 141.27 s;
+  3.12 fijado **1140 passed, 2 skipped**, 6766 warnings, 137.40 s;
+  3.12 latest **1140 passed, 2 skipped**, 4926 warnings, 139.90 s
+  (`python39/python312/latest-physical-wheel-tests.log`). Raíz: **25 passed** por
+  perfil, 17.60/24.18/24.47 s. Total completo por perfil: 1165 passing, dos skips.
+  Perfiles base: **16 passed, 7 deselected** en 3.9/3.12, 7.30/10.56 s;
+  selección incluye ahora la caracterización broken_torch previamente no elegida.
+  Cinco pip check, exit 0 (`*-physical-pip-check.log`).
+- docs/server.rst documenta formato, gauge, requisitos, errores, referencias y
+  limpieza. Se verifica serialización, no exactitud/SPD de una S aprendida.
+  **3.4 implementado/verificado**, sujeto a la revisión final transversal, igual
+  que 3.5 y 3.6. Siguen abiertos **3.1 y 3.9**; no se marca el goal completo.
+- Siguiente comprobación de 3.9: CLI real --ckpt_path test/predict. Un sondeo con
+  datasets Python en memoria fue rechazado por el tipo CLI Optional[str] de
+  train_runs (cli-real-checkpoint-probe.log). No se cambia el contrato por este
+  sondeo: usar archivos/rutas reales conforme a la API CLI documentada.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

@@ -22,6 +22,7 @@ from graph2mat import (
     BasisMatrixData,
 )
 from graph2mat.core.data.matrices import get_matrix_cls
+from graph2mat.tools.server._serialization import write_prediction
 
 
 class DescriptorManager(ABC):
@@ -426,6 +427,39 @@ def get_history_block_dicts(configs, target_data):
     return hist_b_dict, missing_block_steps
 
 
+def _check_reference_layout(matrix, reference):
+    if (type(matrix) is not type(reference) or matrix.spin != reference.spin
+            or matrix.shape[:2] != reference.shape[:2]
+            or not np.array_equal(matrix.geometry.orbitals, reference.geometry.orbitals)
+            or not np.array_equal(matrix.geometry.sc_off, reference.geometry.sc_off)):
+        raise ValueError("Matrix reference must have the same type, spin, orbitals and image layout.")
+
+
+def _matrix_delta(matrix, reference, include_overlap=False):
+    _check_reference_layout(matrix, reference)
+    if not include_overlap:
+        matrix = matrix.transform(orthogonal=True) if not matrix.orthogonal else matrix
+        reference = reference.transform(orthogonal=True) if not reference.orthogonal else reference
+    elif matrix.orthogonal != reference.orthogonal:
+        raise ValueError("Explicit overlap components require the same reference overlap layout.")
+    return matrix - reference
+
+
+def _restore_matrix_reference(matrix, reference):
+    _check_reference_layout(matrix, reference)
+    if isinstance(matrix, sisl.Hamiltonian) and matrix.orthogonal and not reference.orthogonal:
+        if (not np.allclose(matrix.geometry.xyz, reference.geometry.xyz)
+                or not np.allclose(matrix.geometry.cell, reference.geometry.cell)):
+            raise ValueError("Reference overlap must belong to the predicted geometry.")
+        channels = [matrix.tocsr(i) + reference.tocsr(i) for i in range(matrix.spin.size(matrix.dtype))]
+        return sisl.Hamiltonian.fromsp(matrix.geometry, channels, spin=matrix.spin,
+                                      S=reference.tocsr(reference.S_idx))
+    if matrix.orthogonal != reference.orthogonal:
+        matrix = matrix.transform(orthogonal=True) if not matrix.orthogonal else matrix
+        reference = reference.transform(orthogonal=True) if not reference.orthogonal else reference
+    return matrix + reference
+
+
 class MatrixTimeSeriesState:
     processor: Union[MatrixDataProcessor, None]
 
@@ -441,6 +475,7 @@ class MatrixTimeSeriesState:
         self.descriptors = deque(maxlen=history_len + 1)
 
         self.last_matrix_ref = None
+        self.required_matrix_type = None
 
     def add_processor(self, processor):
         self.processor = processor
@@ -461,7 +496,10 @@ class MatrixTimeSeriesState:
         last_config = self.configs[-1]
 
         if self.last_matrix_ref is not None:
-            matrix = matrix - self.last_matrix_ref
+            include_overlap = all_dims or (self.processor is not None
+                                          and self.processor.out_matrix == "hamiltonian"
+                                          and self.processor.matrix_component_policy in ("h_and_overlap", "raw_components"))
+            matrix = _matrix_delta(matrix, self.last_matrix_ref, include_overlap)
 
         kwargs = self.processor.get_config_kwargs(matrix) if self.processor else {}
         if all_dims:
@@ -559,7 +597,8 @@ def create_extrapolation_app(
     matrix_refs: Union[Dict[str, Callable], None] = None,
     data_processors: Union[Dict[str, MatrixDataProcessor], None] = None,
 ):
-    from fastapi import FastAPI
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import JSONResponse
 
     if time_series is None:
         time_series = {}
@@ -570,16 +609,25 @@ def create_extrapolation_app(
 
     app = FastAPI()
 
+    @app.exception_handler(ValueError)
+    async def invalid_series_input(request, exc):
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
+
     @app.get("/init")
-    def init_time_series(history_len: int, data_processor: Optional[str] = None):
+    def init_time_series(history_len: int, data_processor: Optional[str] = None, matrix_type: Optional[str] = None):
         if data_processor is not None:
             data_processor = data_processors[data_processor]
+            if matrix_type is not None and data_processor.out_matrix != matrix_type:
+                raise HTTPException(status_code=422, detail=f"This workflow requires {matrix_type}, not {data_processor.out_matrix}.")
 
         time_series[0] = MatrixTimeSeriesState(history_len, processor=data_processor)
+        time_series[0].required_matrix_type = matrix_type
 
     @app.get("/setup_processor")
     def setup_processor(basis_dir: str, matrix: str, series: int = 0):
         this_series = time_series[series]
+        if this_series.required_matrix_type is not None and matrix != this_series.required_matrix_type:
+            raise HTTPException(status_code=422, detail=f"This workflow requires {this_series.required_matrix_type}.")
 
         # The basis table.
         basis_ext = (
@@ -608,9 +656,13 @@ def create_extrapolation_app(
         node_rcond: float = 1e-6,
         edge_rcond: float = 1e-6,
         m_0: Optional[str] = None,
+        fermi_level: Optional[float] = None,
+        orthogonal_basis: bool = False,
     ):
         this_series = time_series[series]
 
+        if len(this_series.configs) < 2 and this_series.last_matrix_ref is None:
+            raise HTTPException(status_code=422, detail="Extrapolation needs a historical matrix or prediction reference.")
         if len(this_series.configs) == 1:
             m = this_series.last_matrix_ref
             if m is None:
@@ -643,15 +695,15 @@ def create_extrapolation_app(
             m = m.convert_to(this_series.processor.default_out_format)
 
             if this_series.last_matrix_ref is not None:
-                m = m + this_series.last_matrix_ref
+                m = _restore_matrix_reference(m, this_series.last_matrix_ref)
 
         if m_0 is not None:
             mat_0 = getattr(
                 sisl.get_sile(m_0), f"read_{this_series.processor.out_matrix}"
             )(geometry=m.geometry)
-            m = mat_0 + m
+            m = _restore_matrix_reference(m, mat_0)
 
-        m.write(out)
+        write_prediction(m, out, fermi_level=fermi_level, orthogonal_basis=orthogonal_basis)
 
     @app.get("/add_step")
     def add_geometry(path: str, series: int = 0, matrix_ref: Union[str, None] = None):
@@ -678,7 +730,9 @@ def create_extrapolation_app(
             mat_0 = getattr(
                 sisl.get_sile(m_0), f"read_{this_series.processor.out_matrix}"
             )()
-            matrix = matrix - mat_0
+            include_overlap = (this_series.processor.out_matrix == "hamiltonian"
+                               and this_series.processor.matrix_component_policy in ("h_and_overlap", "raw_components"))
+            matrix = _matrix_delta(matrix, mat_0, include_overlap)
 
         this_series.add_last_matrix(matrix)
 

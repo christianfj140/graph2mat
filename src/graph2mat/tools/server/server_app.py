@@ -23,6 +23,7 @@ from graph2mat.bindings.torch import TorchBasisMatrixData
 from graph2mat.bindings.torch.load import load_from_lit_ckpt
 
 from graph2mat.tools.server.extrapolation import create_extrapolation_app
+from graph2mat.tools.server._serialization import prediction_suffix, write_prediction
 
 try:
     from fastapi import (
@@ -242,17 +243,12 @@ def create_server_app(
             model["prediction_function"], geometry
         )
 
-    out_matrix_to_suffix = {
-        "density_matrix": ".DM",
-        "hamiltonian": ".TSHS",
-        "energy_density_matrix": ".EDM",
-    }
-
     @api.post("/models/{model_name}/predict", response_class=FileResponse)
     async def predict(
         model_name: ModelName,
         geometry_file: UploadFile,
         background_tasks: BackgroundTasks,
+        output_suffix: Optional[str] = None,
     ):
         """Returns a prediction of the matrix given an uploaded geometry file."""
         # Find out which parser should we use given the file name.
@@ -269,13 +265,19 @@ def create_server_app(
         # Get model.
         model = models[model_name.value]
 
-        matrix = predict_from_geometry(model, geometry)
-
-        # WRITE THE MATRIX TO A TEMPORARY FILE
-        matrix_suffix = out_matrix_to_suffix.get(model["data_processor"].out_matrix, ".mtx")
-        tmp_file = tempfile.NamedTemporaryFile(suffix=matrix_suffix, delete=False)
-        file_path = Path(tmp_file.name)
-        matrix.write(file_path)
+        try:
+            matrix_suffix = prediction_suffix(model["data_processor"].out_matrix, output_suffix)
+            matrix = predict_from_geometry(model, geometry)
+            with tempfile.NamedTemporaryFile(suffix=matrix_suffix, delete=False) as tmp_file:
+                file_path = Path(tmp_file.name)
+            try:
+                write_prediction(matrix, file_path, fermi_level=model.get("fermi_level"),
+                                 orthogonal_basis=model.get("orthogonal_basis", False))
+            except BaseException:
+                file_path.unlink(missing_ok=True)
+                raise
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         # We need to delete the file after the response is sent, so we add the deletion
         # to the background tasks, which run after sending the response.
@@ -319,7 +321,7 @@ def create_server_app(
             # Then the output path where we should write the matrix.
             if output_path is None:
                 output_path = model.get("output_file_name") or (
-                    "ML_prediction" + out_matrix_to_suffix.get(model["data_processor"].out_matrix, ".mtx")
+                    "ML_prediction" + prediction_suffix(model["data_processor"].out_matrix)
                 )
 
             out_file = Path(output_path)
@@ -336,10 +338,15 @@ def create_server_app(
             geometry = sisl.get_sile(runfile).read_geometry()
 
             # USE THE MODEL
-            matrix = predict_from_geometry(model, geometry)
-
-            # And write the matrix to it.
-            matrix.write(out_file)
+            try:
+                matrix = predict_from_geometry(model, geometry)
+                write_prediction(matrix, out_file, fermi_level=model.get("fermi_level"),
+                                 orthogonal_basis=model.get("orthogonal_basis", False),
+                                 allow_overwrite=allow_overwrite)
+            except FileExistsError as exc:
+                raise HTTPException(status_code=409, detail=f"Output file {out_file} already exists.") from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
 
             return str(out_file)
 

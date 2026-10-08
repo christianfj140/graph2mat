@@ -108,11 +108,14 @@ function server_get(path)
         return
     end
 
-    os.execute("curl '" .. server_address .. "/" .. path .. "'")
+    local success = os.execute("curl --fail --silent --show-error '" .. server_address .. "/" .. path .. "'")
+    if success ~= true and success ~= 0 then
+        error("Graph2Mat request failed; density-matrix initialization aborted")
+    end
  end
 
  function init_history(len, matrix_ref)
-    server_get("init?history_len=" .. len .. "&data_processor=" .. matrix_ref)
+    server_get("init?history_len=" .. len .. "&data_processor=" .. matrix_ref .. "&matrix_type=density_matrix")
  end
 
  function add_step(path, matrix_ref)

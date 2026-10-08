@@ -10,6 +10,7 @@ import requests
 from pathlib import Path
 
 import sisl
+from ._serialization import prediction_suffix
 
 
 class ServerClient:
@@ -93,73 +94,38 @@ class ServerClient:
         local : bool
             Whether the paths (if given) are in the local filesystem.
         """
-        # We may need temporal files to transmit the geometry and the output
-        input_tmp_file = None
-        output_tmp_file = None
+        as_matrix = isinstance(output, type) and issubclass(output, sisl.SparseOrbital)
+        with tempfile.TemporaryDirectory(prefix="g2m-client-") as temporary:
+            temporary = Path(temporary)
+            if isinstance(geometry, sisl.Geometry):
+                geometry_path = temporary / "geometry.xyz"
+                geometry.write(geometry_path)
+            else:
+                geometry_path = Path(geometry).absolute()
 
-        # Regardless of what the argument 'geometry' is, we will pass a file
-        # to the server.
-        # If a geometry is provided, we store it to a temporary file.
-        if isinstance(geometry, sisl.Geometry):
-            input_tmp_file = tempfile.NamedTemporaryFile(suffix=".xyz", delete=False)
-            geometry_path = Path(input_tmp_file.name).absolute()
-            geometry = geometry.write(geometry_path)
-        else:
-            geometry_path = Path(geometry).absolute()
+            if as_matrix:
+                kind = {sisl.DensityMatrix: "density_matrix", sisl.Hamiltonian: "hamiltonian",
+                        sisl.EnergyDensityMatrix: "energy_density_matrix"}[output]
+                output_path = temporary / ("prediction" + prediction_suffix(kind))
+            else:
+                output_path = Path(output).absolute()
 
-        # Regardless of what the argument 'output' is, the server0's output will
-        # be written to a file.
-        # If the user wants a sisl object, we will just tell the server to output
-        # to a temporary file, which we will then parse.
-        if isinstance(output, type) and issubclass(output, sisl.SparseOrbital):
-            suffix = {
-                sisl.DensityMatrix: ".DM",
-                sisl.Hamiltonian: ".TSHS",
-                sisl.EnergyDensityMatrix: ".EDM",
-            }[output]
+            if local:
+                response = requests.get(
+                    f"{self.api_url}/models/{model}/local_write_predict",
+                    params={"geometry_path": str(geometry_path), "output_path": str(output_path)},
+                )
+                response.raise_for_status()
+            else:
+                with open(geometry_path, "rb") as geometry_file:
+                    response = requests.post(
+                        f"{self.api_url}/models/{model}/predict",
+                        params={"output_suffix": output_path.suffix},
+                        files={"geometry_file": geometry_file},
+                    )
+                response.raise_for_status()
+                output_path.write_bytes(response.content)
 
-            output_tmp_file = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
-            output_path = Path(output_tmp_file.name).absolute()
-        else:
-            output_path = Path(output).absolute()
-
-        # Now we can make the request to the server.
-        if local:
-            # We ask the server to read and write to its local filesystem.
-            response = requests.get(
-                f"{self.api_url}/models/{model}/local_write_predict",
-                params={
-                    "geometry_path": str(geometry_path),
-                    "output_path": str(output_path),
-                },
-            )
-
-            response.raise_for_status()
-        else:
-            # We send the geometry file from our filesystem to the server.
-            # We will also receive a file from the server (binary content).
-            files = {"geometry_file": open(geometry_path, "rb")}
-
-            response = requests.post(
-                f"{self.api_url}/models/{model}/predict", files=files
-            )
-
-            response.raise_for_status()
-
-            with open(output_path, "wb") as f:
-                f.write(response.content)
-
-        # Remove the temporal files if they were created.
-        if input_tmp_file is not None:
-            Path(input_tmp_file.name).unlink()
-
-        if output_tmp_file is not None:
-            # In the case that we wanted a sisl obect as output, we parse the
-            # file that the server sent us, using the read method of the sisl
-            # object.
-            returns = output.read(output_path)
-            Path(output_path).unlink()
-        else:
-            returns = output_path
-
-        return returns
+            # DM binary files omit coordinates/basis: use the supplied geometry.
+            read_kwargs = {"geometry": geometry} if isinstance(geometry, sisl.Geometry) else {}
+            return output.read(output_path, **read_kwargs) if as_matrix else output_path
