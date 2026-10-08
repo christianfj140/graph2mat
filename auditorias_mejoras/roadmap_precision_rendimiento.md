@@ -406,3 +406,40 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   **130 pasan**, 345 warnings, **3.70 s**, exit 0;
   `.superpowers/sdd/plan_coeficientes_orientacion/task-1-tests.log`.
   Registro del subproyecto completo e2a906a..89c52ca; no cierra Task 1 general.
+
+### Task 1.c — kernel sin bloques densos (implementación verificada)
+
+- Plan `plan_irreps_sin_bloques.md`; BASE `2869ef0`; ejecución directa.
+- RED real: **67 fallos, 1 pasa**, 2754 warnings, 17.28 s; `kernel-red.log`.
+  La ruta simetrizada reconstruía bloques; el roundtrip con Q float32 casteado
+  a float64 alteraba coeficientes en 1.17e-8. Fallback no estándar ya pasaba.
+- Parche: mapas locales de transposición O(K), sin matriz K×K, certificados
+  por Q local. Buffers no persistentes; packing/dos llamadas y componentes
+  preservados. Fórmulas sin certificado usan la reconstrucción anterior.
+  `forward` y `forward_with_coefficients` de matrices no cambian.
+- GREEN inicial: **68 pasan**, 2754 warnings, 16.72 s. Nuevos casos de
+  radiales 2s2p2d2f y entradas globales/posicionales elevan el fichero a 86 tests.
+  Regresiones ampliadas: **258 pasan**, 9081 warnings, **78.28 s**, exit 0;
+  `/tmp/g2m-precision-goal.A2Pbgk/kernel-regressions.log`.
+- Suite CPU completa desde source: **1730 pasan, 2 omitidos**, 17156 warnings,
+  **406.82 s**, exit 0; `kernel-full-cpu.log` en el mismo directorio.
+- Python3.9.25/Torch2.4.1+cpu source: **142 pasan**, 1972 warnings,
+  **46.16 s**, exit 0; `kernel-python39-source.log`. Cython3.3.0 instalado
+  únicamente en el venv aislado de prueba, sin modificar el entorno compartido.
+- Ruff all-files y selección explícita del nuevo fichero, mypy-core py39,
+  compileall Python3.9 y git diff --check pasan. Sin nueva wheel para este lote.
+- GPU llegó a 521 MiB/0%; preparado wrapper CUDA propio, source y dependencias
+  existentes en solo lectura, sin pyc compartido. Antes de lanzar la medida,
+  dos entrenamientos Graph2Mat ajenos ocuparon la GPU (9112 MiB/97%).
+  **Ningún test ni benchmark CUDA propio lanzado**; procesos intactos.
+- Protocolo CUDA contrastado con documentación oficial PyTorch v2.11
+  (eventos, sincronización y picos allocated/reserved). No es evidencia medida.
+- Probe matemático CPU float64: 30 máscaras físicas, ij/ij=ji, s/p/d/f,
+  radiales repetidas y ghost; norma observada 0/1 con error 3.11e-15;
+  SSE equivalente con residuo ortogonal: error 5.69e-14, gradiente 1.16e-14.
+  **Diseño, no pérdida integrada**. NaN parciales, Q/dtype efectivo y simetrías
+  no certificadas todavía requieren tratamiento explícito/fallback.
+- **Beneficio no medido.** Graph2Mat/MACE/Lightning siguen usando matrices;
+  falta integrar targets CPU y MSE ponderado por elementos físicos. Task 1
+  amplia y Tasks 2–4 siguen abiertas. Registro del servicio goal leído como
+  **usageLimited**, no complete; el usuario ha autorizado continuar localmente.

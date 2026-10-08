@@ -52,8 +52,8 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         self.j_irreps = j_irreps
 
         self.n_matrix_components = n_matrix_components
-        self.setup_reduced_tp(i_irreps=i_irreps, j_irreps=j_irreps, symmetry=symmetry)
         self.symm_transpose = symm_transpose
+        self.setup_reduced_tp(i_irreps=i_irreps, j_irreps=j_irreps, symmetry=symmetry)
 
         operation_kwargs = {
             **self.get_init_kwargs(irreps, operation_cls),
@@ -108,6 +108,9 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         # We also store the change of basis, a matrix that will bring us from the irreps_out
         # to the actual matrix block that we want to calculate.
         self.register_buffer("change_of_basis", reduced_tp.change_of_basis)
+        if self.symm_transpose:
+            self.register_buffer("_coefficient_transpose_index", getattr(reduced_tp, "transpose_index", None), persistent=False)
+            self.register_buffer("_coefficient_transpose_sign", getattr(reduced_tp, "transpose_sign", None), persistent=False)
 
     def _compute_coefficients(self, *args, **kwargs):
         coefficients = self.operation(*args, **kwargs)
@@ -187,7 +190,33 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         if self.symm_transpose == False:
             return self._compute_coefficients(*args, **kwargs)
 
-        return self.block_to_coefficients(self.forward(*args, **kwargs))
+        index = getattr(self, "_coefficient_transpose_index", None)
+        if index is None:
+            # shortcut: uncertified RTP maps reconstruct; certify a map before coefficient-only training.
+            return self.block_to_coefficients(self.forward(*args, **kwargs))
+
+        def transpose(coefficients):
+            shaped = coefficients.reshape(coefficients.shape[0], self.n_matrix_components, self._single_irreps_out.dim)
+            return (shaped[:, :, index] * self._coefficient_transpose_sign).reshape(
+                coefficients.shape[0], self._irreps_out.dim
+            )
+
+        values = [*args, *kwargs.values()]
+        if values and all(isinstance(value, tuple) and len(value) == 2 for value in values):
+            def both(pair):
+                return (torch.cat([pair[0], pair[1]]), torch.cat([pair[1], pair[0]]))
+
+            n = values[0][0].shape[0]
+            coefficients = self._compute_coefficients(
+                *map(both, args), **{key: both(value) for key, value in kwargs.items()}
+            )
+            return (coefficients[:n] + transpose(coefficients[n:])) / 2
+
+        forward = self._compute_coefficients(*args, **kwargs)
+        back_args = [(value[1], value[0]) if isinstance(value, tuple) and len(value) == 2 else value for value in args]
+        back_kwargs = {key: (value[1], value[0]) if isinstance(value, tuple) and len(value) == 2 else value
+                       for key, value in kwargs.items()}
+        return (forward + transpose(self._compute_coefficients(*back_args, **back_kwargs))) / 2
 
     def forward_with_coefficients(self, *args, **kwargs):
         """(block, coefficients) evaluating the operation once, not twice as

@@ -49,23 +49,23 @@ irreps) y `_compute_coefficients(*args, **kwargs)`. Produce metadatos opcionales
 inalteradas. La prueba de equivalencia se hace reconstruyendo fuera del tramo
 certificado; los targets/loss futuros consumen el mismo orden de coeficientes.
 
-- [ ] Step 1: RED con bloque real: calcular primero `legacy = block(...)`,
+- [x] Step 1: RED con bloque real: calcular primero `legacy = block(...)`,
   reemplazar `coefficients_to_block` en el test por una función que falla,
   pedir `forward_coefficients` y contrastar `einsum(c,Q)` con legacy y sus
   gradientes. Expectativas independientes: transposición del bloque legacy,
   tolerancias 1e-12 float64 y 5e-6 float32. Casos s/p/sp/s-p-d-f, 1/2
   componentes, `ij`/`ij=ji`, inputs pares/no-pares, escala y vacío.
-- [ ] Step 2: ejecutar ese fichero con el comando CPU de Task 0.
+- [x] Step 2: ejecutar ese fichero con el comando CPU de Task 0.
   Expected: falla por la reconstrucción del camino actual, no imports.
-- [ ] Step 3: mapa O(K): registrar slices ordenados por `(row,end_row,col,
+- [x] Step 3: mapa O(K): registrar slices ordenados por `(row,end_row,col,
   end_col,dim_output)`; buscar el par invertido, obtener signo de su producto
   local con Q transpuesto y almacenar índices consecutivos. Para `ij=ji`,
   identidad. Registrar buffers persistent=False solo si symm_transpose.
   Apilar ambas direcciones si todos los inputs son pares y devolver
   `(c_forward + c_backward[...,index]*sign)/2`; conservar fallback actual.
-- [ ] Step 4: GREEN y pruebas existentes de RTP/readouts/orientación/modelos;
+- [x] Step 4: GREEN y pruebas existentes de RTP/readouts/orientación/modelos;
   dtype cast y strict state_dict conservan matrices. Expected: exit 0.
-- [ ] Step 5: suite CPU completa, Ruff/mypy, sintaxis Python3.9 y diff --check.
+- [x] Step 5: suite CPU completa, Ruff/mypy, sintaxis Python3.9 y diff --check.
   Expected: sin regresiones; reportar avisos/omisiones, no ocultarlos.
 - [ ] Step 6: commit local y task-done real; registrar implementación y límite
   pendiente (el entrenamiento integrado aún reconstruye). No ganancia GPU.

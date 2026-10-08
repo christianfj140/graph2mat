@@ -185,6 +185,7 @@ class ReducedTensorProducts:
         change_of_basis = torch.zeros(
             irreps_out.dim, i_irreps.dim, j_irreps.dim, dtype=torch.get_default_dtype()
         )
+        transpose_blocks = {}
         start_index = 0
         for i_irrep in irreps_sort.inv:
             (row, end_row, col, end_col), ir_change_of_basis = all_change_of_basis[
@@ -192,6 +193,9 @@ class ReducedTensorProducts:
             ]
 
             end_index = start_index + ir_change_of_basis.shape[0]
+            transpose_blocks[(row, end_row, col, end_col, ir_change_of_basis.shape[0])] = (
+                start_index, ir_change_of_basis
+            )
 
             change_of_basis[
                 start_index:end_index, row:end_row, col:end_col
@@ -207,3 +211,19 @@ class ReducedTensorProducts:
             ).reshape(-1, 1, 1)
 
         self.change_of_basis = change_of_basis
+        self.transpose_index = None
+        self.transpose_sign = None
+        if i_irreps == j_irreps:
+            self.transpose_index = torch.arange(self.irreps_out.dim)
+            self.transpose_sign = torch.ones(self.irreps_out.dim, dtype=change_of_basis.dtype)
+            if formula == "ij":
+                # Transpose exchanges local irrep pairs; never allocate a K x K map.
+                for (row, end_row, col, end_col, size), (start, local) in transpose_blocks.items():
+                    reverse_start, reverse = transpose_blocks[(col, end_col, row, end_row, size)]
+                    sign = (local * reverse.transpose(1, 2)).sum(dim=(1, 2)).sign()
+                    if not torch.allclose(local, reverse.transpose(1, 2) * sign[:, None, None],
+                                          rtol=0, atol=64 * torch.finfo(local.dtype).eps):
+                        self.transpose_index = self.transpose_sign = None
+                        break
+                    self.transpose_index[start:start + size] = torch.arange(reverse_start, reverse_start + size)
+                    self.transpose_sign[start:start + size] = sign
