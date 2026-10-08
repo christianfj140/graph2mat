@@ -214,6 +214,47 @@ def test_infer_matrix_components_accepts_iterables(monkeypatch):
     assert inferred == 3
 
 
+@pytest.mark.parametrize("runs", [{}, {"train_runs": []}, {"val_runs": []}, {"test_runs": []}])
+def test_infer_matrix_components_absent_splits_are_empty(runs):
+    assert infer_n_matrix_components_from_data_inputs(
+        basis_table=_single_orbital_basis_table(), sub_point_matrix=False, **runs,
+    ) is None
+
+
+@pytest.mark.parametrize("split", ["val", "test"])
+def test_infer_matrix_components_can_use_a_single_evaluation_split(split):
+    assert infer_n_matrix_components_from_data_inputs(
+        basis_table=_single_orbital_basis_table(), out_matrix="hamiltonian",
+        sub_point_matrix=False, matrix_component_policy="raw_components",
+        **{f"{split}_runs": [_nonspin_nonorthogonal_hamiltonian()]},
+    ) == 2
+
+
+@pytest.mark.parametrize("stage", ["validate", "test", "predict"])
+def test_cli_component_inference_does_not_read_inactive_splits(stage):
+    def inactive():
+        raise AssertionError("inactive dataset was read")
+        yield
+
+    runs = {f"{split}_runs": inactive() for split in ("train", "val", "test")}
+    if stage != "predict":
+        runs[f"{'val' if stage == 'validate' else stage}_runs"] = [_nonspin_nonorthogonal_hamiltonian()]
+    config = Namespace(data=Namespace(basis_table=_single_orbital_basis_table(), out_matrix="hamiltonian",
+                                     sub_point_matrix=False, matrix_component_policy="raw_components",
+                                     n_matrix_components=1, **runs), model=Namespace(n_matrix_components=1))
+    _autoconfigure_n_matrix_components(config, stage=stage)
+    assert config.data.n_matrix_components == config.model.n_matrix_components == (1 if stage == "predict" else 2)
+
+
+def test_component_inference_validate_uses_automatic_train_split():
+    config = Namespace(data=Namespace(basis_table=_single_orbital_basis_table(), out_matrix="hamiltonian",
+                                     sub_point_matrix=False, matrix_component_policy="raw_components",
+                                     n_matrix_components=1, train_runs=[_nonspin_nonorthogonal_hamiltonian()]),
+                       model=Namespace(n_matrix_components=1))
+    _autoconfigure_n_matrix_components(config, stage="validate")
+    assert config.data.n_matrix_components == config.model.n_matrix_components == 2
+
+
 def test_infer_matrix_components_uses_hamiltonian_policy():
     hamiltonian = _nonspin_nonorthogonal_hamiltonian()
     basis_table = _single_orbital_basis_table()

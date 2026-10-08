@@ -22,7 +22,7 @@ from graph2mat.tools.lightning.data import (
 )
 
 
-def _autoconfigure_n_matrix_components(config_ns: Namespace) -> None:
+def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None:
     """Infer matrix components from the dataset when config still uses the default."""
     data_cfg = getattr(config_ns, "data", None)
     model_cfg = getattr(config_ns, "model", None)
@@ -50,6 +50,7 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace) -> None:
         val_runs=getattr(data_cfg, "val_runs", None),
         test_runs=getattr(data_cfg, "test_runs", None),
         runs_json=getattr(data_cfg, "runs_json", None),
+        stage=stage,
     )
     if inferred is None or inferred == configured:
         return
@@ -189,7 +190,7 @@ class OrbitalMatrixCLI(LightningCLI):
         import torch.multiprocessing
 
         config_ns = getattr(self.config, self.config.subcommand)
-        _autoconfigure_n_matrix_components(config_ns)
+        _autoconfigure_n_matrix_components(config_ns, stage=self.config.subcommand)
         if config_ns.multiprocessing_sharing_strategy:
             assert (
                 config_ns.multiprocessing_sharing_strategy

@@ -29,6 +29,9 @@ termination such as SIGKILL cannot run Python cleanup hooks.
 and Manager. The DataModule calls it after fit, retaining the underlying dataset
 so that a later fit can create a fresh pool. Repeated setup does not create extra
 pools. Standalone users of a rotating pool must call ``close()`` when finished.
+Reader errors, failed sample deserialization and unexpected reader exits are
+reported to pool consumers and DataLoader workers; a failed pool never silently
+continues training on its last cached samples.
 
 The pool accepts ``seed=...``; by default its seed is drawn from NumPy's global
 seeded generator, so ``seed_everything`` also controls its sampling order.

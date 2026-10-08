@@ -76,6 +76,14 @@ class TypeLayoutCollate:
 #: Physics matrices that are real-symmetric (M_ij(R) = M_ji(-R)^T) without spin-orbit.
 SYMMETRIC_MATRIX_TYPES = ("density_matrix", "hamiltonian", "energy_density_matrix")
 
+_STAGE_SPLITS = {
+    None: ("train", "val", "test", "predict"),
+    "fit": ("train", "val"),
+    "validate": ("val",),
+    "test": ("test",),
+    "predict": ("predict",),
+}
+
 
 def resolve_symmetric_matrix(
     symmetric_matrix: Optional[bool], out_matrix: Optional[str] = None
@@ -101,8 +109,13 @@ def infer_n_matrix_components_from_data_inputs(
     val_runs: Optional[Union[str, List]] = None,
     test_runs: Optional[Union[str, List]] = None,
     runs_json: Optional[str] = None,
+    stage: Optional[str] = None,
 ) -> Optional[int]:
     """Infer the number of matrix components from the first labeled sample."""
+    if stage not in _STAGE_SPLITS:
+        raise ValueError(f"Unknown setup stage: {stage!r}")
+    if stage == "predict":
+        return None  # Geometry-only prediction cannot determine label components.
     root = maybe_zip_path(root_dir)
 
     if basis_table is None:
@@ -134,17 +147,22 @@ def infer_n_matrix_components_from_data_inputs(
         ],
     )
 
+    requested_splits = _STAGE_SPLITS[stage]
+    if stage == "validate" and val_runs is None and "val" not in runs_dict:
+        requested_splits = ("train",)
     for split, runs in (
         ("train", train_runs),
         ("val", val_runs),
         ("test", test_runs),
     ):
+        if split not in requested_splits:
+            continue
         if isinstance(runs, str):
             runs = glob(root, runs)
         elif runs is None and split in runs_dict:
             runs = [maybe_clean_zip_path(root / p) for p in runs_dict[split]]
 
-        first_run = next(iter(runs), None)
+        first_run = next(iter(runs), None) if runs is not None else None
         if first_run is None:
             continue
 
@@ -352,16 +370,9 @@ class MatrixDataModule(pl.LightningDataModule):
             self._tmp_pid = None
 
     def setup(self, stage: Optional[str] = None):
-        stage_splits = {
-            None: ("train", "val", "test", "predict"),
-            "fit": ("train", "val"),
-            "validate": ("val",),
-            "test": ("test",),
-            "predict": ("predict",),
-        }
-        if stage not in stage_splits:
+        if stage not in _STAGE_SPLITS:
             raise ValueError(f"Unknown setup stage: {stage!r}")
-        requested_splits = stage_splits[stage]
+        requested_splits = _STAGE_SPLITS[stage]
 
         if isinstance(self.root_dir, zipfile.Path) and self.root_dir.root.fp is None:
             self.root_dir = maybe_zip_path(str(self.root_dir))

@@ -23,6 +23,109 @@ class _TensorDataset:
         return torch.tensor([index], dtype=torch.long)
 
 
+def _raise_transfer_error():
+    raise OSError("cannot deserialize second matrix")
+
+
+class _UnreadableSample:
+    def __reduce__(self):
+        return (_raise_transfer_error, ())
+
+
+class _UnpicklableSample:
+    def __reduce__(self):
+        raise TypeError("cannot pickle second matrix")
+
+
+class _FailingDataset:
+    def __init__(self, failure):
+        self.failure = failure
+
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, index):
+        if index == 1:
+            if self.failure == "reader":
+                raise ValueError("corrupt second matrix")
+            if self.failure == "transfer":
+                return _UnreadableSample()
+            if self.failure == "serialization":
+                return _UnpicklableSample()
+        return torch.tensor([index], dtype=torch.long)
+
+
+def _exercise_failed_pool(connection, failure):
+    pool = None
+    try:
+        # The initial index is 0; index 1 fails only in the asynchronous reader.
+        pool = RotatingPoolData(_FailingDataset(failure), 1, seed=123)
+        handle = pool.get_data_pool()
+        if failure == "terminated":
+            pool.loader_process.terminate()
+            pool.loader_process.join(5)
+        pool.transfer_thread.join(5)
+        messages = []
+        for dataset, workers, worker_context in (
+            (pool, None, None), (handle, None, None), (handle, 0, None),
+            (handle, 1, None), (handle, 1, "spawn"),
+        ):
+            iterator = None
+            try:
+                if workers is None:
+                    dataset[0]
+                else:
+                    iterator = iter(torch.utils.data.DataLoader(
+                        dataset, num_workers=workers, multiprocessing_context=worker_context,
+                    ))
+                    next(iterator)
+            except RuntimeError as error:
+                messages.append(str(error))
+            else:
+                messages.append(None)
+            finally:
+                if iterator is not None and hasattr(iterator, "_shutdown_workers"):
+                    iterator._shutdown_workers()
+        pool.close()
+        pool.close()
+        connection.send({"messages": messages, "stopped": not any((
+            pool.loader_process.is_alive(), pool.transfer_thread.is_alive(), pool.manager._process.is_alive(),
+        ))})
+    except Exception as error:
+        connection.send({"error": repr(error)})
+    finally:
+        if pool is not None:
+            pool.close()
+        connection.close()
+
+
+@pytest.mark.parametrize("failure, detail", [
+    ("reader", "ValueError: corrupt second matrix"),
+    ("transfer", "OSError: cannot deserialize second matrix"),
+    ("serialization", "TypeError: cannot pickle second matrix"),
+    ("terminated", "reader exited"),
+])
+def test_rotating_pool_failure_reaches_owner_handle_and_dataloader(failure, detail):
+    context = multiprocessing.get_context()
+    receiver, sender = context.Pipe(duplex=False)
+    process = context.Process(target=_exercise_failed_pool, args=(sender, failure))
+    process.start()
+    sender.close()
+    try:
+        assert receiver.poll(20), "Failed pool child did not respond"
+        result = receiver.recv()
+        process.join(10)
+        assert process.exitcode == 0
+        assert "error" not in result, result
+        assert all(message is not None and detail in message for message in result["messages"]), result
+        assert result["stopped"]
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(10)
+        receiver.close()
+
+
 def _exercise_pool(connection, operation):
     pools = []
     try:

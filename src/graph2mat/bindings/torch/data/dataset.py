@@ -5,6 +5,7 @@ import threading
 import zipfile
 from copy import deepcopy
 from pathlib import Path
+from multiprocessing.reduction import ForkingPickler
 from queue import Empty
 from typing import Generic, Optional, Sequence, Type, TypeVar, Union
 
@@ -194,25 +195,57 @@ class SimpleCounter:
         return self.count
 
 
-def _rotating_pool_worker(dataset, rng, queue):
-    while True:
-        for index in rng.permutation(len(dataset)).tolist():
-            queue.put(dataset[index])
+def _rotating_pool_worker(dataset, rng, queue, status):
+    try:
+        while True:
+            for index in rng.permutation(len(dataset)).tolist():
+                # Queue's feeder cannot report sample serialization errors to readers.
+                queue.put(bytes(ForkingPickler.dumps(dataset[index])))
+    except Exception as exc:
+        status.error = f"reader failed: {type(exc).__name__}: {exc}"
 
 
 def _transfer_thread(
     queue: multiprocessing.Queue, datalist: list, counter: SimpleCounter,
-    stop: threading.Event,
+    stop: threading.Event, status, reader,
 ):
     index = 0
     while not stop.is_set():
+        if status.error is not None:
+            return
         try:
-            data = queue.get(timeout=0.1)
+            data = ForkingPickler.loads(queue.get(timeout=0.1))
+            datalist[index] = data
+            counter.inc()
+            index = (index + 1) % len(datalist)
         except Empty:
+            if reader.exitcode is not None:
+                if status.error is None:
+                    status.error = f"reader exited with code {reader.exitcode}"
+                return
             continue
-        datalist[index] = data
-        counter.inc()
-        index = (index + 1) % len(datalist)
+        except Exception as exc:
+            if status.error is None:
+                origin = f"reader exited with code {reader.exitcode}; transfer failed" if reader.exitcode is not None else "transfer failed"
+                status.error = f"{origin}: {type(exc).__name__}: {exc}"
+            return
+
+
+class _RotatingPoolHandle(torch.utils.data.Dataset):
+    """Only shared proxies travel to DataLoader workers, including reader failures."""
+
+    def __init__(self, data, status):
+        self.data = data
+        self.status = status
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        error = self.status.error
+        if error is not None:
+            raise RuntimeError(f"RotatingPoolData {error}")
+        return self.data[index]
 
 
 class RotatingPoolData(torch.utils.data.Dataset):
@@ -250,6 +283,9 @@ class RotatingPoolData(torch.utils.data.Dataset):
         ]
         self.manager = multiprocessing.Manager()
         self.data_pool = self.manager.list(data_list)
+        self._status = self.manager.Namespace()
+        self._status.error = None
+        self._data_handle = _RotatingPoolHandle(self.data_pool, self._status)
         self.loader_queue = multiprocessing.Queue(2)
         self._stop_transfer = threading.Event()
         self._closed = False
@@ -257,12 +293,12 @@ class RotatingPoolData(torch.utils.data.Dataset):
         # Start loaders
         self.loader_process = multiprocessing.Process(
             target=_rotating_pool_worker,
-            args=(self.parent_data, self.rng, self.loader_queue),
+            args=(self.parent_data, self.rng, self.loader_queue, self._status),
             daemon=True,
         )
         self.transfer_thread = threading.Thread(
             target=_transfer_thread,
-            args=(self.loader_queue, self.data_pool, self.counter, self._stop_transfer),
+            args=(self.loader_queue, self.data_pool, self.counter, self._stop_transfer, self._status, self.loader_process),
             daemon=True,
         )
         try:
@@ -294,7 +330,7 @@ class RotatingPoolData(torch.utils.data.Dataset):
         return self.pool_size
 
     def __getitem__(self, index: int) -> TorchBasisMatrixData:
-        return self.data_pool[index]
+        return self._data_handle[index]
 
     def get_data_pool(self):
         """
@@ -302,7 +338,7 @@ class RotatingPoolData(torch.utils.data.Dataset):
 
         Returns
         -------
-            Multiprocessing proxy data object
+            Dataset handle backed by shared multiprocessing proxies.
 
         """
-        return self.data_pool
+        return self._data_handle

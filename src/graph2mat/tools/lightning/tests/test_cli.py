@@ -63,7 +63,7 @@ def test_checkpoint_config_loads_lightning_objects(tmp_path):
     assert config["model"]["basis_table"] == "basis"
 
 
-@pytest.mark.parametrize("command", ["test", "predict"])
+@pytest.mark.parametrize("command", ["validate", "test", "predict"])
 @pytest.mark.parametrize("legacy", [False, True])
 def test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides(tmp_path, command, legacy):
     pl.seed_everything(0, workers=True)
@@ -108,6 +108,8 @@ def test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides(tmp
         callbacks = [{"class_path": "graph2mat.tools.lightning.callbacks.MatrixWriter",
                       "init_args": {"output_file": str(prediction_file), "splits": ["predict"]}}]
     safe_globals = torch.serialization.get_safe_globals().copy()
+    runs_json = tmp_path / "runs.json"
+    runs_json.write_text(json.dumps({"train": ["missing-inactive.nc"]}))
     cli = OrbitalMatrixCLI(
         model_class=LitMACEMatrixModel, datamodule_class=MatrixDataModule,
         save_config_callback=None, args=[
@@ -116,6 +118,7 @@ def test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides(tmp
             "--trainer.enable_checkpointing=false", "--trainer.enable_progress_bar=false",
             "--trainer.enable_model_summary=false", "--trainer.callbacks", json.dumps(callbacks),
             "--data.batch_size=1", "--model.optim_lr=0.002",
+            "--data.train_runs=null", "--data.runs_json", str(runs_json),
         ],
     )
     assert cli.model.hparams.hidden_irreps == "2x0e+2x1o"
@@ -130,8 +133,9 @@ def test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides(tmp
         actual = cli.model(batch)
     for key in ("node_labels", "edge_labels"):
         torch.testing.assert_close(actual[key], expected[key], rtol=0, atol=0)
-    if command == "test":
-        cli_batch = next(iter(cli.datamodule.test_dataloader()))
+    if command != "predict":
+        loader = cli.datamodule.val_dataloader() if command == "validate" else cli.datamodule.test_dataloader()
+        cli_batch = next(iter(loader))
         assert cli.datamodule.basis_table.maxR() == module.basis_table.maxR()
         torch.testing.assert_close(cli_batch.point_labels, batch.point_labels, rtol=0, atol=0)
         torch.testing.assert_close(cli_batch.edge_labels, batch.edge_labels, rtol=0, atol=0)
@@ -141,7 +145,8 @@ def test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides(tmp
         ])
         # Epoch sums accumulate in float64; do not compare against an extra
         # float32 reduction that rounds the independent reference again.
-        assert float(cli.trainer.callback_metrics["test_loss"]) == pytest.approx(float(errors.double().square().mean()), abs=1e-12)
+        split = "val" if command == "validate" else "test"
+        assert float(cli.trainer.callback_metrics[f"{split}_loss"]) == pytest.approx(float(errors.double().square().mean()), abs=1e-12)
     else:
         expected_matrix = module.data_processor.matrix_from_data(batch, expected)[0]
         written = sisl.get_sile(prediction_file).read_density_matrix(geometry=geometry)
