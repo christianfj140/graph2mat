@@ -1037,7 +1037,8 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   (`python39/python312/latest-physical-wheel-tests.log`). Raíz: **25 passed** por
   perfil, 17.60/24.18/24.47 s. Total completo por perfil: 1165 passing, dos skips.
   Perfiles base: **16 passed, 7 deselected** en 3.9/3.12, 7.30/10.56 s;
-  selección incluye ahora la caracterización broken_torch previamente no elegida.
+  selección explícita de núcleo base, doce ayudas CLI, aislamiento de Typer y
+  errores de extras; no incluye torch_only/broken_torch ni servidor/cliente HTTP.
   Cinco pip check, exit 0 (`*-physical-pip-check.log`).
 - docs/server.rst documenta formato, gauge, requisitos, errores, referencias y
   limpieza. Se verifica serialización, no exactitud/SPD de una S aprendida.
@@ -1047,6 +1048,52 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   datasets Python en memoria fue rechazado por el tipo CLI Optional[str] de
   train_runs (cli-real-checkpoint-probe.log). No se cambia el contrato por este
   sondeo: usar archivos/rutas reales conforme a la API CLI documentada.
+
+### Sublote 3.9.i — CLI real, callbacks y soporte orbital en checkpoints
+
+- Serialización física comprometida como **dd2fccf**. Reanudación actual:
+  get_goal devuelve **active**; el turno anterior produjo código y verificaciones,
+  por tanto se clasifica como progreso, no bloqueo ni mera espera.
+- CLI con archivos reales: test/predict de un checkpoint MACE, legado/nuevo,
+  fallaban al cargar objetos Python con la segunda lectura weights_only de
+  Lightning. RED: **4 failed, 3 deselected**, 3.34 s
+  (`cli-real-checkpoint-red.log`). El sondeo previo con datasets en memoria no
+  era un input CLI válido y no se amplió su contrato para hacerlo pasar.
+- OrbitalMatrixCLI conserva su lector existente de configuración confiable y
+  omite la segunda lectura de Lightning. Opciones CLI explícitas prevalecen;
+  no se modifica la política global de Torch. Checkpoints solo de fuentes fiables.
+- Tras ese parche seguían fallando los callbacks y el soporte del grafo:
+  Sequence sin parámetros rompía jsonargparse; sisl perdía R sin radial o
+  reinfería otro R desde su radial muestreada. RED adicional **8 failed**, .94 s
+  (`cli-callback-cutoffs-red.log`); diagnóstico literal R=-.9999 frente a 1.4.
+  Los callbacks aceptan string/Sequence[str]. AtomicTableWithEdges añade radios
+  por orbital a su estado programático y restaura soportes atómico/radial, sin
+  modificar funciones radiales; estados legacy/representación por archivos siguen
+  aceptados. No puede recuperar información que un checkpoint antiguo ya perdió.
+- Trece regresiones nuevas: CLI CPU real test/predict, valores de todos los pesos
+  y predicciones idénticos, overrides, salida MatrixWriter, splits por parser real,
+  radios s/d/f con/sin radial y estado legacy. Un oráculo inicial reducía MSE en
+  float32 frente al acumulador float64: se corrigió esa reducción, no el producto.
+- Suite CPU: **1178 passed, 2 skipped**, 7201 warnings, 138.58 s
+  (`cli-checkpoint-full-cpu.log`). Enfocado **31 passed**, 705 warnings, 7.51 s
+  (`cli-checkpoint-focused-isolated.log`). Último ajuste solo de aislamiento:
+  callbacks escriben dentro de tmp_path. Su CSV anterior se movió recuperablemente
+  a cli-callback-owned-output.csv en el directorio de evidencia.
+- Wheels del producto: cp39 sha256
+  `d468590ae7439b96449b317772fc512f9210ff47f079aa50a6ad1b1804691964`,
+  cp312 `3cab3f607b9af1fb5f5a464327e2604df677c641b8961bed6332ef6a6f3f55ce`.
+  Tres suites instaladas -I/--pyargs: **1153 passed, 2 skipped** por perfil;
+  3.9 mínimo 130.94 s, 3.12 fijado 126.42 s, latest 131.75 s
+  (`python39/python312/latest-cli-wheel-tests.log`). Esas wheels contienen la
+  versión de fixture previa al ajuste tmp_path; producto y assertions idénticos.
+- Raíz: **25 passed** por perfil, 16.31/21.85/22.09 s. Las dos ejecuciones 3.12
+  interrumpidas carecían de proceso vivo y de salida terminal; se relanzaron solo
+  ellas (`python312/latest-cli-root-tests-resumed.log`). Total 1178 por perfil.
+  Base 3.9/3.12: **16 passed, 7 deselected**, 6.37/9.53 s. Cinco pip check, exit 0
+  (`*-cli-pip-check.log`). Hooks reales Ruff/mypy Passed y diff --check limpio.
+- Continúan abiertos **3.1 y 3.9** (pérdidas especiales y oráculos físicos),
+  además de la revisión independiente final de los cinco puntos. Nada de GPU,
+  entrenamientos activos, autorun, Lua/SIESTA ni CI remota se ha ejecutado.
 
 ## Cierre del goal
 

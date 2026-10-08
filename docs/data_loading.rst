@@ -138,3 +138,19 @@ checkout unavailable in an installed wheel are represented by ``None``.
 The Git directory comes from the module, not the caller's working directory;
 untracked files do not set the dirty flag. Provenance is informational: old
 checkpoints without it still load, and prediction weights are unchanged.
+
+``OrbitalMatrixCLI`` can run ``test``/``predict`` from ``--ckpt_path`` with the
+stored model/data configuration, while explicit CLI options retain priority.
+It uses Graph2Mat's existing checkpoint-config loader rather than Lightning's
+additional weights-only reparse. These checkpoints contain Python objects:
+load **only trusted files**. No process-wide Torch safe-global/loading policy
+is changed. ``MatrixWriter``/``SamplewiseMetricsLogger`` split options accept a
+string or sequence through the CLI as well as Python.
+
+Programmatic ``AtomicTableWithEdges`` checkpoints record per-orbital cutoffs
+separately from sisl's radial serialization. This preserves exact graph support
+even without a radial function, and avoids cutoff changes from sampled radial
+data; it does not invent radial functions or change interpolation. The original
+file-content representation and legacy ``atoms`` states remain accepted. An old
+atoms-only checkpoint that already lost a cutoff cannot recover that missing
+information: use the original basis rather than guessing a radius.

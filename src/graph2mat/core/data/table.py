@@ -665,7 +665,10 @@ class AtomicTableWithEdges(BasisTableWithEdges):
         if self.file_names is not None and self.file_contents is not None:
             return {"file_names": self.file_names, "file_contents": self.file_contents}
         else:
-            return {"atoms": self.atoms}
+            # sisl can discard explicit cutoffs without a radial function, or
+            # infer different cutoffs from its sampled radial pickle data.
+            return {"atoms": self.atoms,
+                    "orbital_radii": [[orbital.R for orbital in atom] for atom in self.atoms]}
 
     def __setstate__(self, d):
         """Re-create the state of this object"""
@@ -674,4 +677,13 @@ class AtomicTableWithEdges(BasisTableWithEdges):
         if file_names is not None and file_contents is not None:
             self._set_state_by_filecontents(file_names, file_contents)
         else:
+            radii = d.get("orbital_radii")
+            if radii is not None:
+                for atom, atom_radii in zip(d["atoms"], radii):
+                    for orbital, radius in zip(atom, atom_radii):
+                        # No public R setter in supported sisl 0.16. Keep both
+                        # the atomic and underlying radial support unchanged.
+                        orbital._R = float(radius)
+                        if hasattr(orbital, "orb"):
+                            orbital.orb._R = float(radius)
             self._set_state_by_atoms(d["atoms"])

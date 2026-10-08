@@ -176,6 +176,13 @@ class OrbitalMatrixCLI(LightningCLI):
             # We have set all the right defaults now! So we can reparse the arguments.
             super().parse_arguments(parser, args)
 
+    def _parse_ckpt_path(self) -> None:
+        # Newer Lightning reparses checkpoints with weights_only=True here.
+        # Graph2Mat already loaded the trusted Python hyperparameters above,
+        # preserving both data/model defaults and explicit CLI overrides.
+        # Do not reread or overwrite that config, or change Torch's global policy.
+        pass
+
     def before_instantiate_classes(self) -> None:
         # This is executed after config/argparser has been instanced
         # but before data and model has been instantiated.

@@ -32,9 +32,9 @@ class MatrixWriter(Callback):
         self,
         output_file: str,
         # Only predictions by default: writing every training step is very expensive.
-        splits: Sequence = [
+        splits: Union[str, Sequence[str]] = [
             "predict",
-        ],  # I don't know why, but Sequence[str] breaks the lightning CLI
+        ],
     ):
         """Callback to write produced matrices to disk.
 
@@ -227,11 +227,11 @@ class SamplewiseMetricsLogger(Callback):
     def __init__(
         self,
         metrics: Union[Sequence[Type[OrbitalMatrixMetric]], None] = None,
-        splits: Sequence = [
+        splits: Union[str, Sequence[str]] = [
             "train",
             "val",
             "test",
-        ],  # I don't know why, but Sequence[str] breaks the lightning CLI
+        ],
         output_file: Union[str, Path] = "sample_metrics.csv",
     ):
         super().__init__()
