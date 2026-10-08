@@ -810,6 +810,40 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   conocidas son fixture H local y GPU compile, no las nuevas regresiones.
   Los otros requisitos de 3.1/3.4/3.5/3.9 y la revisión final siguen abiertos.
 
+### Sublote 3.1.f — Huber por bloques físicos y término label composite
+
+- Sublote de tipos comprometido en **d4ad82b**, gate completo 1050/2, hooks y
+  wheel base compilada verificados. No se repiten esos cambios.
+- Regresiones nuevas con Trainer CPU real, dos splits, NaN, bloques 1x1/2x2,
+  aristas presentes/ausentes y batching 1/2/1. Oráculo literal beta=1: .5 para
+  error 1, 2.5 para error 3; media por bloque 1 frente a media por elemento 11.5/7.
+  El loss de cada paso permanece como está; se corrigen agregación/denominadores.
+- RED real **12 failed**, 52 deselected, 88 warnings, 0.90 s
+  (physical-huber-epoch-red.log); promedio por batch .75 frente a global 1 para
+  bloques, y .75 frente a 1.1607142857 para elementos. Se reutilizan sumas/conteos
+  de _EpochMatrixLoss y momentos existentes; conteos de bloques se suman y medias
+  por tipo excluyen bloques sin etiquetas. GREEN cercano **297 passed**, 247
+  warnings, 2.88 s (physical-huber-epoch-green.log).
+- Primer ensayo DDP de dos rangos con especies/aristas disjuntas: **1 failed**,
+  seis deselected, 52 warnings, 6.10 s (physical-huber-ddp-green.log; nombre del
+  log no implica GREEN). Ambos rangos tenían las mismas claves pero distinto
+  orden: val_node_type0_block_huber=1 en vez de .5, mezclando tipos en el reduce.
+  Se ordena el esquema después de incluir tipos ausentes; los valores vacíos no
+  aportan denominador. GREEN posterior **304 passed**, 247 warnings, 47.66 s
+  (physical-huber-ddp-focused-final.log), incluidos siete casos DDP CPU y los
+  oráculos por rango/tipo: .5, 2.5 y 1.5, tipos nunca vistos cero sin denominador.
+  En este lote solo cambia logging; cálculo/gradiente del loss de cada paso intacto.
+- Ruff y mypy hooks **Passed**, exit 0 (physical-huber-ruff-hook.log,
+  physical-huber-mypy-hook.log). Gate completo CPU del árbol congelado:
+  **1063 passed, 2 skipped**, 6762 warnings, 143.62 s, exit 0
+  (physical-huber-full-cpu.log). No skips nuevos; 13 regresiones adicionales.
+- El término label_huber se agrega globalmente también en composite; el total
+  composite se verifica aquí solo con coefficient_mse_weight=0. La parte positiva
+  de coeficientes y la prueba de entrenamiento/reset específica se conservan en
+  el alcance pendiente, junto con pares/espectro/dominios. No se cierra 3.1.
+- Pendiente todavía: coeficientes, pares, ventana espectral, dominios y sus
+  ramas NaN/vacías; no se reduce el alcance del objetivo a este sublote.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

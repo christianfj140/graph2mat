@@ -80,7 +80,7 @@ class _EpochRMSE(Metric):
 
 
 class _EpochErrorMoments(Metric):
-    """Global absolute-error mean, sample standard deviation or maximum."""
+    """Global absolute-error mean, sample standard deviation, maximum or sum."""
 
     full_state_update = False
 
@@ -102,6 +102,8 @@ class _EpochErrorMoments(Metric):
     def compute(self):
         if self.statistic == "max":
             return self.maximum
+        if self.statistic == "sum":
+            return self.total
         mean = self.total / self.count.clamp_min(1)
         if self.statistic == "mean":
             return mean
@@ -314,14 +316,21 @@ class LitBasisMatrixModel(pl.LightningModule):
         huber = type(self.loss_fn) in (metrics_module.block_type_huber, metrics_module.block_type_smooth_l1)
         if huber:
             policy = (1, False, 1., 1.)
+        physical_huber = isinstance(self.loss_fn, (metrics_module.block_normalized_huber,
+                                                   metrics_module.hamiltonian_composite_loss))
+        if physical_huber and getattr(self.loss_fn, "coefficient_mse_weight", 0.) == 0:
+            policy = (1, False, self.loss_fn.node_weight, self.loss_fn.edge_weight)
         key = f"{split}_loss"
         value, attribute = loss, None
         if policy is not None:
-            errors = metrics_module.get_predictions_error(
-                out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
-            )
-            if huber:
-                errors = tuple(metrics_module._smooth_l1(error, self.loss_fn.beta) for error in errors)
+            if physical_huber:
+                errors, _ = self._huber_epoch_terms(out, batch)
+            else:
+                errors = metrics_module.get_predictions_error(
+                    out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
+                )
+                if huber:
+                    errors = tuple(metrics_module._smooth_l1(error, self.loss_fn.beta) for error in errors)
             if key not in self._epoch_losses:
                 self._epoch_losses[key] = _EpochMatrixLoss().to(self.device)
             value = self._epoch_losses[key]
@@ -334,8 +343,47 @@ class LitBasisMatrixModel(pl.LightningModule):
             self.log("hp_metric", value, batch_size=batch.num_graphs,
                      metric_attribute=attribute, sync_dist=policy is None)
 
+    def _huber_epoch_terms(self, out, batch):
+        """Huber elements or physical-block means, with valid block types."""
+        errors = metrics_module.get_predictions_error(
+            out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
+        )
+        terms = tuple(metrics_module._smooth_l1(error, self.loss_fn.beta) for error in errors)
+        per_block = (isinstance(self.loss_fn, metrics_module.block_normalized_huber)
+                     or self.loss_fn.per_block_normalization)
+        if not per_block:
+            return terms, (None, None)
+        pointers = metrics_module._node_edge_block_pointers(
+            batch, self.basis_table, model=self.model, expected_edge_nlabels=len(errors[1]),
+            nodes_ref=batch.point_labels, edges_ref=batch.edge_labels,
+        )
+        types = (metrics_module._as_numpy_int(batch.point_types),
+                 abs(metrics_module._symmetric_edge_types_for_labels(
+                     readout=getattr(self.model, "matrix_readouts", None), batch=batch,
+                     basis_table=self.basis_table, expected_nlabels=len(batch.edge_labels),
+                 )))
+        blocks = [metrics_module._loss_blocks(values, ptr) for values, ptr in zip(terms, pointers)]
+        return (
+            tuple(torch.stack(values) if values else terms[i].new_empty(0)
+                  for i, values in enumerate(blocks)),
+            tuple(values[ptr[1:] > ptr[:-1]] for values, ptr in zip(types, pointers)),
+        )
+
     def _log_stats(self, split, stats, batch, out):
         errors = None
+        physical_huber = isinstance(self.loss_fn, (metrics_module.block_normalized_huber,
+                                                   metrics_module.hamiltonian_composite_loss))
+        huber_terms = huber_types = None
+        if physical_huber:
+            huber_terms, huber_types = self._huber_epoch_terms(out, batch)
+        if isinstance(self.loss_fn, metrics_module.block_normalized_huber) and self.loss_fn.log_type_stats:
+            # Every rank logs the same schema, even if it has no blocks of a type.
+            stats = dict(stats)
+            for kind, size in (("node", len(self.basis_table.basis)),
+                               ("edge", len(self.basis_table.edge_block_size))):
+                for type_id in range(size):
+                    stats.setdefault(f"{kind}_type{type_id}_block_huber", out["node_labels"].new_zeros(()))
+            stats = dict(sorted(stats.items()))
         for name, value in stats.items():
             huber_mean = (type(self.loss_fn) in (metrics_module.block_type_huber, metrics_module.block_type_smooth_l1)
                           and name in ("node_smooth_l1", "edge_smooth_l1"))
@@ -349,6 +397,27 @@ class LitBasisMatrixModel(pl.LightningModule):
                 metric(value, count)
                 value = metric
                 attribute = f"_epoch_rmse.{key}"
+            elif physical_huber and name == "label_huber":
+                if key not in self._epoch_losses:
+                    self._epoch_losses[key] = _EpochMatrixLoss().to(self.device)
+                value = self._epoch_losses[key]
+                value(*huber_terms, 1, False, self.loss_fn.node_weight, self.loss_fn.edge_weight)
+                attribute = f"_epoch_losses.{key}"
+            elif physical_huber and (name in ("node_smooth_l1", "edge_smooth_l1", "node_blocks", "edge_blocks")
+                                     or name.endswith("_block_huber")):
+                statistic = "sum" if name.endswith("_blocks") else "mean"
+                if key not in self._epoch_errors:
+                    self._epoch_errors[key] = _EpochErrorMoments(statistic).to(self.device)
+                terms = huber_terms[0 if name.startswith("node_") else 1]
+                if "_type" in name:
+                    type_id = int(name.split("_type")[1].split("_")[0])
+                    types = huber_types[0 if name.startswith("node_") else 1]
+                    terms = terms[torch.as_tensor(types == type_id, device=terms.device)]
+                elif statistic == "sum":
+                    terms = stats[name]
+                value = self._epoch_errors[key]
+                value(terms)
+                attribute = f"_epoch_errors.{key}"
             elif huber_mean or name in {f"{kind}_{stat}" for kind in ("node", "edge") for stat in ("mean", "std", "max")}:
                 if errors is None:
                     errors = metrics_module.get_predictions_error(

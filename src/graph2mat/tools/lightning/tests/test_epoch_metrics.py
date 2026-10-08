@@ -27,6 +27,55 @@ class _PredictionModel(torch.nn.Module):
 
 
 @pytest.mark.parametrize("split", ["val", "test"])
+@pytest.mark.parametrize("missing_nodes", [False, True])
+@pytest.mark.parametrize("loss_name,per_block", [
+    ("block_normalized_huber", True),
+    ("hamiltonian_composite_loss", True),
+    ("hamiltonian_composite_loss", False),
+])
+def test_epoch_physical_huber_counts_blocks_not_batches(split, missing_nodes, loss_name, per_block):
+    # Three 1x1 node blocks at error 1 and one 2x2 block at error 3.
+    # beta=1 gives .5/.5/.5/2.5: block mean=1, element mean=11.5/7.
+    samples = [
+        Data(num_nodes=3, point_types=torch.zeros(3, dtype=torch.long),
+             point_labels=torch.zeros(3), node_prediction=torch.ones(3),
+             edge_labels=torch.zeros(2), edge_prediction=torch.full((2,), 2.),
+             edge_types=torch.zeros(4, dtype=torch.long),
+             edge_index=torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]])),
+        Data(num_nodes=1, point_types=torch.ones(1, dtype=torch.long),
+             point_labels=torch.full((4,), float("nan") if missing_nodes else 0.),
+             node_prediction=torch.full((4,), 3.), edge_labels=torch.empty(0),
+             edge_prediction=torch.empty(0), edge_types=torch.empty(0, dtype=torch.long),
+             edge_index=torch.empty((2, 0), dtype=torch.long)),
+    ]
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1]), PointBasis("B", R=2, basis=[2])])
+    kwargs = {"beta": 1., "node_weight": .25, "edge_weight": .5}
+    if loss_name == "hamiltonian_composite_loss":
+        kwargs.update(coefficient_mse_weight=0., per_block_normalization=per_block)
+    model = LitBasisMatrixModel(model_cls=_PredictionModel, basis_table=table,
+                               loss=getattr(metrics_module, loss_name), loss_kwargs=kwargs)
+    model.init_model()
+    trainer = pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                         enable_progress_bar=False, enable_model_summary=False)
+    evaluate = trainer.validate if split == "val" else trainer.test
+    node_mean = .5 if missing_nodes else (1. if per_block else 11.5 / 7)
+    for batch_size in (1, 2, 1):
+        result = evaluate(model, dataloaders=DataLoader(samples, batch_size=batch_size), verbose=False)[0]
+        assert result[f"{split}_loss"] == pytest.approx(.25 * node_mean + .5 * 1.5)
+        if loss_name == "block_normalized_huber":
+            assert result[f"{split}_node_block_huber"] == pytest.approx(node_mean)
+            assert result[f"{split}_edge_block_huber"] == pytest.approx(1.5)
+            assert result[f"{split}_node_blocks"] == (3 if missing_nodes else 4)
+            assert result[f"{split}_edge_blocks"] == 2
+            assert result[f"{split}_node_type0_block_huber"] == pytest.approx(.5)
+            assert result[f"{split}_node_type1_block_huber"] == pytest.approx(0. if missing_nodes else 2.5)
+        else:
+            assert result[f"{split}_node_smooth_l1"] == pytest.approx(node_mean)
+            assert result[f"{split}_edge_smooth_l1"] == pytest.approx(1.5)
+            assert result[f"{split}_label_huber"] == pytest.approx(.25 * node_mean + .5 * 1.5)
+
+
+@pytest.mark.parametrize("split", ["val", "test"])
 @pytest.mark.parametrize("components", [1, 2])
 def test_epoch_rmse_is_independent_of_batch_partition(split, components):
     # Four node errors [1, 1, 1, 3] and four valid edge errors [2, 4, 4, 4].

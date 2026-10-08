@@ -84,7 +84,7 @@ def _run_training_script(output_dir, layout):
     return json.loads((output_dir / "result.json").read_text())
 
 
-def _evaluate_epoch_metrics(output_dir, spin, huber=False):
+def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False):
     import pytorch_lightning as pl
     import torch
     from pytorch_lightning.strategies import DDPStrategy
@@ -92,7 +92,7 @@ def _evaluate_epoch_metrics(output_dir, spin, huber=False):
     from torch_geometric.loader import DataLoader
 
     from graph2mat import BasisTableWithEdges, PointBasis
-    from graph2mat.core.data.metrics import block_type_mse, block_type_huber
+    from graph2mat.core.data.metrics import block_type_mse, block_type_huber, block_normalized_huber
     from graph2mat.tools.lightning.model import LitBasisMatrixModel
 
     class Predictions(torch.nn.Module):
@@ -116,8 +116,25 @@ def _evaluate_epoch_metrics(output_dir, spin, huber=False):
                 values = sample[key]
                 sample[key] = torch.stack([values, 2 * values], dim=1)
     table = BasisTableWithEdges([PointBasis("A", R=2, basis="0e", basis_convention="spherical")])
+    loss_kwargs = {}
+    if physical:
+        table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1]), PointBasis("B", R=2, basis=[2])])
+        samples = [
+            Data(num_nodes=3, point_types=torch.zeros(3, dtype=torch.long),
+                 point_labels=torch.zeros(3), node_prediction=torch.ones(3),
+                 edge_labels=torch.zeros(2), edge_prediction=torch.full((2,), 2.),
+                 edge_types=torch.zeros(4, dtype=torch.long),
+                 edge_index=torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]])),
+            Data(num_nodes=1, point_types=torch.ones(1, dtype=torch.long),
+                 point_labels=torch.zeros(4), node_prediction=torch.full((4,), 3.),
+                 edge_labels=torch.empty(0), edge_prediction=torch.empty(0),
+                 edge_types=torch.empty(0, dtype=torch.long),
+                 edge_index=torch.empty((2, 0), dtype=torch.long)),
+        ]
+        loss_kwargs = {"beta": 1., "node_weight": .25, "edge_weight": .5}
     model = LitBasisMatrixModel(model_cls=Predictions, basis_table=table,
-                               loss=block_type_huber if huber else block_type_mse)
+                               loss=block_normalized_huber if physical else block_type_huber if huber else block_type_mse,
+                               loss_kwargs=loss_kwargs)
     model.init_model()
     trainer = pl.Trainer(
         accelerator="cpu", devices=2,
@@ -190,8 +207,28 @@ def test_two_cpu_ranks_reduce_global_epoch_statistics(tmp_path, spin, huber):
             assert metrics[key] == pytest.approx(value), f"Rank {rank}, {key}"
 
 
+def test_two_cpu_ranks_reduce_physical_huber_with_disjoint_types(tmp_path):
+    import math
+
+    _run_training_script(tmp_path, "epoch_metrics_physical_huber")
+    for rank in (0, 1):
+        result = json.loads((tmp_path / f"rank{rank}.json").read_text())
+        assert result["world_size"] == 2
+        expected = {
+            "val_loss": 1., "hp_metric": 1.,
+            "val_node_block_huber": 1., "val_edge_block_huber": 1.5,
+            "val_node_blocks": 4., "val_edge_blocks": 2.,
+            "val_node_type0_block_huber": .5, "val_node_type1_block_huber": 2.5,
+            "val_edge_type0_block_huber": 1.5, "val_edge_type1_block_huber": 0.,
+            "val_edge_type2_block_huber": 0., "val_node_rmse": math.sqrt(39 / 7),
+            "val_edge_rmse": 2.,
+        }
+        for key, value in expected.items():
+            assert result["metrics"][key] == pytest.approx(value), f"Rank {rank}, {key}"
+
+
 if __name__ == "__main__":
     if sys.argv[2].startswith("epoch_metrics"):
-        _evaluate_epoch_metrics(sys.argv[1], sys.argv[2].endswith("spin"), "huber" in sys.argv[2])
+        _evaluate_epoch_metrics(sys.argv[1], sys.argv[2].endswith("spin"), "huber" in sys.argv[2], "physical" in sys.argv[2])
     else:
         _fit(sys.argv[1], sys.argv[2])
