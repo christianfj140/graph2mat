@@ -67,7 +67,7 @@ recortados para `max`. La pérdida física enmascarada de 5.3 sigue abierta.
   Expected: exit 0; valores y gradientes 1e-12 en readouts construidos float64.
 - [x] Step 5: suite source CPU completa, Ruff/mypy y diff --check. Documentar
   el contrato y el límite de targets padded. Expected: sin regresiones nuevas.
-- [ ] Step 6: commit local explícito y task-done con la selección CPU final;
+- [x] Step 6: commit local explícito y task-done con la selección CPU final;
   registrar comandos/resultados. No atribuir ganancia GPU a una reparación.
 
 ## Pre-flight

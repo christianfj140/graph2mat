@@ -402,3 +402,7 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
 - Todavía faltan ruta integrada Graph2Mat/MACE/Lightning, targets CPU,
   equivalencia de pesos/MSE, fallback/diagnósticos/callbacks y medidas. Tasks 2–4
   no se reemplazan por estos prerrequisitos.
+- Cambios comprometidos como **89c52ca**. Task-done posterior desde source:
+  **130 pasan**, 345 warnings, **3.70 s**, exit 0;
+  `.superpowers/sdd/plan_coeficientes_orientacion/task-1-tests.log`.
+  Registro del subproyecto completo e2a906a..89c52ca; no cierra Task 1 general.
