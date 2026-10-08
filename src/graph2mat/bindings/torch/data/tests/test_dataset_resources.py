@@ -30,6 +30,7 @@ def _read_child(dataset, connection):
         source_fds = [item.root.fp.fileno() for item in dataset.input_data]
         samples = [dataset[i] for i in range(len(dataset))]
         read_fds = [sample.reader_fd for sample in samples]
+        reread = dataset[0].text
         dataset.close()
         readers_closed = []
         for descriptor in read_fds:
@@ -41,6 +42,7 @@ def _read_child(dataset, connection):
                 readers_closed.append(False)
         connection.send({
             "texts": [sample.text for sample in samples],
+            "reread": reread,
             "source_fds": source_fds,
             "read_fds": read_fds, "readers_closed": readers_closed,
             "source_texts_after_close": [item.read_text() for item in dataset.input_data],
@@ -81,6 +83,7 @@ def test_fork_reopens_every_zip_without_mutating_source(tmp_path, read_before_fo
             result = receiver.recv()
             assert "error" not in result, result
             assert result["texts"] == ["sample-0", "sample-1"]
+            assert result["reread"] == "sample-0"
             assert result["read_fds"] != result["source_fds"]
             assert all(a != b for a, b in zip(result["read_fds"], result["source_fds"]))
             assert result["source_fds_after"] == result["source_fds"]

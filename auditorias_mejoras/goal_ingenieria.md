@@ -1,6 +1,6 @@
 # Goal de ingeniería Graph2Mat — 2026-10-07
 
-Objetivo activo: cerrar **completamente** 3.1, 3.4, 3.5, 3.6 y 3.9 del roadmap,
+Objetivo vigente: cerrar **completamente** 3.1, 3.4, 3.5, 3.6 y 3.9 del roadmap,
 con código, regresiones y evidencia. Un sublote verde no completa el goal.
 
 ## Estado y límites
@@ -13,6 +13,10 @@ con código, regresiones y evidencia. Un sublote verde no completa el goal.
   `g2m_autorun.py`, colas, push, merge ni publicación.
 - Preservar APIs, Python >=3.9, checkpoints y los objetivos científicos existentes.
 - Python compartido se usa solo para ejecutar pruebas CPU; instalaciones nuevas van a entornos temporales aislados.
+- Reanudación del 08-10 tras agotar cuota: `get_goal` aún devuelve
+  `usageLimited`; no existe una operación de reanudación en esta herramienta.
+  El usuario autorizó explícitamente continuar, y el trabajo se retoma aquí
+  sin crear otro objetivo ni marcar el existente completo.
 - Evidencia inicial: `/tmp/g2m-engineering-goal.mJBRD9/baseline.log`.
 - Línea base reproducida: **515 passed, 1 skipped, 6023 warnings**, 62.05 s.
 - Turno de goal anterior interrumpido: solo lectura de skills/estado del goal, sin cambios de producto.
@@ -843,6 +847,101 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   el alcance pendiente, junto con pares/espectro/dominios. No se cierra 3.1.
 - Pendiente todavía: coeficientes, pares, ventana espectral, dominios y sus
   ramas NaN/vacías; no se reduce el alcance del objetivo a este sublote.
+
+### Sublote 3.5.c / 3.6.d / 3.9.h — perfiles reproducibles y Python 3.9 real
+
+- Python 3.9.25 instalado en `/tmp/g2m-python39.D7TJAp/python`, sin usar ni
+  modificar paquetes del entorno compartido. Wheel inicial construida con
+  Cython real; base sin Torch: **15 passed, 8 deselected**, 5.79 s, CLI e import
+  aislado correctos (`python39-wheel-build.log`, `python39-base-tests.log`).
+- RED de resolución real, uv y pip: `[mace,docs]` exige simultáneamente
+  e3nn==0.4.4 y e3nn>=0.5 (`docs-mace-resolver-red.log`, `docs-mace-pip-red.log`).
+  Se respeta el pin de MACE; no se fuerza una segunda instalación incompatible.
+  Resolución GREEN en `docs-mace-resolver-green.log`; instalación conjunta real
+  de `[test,tools,server,extrapolation,docs]` y `pip check` en los dos venvs.
+- Primera wheel completa Python 3.12: **1 failed, 1037 passed, 2 skipped**,
+  109.11 s (`python312-full-wheel-tests.log`). El test de provenance asumía
+  checkout Git alrededor de una wheel: ahora crea un repositorio temporal real
+  con model.py tracked; sigue comprobando commit, dirty=False y cwd ajeno.
+- Primera wheel completa Python 3.9, Torch 2.1.2: **13 failed, 1025 passed,
+  2 skipped**, 102.73 s (`python39-full-wheel-tests.log`). APIs ausentes:
+  torch.compiler.is_compiling y is_autocast_enabled(device); sisl rechaza ZIP
+  antes de Python 3.10; el mismo test de provenance dependía del checkout.
+  Torch **2.4.1** repara las APIs sin tocar MACE ni las fórmulas: **52 passed,
+  1 skipped**, 19.13 s (`python39-torch24-api-tests.log`).
+- Rangos declarados con pisos probados: NumPy 1.26.4, SciPy 1.13.1, ASE 3.26,
+  sisl 0.16.2, Typer 0.23.2, Torch 2.4.1, PyG 2.4, Lightning 2.1.4,
+  jsonargparse 4.48 (también probado previamente), e3nn 0.4.4, MACE 0.3.15.
+  Límites superiores conservadores; no se afirma que sean los mínimos históricos.
+  Extras docs/MACE se resuelven juntos en el workflow; TensorSquare ya probado
+  en el modelo y seis casos nuevos verifican ancho real de radial_embedding.
+- Regresión de ZIP legacy con geometría/matriz DM, metadata original, archivo
+  prestado intacto y limpieza también tras excepción: **4 RED**, luego **6 RED**
+  incluyendo rutas que escaparían del temporal (`python39-zip-fallback-red.log`,
+  `python39-zip-boundary-red.log`). Fallback solo en Python 3.9, mediante
+  TemporaryDirectory; rechaza miembros absolutos/con '..', extrae el archivo
+  conservando sus sidecars y no cambia resultados ni paths de provenance.
+  Coste explícito: extracción por lectura en 3.9; >=3.10 mantiene ZIP nativo.
+- Primera integración enfocada: **6 failed, 34 passed** por un supuesto incorrecto
+  del test nuevo: el radial embedding ya aplica cutoff y devuelve None. No era
+  un fallo del producto; se corrigió la aserción, no MACE. **40 passed**, 12.78 s
+  (`python-compatibility-focused-final.log`).
+- El intérprete 3.9 real descubrió después **9 failed, 1041 passed, 2 skipped**,
+  117.54 s (`python39-complete-wheel-tests.log`): Path.namelist añade directorios
+  virtuales, y Path(ZipFile(...)) copia el lector en 3.9 sin conservar ownership.
+  Corrección compartida: extraer solo infolist; abrir Path desde nombre en helpers
+  y temporales, cachear el lector propio de Path por archivo/PID en el dataset.
+  El test fork ahora relee el mismo archivo antes de cerrar; no basta con cerrar
+  un descriptor que ya estaba roto. RED real de la wheel anterior:
+  seek of closed file (`python39-worker-reader-actual-red.log`); el intento inicial
+  de importar tests src en 3.9 falló en colección por no tener Cython runtime,
+  y no se cuenta como RED del comportamiento (`python39-worker-reader-red.log`).
+  **17 passed**, 6.57 s (`python39-reader-fix-focused.log`).
+- `constraints/ci-py39.txt` y `ci-py312.txt`: todas las dependencias del perfil
+  completo fijadas (183/180), sin URLs de wheel/locales ni graph2mat incluido.
+  `build-py39.txt` / `build-py312.txt`: dependencias de construcción también
+  fijadas, comprobadas con pip 25.3 --build-constraint y aislamiento real.
+  Wheels verificadas: cp39 sha256
+  `f4b310cde74c057181de7b1ac2b453b65ea6b90723efa64b7f20493869abbac5`,
+  cp312 `75badd59d7244c1f5f30de3635f777042fe3500cadfe0a6e49dc2216c8e3ab29`
+  (`python39-verified-wheel-build.log`, `python312-verified-wheel-build.log`).
+- `pip` no reemplaza una wheel distinta con igual versión sin --force-reinstall:
+  detectado antes de afirmar evidencia; todas las wheels finales se reinstalaron
+  --no-deps --force-reinstall en los venvs aislados. Imports -I confirman
+  site-packages y extensión .so; perfiles base sin Torch/PyG/e3nn/MACE/PL/Cython,
+  completos con Torch CPU (torch.version.cuda=None). Cinco `pip check`, exit 0
+  (logs *-verified-import.log y *-verified-pip-check.log).
+- Tres perfiles de wheel final, producto/tests congelados:
+  Python 3.9: **1050 passed, 2 skipped**, 2523 warnings, 123.53 s;
+  Python 3.12 fijado: **1050 passed, 2 skipped**, 6764 warnings, 118.77 s;
+  Python 3.12 latest: **1050 passed, 2 skipped**, 4835 warnings, 122.87 s
+  (`python39-verified-wheel-tests.log`, `python312-verified-wheel-tests.log`,
+  `latest-verified-wheel-tests.log`). Latest fue instalación limpia sin constraints:
+  MACE 0.3.16, Lightning 2.6.6, NumPy 2.5.3, SciPy 1.18.1, Torch 2.11.0+cpu.
+- Mismas wheels finales: base 3.9 **15 passed, 8 deselected**, 5.53 s;
+  base 3.12 **15 passed, 8 deselected**, 8.59 s; CLI ejecutable --help, exit 0
+  (`python39-verified-base-tests.log`, `python312-verified-base-tests.log`,
+  `python39-verified-base-cli.log`, `python312-verified-base-cli.log`).
+  Tests de raíz completos: **25 passed** por perfil, 16.11/22.16/22.35 s
+  (`python39-verified-root-tests.log`, `python312-verified-root-tests.log`,
+  `latest-verified-root-tests.log`). Cada perfil completo verifica 1075 passing
+  + dos omisiones conocidas entre paquete y raíz, no solo un smoke del modelo.
+- Hooks Ruff y mypy **Passed**, exit 0, incluyendo nuevos tests staged
+  (`python-compatibility-final-ruff-hook.log`, `python-compatibility-final-mypy-hook.log`).
+  Suite completa de checkout CPU: **1075 passed, 2 skipped**, 6765 warnings,
+  143.44 s, exit 0 (`python-compatibility-full-cpu.log`): doce casos nuevos,
+  sin skips adicionales, objetivos/gradientes del paso intactos.
+- CI configurada: base/completo fijados 3.9/3.12 y latest 3.12; CPU forzada,
+  build constraints, pip check y tests de wheel + tests de raíz. Su lógica se
+  verifica localmente; **no se ejecutó ni publicó un workflow remoto**.
+  README documenta comandos, plataforma de los pins y coste ZIP legacy.
+- Nota de aislamiento: uv pip compile descargó automáticamente otro intérprete
+  3.9 en su carpeta gestionada. Se identificó la carpeta creada por esta tarea y
+  se movió a `/tmp/g2m-python39.D7TJAp/uv-resolution-python`, recuperable. No se
+  modificó el venv compartido ni otro repositorio. Futuras llamadas uv deben usar
+  el intérprete explícito/UV_PYTHON_INSTALL_DIR temporal, evitando autoinstalación.
+- 3.5 implementado y verificado, sujeto a revisión final transversal, igual que
+  3.6. Siguen abiertos **3.1, 3.4 y 3.9** y la revisión final de los cinco frentes.
 
 ## Cierre del goal
 

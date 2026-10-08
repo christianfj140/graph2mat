@@ -31,14 +31,25 @@ def _checkpoint():
 
 
 def test_checkpoint_records_versions_and_source_git_from_any_cwd(tmp_path, monkeypatch):
-    source = Path(model_module.__file__).resolve().parent
+    # A wheel has no checkout. Create a real tracked source fixture instead of
+    # relying on whichever directory happens to contain the installed package.
+    source = tmp_path / "source"
+    source.mkdir()
+    source_file = source / "model.py"
+    source_file.write_text("# tracked source fixture\n")
+    subprocess.run(["git", "init", "--quiet", str(source)], check=True)
+    subprocess.run(["git", "-C", str(source), "add", "model.py"], check=True)
+    subprocess.run(["git", "-C", str(source), "-c", "user.name=Fixture",
+                    "-c", "user.email=fixture@example.invalid", "commit", "--quiet",
+                    "-m", "fixture"], check=True)
     expected_commit = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"],
                                              text=True).strip()
+    monkeypatch.setattr(model_module, "__file__", str(source_file))
     monkeypatch.chdir(tmp_path)
     _, checkpoint = _checkpoint()
     provenance = checkpoint["provenance"]
     assert provenance["git_commit"] == expected_commit
-    assert isinstance(provenance["git_dirty"], bool)
+    assert provenance["git_dirty"] is False
     assert provenance["python"] == platform.python_version()
     for name in ("torch", "torch-geometric", "pytorch-lightning", "e3nn", "mace-torch", "sisl"):
         assert provenance["versions"][name] == importlib.metadata.version(name)

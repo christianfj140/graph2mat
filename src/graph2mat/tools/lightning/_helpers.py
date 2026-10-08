@@ -202,6 +202,10 @@ def maybe_zip_path(
             zip_path = Path(*path.parts[: i + 1])
             if zip_path.is_file():
                 zipfile_mode = "r" if zipfile_mode.startswith("r") else "a"
+                if zipfile_mode == "r":
+                    # Open directly: Python 3.9 Path(ZipFile(...)) clones the
+                    # reader and lets the temporary original close its file.
+                    return zipfile.Path(zip_path, str(path.relative_to(zip_path)))
                 root_zip = zipfile.ZipFile(zip_path, zipfile_mode)
                 return zipfile.Path(root_zip, str(path.relative_to(zip_path)))
 

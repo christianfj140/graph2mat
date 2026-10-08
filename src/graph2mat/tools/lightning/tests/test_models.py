@@ -65,6 +65,26 @@ def _matrix(model, processor, geometry, out_format="numpy"):
     return processor.matrix_from_data(data, predictions, out_format=out_format)
 
 
+def test_mace_radial_embedding_matches_interaction_contract(model_and_processor, geometry):
+    from mace.modules.utils import get_edge_vectors_and_lengths
+
+    model, processor, _ = model_and_processor
+    data = TorchBasisMatrixData.from_config(
+        OrbitalConfiguration.from_geometry(geometry), data_processor=processor,
+    )
+    mace = model.model.mace
+    _, lengths = get_edge_vectors_and_lengths(
+        positions=data.positions, edge_index=data.edge_index, shifts=data.shifts,
+    )
+    features, cutoff = mace.radial_embedding(
+        lengths, data.node_attrs, data.edge_index, mace.atomic_numbers,
+    )
+    assert features.shape == (data.edge_index.shape[1], mace.interactions[0].edge_feats_irreps.dim)
+    # The default embedding has already multiplied by the cutoff.
+    assert cutoff is None
+    assert torch.isfinite(features).all()
+
+
 def test_full_mace_matrix_equivariance_under_seeded_random_rotations(model_and_processor, geometry):
     model, processor, _ = model_and_processor
     original = _matrix(model, processor, geometry)

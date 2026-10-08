@@ -315,7 +315,7 @@ class MatrixDataModule(pl.LightningDataModule):
                 destination = self.tmp_dir / Path(self.root_dir.root.filename).name
                 shutil.copy2(self.root_dir.root.filename, destination)
                 self._tmp_root = zipfile.Path(
-                    zipfile.ZipFile(destination),
+                    destination,
                     at=self.root_dir.at if self.root_dir.at != "." else "",
                 )
             else:

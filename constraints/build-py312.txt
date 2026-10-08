@@ -1,0 +1,9 @@
+# Python 3.12 isolated wheel build; pass with pip >=25.3 --build-constraint.
+cython==3.3.0
+numpy==2.5.3
+packaging==26.3
+pathspec==1.1.1
+scikit-build-core==0.12.2
+setuptools==84.0.0
+setuptools-scm==10.3.4
+vcs-versioning==2.6.0

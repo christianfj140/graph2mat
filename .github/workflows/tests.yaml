@@ -20,13 +20,23 @@ jobs:
           pre-commit run mypy-core --all-files
   pytest-minimal:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - python: "3.9"
+            pins: py39
+          - python: "3.12"
+            pins: py312
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - name: Install base package only
-        run: python -m pip install . pytest
+        run: |
+          python -m pip install pip==25.3
+          python -m pip install -c constraints/ci-${{ matrix.pins }}.txt --build-constraint constraints/build-${{ matrix.pins }}.txt . pytest
+          python -m pip check
       - name: Verify base profile
         env:
           OMP_NUM_THREADS: "2"
@@ -39,16 +49,42 @@ jobs:
 
   pytest-cpu:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - python: "3.9"
+            pins: py39
+            profile: pinned
+          - python: "3.12"
+            pins: py312
+            profile: pinned
+          - python: "3.12"
+            pins: py312
+            profile: latest
+    env:
+      CUDA_VISIBLE_DEVICES: ""
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Install (CPU torch, versions of the reference benchmark environment)
+          python-version: ${{ matrix.python }}
+      - name: Install pinned CPU profile
+        if: matrix.profile == 'pinned'
         run: |
-          python -m pip install --upgrade pip
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install ".[test,server,extrapolation]" httpx "mace-torch==0.3.15" "e3nn==0.4.4" "sisl==0.16.4" "pytorch-lightning==2.6.1"
+          python -m pip install pip==25.3
+          python -m pip install -c constraints/ci-${{ matrix.pins }}.txt torch --extra-index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -c constraints/ci-${{ matrix.pins }}.txt --build-constraint constraints/build-${{ matrix.pins }}.txt ".[test,tools,server,extrapolation,docs]" httpx
+          python -m pip check
+      - name: Install latest compatible CPU profile
+        if: matrix.profile == 'latest'
+        run: |
+          python -m pip install pip==25.3
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install ".[test,tools,server,extrapolation,docs]" httpx
+          python -m pip check
       - name: Run tests
         run: |
           pytest --pyargs graph2mat -q -p no:cacheprovider -W ignore::DeprecationWarning

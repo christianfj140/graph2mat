@@ -14,6 +14,8 @@ import warnings
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+from sys import version_info
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, Literal, Optional, Sequence, Union
 
 import numpy as np
@@ -537,6 +539,32 @@ def _sisl_run_to_orbitalconfiguration(
     matrix_component_policy:
         Component policy for multi-component Hamiltonian matrices.
     """
+    if isinstance(runfilepath, zipfile.Path) and version_info < (3, 10):
+        # sisl's native ZIP paths require Python 3.10. Keep related FDF/matrix
+        # files together and never close the caller's archive.
+        members = runfilepath.root.infolist()
+        for name in [*(member.filename for member in members), runfilepath.at]:
+            member_path = Path(name)
+            if member_path.is_absolute() or ".." in member_path.parts:
+                raise ValueError(f"Unsafe ZIP member: {name!r}")
+        # ponytail: Python 3.9 extracts the archive per load; use native ZIP I/O
+        # on Python >=3.10 to avoid this compatibility-only I/O/space cost.
+        with TemporaryDirectory(prefix="g2m-sisl-zip-") as temporary:
+            # Path.namelist() can include virtual directories absent from the ZIP.
+            runfilepath.root.extractall(temporary, members=members)
+            configuration = _sisl_run_to_orbitalconfiguration(
+                Path(temporary) / runfilepath.at,
+                geometry_path=geometry_path,
+                out_matrix=out_matrix,
+                cls=cls,
+                basis=basis,
+                matrix_component_policy=matrix_component_policy,
+            )
+            configuration.metadata = {
+                **(configuration.metadata or {}), "path": str(runfilepath),
+            }
+            return configuration
+
     # Initialize the file object for the main input file
     main_input = sisl.get_sile(runfilepath)
     # Build some metadata so that the OrbitalConfiguration object can be traced back to the run.

@@ -50,6 +50,54 @@ If you want to use `graph2mat` with e3nn you can also ask for the `e3nn` extra d
 pip install graph2mat[tools,e3nn]
 ```
 
+Reproducible CPU profiles
+-------------------------
+
+The repository contains complete runtime/test constraints for Linux x86_64:
+`constraints/ci-py39.txt` (Python 3.9, tested ML floors) and
+`constraints/ci-py312.txt` (Python 3.12, reference stack). The corresponding
+`build-py39.txt` and `build-py312.txt` constrain the isolated Cython wheel build,
+including its NumPy headers. Runtime constraints alone do not constrain builds.
+They do not install optional packages into the base profile.
+
+For a base-only Python 3.12 environment:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install pip==25.3
+.venv/bin/python -m pip install -c constraints/ci-py312.txt \
+  --build-constraint constraints/build-py312.txt . pytest
+.venv/bin/python -m pip check
+.venv/bin/graph2mat --help
+.venv/bin/python -m pytest -q tests/test_minimal_install.py -k base
+```
+
+For the complete CPU profile, including jointly resolved MACE and documentation:
+
+```bash
+.venv/bin/python -m pip install -c constraints/ci-py312.txt torch \
+  --extra-index-url https://download.pytorch.org/whl/cpu
+.venv/bin/python -m pip install -c constraints/ci-py312.txt \
+  --build-constraint constraints/build-py312.txt \
+  ".[test,tools,server,extrapolation,docs]" httpx
+.venv/bin/python -m pip check
+CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
+  .venv/bin/python -m pytest --pyargs graph2mat -q
+.venv/bin/python -m pytest -q tests
+```
+
+For Python 3.9, use `python3.9` and replace both `py312` suffixes with `py39`.
+The tested ML floors are Torch 2.4.1, PyG 2.4.0, Lightning 2.1.4, MACE 0.3.15
+and e3nn 0.4.4. MACE's e3nn pin is respected, not overridden by a second install;
+`TensorSquare` and the four-argument radial embedding are checked with real models.
+Python 3.9 ZIP reads temporarily extract the archive because sisl's native ZIP
+reader needs Python 3.10; temporary files are removed on success and failure.
+Use Python >=3.10 for native ZIP I/O without that extra disk cost.
+
+CI runs the pinned base and complete profiles on both Python versions and a
+Python 3.12 job with latest compatible runtime packages. Configured CI is not
+evidence that a remote workflow has run; local verification is recorded separately.
+
 What is an equivariant matrix?
 ------------------------------
 

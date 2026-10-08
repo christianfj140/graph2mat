@@ -143,7 +143,9 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
             # Memory-backed archives have no shared OS file offset to reopen.
             return item
         if filename not in self._worker_zips:
-            self._worker_zips[filename] = zipfile.ZipFile(filename)
+            # Keep Path's own reader, not a temporary clone of a plain ZipFile
+            # which closes that reader on Python 3.9 after returning a sample.
+            self._worker_zips[filename] = zipfile.Path(filename).root
         return zipfile.Path(self._worker_zips[filename], at=item.at)
 
     def close(self):
