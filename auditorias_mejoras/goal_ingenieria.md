@@ -1153,6 +1153,52 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   Sigue abierto 3.1 (pares, gauge/espectral, dominios/umbral, entrenamiento físico)
   y 3.9 (oráculos físicos/pérdidas restantes), además de la revisión final.
 
+### Sublote 3.1.h — dominios, umbrales y entrenamiento físico
+
+- BASE **ac74c7f**. Plan: conservar sumas de los tres objetivos con umbral,
+  acumular selección/denominador propios de sus diagnósticos; medias de pérdidas
+  por estructura dentro de cada dominio antes de ponderar dominios presentes.
+  n_structures/n_large_structures son conteos acumulados, no medias por batch.
+  Reusar los Metrics existentes, sin nuevo sistema de estimadores.
+- Tests RED con nodos/aristas NaN, canales spin, batches 1/2/3/1 y val/test:
+  epoch-domain-threshold-red.log. La exponencial del sigmoid también reproduce
+  gradientes NaN para errores por debajo del umbral: reemplazar su evaluación
+  por sigmoid estable con la misma fórmula (Torch/SciPy ya disponibles).
+- Conservar la semántica por estructura: una estructura sin observaciones aporta
+  cero, pero sigue siendo una estructura del dominio. El denominador de cada
+  rama usa solo elementos válidos; no se cambia esa ponderación científica.
+- Quedan fuera de este sublote pares y gauge/ventana espectral, oráculos físicos y
+  revisión final. El goal sigue activo y no se declara completado.
+- RED real **34 failed**, 149 warnings, 1.20 s: sumas indebidamente promediadas,
+  selección/denominadores y dominios sesgados, conteos y dos gradientes sigmoid
+  no finitos. El sigmoid estable conserva la fórmula; no se normaliza el objetivo
+  con umbral que deliberadamente suma. _EpochMatrixLoss reutilizado admite suma
+  y medias de dominios con normalización de pesos presentes; diagnósticos usan
+  _EpochErrorMoments existente. Primera integración **337 passed**, 5.24 s.
+- **45 regresiones**: 34 RED previas, seis train/reset con validación de otra
+  partición y gradientes finitos (incluye Huber físico con bloques 1x1/2x2 y
+  composite label per-block), cinco DDP CPU/Gloo. Ranks con dominios disjuntos,
+  dominio con todas las etiquetas NaN, sumas hard/smooth y selecciones iguales
+  en ambos ranks. Enfocado **45 passed, 13 deselected**, 28.41 s
+  (`epoch-special-train-ddp-green.log`).
+- Suite CPU congelada **1261 passed, 2 skipped**, 7408 warnings, 217.31 s,
+  exit 0 (`domain-threshold-full-cpu.log`). Ruff/mypy reales Passed, diff limpio
+  (`domain-threshold-ruff-check-hook.log`, `domain-threshold-mypy-core-hook.log`).
+- Wheels compiladas con constraints: cp39 sha256
+  `55d0770cbfa9d351cba80a09ac50b87d418c59e2c2c33288fa79cdb2f2cfcb25`,
+  cp312 `9c7f293fb6d37ac469f6c5388bbe0fb0e4f3a3996473f3e6392992321adf8a90`.
+  --force-reinstall --no-deps en venvs aislados. Enfocado instalado -I/--pyargs:
+  **361 passed** por perfil 3.9 mínimo/3.12 fijado/latest,
+  90.85/113.78/116.12 s (`python39/python312/latest-domain-wheel-focused.log`),
+  incluyendo todo DDP y métricas básicas/coeficientes para evitar regresiones.
+  No son suites completas de wheel; la suite completa actual es la CPU checkout.
+  Cinco pip check, exit 0 (`*-domain-pip-check.log`).
+- Mismas wheels base sin ML: **16 passed, 7 deselected** en 3.9/3.12,
+  6.14/9.08 s (`python39/python312-base-domain-tests.log`).
+- docs/data_loading.rst actualiza denominadores, sumas, dominios y estabilidad
+  del sigmoid. Pendientes de 3.1: pares, gauge/ventana espectral y diagnósticos
+  especiales restantes; 3.9: oráculos físicos y pérdidas restantes; revisión final.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

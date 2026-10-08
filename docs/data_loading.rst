@@ -99,8 +99,8 @@ sums and counts, not averages of
 batch losses. ``val_loss`` and ``hp_metric`` share that global objective. Per-step
 training losses and their gradients are unchanged. Absolute-error means, sample
 standard deviations and maxima also reduce across batches and distributed ranks;
-standard deviation is zero with fewer than two valid elements. Pair, spectral
-and domain objectives still have separate pending aggregation work.
+standard deviation is zero with fewer than two valid elements. Pair and spectral
+objectives still have separate pending aggregation work.
 Distributed samplers may pad uneven datasets with repeated
 samples: the metrics count the samples actually evaluated, including those repeats.
 Block-type Huber's per-branch ``node_smooth_l1`` and ``edge_smooth_l1`` statistics
@@ -126,6 +126,17 @@ NaN coefficient is unobserved as a whole: partial matrix labels cannot determine
 its full irreducible coefficients. Empty/unobserved coefficients have connected
 zero gradients. The existing flat single-component H-only contract is unchanged.
 Gauge and pair objectives have separate missing-label requirements.
+
+Size-domain epoch losses first average per-structure losses in each domain, then
+apply its configured weight, normalized over domains present in the epoch.
+``n_structures``/``n_large_structures`` are sums. As in the step objective, a
+structure without observed labels contributes zero but remains in its domain.
+Threshold objectives retain their original **sum**, rather than being changed
+to element means: the epoch objective is the sum across batches/ranks. Their
+above-threshold means count only selected scalar elements, and fractions count
+all valid scalar elements, including spin channels. Empty selections contribute
+zero. Smooth thresholds evaluate the same logistic function with stable
+Torch/SciPy primitives, preventing overflow from poisoning gradients.
 
 With the default ``SamplewiseMetricsLogger`` failure-tolerant policy, a failed
 metric writes NaN to its sample rows and emits a warning on its first failure per

@@ -116,7 +116,7 @@ class _EpochMatrixLoss(Metric):
 
     full_state_update = False
 
-    def __init__(self, coefficient_keys=(), statistic=None):
+    def __init__(self, coefficient_keys=(), statistic=None, normalize_weights=False):
         super().__init__()
         self.add_state("totals", torch.zeros(2, dtype=torch.float64), dist_reduce_fx="sum")
         self.add_state("counts", torch.zeros(2, dtype=torch.float64), dist_reduce_fx="sum")
@@ -124,6 +124,7 @@ class _EpochMatrixLoss(Metric):
         self.weights = (1., 1.)
         self.coefficient_keys = tuple(coefficient_keys)
         self.statistic = statistic
+        self.normalize_weights = normalize_weights
         self.coefficient_weight = 0.
         for name in ("coefficient_totals", "coefficient_counts"):
             self.add_state(name, torch.zeros(len(coefficient_keys), dtype=torch.float64), dist_reduce_fx="sum")
@@ -150,11 +151,16 @@ class _EpochMatrixLoss(Metric):
         if self.statistic == "coefficients":
             return coefficient
         weights = self.totals.new_tensor(self.weights)
-        if self.joint:
+        if self.statistic == "sum":
+            label = (weights * self.totals).sum()
+        elif self.joint:
             denominator = (weights * self.counts).sum()
             label = (weights * self.totals).sum() / torch.where(denominator != 0, denominator, 1.)
         else:
             label = (weights * self.totals / self.counts.clamp_min(1)).sum()
+        if self.normalize_weights:
+            denominator = (weights * (self.counts > 0)).sum()
+            label = label / torch.where(denominator != 0, denominator, 1.)
         return label + self.coefficient_weight * coefficient
 
 
@@ -334,6 +340,18 @@ class LitBasisMatrixModel(pl.LightningModule):
             metrics_module.elementwise_mae: (1, True, 1., 1.),
         } if hasattr(self.loss_fn, "metric_kwargs") else {}
         policy = policies.get(type(self.loss_fn))
+        statistic, normalize_weights = None, False
+        threshold = type(self.loss_fn) in (metrics_module.block_type_mse_threshold,
+                                          metrics_module.block_type_mse_sigmoid_thresh,
+                                          metrics_module.block_type_mae_sigmoid_thresh)
+        domain = type(self.loss_fn) is metrics_module.block_type_mse_per_domain
+        if threshold:
+            power = 1 if type(self.loss_fn) is metrics_module.block_type_mae_sigmoid_thresh else 2
+            policy, statistic = (power, False, 1., 1.), "sum"
+        if domain:
+            kwargs = self.loss_fn.metric_kwargs
+            policy = (1, False, kwargs.get("small_domain_weight", .5), kwargs.get("large_domain_weight", .5))
+            normalize_weights = True
         huber = type(self.loss_fn) in (metrics_module.block_type_huber, metrics_module.block_type_smooth_l1)
         if huber:
             policy = (1, False, 1., 1.)
@@ -352,7 +370,16 @@ class LitBasisMatrixModel(pl.LightningModule):
         key = f"{split}_loss"
         value, attribute = loss, None
         if policy is not None:
-            if physical_huber:
+            if domain:
+                loss_s, _ = metrics_module._per_structure_losses(
+                    out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
+                    batch, self.basis_table, kwargs.get("node_weight", 1.), kwargs.get("edge_weight", 1.),
+                )
+                graph = metrics_module._node_graph(batch)
+                atoms = torch.bincount(torch.as_tensor(graph, device=loss_s.device), minlength=len(loss_s))
+                large = atoms >= int(kwargs["domain_threshold_atoms"])
+                errors = (loss_s[~large], loss_s[large])
+            elif physical_huber:
                 errors, _ = self._huber_epoch_terms(out, batch)
             else:
                 errors = metrics_module.get_predictions_error(
@@ -360,8 +387,17 @@ class LitBasisMatrixModel(pl.LightningModule):
                 )
                 if huber:
                     errors = tuple(metrics_module._smooth_l1(error, self.loss_fn.beta) for error in errors)
-            if key not in self._epoch_losses or self._epoch_losses[key].coefficient_keys != coefficient_keys:
-                self._epoch_losses[key] = _EpochMatrixLoss(coefficient_keys).to(self.device)
+                if threshold:
+                    cutoff = self.loss_fn.metric_kwargs.get("threshold", 1e-4)
+                    if type(self.loss_fn) is metrics_module.block_type_mse_threshold:
+                        errors = tuple(error[error.abs() > cutoff] for error in errors)
+                    else:
+                        factor = self.loss_fn.metric_kwargs.get("sigmoid_factor", 1e-5)
+                        errors = tuple(metrics_module._sigmoid_threshold(error.abs(), cutoff, factor) for error in errors)
+            if (key not in self._epoch_losses
+                    or (self._epoch_losses[key].coefficient_keys, self._epoch_losses[key].statistic,
+                        self._epoch_losses[key].normalize_weights) != (coefficient_keys, statistic, normalize_weights)):
+                self._epoch_losses[key] = _EpochMatrixLoss(coefficient_keys, statistic, normalize_weights).to(self.device)
             value = self._epoch_losses[key]
             value(*errors, *policy, coefficient_errors, coefficient_power, coefficient_weight)
             attribute = f"_epoch_losses.{key}"
@@ -463,6 +499,25 @@ class LitBasisMatrixModel(pl.LightningModule):
                 empty = out["node_labels"].new_empty(0)
                 value(empty, empty, 1, False, 0., 0., coefficient_errors)
                 attribute = f"_epoch_losses.{key}"
+            elif name in ("n_structures", "n_large_structures"):
+                if key not in self._epoch_errors:
+                    self._epoch_errors[key] = _EpochErrorMoments("sum").to(self.device)
+                value = self._epoch_errors[key]
+                value(torch.as_tensor(stats[name], dtype=torch.float64, device=self.device))
+                attribute = f"_epoch_errors.{key}"
+            elif name.endswith(("_above_threshold_mean", "_above_threshold_frac")):
+                if errors is None:
+                    errors = metrics_module.get_predictions_error(
+                        out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
+                    )
+                terms = errors[0 if name.startswith("node_") else 1].abs()
+                selected = terms > self.loss_fn.metric_kwargs.get("threshold", 1e-4)
+                terms = selected.to(terms.dtype) if name.endswith("_frac") else terms[selected]
+                if key not in self._epoch_errors:
+                    self._epoch_errors[key] = _EpochErrorMoments("mean").to(self.device)
+                value = self._epoch_errors[key]
+                value(terms)
+                attribute = f"_epoch_errors.{key}"
             elif count is not None:
                 if key not in self._epoch_rmse:
                     self._epoch_rmse[key] = _EpochRMSE().to(self.device)

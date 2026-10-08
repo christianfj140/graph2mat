@@ -84,7 +84,7 @@ def _run_training_script(output_dir, layout):
     return json.loads((output_dir / "result.json").read_text())
 
 
-def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None):
+def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None, special=None):
     import pytorch_lightning as pl
     import torch
     from pytorch_lightning.strategies import DDPStrategy
@@ -151,6 +151,22 @@ def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coeff
         samples[0].edge_index = torch.tensor([[0, 1, 1, 2, 2, 3], [1, 0, 2, 1, 3, 2]])
         samples = [samples[0], samples[2]]
         model = coefficient_model(loss_name)
+    if special:
+        from graph2mat.core.data import metrics as metrics_module
+
+        kwargs = {"threshold": 2.}
+        loss_name = special
+        if special.startswith("domain"):
+            samples = [Data(num_nodes=n, point_types=torch.zeros(n, dtype=torch.long),
+                            point_labels=torch.full((n,), float("nan") if special.endswith("nan") and n == 3 else 0.),
+                            node_prediction=torch.full((n,), error), edge_labels=torch.empty(0), edge_prediction=torch.empty(0),
+                            edge_types=torch.empty(0, dtype=torch.long), edge_index=torch.empty((2, 0), dtype=torch.long))
+                       for n, error in ((2, 3.), (3, 2.))]
+            kwargs = {"domain_threshold_atoms": 3, "small_domain_weight": .9, "large_domain_weight": .1}
+            loss_name = "block_type_mse_per_domain"
+        model = LitBasisMatrixModel(model_cls=Predictions, basis_table=table,
+                                   loss=getattr(metrics_module, loss_name), loss_kwargs=kwargs)
+        model.init_model()
     trainer = pl.Trainer(
         accelerator="cpu", devices=2,
         strategy=DDPStrategy(process_group_backend="gloo", start_method="popen"),
@@ -271,8 +287,29 @@ def test_two_cpu_ranks_reduce_coefficients_with_disjoint_operations(tmp_path, lo
             assert result["metrics"][key] == pytest.approx(value), f"Rank {rank}, {key}"
 
 
+@pytest.mark.parametrize("special,want", [("domain", 8.5), ("domain_nan", 8.1),
+                                          ("block_type_mse_threshold", 66.),
+                                          ("block_type_mse_sigmoid_thresh", 67.),
+                                          ("block_type_mae_sigmoid_thresh", 19.)])
+def test_two_cpu_ranks_reduce_size_domains_and_threshold_selections(tmp_path, special, want):
+    _run_training_script(tmp_path, "epoch_special:" + special)
+    for rank in (0, 1):
+        result = json.loads((tmp_path / f"rank{rank}.json").read_text())
+        assert result["world_size"] == 2
+        expected = {"val_loss": want, "hp_metric": want}
+        if special.startswith("domain"):
+            expected.update(val_n_structures=2, val_n_large_structures=1)
+        else:
+            expected.update(val_node_above_threshold_frac=.4, val_node_above_threshold_mean=3.,
+                            val_edge_above_threshold_frac=.75, val_edge_above_threshold_mean=4.)
+        for key, value in expected.items():
+            assert result["metrics"][key] == pytest.approx(value), f"Rank {rank}, {key}"
+
+
 if __name__ == "__main__":
-    if sys.argv[2].startswith("epoch_coefficient:"):
+    if sys.argv[2].startswith("epoch_special:"):
+        _evaluate_epoch_metrics(sys.argv[1], False, special=sys.argv[2].split(":", 1)[1])
+    elif sys.argv[2].startswith("epoch_coefficient:"):
         _evaluate_epoch_metrics(sys.argv[1], False, coefficient=sys.argv[2].split(":", 1)[1])
     elif sys.argv[2].startswith("epoch_metrics"):
         _evaluate_epoch_metrics(sys.argv[1], sys.argv[2].endswith("spin"), "huber" in sys.argv[2], "physical" in sys.argv[2])

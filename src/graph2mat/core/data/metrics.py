@@ -12,6 +12,7 @@ from copy import copy
 
 from typing import Any, Tuple, Dict, Type, Callable, Union, Optional, Iterable, TYPE_CHECKING, cast
 import numpy as np
+from scipy.special import expit
 
 try:
     import torch
@@ -84,6 +85,11 @@ def _std(values):
 
 def _max(values):
     return values.max() if _numel(values) else values.sum()
+
+
+def _sigmoid_threshold(abs_errors, threshold, sigmoid_factor):
+    x = (abs_errors - threshold) / sigmoid_factor
+    return abs_errors * (torch.sigmoid(x) if _is_torch_tensor(x) else expit(x))
 
 
 def get_predictions_error(
@@ -2017,13 +2023,8 @@ def block_type_mse_sigmoid_thresh(
     abs_node_error = abs(node_error)
     abs_edge_error = abs(edge_error)
 
-    def sigmoid_threshold(abs_errors, threshold):
-        x = abs_errors - threshold
-        sigmoid = 1 / (1 + np.e ** (-x / sigmoid_factor))
-        return abs_errors * sigmoid
-
-    node_error_thresholded = sigmoid_threshold(abs_node_error, threshold)
-    edge_error_thresholded = sigmoid_threshold(abs_edge_error, threshold)
+    node_error_thresholded = _sigmoid_threshold(abs_node_error, threshold, sigmoid_factor)
+    edge_error_thresholded = _sigmoid_threshold(abs_edge_error, threshold, sigmoid_factor)
 
     # We do the sum instead of the mean here so that we reward putting
     # elements below the threshold
@@ -2078,13 +2079,8 @@ def block_type_mae_sigmoid_thresh(
     abs_node_error = abs(node_error)
     abs_edge_error = abs(edge_error)
 
-    def sigmoid_threshold(abs_errors, threshold):
-        x = abs_errors - threshold
-        sigmoid = 1 / (1 + np.e ** (-x / sigmoid_factor))
-        return abs_errors * sigmoid
-
-    node_error_thresholded = sigmoid_threshold(abs_node_error, threshold)
-    edge_error_thresholded = sigmoid_threshold(abs_edge_error, threshold)
+    node_error_thresholded = _sigmoid_threshold(abs_node_error, threshold, sigmoid_factor)
+    edge_error_thresholded = _sigmoid_threshold(abs_edge_error, threshold, sigmoid_factor)
 
     # We do the sum instead of the mean here so that we reward putting
     # elements below the threshold
