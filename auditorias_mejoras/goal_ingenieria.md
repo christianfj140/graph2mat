@@ -1295,6 +1295,52 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   máscaras y el rechazo físico de datos espectrales incompletos. Pares,
   diagnósticos relativos restantes y revisión final continúan pendientes.
 
+### Sublote 3.1.k — objetivos/diagnósticos de pares verificados
+
+- BASE **b13ca5f**. Conservar el contrato: entrenamiento detecta parejas +/-
+  dentro del batch; evaluación es solo elementwise_mse. Acumular MSE básico
+  por elemento y media de diferencias por pareja con denominadores separados;
+  n_pairs suma y pair_rmse toma raíz después de sumar. Sin caché inter-batch de
+  matrices ni cambio del objetivo/gradiente científico de cada paso.
+- Invariancia para particiones que mantienen las mismas parejas observadas
+  (2/4/6 estructuras); separar una pareja cambia la señal física del paso, no
+  solo el batching. Probar expected_pairs como guardia explícita, y evaluación
+  sin pares para cualquier partición. No declarar pares nuevos entre pasos/ranks.
+- Probar diferencias Gamma multi-componente, filas NaN solo en estructuras no
+  emparejadas, rechazo explícito de matrices emparejadas incompletas, vacíos,
+  gradientes literales de nodos/aristas y reset/splits/DDP CPU. El resto de
+  diagnósticos relativos y la revisión transversal siguen pendientes.
+- RED **9 failed, 3 passed**, 73 warnings, 1.22 s (`pair-epoch-red.log`):
+  medias por batch en train/eval, falta de rechazo de matrices emparejadas
+  incompletas y scatter Gamma que no admitía canales. El oráculo escalar de
+  gradiente y el caso NaN no emparejado ya pasaban, y conservan sus valores.
+- Primera integración **149 passed**, 202 warnings, 4.75 s
+  (`pair-epoch-first-green.log`): pares/gauge/core metrics. Módulo final más
+  tres DDP train CPU con distinto número de parejas por rank, uno sin señales,
+  y dos épocas: **17 passed, 22 deselected**, 75 warnings, 17.81 s
+  (`pair-epoch-train-ddp.log`). Evaluación no ejecuta pairing ni expected_pairs.
+- MSE base literal 31/6, media de pares 56/3 y peso .25 dan 59/6;
+  spin duplicado escala por 2.5. Gamma simétrico con nodos/aristas da 4.5,
+  gradientes onsite .25 y aristas +/-2. Rank sin señales: global 12.5,
+  pair_rmse sqrt(26), dos parejas. Son invariantes para las mismas parejas
+  observadas; no se promete el mismo término si se separan compañeros.
+- Ruff/mypy reales Passed, diff --check limpio. Suite CPU completa y wheels
+  nuevas en curso. No se declara cerrado el frente 3.1 ni el goal.
+- Suite CPU congelada **1350 passed, 2 skipped**, 7724 warnings, 265.82 s,
+  exit 0 (`pair-epoch-full-cpu.log`). Diecisiete casos nuevos con tres DDP.
+- Wheels compiladas: cp39 sha256
+  `237066f5df16443a95bda0f29560fbdc05d460a71a5819a32cb8ad18d3e9c220`,
+  cp312 `4a9f6578be08d17d434d6b3e21beb3eed552d59da8ba97100e481a42334b8679`.
+  Instaladas --force-reinstall --no-deps en los cinco perfiles temporales.
+  Enfocado instalado -I/--pyargs: **222 passed** por 3.9 mínimo/3.12 fijado/latest,
+  43.15/52.18/53.29 s (`*-pair-wheel-focused.log`). Incluye pares/gauge/core/
+  métricas de época y siete DDP de pares/gauge; no son suites completas de wheel.
+- Base sin ML: **16 passed, 7 deselected** en 3.9/3.12, 8.63/12.58 s
+  (`*-base-pair-tests.log`). Cinco pip check exit 0 (`*-pair-pip-check.log`).
+  Hooks reales Passed. Siguen abiertos los objetivos/diagnósticos relativos y
+  los diagnósticos de densidad normalizada (también usan denominador propio),
+  más revisión final; no se descartan requisitos pendientes.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

@@ -339,6 +339,8 @@ class LitBasisMatrixModel(pl.LightningModule):
             return count * (batch.point_labels.shape[1] - 1) if name == "gauge_h_rmse" else count
         if name == "spectral_rmse" and stats is not None:
             return stats["spectral_elements"]
+        if name == "pair_rmse" and stats is not None:
+            return stats["n_pairs"]
         for kind, labels in (("node", batch.point_labels), ("edge", batch.edge_labels)):
             if name != f"{kind}_rmse" and not name.startswith(f"{kind}_rmse_spin"):
                 continue
@@ -395,9 +397,25 @@ class LitBasisMatrixModel(pl.LightningModule):
             policy, coefficient_weight = (2, False, 0., 0.), 1.
         key = f"{split}_loss"
         value, attribute = loss, None
-        if type(self.loss_fn) is metrics_module.gauge_invariant_mse:
+        if type(self.loss_fn) is metrics_module.pair_difference_mse:
             kwargs = self.loss_fn.metric_kwargs
-            if key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss):
+            if (key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss)
+                    or len(self._epoch_losses[key].totals) != 2):
+                self._epoch_losses[key] = _EpochWeightedLoss(2).to(self.device)
+            value = self._epoch_losses[key]
+            node_count = self._rmse_count("node_rmse", batch).double()
+            edge_count = self._rmse_count("edge_rmse", batch).double() * kwargs.get("edge_weight", 1.)
+            count = node_count + edge_count
+            base = (stats["node_rmse"].double().square() * node_count + stats["edge_rmse"].double().square() * edge_count
+                    ) / torch.where(count > 0, count, 1.)
+            pair = torch.as_tensor(stats.get("pair_rmse", 0.), device=self.device).square()
+            pairs = torch.as_tensor(stats.get("n_pairs", 0), device=self.device)
+            value(torch.stack([base, pair]), torch.stack([count, pairs]), (1., kwargs.get("pair_weight", 1.)))
+            attribute = f"_epoch_losses.{key}"
+        elif type(self.loss_fn) is metrics_module.gauge_invariant_mse:
+            kwargs = self.loss_fn.metric_kwargs
+            if (key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss)
+                    or len(self._epoch_losses[key].totals) != 3):
                 self._epoch_losses[key] = _EpochWeightedLoss(3).to(self.device)
             value = self._epoch_losses[key]
             means = torch.stack([stats["gauge_h_rmse"].square(), stats["overlap_rmse"].square(),
@@ -544,7 +562,7 @@ class LitBasisMatrixModel(pl.LightningModule):
                 value = self._epoch_losses[key]
                 value(stats[name].reshape(1), [batch.num_graphs * (batch.point_labels.shape[1] - 1)], (1.,))
                 attribute = f"_epoch_losses.{key}"
-            elif name in ("n_structures", "n_large_structures", "spectral_elements"):
+            elif name in ("n_structures", "n_large_structures", "spectral_elements", "n_pairs"):
                 if key not in self._epoch_errors:
                     self._epoch_errors[key] = _EpochErrorMoments("sum").to(self.device)
                 value = self._epoch_errors[key]

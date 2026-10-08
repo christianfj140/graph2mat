@@ -1709,7 +1709,7 @@ def find_displacement_pairs(batch, max_displacement: float, min_displacement: fl
 
 
 def _gamma_matrices(nodes, edges, edges_ref, batch, basis_table):
-    """Per-structure Gamma-point matrices of flat label-like elements, (n_structures, no, no)."""
+    """Gamma matrices, with any label-component axes after (n_structures, no, no)."""
     from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 
     layout = getattr(batch, LAYOUT_ATTR, None) or {}
@@ -1724,7 +1724,7 @@ def _gamma_matrices(nodes, edges, edges_ref, batch, basis_table):
         rows.append(get("edge_col")); cols.append(get("edge_row"))
         structs.append(edge_struct.to(dev)); values.append(edges)
     no = layout["no_max"]
-    return nodes.new_zeros((n_structures, no, no)).index_put(
+    return nodes.new_zeros((n_structures, no, no) + tuple(nodes.shape[1:])).index_put(
         (torch.cat(structs), torch.cat(rows), torch.cat(cols)), torch.cat(values), accumulate=True
     ), node_struct, edge_struct
 
@@ -1745,6 +1745,9 @@ def pair_difference_mse(
     normalisation of the H loss, so ``pair_weight=1`` weighs a difference element like a
     value element. ``expected_pairs`` makes a training batch with any other number of pairs
     (including none) an error, so a pairing failure never trains silently without the term.
+    Paired structures need complete reference matrices; a missing element cannot
+    define their Gamma-point difference. Unpaired structures retain NaN-safe MSE.
+    Multiple label components are averaged as scalar elements, as in the base MSE.
 
     The term is a training signal only: with ``model`` in eval mode (validation) the loss
     is the plain ``elementwise_mse``, so ``val_loss`` and checkpoint selection match runs
@@ -1767,11 +1770,19 @@ def pair_difference_mse(
     errors, node_struct, edge_struct = _gamma_matrices(
         nodes_pred - nodes_ref, edges_pred - edges_ref, edges_ref, batch, basis_table
     )
+    partners = torch.as_tensor(pairs, device=errors.device).reshape(-1)
+    for ref, ids in ((nodes_ref, node_struct), (edges_ref, edge_struct)):
+        unknown = ids.to(ref.device)[~_valid_label_rows(ref)]
+        if torch.isin(unknown, partners.to(ref.device)).any():
+            raise ValueError("pair_difference_mse requires complete reference labels for paired structures.")
     counts = torch.bincount(node_struct, minlength=errors.shape[0]) + edge_weight * torch.bincount(
         edge_struct, minlength=errors.shape[0]
     )
     a, b = (torch.as_tensor([p[i] for p in pairs], device=errors.device) for i in (0, 1))
-    per_pair = ((errors[a] - errors[b]) ** 2).sum(dim=(1, 2)) / counts.to(errors.device)[a].clamp_min(1)
+    components = int(np.prod(nodes_pred.shape[1:]))
+    per_pair = ((errors[a] - errors[b]) ** 2).sum(dim=tuple(range(1, errors.ndim))) / (
+        counts.to(errors.device)[a].clamp_min(1) * components
+    )
     pair_loss = per_pair.mean()
     stats["pair_rmse"] = pair_loss.detach() ** 0.5
     return loss + pair_weight * pair_loss, stats

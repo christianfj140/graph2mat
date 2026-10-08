@@ -84,6 +84,60 @@ def _run_training_script(output_dir, layout):
     return json.loads((output_dir / "result.json").read_text())
 
 
+def _fit_pair_epoch_metrics(output_dir, variant):
+    import pytorch_lightning as pl
+    import torch
+    from pytorch_lightning.strategies import DDPStrategy
+    from torch_geometric.loader import DataLoader
+
+    from graph2mat.core.data.metrics import pair_difference_mse
+    from graph2mat.tools.lightning.model import LitBasisMatrixModel
+    from graph2mat.tools.lightning.tests.test_epoch_metrics import _PredictionModel
+    from graph2mat.tools.lightning.tests.test_pair_epoch_metrics import pair_model, pair_samples
+
+    class TrainModel(LitBasisMatrixModel):
+        def configure_optimizers(self):
+            return torch.optim.SGD(self.parameters(), lr=0)
+
+    class PairData(pl.LightningDataModule):
+        def train_dataloader(self):
+            samples = pair_samples(2 if variant == "spin" else 1)
+            if self.trainer.global_rank == 0:
+                samples = samples[:1 if variant == "empty_rank" else 2]
+                if variant == "empty_rank":
+                    samples[0].point_labels.fill_(float("nan"))
+            else:
+                samples = samples[2:]
+            return DataLoader(samples, batch_size=len(samples))
+
+    class Recorder(pl.Callback):
+        def __init__(self):
+            self.values = []
+
+        def on_after_backward(self, trainer, pl_module):
+            assert pl_module.model.offset.grad is not None
+            assert torch.isfinite(pl_module.model.offset.grad)
+
+        def on_train_epoch_end(self, trainer, pl_module):
+            self.values.append({name: float(trainer.callback_metrics["train_" + name + "_epoch"])
+                                for name in ("loss", "pair_rmse", "n_pairs")})
+
+    model = TrainModel(model_cls=_PredictionModel, basis_table=pair_model().basis_table,
+                       loss=pair_difference_mse, loss_kwargs={"pair_weight": .25})
+    model.init_model()
+    recorder = Recorder()
+    trainer = pl.Trainer(accelerator="cpu", devices=2, max_epochs=2, logger=False,
+                         strategy=DDPStrategy(process_group_backend="gloo", start_method="popen"),
+                         callbacks=[recorder], use_distributed_sampler=False, num_sanity_val_steps=0,
+                         enable_checkpointing=False, enable_progress_bar=False, enable_model_summary=False,
+                         default_root_dir=output_dir)
+    trainer.fit(model, datamodule=PairData())
+    result = {"world_size": trainer.world_size, "epochs": recorder.values}
+    (Path(output_dir) / f"rank{trainer.global_rank}.json").write_text(json.dumps(result))
+    if trainer.is_global_zero:
+        (Path(output_dir) / "result.json").write_text(json.dumps(result))
+
+
 def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None, special=None, gauge=None):
     import pytorch_lightning as pl
     import torch
@@ -332,8 +386,24 @@ def test_two_cpu_ranks_reduce_gauge_and_spectral_denominators(tmp_path, gauge):
             assert result["metrics"][name] == pytest.approx(value), f"Rank {rank}, {name}"
 
 
+@pytest.mark.parametrize("variant", ["scalar", "spin", "empty_rank"])
+def test_two_cpu_ranks_reduce_pair_means_counts_and_training_reset(tmp_path, variant):
+    _run_training_script(tmp_path, "epoch_pair:" + variant)
+    factor = 2.5 if variant == "spin" else 1.
+    expected = {"loss": 12.5 if variant == "empty_rank" else 59 / 6 * factor,
+                "pair_rmse": (26. if variant == "empty_rank" else 56 / 3 * factor) ** .5,
+                "n_pairs": 2 if variant == "empty_rank" else 3}
+    for rank in (0, 1):
+        result = json.loads((tmp_path / f"rank{rank}.json").read_text())
+        assert result["world_size"] == 2 and len(result["epochs"]) == 2
+        for epoch in result["epochs"]:
+            assert epoch == pytest.approx(expected), f"Rank {rank}"
+
+
 if __name__ == "__main__":
-    if sys.argv[2].startswith("epoch_gauge:"):
+    if sys.argv[2].startswith("epoch_pair:"):
+        _fit_pair_epoch_metrics(sys.argv[1], sys.argv[2].split(":", 1)[1])
+    elif sys.argv[2].startswith("epoch_gauge:"):
         _evaluate_epoch_metrics(sys.argv[1], False, gauge=sys.argv[2].split(":", 1)[1])
     elif sys.argv[2].startswith("epoch_special:"):
         _evaluate_epoch_metrics(sys.argv[1], False, special=sys.argv[2].split(":", 1)[1])

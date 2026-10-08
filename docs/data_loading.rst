@@ -99,8 +99,7 @@ sums and counts, not averages of
 batch losses. ``val_loss`` and ``hp_metric`` share that global objective. Per-step
 training losses and their gradients are unchanged. Absolute-error means, sample
 standard deviations and maxima also reduce across batches and distributed ranks;
-standard deviation is zero with fewer than two valid elements. Pair objectives
-still have separate pending aggregation work.
+standard deviation is zero with fewer than two valid elements.
 Distributed samplers may pad uneven datasets with repeated
 samples: the metrics count the samples actually evaluated, including those repeats.
 Block-type Huber's per-branch ``node_smooth_l1`` and ``edge_smooth_l1`` statistics
@@ -136,7 +135,20 @@ The optional spectral term reduces its own squared-error sum over
 windows add no weight. The per-step spectral formula and gradients are unchanged.
 Spectral projection requires complete H/S reference labels and finite
 ``spectral_C``: NaN inputs raise explicitly instead of inventing missing matrix
-elements. Pair objectives still have separate missing-label requirements.
+elements.
+
+Pair training aggregates its base MSE by valid elements and its difference term
+by observed pairs, then applies ``pair_weight``. ``n_pairs`` is summed and
+``pair_rmse`` takes the root after the global reduction. The original step
+formula, including the symmetric Gamma reconstruction and scalar-component
+normalization, is retained. Paired reference matrices must be complete;
+unpaired structures keep the base MSE's NaN mask.
+Partners must remain together within a training batch/rank: splitting them
+changes the step's physical signal, not just its aggregation. ``expected_pairs``
+can fail explicitly when this contract is violated. No pairs are invented
+across steps or ranks. Epoch values are invariant under partitions retaining
+the same observed pairs. Validation/test are plain global MSE with no pairing
+or training pair guard, as before, for any partition.
 
 Size-domain epoch losses first average per-structure losses in each domain, then
 apply its configured weight, normalized over domains present in the epoch.
