@@ -443,3 +443,52 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   falta integrar targets CPU y MSE ponderado por elementos físicos. Task 1
   amplia y Tasks 2–4 siguen abiertas. Registro del servicio goal leído como
   **usageLimited**, no complete; el usuario ha autorizado continuar localmente.
+- Producto comprometido como **41a03f4**. Task-done real: **258 pasan**, 9081
+  warnings, **74.36 s**, exit0, rango 2869ef0..41a03f4. Un primer selector
+  de fichero inexistente dio exit4 antes de los tests; corregido, no ocultado.
+- Siguiente subplan: `plan_mse_irreps_targets_cpu.md`; QR local del Q efectivo,
+  targets CPU, residuo ortogonal y conteos físicos. Integración 5.3 aún pendiente.
+
+### Task 1.d — targets CPU y MSE físico (implementación verificada)
+
+- Subplan `plan_mse_irreps_targets_cpu.md`; BASE `41a03f4`. Nuevo módulo privado
+  `bindings/torch/data/coefficient_targets.py`; no flag/default nuevo aún.
+- RTP conserva grupos locales de índices por par angular; metadata no persistente.
+  Projector CPU guarda QR local del Q efectivo, sin modelo/parámetros/CUDA,
+  matrices globales ni Gram K×K. Targets por componentes y tipo físico; SSE
+  incluye residuo ortogonal y denominador de elementos físicos, con edge_weight
+  tanto en numerador como denominador. No se redefine coefficient_space_mse.
+- RED inicial **85 fallos**, 253 warnings, 2.39 s: 84 por ausencia de projector,
+  uno por fixture ghost/primer módulo None. Intentos intermedios **84/1** y
+  **13/72**: API torch.searchsorted y enumeración errónea de signos homonucleares;
+  corregidos a la raíz, sin relajar equivalencia.
+- GREEN inicial **85 pasan**, 2.50 s. Revisión propia añadió RED **2 fallos,
+  2 controles pasan**, 0.36 s: ModuleList comparado por insertion order y tabla
+  CPU que arrastraba lambda de su inicialización al pickle. Comparar por clave y
+  snapshot solo de la base; GREEN posterior **89 pasan**, 2.57 s.
+- RED adicional AMP **2 fallos**, 89 no seleccionados, 0.73 s; el autocast
+  externo reducía matmul del objetivo f32 a bf16 (error relativo hasta 3.68e-4).
+  Desactivar autocast únicamente en ese producto interno, sin alterar el modelo.
+- GREEN final enfocado **91 pasan**, 253 warnings, **2.46 s**, exit0;
+  `/tmp/g2m-precision-goal.A2Pbgk/matrix-mse-amp-green.log`.
+  Incluye valores/gradientes fp64 1e-12, fp32 5e-6, cast32→64, 1/2 componentes,
+  ambos signos/simetrías, grouping point_type/basis_shape/max, edge_weight0/1/2,
+  ruido antisimétrico, ghost/vacíos, NaN por bloque, pickle y límites de entrada.
+- NaN parciales, fórmulas sin grupos certificados y máscaras cortando un soporte
+  local solicitan fallback explícito mediante CoefficientMSEUnsupported.
+  No se añaden ceros como targets del padding. Snapshot debe reconstruirse si Q
+  efectivo cambia; no copiar modelos CUDA en cada batch.
+- Floor Python3.9.25/Torch2.4.1cpu desde source final **147 pasan**, 119 warnings,
+  **3.23 s**, exit0; `matrix-mse-python39-certified.log`. Sin nueva wheel.
+- Ruff selección explícita y all-files, mypy-core py39, compileall Python3.9,
+  diff --check verdes. Context7 consultado: documentación oficial de autocast;
+  ninguna opción global de precisión/CUDA modificada.
+- Dos gates completos propios interrumpidos (exit2) al añadir los controles
+  de workers y AMP; **no se cuentan como completos**. Tercero definitivo en
+  `matrix-mse-full-cpu-certified.log`: **1821 pasan, 2 omitidos**, 17156 warnings,
+  **409.36 s**, exit0. Ningún cambio de producto durante este gate final.
+- GPU ajena sigue ocupada (14621 MiB/100%); sin lanzamientos propios.
+- **Beneficio no medido; integración abierta.** Graph2Mat/MACE/Lightning aún
+  reconstruyen durante training; el objetivo nuevo no está conectado. Próximo
+  paso: ruta coefficient-only, CPU collate y métricas epoch/DDP sin matrices,
+  fallback para callbacks/loss no certificados y checkpoints/defaults intactos.

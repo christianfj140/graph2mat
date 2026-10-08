@@ -108,6 +108,7 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         # We also store the change of basis, a matrix that will bring us from the irreps_out
         # to the actual matrix block that we want to calculate.
         self.register_buffer("change_of_basis", reduced_tp.change_of_basis)
+        self._coefficient_groups = getattr(reduced_tp, "coefficient_groups", None)
         if self.symm_transpose:
             self.register_buffer("_coefficient_transpose_index", getattr(reduced_tp, "transpose_index", None), persistent=False)
             self.register_buffer("_coefficient_transpose_sign", getattr(reduced_tp, "transpose_sign", None), persistent=False)

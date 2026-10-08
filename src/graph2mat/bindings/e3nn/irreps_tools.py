@@ -186,6 +186,7 @@ class ReducedTensorProducts:
             irreps_out.dim, i_irreps.dim, j_irreps.dim, dtype=torch.get_default_dtype()
         )
         transpose_blocks = {}
+        coefficient_groups = {}
         start_index = 0
         for i_irrep in irreps_sort.inv:
             (row, end_row, col, end_col), ir_change_of_basis = all_change_of_basis[
@@ -193,6 +194,9 @@ class ReducedTensorProducts:
             ]
 
             end_index = start_index + ir_change_of_basis.shape[0]
+            coefficient_groups.setdefault((row, end_row, col, end_col), []).extend(
+                range(start_index, end_index)
+            )
             transpose_blocks[(row, end_row, col, end_col, ir_change_of_basis.shape[0])] = (
                 start_index, ir_change_of_basis
             )
@@ -211,6 +215,7 @@ class ReducedTensorProducts:
             ).reshape(-1, 1, 1)
 
         self.change_of_basis = change_of_basis
+        self.coefficient_groups = tuple(tuple(group) for group in coefficient_groups.values())
         self.transpose_index = None
         self.transpose_sign = None
         if i_irreps == j_irreps:

@@ -67,7 +67,7 @@ certificado; los targets/loss futuros consumen el mismo orden de coeficientes.
   dtype cast y strict state_dict conservan matrices. Expected: exit 0.
 - [x] Step 5: suite CPU completa, Ruff/mypy, sintaxis Python3.9 y diff --check.
   Expected: sin regresiones; reportar avisos/omisiones, no ocultarlos.
-- [ ] Step 6: commit local y task-done real; registrar implementación y límite
+- [x] Step 6: commit local y task-done real; registrar implementación y límite
   pendiente (el entrenamiento integrado aún reconstruye). No ganancia GPU.
 
 ## Pre-flight y evidencia de diseño
@@ -83,3 +83,7 @@ la certificación de pérdida 5.3 deberá considerar el Q/dtype efectivo.
 Ruling: mapas locales O(K), no operador denso K×K — evita trasladar coste a
 VRAM/init. Coste si falla la identidad local: conservar fallback denso, sin
 declarar la ruta certificada para esa fórmula/base.
+
+Ejecución: producto `41a03f4`; task-done **258 pasan**, 9081 warnings,
+74.36 s, exit0, rango 2869ef0..41a03f4. Primer selector incorrecto dio exit4
+antes de ejecutar tests; corregido a `bindings/e3nn/tests/test_rtps.py`.

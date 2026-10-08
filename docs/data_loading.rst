@@ -141,6 +141,20 @@ padding are rejected: the labels do not uniquely determine unobserved grouped
 coefficients, and zero-padding would impose additional targets. Use a matrix
 loss until a separately certified masked coefficient objective is available.
 ``max`` without padding still admits the exact projection.
+The CPU-prepared candidate in
+``graph2mat.bindings.torch.data.coefficient_targets`` separates these diagnostics
+from an element-weighted matrix MSE. ``CoefficientMatrixMSEProjector`` snapshots
+the effective Q and local angular-pair groups without retaining the model; rebuild
+the snapshot if Q changes. Local QR factors preserve Q roundoff (including a
+float32-to-float64 cast), physical padding masks, component order and the target's
+orthogonal residual. ``coefficient_matrix_mse`` weights both edge SSE and element
+count by ``edge_weight`` and keeps its products outside external autocast.
+Whole missing blocks have connected zero gradients; partial NaN blocks, unsupported
+RTP groups or masks cutting a local support raise ``CoefficientMSEUnsupported``
+to request the ordinary matrix route. This candidate is not yet connected to the
+Graph2Mat/MACE/Lightning training loop and does not change any default loss.
+Factors in prepared targets share the CPU snapshot and must be consumed read-only.
+
 Gauge H and optional predicted S use independent valid-element means, with the
 configured edge weight. Alignment ignores any H/S reference row with a NaN
 component before subtraction; missing rows have zero gradients. Empty gauge
