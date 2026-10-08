@@ -519,3 +519,5 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
 - **Integración training aún abierta**: collate CPU, Lightning, métricas epoch/
   DDP y fallback para callbacks/objetivos no certificados. No medida GPU,
   entrenamiento de precisión ni cierre de 5.3/goal por estas pruebas CPU.
+- Producto **ed975eb**. Task-done real **153 pasan**, 63 no seleccionados,
+  4331 warnings, **64.69 s**, exit0, rango a5e6b63..ed975eb.

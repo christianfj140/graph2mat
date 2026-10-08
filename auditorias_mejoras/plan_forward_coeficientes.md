@@ -73,7 +73,7 @@ node_coefficients/edge_coefficients/coefficient_metadata, sin node/edge_labels.
 - [x] Step 5: gates ampliados y floor3.9, luego suite source CPU completa,
   Ruff/mypy/compileall39/diff. Comando CPU exacto de plan_mse_irreps_targets_cpu
   con selección de nuevos tests y controles de coeficientes. Expected: exit0.
-- [ ] Step 6: documentar ruta y límites de Lightning/fallback; commit explícito
+- [x] Step 6: documentar ruta y límites de Lightning/fallback; commit explícito
   y task-done real con tests nuevos Graph2Mat y MACE. No cerrar 5.3 ni goal.
 
 ## Pre-flight y decisiones
