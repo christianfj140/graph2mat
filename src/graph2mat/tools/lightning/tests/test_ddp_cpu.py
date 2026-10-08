@@ -138,7 +138,7 @@ def _fit_pair_epoch_metrics(output_dir, variant):
         (Path(output_dir) / "result.json").write_text(json.dumps(result))
 
 
-def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None, special=None, gauge=None, relative=None):
+def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None, special=None, gauge=None, relative=None, density=None):
     import pytorch_lightning as pl
     import torch
     from pytorch_lightning.strategies import DDPStrategy
@@ -235,6 +235,11 @@ def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coeff
         loss_name, components, missing = relative.split(":")
         samples = relative_samples(int(components), missing == "nan")
         model = relative_model(loss_name)
+    if density:
+        from graph2mat.tools.lightning.tests.test_density_epoch_metrics import density_model, density_samples
+
+        samples, table, _ = density_samples(components=int(density))
+        model = density_model(table)
     trainer = pl.Trainer(
         accelerator="cpu", devices=2,
         strategy=DDPStrategy(process_group_backend="gloo", start_method="popen"),
@@ -423,8 +428,29 @@ def test_two_cpu_ranks_reduce_relative_selections_and_sample_variance(tmp_path, 
         assert result["metrics"]["hp_metric"] == pytest.approx(expected), f"Rank {rank}"
 
 
+@pytest.mark.parametrize("components", [1, 2])
+def test_two_cpu_ranks_reduce_density_electron_denominators_and_counters(tmp_path, components):
+    from graph2mat.tools.lightning.tests.test_density_epoch_metrics import density_samples
+
+    _, _, integral = density_samples(components=components)
+    _run_training_script(tmp_path, f"epoch_density:{components}")
+    for rank in (0, 1):
+        result = json.loads((tmp_path / f"rank{rank}.json").read_text())
+        assert result["world_size"] == 2
+        expected = {"val_loss": 1.25 * components * integral, "hp_metric": 1.25 * components * integral,
+                    "val_avg_per_config_error_percent": 125 * components * integral,
+                    "val_avg_error_percent": 400 / 3 * components * integral,
+                    "val_total_electrons": 3, "val_n_structures": 2,
+                    "val_total_error": 4 * components * integral,
+                    "val_per_config_total_error": 2.5 * components * integral}
+        for name, value in expected.items():
+            assert result["metrics"][name] == pytest.approx(value, rel=1e-10), f"Rank {rank}, {name}"
+
+
 if __name__ == "__main__":
-    if sys.argv[2].startswith("epoch_relative:"):
+    if sys.argv[2].startswith("epoch_density:"):
+        _evaluate_epoch_metrics(sys.argv[1], False, density=sys.argv[2].split(":", 1)[1])
+    elif sys.argv[2].startswith("epoch_relative:"):
         _evaluate_epoch_metrics(sys.argv[1], False, relative=sys.argv[2].split(":", 1)[1])
     elif sys.argv[2].startswith("epoch_pair:"):
         _fit_pair_epoch_metrics(sys.argv[1], sys.argv[2].split(":", 1)[1])

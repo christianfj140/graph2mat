@@ -80,3 +80,25 @@ def test_cached_rtps_preserve_precision_after_default_dtype_changes(formula, i, 
                                    rtol=1e-6, atol=1e-7)
     finally:
         torch.set_default_dtype(previous)
+
+
+@pytest.mark.parametrize("l", [1, 2, 3], ids=["p", "d", "f"])
+def test_siesta_rotation_matches_independent_sisl_orbitals(l):
+    import numpy as np
+    import sisl
+    from scipy.spatial.transform import Rotation
+
+    from graph2mat.core.data.basis import get_change_of_basis
+
+    rng = np.random.default_rng(0)
+    points = rng.normal(size=(64, 3))
+    points /= np.linalg.norm(points, axis=1)[:, None]
+    radius = np.linspace(0, 2, 101)
+    orbitals = [sisl.AtomicOrbital(n=l + 1, l=l, m=m, spherical=(radius, np.ones_like(radius)))
+                for m in range(-l, l + 1)]
+    values = np.stack([orbital.psi(points) for orbital in orbitals], axis=1)
+    cob, inverse = get_change_of_basis("cartesian", "siesta_spherical")
+    for rotation in Rotation.random(8, random_state=rng).as_matrix():
+        actual = np.stack([orbital.psi(points @ rotation.T) for orbital in orbitals], axis=1)
+        representation = o3.Irrep(l, (-1) ** l).D_from_matrix(torch.from_numpy(cob @ rotation @ inverse)).numpy()
+        np.testing.assert_allclose(actual, values @ representation.T, rtol=0, atol=2e-14)

@@ -414,7 +414,14 @@ class LitBasisMatrixModel(pl.LightningModule):
                              metrics_module.block_type_mapemaemix: (1, 100., 0),
                              metrics_module.block_type_mapemsemix: (2, 10000., 0),
                              metrics_module.block_type_mapestdmix: (1, 0., 2)}
-        if type(self.loss_fn) in relative_policies:
+        if type(self.loss_fn) is metrics_module.normalized_density_error:
+            if (key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss)
+                    or len(self._epoch_losses[key].totals) != 1):
+                self._epoch_losses[key] = _EpochWeightedLoss(1).to(self.device)
+            value = self._epoch_losses[key]
+            value([loss], [stats["n_structures"]], (1.,))
+            attribute = f"_epoch_losses.{key}"
+        elif type(self.loss_fn) in relative_policies:
             power, label_weight, std_terms = relative_policies[type(self.loss_fn)]
             if (key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss)
                     or len(self._epoch_losses[key].totals) != 4 or self._epoch_losses[key].std_terms != std_terms):
@@ -596,7 +603,16 @@ class LitBasisMatrixModel(pl.LightningModule):
                 value = self._epoch_losses[key]
                 value(stats[name].reshape(1), [batch.num_graphs * (batch.point_labels.shape[1] - 1)], (1.,))
                 attribute = f"_epoch_losses.{key}"
-            elif name in ("n_structures", "n_large_structures", "spectral_elements", "n_pairs"):
+            elif (type(self.loss_fn) is metrics_module.normalized_density_error
+                    and name in ("avg_per_config_error_percent", "avg_error_percent")):
+                if key not in self._epoch_losses:
+                    self._epoch_losses[key] = _EpochWeightedLoss(1).to(self.device)
+                value = self._epoch_losses[key]
+                denominator = stats["total_electrons"] if name == "avg_error_percent" else stats["n_structures"]
+                value([stats[name]], [denominator], (1.,))
+                attribute = f"_epoch_losses.{key}"
+            elif name in ("n_structures", "n_large_structures", "spectral_elements", "n_pairs",
+                          "total_electrons", "total_error", "per_config_total_error"):
                 if key not in self._epoch_errors:
                     self._epoch_errors[key] = _EpochErrorMoments("sum").to(self.device)
                 value = self._epoch_errors[key]

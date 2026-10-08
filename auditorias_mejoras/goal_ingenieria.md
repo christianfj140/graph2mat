@@ -1384,6 +1384,80 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   no RED de producto. API primaria comprobada:
   https://sisl.readthedocs.io/en/latest/api/generated/sisl.Grid.html
 
+### Sublote 3.1.m / 3.9 — densidad normalizada
+
+- BASE **bbde216**. Es un diagnóstico de postproceso sisl, no una pérdida
+  diferenciable de entrenamiento. Conservar su definición: media por estructura
+  de integral(|delta_rho|)/q0, y porcentaje agregado con denominador sum(q0).
+  Sus contadores deben sumar; no promediar porcentajes ponderados por grafos
+  cuando q0 difiere. No se añade autograd ni otra definición física.
+- TDD con grid real y oráculo independiente sum(psi^2*dV), átomos con q0=1/2,
+  DM escalar/colineal, simétrico/direccional y sub_point_matrix on/off;
+  batching/reset/splits/DDP. NaN de referencias representan contribución no
+  observada, no densidad desconocida reconstruida. Predicción no finita en
+  etiquetas observadas debe fallar, no parecer un error perfecto.
+- Matrices de error cero deben aportar cero sin reducción vacía dentro de sisl;
+  batch vacío finito y electrones no positivos rechazados como normalización
+  indefinida. Sondeo instalado reproduce la reducción vacía con onsite NaN.
+  Revisión transversal solo después de completar/verificar este último sublote.
+- RED: **22 failed, 2 passed**, 1.52 s (`density-epoch-red.log`); el reordenado
+  **22 failed, 2 passed**, 2.67 s (`density-epoch-batch-red.log`) expone que PyG
+  Batch también es BasisMatrixDataBase y se convertía como una sola estructura.
+  Porcentajes NumPy loggeados directamente perdían precisión por conversión
+  Lightning a float32; se conservó rel=1e-10, sin relajar tolerancias.
+- Parche: distinguir ptr de batch, máscara observada común antes de construir
+  errores, rechazo de no finitos observados y q0 no positivo/no finito; saltar
+  proyección sisl de CSR vacío, medias vacías cero. Reutilizar acumuladores
+  float64 globales: pérdida/media por configuración y porcentaje por electrones
+  tienen denominadores distintos; los contadores suman. Primer GREEN: **114
+  passed**, 6.45 s (`density-epoch-first-green.log`).
+- NumPy/base añade oráculo sin Torch. RED conjunto: **4 failed, 30 passed**,
+  13.57 s (`density-epoch-ddp-numpy.log`): copy(data).point_labels cambiaba el
+  atributo, pero la conversión indexaba _data compartido con etiquetas originales.
+  Sondeo confirma atributo [1], índice [0] y matriz error cero. Se reutilizó
+  MatrixDataProcessor.matrix_from_data(predictions=...) y su reparación NumPy
+  existente; no se duplicó ni cambió el contrato del contenedor.
+- GREEN conjunto **34 passed, 31 deselected**, 15.14 s
+  (`density-epoch-numpy-green.log`): 28 casos ML, cuatro NumPy y dos DDP reales,
+  con spin, simetría, sub_point, reset/splits/batching, errores/aristas NaN y
+  datos no mutados. Diagnóstico no diferenciable: no se inventa autograd ni
+  densidad completa para filas desconocidas; documentado en data_loading.rst.
+- Ruff real Passed. Primer mypy detectó acumulador inferido int frente a error
+  float; inicializaciones float lo corrigen, gate real Passed
+  (`density-epoch-mypy.log`, `density-epoch-mypy-green.log`).
+- Wheels nuevas cp39 sha256
+  `c628340dc4baec0b404b9c41718f0162d718e88ed6d17064c90aa057096251f6`,
+  cp312 `4cb152d03ee20511b03c42b3dde875f40b8b81a015bdc38db93ce9c2bf4c342f`;
+  reinstaladas --force-reinstall --no-deps en cinco venvs aislados.
+  Base sin ML ejecuta oráculo instalado -I/--pyargs/--noconftest: **4 passed**
+  por Python 3.9/3.12, 0.73/0.99 s (`*-base-density-numpy.log`).
+- Suite CPU congelada **1439 passed, 2 skipped**, 7915 warnings, 322.63 s,
+  exit 0 (`density-epoch-full-cpu.log`). Las dos omisiones conocidas son fixture
+  local H ausente y compile CUDA con GPU ocultada; no se añadieron skips.
+- Wheels instaladas -I/--pyargs: **1414 passed, 2 skipped** en 3.9 mínimo y
+  3.12 fijado/latest, 265.94/288.21/296.45 s (`*-density-wheel-full.log`).
+  Raíz instalada: **25 passed** por los tres perfiles,
+  18.82/25.94/26.24 s (`*-density-wheel-root.log`).
+- Base instalada: **16 passed, 7 deselected** por 3.9/3.12, 7.73/11.04 s
+  (`*-base-density-cli.log`). Cinco pip check exit 0 (`*-density-pip-check.log`
+  y `*-base-density-pip-check.log`). Ruff/mypy reales Passed; revisión final
+  y suite actual con el nuevo oráculo angular pendientes, no cierre todavía.
+
+### Cierre de cobertura 3.9 — convenio angular físico p/d/f
+
+- La auditoría ENG_QUALITY-20 pide verificar el convenio con un oráculo físico,
+  no solo rotar un modelo que usa la misma representación. Se añadió la
+  comparación de AtomicOrbital.psi real de sisl sobre 64 direcciones con la
+  representación e3nn del cambio de base SIESTA, para l=1/2/3 y ocho rotaciones
+  deterministas por shell (24 rotaciones), float64, atol=2e-14, rtol=0.
+- No se detectó error de producto. Tres regresiones **passed**, 0.08 s
+  (`angular-convention-source.log`). Dos intentos de sondeo fallaron por orden
+  de importación del propio sondeo y keyword radial incorrecto de sisl; no son
+  RED de producto. La API local confirma spherical=(r,f).
+- Esta adición es posterior a la colección de las suites de densidad en marcha;
+  no se incluyen sus tres casos en aquellas cifras. La última suite final deberá
+  incluirla en nuevas wheels y en el checkout después de la revisión transversal.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

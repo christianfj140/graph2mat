@@ -158,6 +158,16 @@ not a mean of batch standard deviations. Empty relative selections contribute
 zero without removing observed absolute terms. Per-step definitions, weights
 and gradients are unchanged.
 
+Normalized density error is a non-differentiable sisl postprocessing diagnostic,
+not a training loss. Its epoch objective averages ``integral(abs(delta_rho))/q0``
+per structure; ``avg_error_percent`` instead divides the summed integrals by
+the summed electron counts. Verbose counters sum across batches/ranks. Conversion
+preserves the data's symmetry/component convention without adding the atomic
+reference to errors. Missing reference rows contribute no observed density error;
+this is not a reconstruction of their unknown density. Non-finite observed errors
+and non-positive/non-finite electron counts raise explicitly. Empty batches and
+zero error matrices return finite zero without a sisl empty reduction.
+
 Size-domain epoch losses first average per-structure losses in each domain, then
 apply its configured weight, normalized over domains present in the epoch.
 ``n_structures``/``n_large_structures`` are sums. As in the step objective, a

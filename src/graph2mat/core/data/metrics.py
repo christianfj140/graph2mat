@@ -2150,10 +2150,10 @@ def _error_processor(batch, basis_table) -> MatrixDataProcessor:
     return processor.copy(sub_point_matrix=False)
 
 
-def _error_to_sisl(data, processor: MatrixDataProcessor):
+def _error_to_sisl(data, processor: MatrixDataProcessor, predictions=None):
     # Conversions read the processor from the data's metadata, so replace it there.
     data.metadata = {**data.metadata, "data_processor": processor}
-    return data.convert_to(Formats.SISL_DM)
+    return processor.matrix_from_data(data, predictions=predictions, out_format=Formats.SISL_DM)
 
 
 @OrbitalMatrixMetric.from_metric_func
@@ -2175,12 +2175,16 @@ def normalized_density_error(
     import sisl
     from graph2mat import BasisMatrixDataBase
 
-    # Get the errors in the density matrix. Make sure that NaNs are set to 0, which
-    # basically means that they will have no influence on the error.
-    errors = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref, remove_nan=False
-    )
-    errors[1][_isnan(errors[1])] = 0
+    observed_errors = get_predictions_error(nodes_pred, nodes_ref, edges_pred, edges_ref)
+    errors = []
+    for pred, ref, values in zip((nodes_pred, edges_pred), (nodes_ref, edges_ref), observed_errors):
+        finite = torch.isfinite(values).all() if _is_torch_tensor(values) else np.isfinite(values).all()
+        if not finite:
+            raise ValueError("normalized_density_error requires finite errors for observed reference labels.")
+        # Unobserved rows contribute no density error; keep the original layout.
+        padded = torch.zeros_like(pred) if _is_torch_tensor(pred) else np.zeros_like(pred)
+        padded[_valid_label_rows(ref)] = values
+        errors.append(padded)
 
     # The labels are errors, not density matrices: convert them with the data's own
     # processor (same symmetric convention as training) but without adding back the
@@ -2188,13 +2192,14 @@ def normalized_density_error(
     processor = _error_processor(batch, basis_table)
 
     matrix_errors: Iterable[Any]
-    if isinstance(batch, BasisMatrixDataBase):
+    if isinstance(batch, BasisMatrixDataBase) and _batch_field(batch, "ptr") is None:
         # We haven't really received a batch, but just a single structure.
         # Do as if we received a batch of size 1.
         matrix_error = copy(batch)
-        matrix_error.point_labels = errors[0]
-        matrix_error.edge_labels = errors[1]
-        matrix_errors = [_error_to_sisl(matrix_error, processor)]
+        matrix_errors = [_error_to_sisl(
+            matrix_error, processor,
+            predictions={"node_labels": errors[0], "edge_labels": errors[1]},
+        )]
     else:
         # Create an iterator that returns the error for each structure in the batch
         # as a sisl DensityMatrix.
@@ -2207,25 +2212,25 @@ def normalized_density_error(
         )
 
     # Initialize counters
-    per_config_total_error = 0
-    total_error = 0
-    total_electrons = 0
+    per_config_total_error = 0.
+    total_error = 0.
+    total_electrons = 0.
     num_configs = 0
 
     # Loop through structures in the batch
     for matrix_error in matrix_errors:
-        # Initialize a grid to project the error
-        error_grid = sisl.Grid(grid_spacing, geometry=matrix_error.geometry)
-
-        # Project the error onto the grid
-        matrix_error.density(error_grid)
-
-        # We need the absolute value of the error
-        grid_abs_error = abs(error_grid)
-
-        # Aggregate all the errors and normalize by the number of electrons
-        this_config_error = grid_abs_error.grid.sum() * error_grid.dvolume
+        if matrix_error.geometry.na == 0:
+            continue
         this_config_electrons = matrix_error.geometry.q0
+        if not np.isfinite(this_config_electrons) or this_config_electrons <= 0:
+            raise ValueError("normalized_density_error requires a positive finite electron count.")
+
+        this_config_error = 0.
+        if matrix_error.nnz:
+            error_grid = sisl.Grid(grid_spacing, geometry=matrix_error.geometry)
+            matrix_error.density(error_grid)
+            this_config_error = abs(error_grid).grid.sum() * error_grid.dvolume
+
         this_config_norm_error = this_config_error / this_config_electrons
 
         # Update counters
@@ -2235,12 +2240,14 @@ def normalized_density_error(
         num_configs += 1
 
     # Compute average errors
-    avg_per_config_error = per_config_total_error / num_configs
-    avg_error = total_error / total_electrons
+    avg_per_config_error = per_config_total_error / (num_configs or 1)
+    avg_error = total_error / (total_electrons or 1)
 
     stats = {
         "avg_per_config_error_percent": avg_per_config_error * 100,
         "avg_error_percent": avg_error * 100,
+        "n_structures": num_configs,
+        "total_electrons": total_electrons,
     }
 
     # If the verbose stats are requested, we return also the counters.
