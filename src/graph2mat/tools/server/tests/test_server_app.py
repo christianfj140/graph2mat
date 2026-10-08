@@ -8,9 +8,66 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
 import sisl
+import numpy as np
 
-from graph2mat import AtomicTableWithEdges, MatrixDataProcessor
+from graph2mat import AtomicTableWithEdges, BasisTableWithEdges, MatrixDataProcessor, PointBasis
+from graph2mat.core.data.node_feats import OneHotZ
 from graph2mat.tools.server.server_app import create_server_app
+
+
+def _extra_node_feature(config, processor):
+    return np.ones((len(config.positions), 1))
+
+
+@pytest.mark.parametrize("atomic", [False, True])
+@pytest.mark.parametrize("array_radius", [False, True])
+def test_model_info_serializes_real_processor_as_json(atomic, array_radius):
+    radius = np.array([2., 3., 3., 3.]) if array_radius else np.float64(2.)
+    if atomic:
+        atom = sisl.Atom("C", orbitals=[sisl.AtomicOrbital(l=0, R=2.), *[
+            sisl.AtomicOrbital(l=1, m=m, R=3. if array_radius else 2.) for m in (-1, 0, 1)
+        ]])
+        table = AtomicTableWithEdges([atom])
+        expected_radius = [2., 3., 3., 3.] if array_radius else [2., 2., 2., 2.]
+        convention = "siesta_spherical"
+    else:
+        table = BasisTableWithEdges([PointBasis(np.int64(6), R=radius, basis=[1, 1], basis_convention="cartesian")])
+        expected_radius = [2., 3., 3., 3.] if array_radius else 2.
+        convention = "cartesian"
+    processor = MatrixDataProcessor(
+        basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+        out_matrix="density_matrix", n_matrix_components=np.int64(2),
+        matrix_component_policy="raw_components", node_attr_getters=[OneHotZ, _extra_node_feature],
+    )
+    app = create_server_app({"dm": {
+        "data_processor": processor, "prediction_function": lambda data: data,
+        "description": "Two-component density matrix", "files": {},
+        "test_metrics_summary": "",
+    }})
+    response = TestClient(app).get("/api/models/dm/info")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "basis_table": {"basis": [{"type": 6, "R": expected_radius,
+                                   "basis": [[1, 0, 1], [1, 1, -1]], "basis_convention": convention}]},
+        "symmetric_matrix": True, "sub_point_matrix": False, "out_matrix": "density_matrix",
+        "n_matrix_components": 2, "matrix_component_policy": "raw_components",
+        "node_attr_getters": ["graph2mat.core.data.node_feats.OneHotZ", __name__ + "._extra_node_feature"],
+        "description": "Two-component density matrix",
+    }
+    assert processor.basis_table is table
+    assert processor.node_attr_getters == [OneHotZ, _extra_node_feature]
+
+
+def test_frontend_route_names_and_operation_ids_are_preserved():
+    app = create_server_app({})
+    paths = ["/models/{model_name}/{model_action}", "/models/{model_name}", "/models", "/about", "/"]
+    routes = [route for route in app.routes if route.path in paths]
+    assert [route.name for route in routes] == ["get"] * 5
+    assert [app.openapi()["paths"][path]["get"]["operationId"] for path in paths] == [
+        "get_models__model_name___model_action__get", "get_models__model_name__get",
+        "get_models_get", "get_about_get", "get__get",
+    ]
 
 
 class _DummyMatrix:

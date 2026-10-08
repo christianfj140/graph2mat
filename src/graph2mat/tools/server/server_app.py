@@ -34,6 +34,7 @@ try:
         Form,
     )
     from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+    from fastapi.encoders import jsonable_encoder
     from fastapi.templating import Jinja2Templates
     from fastapi.staticfiles import StaticFiles
 except ModuleNotFoundError as exc:
@@ -184,15 +185,19 @@ def create_server_app(
         """Returns information about a model."""
         model = models[model_name.value]
 
-        info = {
-            k: v
-            for k, v in dataclasses.asdict(model["data_processor"]).items()
-            if k not in ["z_table"]
-        }
-
+        processor = model["data_processor"]
+        info = {field.name: getattr(processor, field.name) for field in dataclasses.fields(processor)}
+        info["basis_table"] = {"basis": processor.basis_table.basis}
+        info["node_attr_getters"] = [
+            f"{getattr(getter, '__module__', type(getter).__module__)}."
+            f"{getattr(getter, '__qualname__', type(getter).__qualname__)}"
+            for getter in processor.node_attr_getters
+        ]
         info["description"] = model["description"]
-
-        return info
+        return jsonable_encoder(info, custom_encoder={
+            np.ndarray: lambda values: values.tolist(),
+            np.generic: lambda value: value.item(),
+        })
 
     @api.get("/models/{model_name}/avail_info")
     async def model_avail_info(model_name: ModelName) -> List[str]:
@@ -433,8 +438,8 @@ def create_server_app(
         directory=Path(__file__).parent / "frontend" / "templates"
     )
 
-    @app.get("/models/{model_name}/{model_action}", response_class=HTMLResponse)
-    async def get(request: Request, model_action: ModelAction, model_name: ModelName):
+    @app.get("/models/{model_name}/{model_action}", response_class=HTMLResponse, name="get")
+    async def model_action_page(request: Request, model_action: ModelAction, model_name: ModelName):
         return templates.TemplateResponse(
             f"{model_action.value}_page.html",
             {
@@ -450,14 +455,14 @@ def create_server_app(
             },
         )
 
-    @app.get("/models/{model_name}", response_class=HTMLResponse)
-    async def get(request: Request, model_name: ModelName):
+    @app.get("/models/{model_name}", response_class=HTMLResponse, name="get")
+    async def model_redirect(request: Request, model_name: ModelName):
         return RedirectResponse(
             f"/models/{model_name.value}/{ModelAction.predict.value}"
         )
 
-    @app.get("/models", response_class=HTMLResponse)
-    async def get(request: Request):
+    @app.get("/models", response_class=HTMLResponse, name="get")
+    async def model_index(request: Request):
         return templates.TemplateResponse(
             "index.html",
             {
@@ -470,8 +475,8 @@ def create_server_app(
             },
         )
 
-    @app.get("/about", response_class=HTMLResponse)
-    async def get(request: Request):
+    @app.get("/about", response_class=HTMLResponse, name="get")
+    async def about_page(request: Request):
         return templates.TemplateResponse(
             "about.html",
             {
@@ -481,8 +486,8 @@ def create_server_app(
             },
         )
 
-    @app.get("/", response_class=HTMLResponse)
-    async def get(request: Request):
+    @app.get("/", response_class=HTMLResponse, name="get")
+    async def root_redirect(request: Request):
         return RedirectResponse(f"/models")
 
     static = StaticFiles(directory=Path(__file__).parent / "frontend" / "static")

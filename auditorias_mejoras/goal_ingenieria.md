@@ -722,6 +722,31 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   El sondeo semántico adicional conserva los detalles de redefiniciones y otros
   avisos en ruff-semantic-baseline.log. Aún no hay gate completo ni cierre 3.9.
 
+### Sublote 3.4.d / 3.9.g.2 — /info JSON y redefiniciones
+
+- Lote de nombres indefinidos comprometido en **75e4080**, con gate completo
+  1032/2. /info se reproduce con procesadores/bases reales, no mocks.
+- RED: **4 failed, 1 passed**, 9 deselected, 53 warnings, 1.01 s
+  (server-info-real-red.log): bases genéricas/atómicas con radios escalares/arrays
+  fallan al serializar NumPy o AtomicOrbital. La caracterización de nombres de
+  rutas y operationId del frontend sí pasa antes del cambio.
+- El primer parche de /info no bastó: el custom encoder de tabla devolvía un
+  contenedor sin codificar sus hijos. **4 failed, 69 passed**, 57 warnings,
+  26.53 s (server-info-routes-focused-green.log); no se registra como GREEN.
+  Corrección: convertir explícitamente basis_table a {basis: [...]}, nombres
+  cualificados de getters y reutilizar jsonable_encoder para arrays/scalars.
+  Sin deepcopy de la tabla y sin mutar el procesador; restantes claves preservadas.
+- Quitadas dos importaciones repetidas en extrapolación y renombradas cinco
+  funciones frontend con name="get" explícito. La API conserva nombres e IDs
+  de OpenAPI, verificados por el mismo test antes y después del cambio.
+- GREEN cercano definitivo: **73 passed**, 57 warnings, 25.69 s
+  (server-info-routes-focused-final.log). Ruff E9/F63/F7/F82/F811/B015/PLR0133:
+  exit 0 (ruff-semantic-final.log), sin ignorar nombres ni redefiniciones.
+  Gate completo CPU: **1037 passed, 2 skipped**, 6726 warnings, 138.90 s
+  (server-info-full-cpu.log), exit 0, con DScribe presente.
+  Gates configurados/ejecutados en CI y tipos siguen pendientes, igual que el
+  resto del alcance de 3.1/3.4/3.5/3.9 y la revisión final del objetivo entero.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

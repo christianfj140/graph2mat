@@ -39,3 +39,13 @@ You can interact with it in multiple ways:
 - Through the `ServerClient` class in `e3nn_matrix.tools.server.api_client`.
 - By simply sending requests to the API of the server. These requests must be sent to `http://localhost:56000/api`. You
 can check the documentation for the requests that the server understands under `http://localhost:56000/api/docs`.
+
+Model metadata
+--------------
+
+``GET /api/models/{model_name}/info`` returns JSON-compatible processor fields
+and the model description. ``basis_table.basis`` contains each point type,
+radius (a number or list), canonical ``(multiplicity, l, parity)`` basis and
+basis convention. ``node_attr_getters`` contains qualified names rather than
+Python class/function objects. NumPy arrays/scalars are encoded as JSON
+lists/numbers; neither the processor nor the basis table is modified.

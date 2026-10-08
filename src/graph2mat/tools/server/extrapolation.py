@@ -4,7 +4,6 @@ from typing import Union, Type, Tuple, Any, Dict, Callable, Optional
 
 from copy import copy
 from pathlib import Path
-from collections import deque
 
 from abc import ABC, abstractmethod
 
@@ -21,7 +20,6 @@ from graph2mat import (
     MatrixDataProcessor,
     OrbitalConfiguration,
     BasisMatrixData,
-    MatrixDataProcessor,
 )
 from graph2mat.core.data.matrices import get_matrix_cls
 
