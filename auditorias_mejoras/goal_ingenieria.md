@@ -1341,6 +1341,49 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   los diagnósticos de densidad normalizada (también usan denominador propio),
   más revisión final; no se descartan requisitos pendientes.
 
+### Sublote 3.1.l — objetivos relativos y desviación global verificados
+
+- BASE **4920a55**. Las cuatro familias MAPE/mix siguen usando una media por
+  batch de su tensor loss; normalizar el término relativo requiere su selección
+  abs(ref)>eps, distinta de todos los elementos válidos usados por MAE/MSE.
+  STD-mix requiere momentos globales con la desviación muestral Torch existente.
+- Reusar _EpochWeightedLoss con momentos solo para STD-mix, denominadores
+  independientes por rama/término; sin cambiar funciones de pérdida del paso.
+  TDD literal para máscaras NaN/cero, spin, batches/reset/splits/train/DDP.
+  Densidad normalizada y revisión final permanecen pendientes.
+- RED **36 failed, 4 passed**, 169 warnings, 1.41 s (`relative-epoch-red.log`).
+  Los cuatro valores/gradientes literales del paso ya pasaban antes del parche.
+  Primera integración **311 passed**, 318 warnings, 3.91 s
+  (`relative-epoch-first-green.log`), incluye NaN/vacíos básicos y pares/gauge.
+- Train/reset y seis DDP CPU, selección relativa desigual, spin y nodos sin
+  observaciones: **46 passed, 25 deselected**, 169 warnings, 34.43 s
+  (`relative-epoch-train-ddp.log`). Módulo final con selecciones vacías y cambio
+  MAPE→STD→MSE→STD→MAE: **49 passed**, 196 warnings, 1.80 s
+  (`relative-epoch-all-focused.log`). Cincuenta y cinco casos nuevos con DDP.
+- Valores globales literales: MAPE 55/12; MAE-mix suma 470; MSE-mix suma
+  142000; STD-mix añade sqrt(25/12)+1.5. Spin conserva relativos y cambia
+  los grados de libertad de la STD muestral; no se promedian STD de batches.
+  Ruff/mypy reales Passed y diff limpio; suite completa/wheels en ejecución.
+- Suite CPU congelada **1405 passed, 2 skipped**, 7867 warnings, 304.14 s,
+  exit 0 (`relative-epoch-full-cpu.log`).
+- Wheels compiladas: cp39 sha256
+  `2360cc4874ec4396f82d385ad323cf0794600c162e0c6f645bb655ee4528cae1`,
+  cp312 `3e5a318f4d6fd05bdb5f0c22d23f44e2189fd61b8ffa4e956517a750209e9c4c`.
+  --force-reinstall --no-deps en cinco venvs temporales. Enfocado instalado
+  -I/--pyargs: **397 passed** por 3.9 mínimo/3.12 fijado/latest,
+  64.44/81.95/83.52 s (`*-relative-wheel-focused.log`). Incluye relativo, pares,
+  gauge, métricas de época, NaN básicos y trece DDP relativos/pares/gauge.
+  No es una nueva suite completa de wheel.
+- Base sin ML: **16 passed, 7 deselected** en 3.9/3.12, 7.85/11.44 s
+  (`*-base-relative-tests.log`). Cinco pip check exit 0 (`*-relative-pip-check.log`).
+  Hooks reales Passed; densidad normalizada y revisión transversal pendientes.
+- Sondeo de densidad sobre wheel instalada (sin cambios): integral independiente
+  de psi^2*dV **0.11845068775324877**, coincide exactamente con un error onsite 1.
+  Referencia onsite NaN produce ValueError en reducción vacía de sisl. El primer
+  intento usó Grid.origo inexistente: error del sondeo, corregido a Grid.origin;
+  no RED de producto. API primaria comprobada:
+  https://sisl.readthedocs.io/en/latest/api/generated/sisl.Grid.html
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

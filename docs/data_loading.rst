@@ -150,6 +150,14 @@ across steps or ranks. Epoch values are invariant under partitions retaining
 the same observed pairs. Validation/test are plain global MSE with no pairing
 or training pair guard, as before, for any partition.
 
+Relative MAPE/mix epoch objectives keep the original ``abs(ref)>1e-6`` selection
+for relative errors, distinct from the valid-element selection used by their
+absolute MAE/MSE terms. Each node/edge term has its own global denominator.
+STD-mix uses global sample variance of relative errors (Torch's convention),
+not a mean of batch standard deviations. Empty relative selections contribute
+zero without removing observed absolute terms. Per-step definitions, weights
+and gradients are unchanged.
+
 Size-domain epoch losses first average per-structure losses in each domain, then
 apply its configured weight, normalized over domains present in the epoch.
 ``n_structures``/``n_large_structures`` are sums. As in the step objective, a

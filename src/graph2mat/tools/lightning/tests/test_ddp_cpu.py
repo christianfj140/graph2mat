@@ -138,7 +138,7 @@ def _fit_pair_epoch_metrics(output_dir, variant):
         (Path(output_dir) / "result.json").write_text(json.dumps(result))
 
 
-def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None, special=None, gauge=None):
+def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None, special=None, gauge=None, relative=None):
     import pytorch_lightning as pl
     import torch
     from pytorch_lightning.strategies import DDPStrategy
@@ -229,6 +229,12 @@ def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coeff
             samples[0].point_labels.fill_(float("nan"))
             samples[0].edge_labels.fill_(float("nan"))
         model = gauge_model(overlap_weight=.3, spectral_weight=.25 if gauge in ("h_only", "h_s") else 0.)
+    if relative:
+        from graph2mat.tools.lightning.tests.test_relative_epoch_metrics import relative_model, relative_samples
+
+        loss_name, components, missing = relative.split(":")
+        samples = relative_samples(int(components), missing == "nan")
+        model = relative_model(loss_name)
     trainer = pl.Trainer(
         accelerator="cpu", devices=2,
         strategy=DDPStrategy(process_group_backend="gloo", start_method="popen"),
@@ -400,8 +406,27 @@ def test_two_cpu_ranks_reduce_pair_means_counts_and_training_reset(tmp_path, var
             assert epoch == pytest.approx(expected), f"Rank {rank}"
 
 
+@pytest.mark.parametrize("loss_name,components,missing", [
+    ("block_type_mape", 1, "valid"), ("block_type_mapemaemix", 1, "valid"),
+    ("block_type_mapemsemix", 1, "valid"), ("block_type_mapestdmix", 1, "valid"),
+    ("block_type_mapestdmix", 2, "valid"), ("block_type_mapestdmix", 1, "nan"),
+])
+def test_two_cpu_ranks_reduce_relative_selections_and_sample_variance(tmp_path, loss_name, components, missing):
+    from graph2mat.tools.lightning.tests.test_relative_epoch_metrics import relative_expected
+
+    _run_training_script(tmp_path, f"epoch_relative:{loss_name}:{components}:{missing}")
+    for rank in (0, 1):
+        result = json.loads((tmp_path / f"rank{rank}.json").read_text())
+        assert result["world_size"] == 2
+        expected = relative_expected(loss_name, components, missing == "nan")
+        assert result["metrics"]["val_loss"] == pytest.approx(expected), f"Rank {rank}"
+        assert result["metrics"]["hp_metric"] == pytest.approx(expected), f"Rank {rank}"
+
+
 if __name__ == "__main__":
-    if sys.argv[2].startswith("epoch_pair:"):
+    if sys.argv[2].startswith("epoch_relative:"):
+        _evaluate_epoch_metrics(sys.argv[1], False, relative=sys.argv[2].split(":", 1)[1])
+    elif sys.argv[2].startswith("epoch_pair:"):
         _fit_pair_epoch_metrics(sys.argv[1], sys.argv[2].split(":", 1)[1])
     elif sys.argv[2].startswith("epoch_gauge:"):
         _evaluate_epoch_metrics(sys.argv[1], False, gauge=sys.argv[2].split(":", 1)[1])

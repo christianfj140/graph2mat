@@ -169,22 +169,35 @@ class _EpochWeightedLoss(Metric):
 
     full_state_update = False
 
-    def __init__(self, terms):
+    def __init__(self, terms, std_terms=0):
         super().__init__()
         self.add_state("totals", torch.zeros(terms, dtype=torch.float64), dist_reduce_fx="sum")
         self.add_state("counts", torch.zeros(terms, dtype=torch.float64), dist_reduce_fx="sum")
         self.weights = (1.,) * terms
+        self.std_terms = std_terms
+        if std_terms:
+            self.add_state("squared_totals", torch.zeros(std_terms, dtype=torch.float64), dist_reduce_fx="sum")
 
-    def update(self, means, counts, weights):
+    def update(self, means, counts, weights, stds=None):
         means = torch.as_tensor(means, dtype=torch.float64, device=self.device).detach()
         counts = torch.as_tensor(counts, dtype=torch.float64, device=self.device)
         self.totals += torch.where(counts > 0, means * counts, 0.)
         self.counts += counts
         self.weights = weights
+        if self.std_terms:
+            stds = torch.as_tensor(stds, dtype=torch.float64, device=self.device).detach()
+            self.squared_totals += (stds.square() * (counts[:self.std_terms] - 1).clamp_min(0)
+                                    + means[:self.std_terms].square() * counts[:self.std_terms])
 
     def compute(self):
         denominator = torch.where(self.counts > 0, self.counts, 1.)
-        return (self.totals / denominator * self.totals.new_tensor(self.weights)).sum()
+        means = self.totals / denominator
+        value = (means * self.totals.new_tensor(self.weights)).sum()
+        if self.std_terms:
+            counts = self.counts[:self.std_terms]
+            variance = (self.squared_totals - self.totals[:self.std_terms] * means[:self.std_terms]) / (counts - 1).clamp_min(1)
+            value = value + torch.where(counts > 1, variance.clamp_min(0), 0.).sqrt().sum()
+        return value
 
 
 class LitBasisMatrixModel(pl.LightningModule):
@@ -397,7 +410,28 @@ class LitBasisMatrixModel(pl.LightningModule):
             policy, coefficient_weight = (2, False, 0., 0.), 1.
         key = f"{split}_loss"
         value, attribute = loss, None
-        if type(self.loss_fn) is metrics_module.pair_difference_mse:
+        relative_policies = {metrics_module.block_type_mape: (1, 0., 0),
+                             metrics_module.block_type_mapemaemix: (1, 100., 0),
+                             metrics_module.block_type_mapemsemix: (2, 10000., 0),
+                             metrics_module.block_type_mapestdmix: (1, 0., 2)}
+        if type(self.loss_fn) in relative_policies:
+            power, label_weight, std_terms = relative_policies[type(self.loss_fn)]
+            if (key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss)
+                    or len(self._epoch_losses[key].totals) != 4 or self._epoch_losses[key].std_terms != std_terms):
+                self._epoch_losses[key] = _EpochWeightedLoss(4, std_terms).to(self.device)
+            value = self._epoch_losses[key]
+            errors = tuple(error.detach().double() for error in metrics_module.get_predictions_error(
+                out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
+            ))
+            relative = tuple(metrics_module._relative_error(error, ref) for error, ref in
+                             zip(errors, (batch.point_labels, batch.edge_labels)))
+            means = torch.stack([metrics_module._mean(error) for error in relative]
+                                + [metrics_module._mean(error.abs().pow(power)) for error in errors])
+            counts = means.new_tensor([error.numel() for error in (*relative, *errors)])
+            stds = torch.stack([metrics_module._std(error) for error in relative]) if std_terms else None
+            value(means, counts, (1., 1., label_weight, label_weight), stds)
+            attribute = f"_epoch_losses.{key}"
+        elif type(self.loss_fn) is metrics_module.pair_difference_mse:
             kwargs = self.loss_fn.metric_kwargs
             if (key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss)
                     or len(self._epoch_losses[key].totals) != 2):
