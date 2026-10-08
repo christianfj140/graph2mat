@@ -3,13 +3,84 @@
 import pytest
 import pytorch_lightning as pl
 import torch
-from torch_geometric.data import Data
+from torch_geometric.data import Batch, Data
 from torch_geometric.loader import DataLoader
 
 from graph2mat import BasisTableWithEdges, PointBasis
 from graph2mat.core.data import metrics
 from graph2mat.tools.lightning.model import LitBasisMatrixModel
 from graph2mat.tools.lightning.tests.test_epoch_metrics import _PredictionModel
+from graph2mat.tools.lightning.data import TypeLayoutCollate
+
+
+def _empty_graph_samples(counts, gauge=False):
+    samples = []
+    for count in counts:
+        labels = torch.tensor([[0., 1.]]).repeat(count, 1) if gauge else torch.zeros(count)
+        prediction = labels + torch.tensor([2., 0.]) if gauge else torch.full((count,), 2.)
+        edges = torch.empty((0, 2)) if gauge else torch.empty(0)
+        samples.append(Data(num_nodes=count, point_types=torch.zeros(count, dtype=torch.long),
+                            point_labels=labels, node_prediction=prediction,
+                            edge_labels=edges, edge_prediction=edges.clone(),
+                            edge_types=torch.empty(0, dtype=torch.long), edge_index=torch.empty((2, 0), dtype=torch.long)))
+    return samples
+
+
+@pytest.mark.parametrize("counts", [(1, 0), (0, 1), (0, 0), (1, 0, 0), ()])
+@pytest.mark.parametrize("cached", [False, True])
+@pytest.mark.parametrize("loss_name", ["block_type_mse_per_structure", "block_type_mse_per_domain", "gauge_invariant_mse"])
+def test_structure_count_preserves_trailing_and_empty_graphs(counts, cached, loss_name):
+    gauge = loss_name == "gauge_invariant_mse"
+    samples = _empty_graph_samples(counts, gauge)
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1])])
+    if samples:
+        batch = TypeLayoutCollate(Batch.from_data_list, table)(samples) if cached else Batch.from_data_list(samples)
+    else:
+        batch = Batch()
+        batch._num_graphs = 0
+        batch.ptr = torch.tensor([0])
+        for key, value in _empty_graph_samples([0], gauge)[0].to_dict().items():
+            batch[key] = value
+    nodes = batch.node_prediction.clone().requires_grad_()
+    edges = batch.edge_prediction.clone().requires_grad_()
+    _, _, size = metrics._per_element_structure_ids(batch.point_labels, batch.edge_labels, batch, table)
+    assert size == len(counts)
+    kwargs = {"domain_threshold_atoms": 3} if loss_name.endswith("domain") else {}
+    loss, stats = getattr(metrics, loss_name)()(nodes_pred=nodes, nodes_ref=batch.point_labels,
+                                              edges_pred=edges, edges_ref=batch.edge_labels,
+                                              batch=batch, basis_table=table, **kwargs)
+    assert float(loss) == pytest.approx(0 if gauge else 4 * sum(counts) / (len(counts) or 1))
+    if gauge:
+        assert float(stats["gauge_shift_mean_abs"]) == pytest.approx(2 * sum(counts) / (len(counts) or 1))
+    else:
+        assert stats["n_structures"] == len(counts)
+    loss.backward()
+    assert torch.isfinite(nodes.grad).all() and torch.isfinite(edges.grad).all()
+
+
+@pytest.mark.parametrize("split", ["val", "test"])
+@pytest.mark.parametrize("loss_name", ["block_type_mse_per_structure", "block_type_mse_per_domain", "gauge_invariant_mse"])
+def test_empty_graph_epoch_is_independent_of_batching_and_order(split, loss_name):
+    table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1])])
+    kwargs = {"domain_threshold_atoms": 3} if loss_name.endswith("domain") else {}
+    model = LitBasisMatrixModel(model_cls=_PredictionModel, basis_table=table,
+                               loss=getattr(metrics, loss_name), loss_kwargs=kwargs)
+    model.init_model()
+    trainer = pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                         enable_progress_bar=False, enable_model_summary=False)
+    evaluate = trainer.validate if split == "val" else trainer.test
+    for counts in ((1, 0, 0), (0, 0, 1), (0, 0, 0)):
+        samples = _empty_graph_samples(counts, loss_name == "gauge_invariant_mse")
+        for size in (1, 2, 3, 1):
+            loader = DataLoader(samples, batch_size=size)
+            loader.collate_fn = TypeLayoutCollate(loader.collate_fn, table)
+            result = evaluate(model, dataloaders=loader, verbose=False)[0]
+            if loss_name == "gauge_invariant_mse":
+                assert result[f"{split}_loss"] == 0
+                assert result[f"{split}_gauge_shift_mean_abs"] == pytest.approx(2 * sum(counts) / 3)
+            else:
+                assert result[f"{split}_loss"] == pytest.approx(4 * sum(counts) / 3)
+                assert result[f"{split}_n_structures"] == 3
 
 
 @pytest.mark.parametrize("split", ["val", "test"])

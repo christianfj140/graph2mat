@@ -822,6 +822,14 @@ def _node_graph(batch) -> np.ndarray:
     return _as_numpy_int(node_graph)
 
 
+def _num_structures(batch, node_graph) -> int:
+    count = _batch_field(batch, "num_graphs")
+    if count is not None:
+        return int(count)
+    ptr = _batch_field(batch, "ptr")
+    return len(ptr) - 1 if ptr is not None else (int(node_graph.max()) + 1 if node_graph.size else 1)
+
+
 def _label_edge_mask(edges_ref, edge_types, edge_index, point_types, basis_table) -> np.ndarray:
     """Edges that carry labels: all of them, or one per pair for a symmetric matrix."""
     edge_sizes = basis_table.edge_block_size[np.abs(edge_types)]
@@ -850,7 +858,7 @@ def spectral_window_layout(edges_ref, batch, basis_table) -> dict:
     edge_index = _as_numpy_int(_batch_field(batch, "edge_index"))
     node_graph = _node_graph(batch)
     sizes = basis_table.basis_size[point_types].astype(np.int64)
-    n_structures = int(node_graph.max()) + 1 if node_graph.size else 1
+    n_structures = _num_structures(batch, node_graph)
     n_orb = np.bincount(node_graph, weights=sizes, minlength=n_structures).astype(np.int64)
     start = np.cumsum(n_orb) - n_orb  # the nodes of a structure are contiguous in a batch
     local = np.cumsum(sizes) - sizes - start[node_graph]
@@ -949,11 +957,11 @@ def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
     edge_sizes = basis_table.edge_block_size[np.abs(edge_types)][labelled]
     edge_struct = np.repeat(edge_graph, edge_sizes)
 
-    n_structures = int(node_graph.max()) + 1 if node_graph.size else 1
+    n_structures = _num_structures(batch, node_graph)
     return (
         torch.as_tensor(node_struct, dtype=torch.long),
         torch.as_tensor(edge_struct, dtype=torch.long),
-        n_structures,
+        int(n_structures),
     )
 
 
@@ -1015,7 +1023,7 @@ def block_type_mse_per_structure(
         node_weight, edge_weight,
     )
     stats["n_structures"] = int(loss_s.shape[0])
-    return loss_s.mean(), stats
+    return _mean(loss_s), stats
 
 
 @OrbitalMatrixMetric.from_metric_func
@@ -1056,7 +1064,7 @@ def block_type_mse_per_domain(
         parts.append(loss_s[large_mask].mean())
         weights.append(float(large_domain_weight))
     total_weight = sum(weights)
-    loss = sum(w * p for w, p in zip(weights, parts)) / total_weight
+    loss = sum(w * p for w, p in zip(weights, parts)) / total_weight if parts else _mean(loss_s)
     stats.update(
         {
             "n_structures": int(loss_s.shape[0]),
@@ -1683,7 +1691,7 @@ def find_displacement_pairs(batch, max_displacement: float, min_displacement: fl
     positions = _batch_field(batch, "positions")
     positions = np.asarray(positions.detach().cpu() if _is_torch_tensor(positions) else positions, dtype=float)
     node_graph = _node_graph(batch)
-    n_structures = int(node_graph.max()) + 1 if node_graph.size else 0
+    n_structures = _num_structures(batch, node_graph)
     cell = _batch_field(batch, "cell")
     cell = None if cell is None else np.asarray(cell.detach().cpu() if _is_torch_tensor(cell) else cell,
                                                 dtype=float).reshape(n_structures, 3, 3)
@@ -1691,7 +1699,7 @@ def find_displacement_pairs(batch, max_displacement: float, min_displacement: fl
     pairs, used = [], set()
     for a in range(n_structures):
         for b in range(a + 1, n_structures):
-            if len(atoms[a]) != len(atoms[b]):
+            if not len(atoms[a]) or len(atoms[a]) != len(atoms[b]):
                 continue
             delta = positions[atoms[a]] - positions[atoms[b]]
             if cell is not None and np.allclose(cell[a], cell[b]):

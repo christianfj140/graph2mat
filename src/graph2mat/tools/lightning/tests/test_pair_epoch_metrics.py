@@ -39,6 +39,36 @@ def pair_model(**kwargs):
     return model
 
 
+@pytest.mark.parametrize("counts", [(1, 0), (0, 1), (0, 0), (1, 1, 0), (0, 1, 1, 0)])
+@pytest.mark.parametrize("components", [1, 2])
+def test_pair_detection_keeps_empty_graph_cells_without_pairing_empty_structures(counts, components):
+    partners = iter(pair_samples(components)[:2])
+    samples = []
+    for count in counts:
+        if count:
+            sample = next(partners)
+        else:
+            sample = pair_samples(components)[0]
+            sample.num_nodes = 0
+            for key in ("point_types", "positions", "point_labels", "node_prediction"):
+                sample[key] = sample[key][:0]
+        sample.cell = torch.eye(3, dtype=torch.float64) * 10
+        samples.append(sample)
+    batch = Batch.from_data_list(samples)
+    expected = [tuple(index for index, count in enumerate(counts) if count)] if sum(counts) == 2 else []
+    assert metrics.find_displacement_pairs(batch, .05) == expected
+    nodes, edges = batch.node_prediction.clone().requires_grad_(), batch.edge_prediction.clone().requires_grad_()
+    model = pair_model()
+    loss, stats = model.loss_fn(nodes_pred=nodes, nodes_ref=batch.point_labels,
+                                edges_pred=edges, edges_ref=batch.edge_labels,
+                                batch=batch, basis_table=model.basis_table, model=model.model)
+    factor = 1 if components == 1 else 2.5
+    assert float(loss) == pytest.approx((5 if expected else 1 if sum(counts) else 0) * factor)
+    assert stats["n_pairs"] == len(expected)
+    loss.backward()
+    assert torch.isfinite(nodes.grad).all() and torch.isfinite(edges.grad).all()
+
+
 @pytest.mark.parametrize("components", [1, 2])
 def test_pair_epoch_means_reset_for_pair_preserving_partitions_and_validation(components):
     class TrainModel(LitBasisMatrixModel):
