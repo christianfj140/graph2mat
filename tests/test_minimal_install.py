@@ -6,6 +6,39 @@ import sys
 import pytest
 
 
+def test_server_extra_declares_checkpoint_and_api_dependencies():
+    from pathlib import Path
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib
+
+    project = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
+    dependencies = {canonicalize_name(Requirement(value).name)
+                    for value in project["project"]["optional-dependencies"]["server"]}
+    required = {"torch", "torch-geometric", "e3nn", "pytorch-lightning", "mace-torch", "jsonargparse"}
+    assert required <= dependencies, f"Missing server imports/checkpoint dependencies: {required - dependencies}"
+
+
+@pytest.mark.parametrize("extra", ["server", "tools", "docs"])
+def test_server_extras_reject_legacy_template_api(extra):
+    from pathlib import Path
+    from packaging.requirements import Requirement
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib
+
+    project = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
+    requirement = next(Requirement(value) for value in project["project"]["optional-dependencies"][extra]
+                       if Requirement(value).name == "fastapi")
+    assert not requirement.specifier.contains("0.107.0")
+    assert requirement.specifier.contains("0.108.0")
+    assert requirement.specifier.contains("0.142.4")
+
+
 @pytest.mark.parametrize("missing", ["fastapi", "starlette"])
 def test_server_missing_dependency_preserves_cause(missing):
     code = r'''

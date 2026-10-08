@@ -3,6 +3,7 @@
 from typing import Union, Type, Tuple, Any, Dict, Callable, Optional
 
 from copy import copy
+from dataclasses import replace
 from pathlib import Path
 
 from abc import ABC, abstractmethod
@@ -479,6 +480,11 @@ class MatrixTimeSeriesState:
 
     def add_processor(self, processor):
         self.processor = processor
+        if processor is not None:
+            for index, config in enumerate(self.configs):
+                geometry = processor.add_basis_to_geometry(config.metadata["geometry"])
+                self.configs[index] = replace(config, basis=geometry.atoms,
+                                             metadata={**config.metadata, "geometry": geometry})
 
     def add_next_geometry(self, geometry):
         next_config = OrbitalConfiguration.from_geometry(
@@ -501,6 +507,9 @@ class MatrixTimeSeriesState:
                                           and self.processor.matrix_component_policy in ("h_and_overlap", "raw_components"))
             matrix = _matrix_delta(matrix, self.last_matrix_ref, include_overlap)
 
+        if not all_dims and isinstance(matrix, (sisl.DensityMatrix, sisl.EnergyDensityMatrix)) and not matrix.orthogonal:
+            # Binary DM readers attach an auxiliary S slot, not a density spin channel.
+            matrix = matrix.transform(orthogonal=True)
         kwargs = self.processor.get_config_kwargs(matrix) if self.processor else {}
         if all_dims:
             kwargs["matrix_component_policy"] = "raw_components"
@@ -596,8 +605,9 @@ def create_extrapolation_app(
     time_series: Union[Dict[Any, MatrixTimeSeriesState], None] = None,
     matrix_refs: Union[Dict[str, Callable], None] = None,
     data_processors: Union[Dict[str, MatrixDataProcessor], None] = None,
+    local: bool = True,
 ):
-    from fastapi import FastAPI, HTTPException
+    from fastapi import Depends, FastAPI, HTTPException
     from fastapi.responses import JSONResponse
 
     if time_series is None:
@@ -607,7 +617,11 @@ def create_extrapolation_app(
     if data_processors is None:
         data_processors = {}
 
-    app = FastAPI()
+    def require_local_access():
+        if not local:
+            raise HTTPException(status_code=403, detail="Extrapolation requires local filesystem access.")
+
+    app = FastAPI(dependencies=[Depends(require_local_access)])
 
     @app.exception_handler(ValueError)
     async def invalid_series_input(request, exc):
@@ -658,6 +672,7 @@ def create_extrapolation_app(
         m_0: Optional[str] = None,
         fermi_level: Optional[float] = None,
         orthogonal_basis: bool = False,
+        allow_overwrite: bool = False,
     ):
         this_series = time_series[series]
 
@@ -703,12 +718,20 @@ def create_extrapolation_app(
             )(geometry=m.geometry)
             m = _restore_matrix_reference(m, mat_0)
 
-        write_prediction(m, out, fermi_level=fermi_level, orthogonal_basis=orthogonal_basis)
+        try:
+            write_prediction(m, out, fermi_level=fermi_level, orthogonal_basis=orthogonal_basis,
+                             allow_overwrite=allow_overwrite)
+        except FileExistsError as exc:
+            raise HTTPException(status_code=409, detail="Output exists; allow_overwrite is required.") from exc
 
     @app.get("/add_step")
     def add_geometry(path: str, series: int = 0, matrix_ref: Union[str, None] = None):
         config = OrbitalConfiguration.from_run(path)
-        time_series[series].add_next_config(config)
+        this_series = time_series[series]
+        if this_series.processor is not None:
+            geometry = this_series.processor.add_basis_to_geometry(config.metadata["geometry"])
+            config = OrbitalConfiguration.from_geometry(geometry, metadata={**config.metadata, "geometry": geometry})
+        this_series.add_next_config(config)
 
         if matrix_ref is not None:
             time_series[series].add_last_matrix_ref(
@@ -724,12 +747,13 @@ def create_extrapolation_app(
         this_series = time_series[series]
 
         sile = sisl.get_sile(path)
-        matrix = getattr(sile, f"read_{this_series.processor.out_matrix}")()
+        geometry = this_series.processor.add_basis_to_geometry(this_series.configs[-1].metadata["geometry"])
+        matrix = getattr(sile, f"read_{this_series.processor.out_matrix}")(geometry=geometry)
 
         if m_0 is not None:
             mat_0 = getattr(
                 sisl.get_sile(m_0), f"read_{this_series.processor.out_matrix}"
-            )()
+            )(geometry=geometry)
             include_overlap = (this_series.processor.out_matrix == "hamiltonian"
                                and this_series.processor.matrix_component_policy in ("h_and_overlap", "raw_components"))
             matrix = _matrix_delta(matrix, mat_0, include_overlap)

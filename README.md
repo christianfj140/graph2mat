@@ -37,6 +37,10 @@ Install `graph2mat[siesta]` to generate SIESTA input templates,
 prediction server and client. Adding the tools extra installs the dependencies
 for the complete toolset.
 
+The server extra includes the Torch/PyG/e3nn/Lightning/MACE stack needed to serve
+checkpoints; the base package stays free of ML dependencies. HTTP-only clients
+can use the base package with ``requests`` without importing that stack.
+
 SOAP-based extrapolation additionally needs `graph2mat[extrapolation]`. It uses
 the periodic boundary conditions of each configuration, including partial PBC.
 

@@ -492,7 +492,7 @@ Open a new terminal and type (from the ``graph2mat_tutorial`` directory):
 
 .. code-block:: bash
 
-    graph2mat serve training/lightning_logs/my_first_model/version_0/checkpoints/best-2040.ckpt
+    graph2mat serve training/lightning_logs/my_first_model/version_0/checkpoints/best-2040.ckpt --local
 
 replacing ``best-2040.ckpt`` by the checkpoint file that you have. If everything was succesful,
 you should see something like:

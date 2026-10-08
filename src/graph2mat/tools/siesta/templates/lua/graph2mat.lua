@@ -131,7 +131,7 @@ function server_get(path)
  end
 
  function predict_next(out)
-    server_get("extrapolate?out=" .. out)
+    server_get("extrapolate?out=" .. out .. "&allow_overwrite=true")
  end
 
 {% endif %}

@@ -194,7 +194,7 @@ def create_server_app(
             f"{getattr(getter, '__qualname__', type(getter).__qualname__)}"
             for getter in processor.node_attr_getters
         ]
-        info["description"] = model["description"]
+        info["description"] = model.get("description", "")
         return jsonable_encoder(info, custom_encoder={
             np.ndarray: lambda values: values.tolist(),
             np.generic: lambda value: value.item(),
@@ -419,6 +419,8 @@ def create_server_app(
             input_data = TorchBasisMatrixData.new(
                 target_matrix, data_processor=model["data_processor"], labels=True
             )
+            input_data["ptr"] = torch.tensor([0, len(input_data.point_types)])
+            input_data["batch"] = torch.zeros(len(input_data.point_types), dtype=torch.long)
 
             # Then, we run the model.
             out = model["prediction_function"](input_data)
@@ -432,6 +434,7 @@ def create_server_app(
 
     # Functionality for time series forecasting
     extrapolate_api = create_extrapolation_app(
+        local=local,
         matrix_refs={
             k: partial(predict_from_geometry, model) for k, model in models.items()
         },
@@ -448,8 +451,9 @@ def create_server_app(
     @app.get("/models/{model_name}/{model_action}", response_class=HTMLResponse, name="get")
     async def model_action_page(request: Request, model_action: ModelAction, model_name: ModelName):
         return templates.TemplateResponse(
-            f"{model_action.value}_page.html",
-            {
+            request=request,
+            name=f"{model_action.value}_page.html",
+            context={
                 "request": request,
                 "selected_model": model_name.value,
                 "model_name": model_name.value,
@@ -471,8 +475,9 @@ def create_server_app(
     @app.get("/models", response_class=HTMLResponse, name="get")
     async def model_index(request: Request):
         return templates.TemplateResponse(
-            "index.html",
-            {
+            request=request,
+            name="index.html",
+            context={
                 "request": request,
                 "models": models,
                 "model_action": actions[ModelAction.predict],
@@ -485,8 +490,9 @@ def create_server_app(
     @app.get("/about", response_class=HTMLResponse, name="get")
     async def about_page(request: Request):
         return templates.TemplateResponse(
-            "about.html",
-            {
+            request=request,
+            name="about.html",
+            context={
                 "request": request,
                 "tabs": tabs,
                 "selected_tab": tabs[Tab.about],

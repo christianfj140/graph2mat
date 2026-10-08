@@ -167,6 +167,7 @@ def test_rendered_lua_aborts_when_the_dm_contract_is_rejected(tmp_path):
     assert "success ~= true and success ~= 0" in content
     assert 'error("Graph2Mat request failed' in content
     assert 'predict_next(work_dir .. "/siesta.DM")' in content
+    assert '&allow_overwrite=true' in content
 
 
 def test_dm_contract_cannot_be_bypassed_by_later_processor_setup(tmp_path):
@@ -193,6 +194,119 @@ def test_standalone_extrapolation_requires_a_physical_output_contract(tmp_path):
     assert response.status_code == 200, response.text
     matrix = sisl.get_sile(output).read_hamiltonian()
     np.testing.assert_allclose(matrix.tocsr(0).toarray(), [[-2.5, .375], [.375, -3.5]], atol=1e-10)
+
+
+@pytest.mark.parametrize("endpoint,params", [
+    ("setup_processor", {"matrix": "density_matrix"}),
+    ("add_step", {}), ("add_matrix", {}), ("extrapolate", {"allow_overwrite": True}),
+])
+def test_remote_server_forbids_extrapolation_filesystem_access(tmp_path, endpoint, params):
+    _, geometry_path, model = _model(tmp_path, kind="density_matrix")
+    output = tmp_path / "existing.DM"
+    output.write_bytes(b"preserve existing content")
+    client = TestClient(create_server_app({"m": model}, local=False), raise_server_exceptions=False)
+    client.get("/api/extrapolation/init", params={"history_len": 0, "data_processor": "m"})
+    if endpoint == "extrapolate":
+        client.get("/api/extrapolation/add_step", params={"path": str(geometry_path), "matrix_ref": "m"})
+    response = client.get(f"/api/extrapolation/{endpoint}", params={
+        "path": str(geometry_path), "out": str(output), "basis_dir": str(tmp_path), "matrix_ref": "m", **params,
+    })
+    assert response.status_code == 403
+    assert output.read_bytes() == b"preserve existing content"
+    assert not list(tmp_path.glob(".g2m-*"))
+
+
+@pytest.mark.parametrize("allow_overwrite", [None, False, True])
+def test_local_extrapolation_requires_explicit_overwrite_permission(tmp_path, allow_overwrite):
+    geometry, _, model = _model(tmp_path, kind="density_matrix")
+    series = MatrixTimeSeriesState(0, model["data_processor"])
+    series.add_next_geometry(geometry)
+    series.add_last_matrix_ref(model["data_processor"].torch_predict(model["prediction_function"], geometry))
+    output = tmp_path / "existing.DM"
+    output.write_bytes(b"preserve existing content")
+    client = TestClient(create_extrapolation_app(time_series={0: series}))
+    params = {"out": str(output)}
+    if allow_overwrite is not None:
+        params["allow_overwrite"] = allow_overwrite
+    response = client.get("/extrapolate", params=params)
+    assert response.status_code == (200 if allow_overwrite else 409)
+    if allow_overwrite:
+        written = sisl.get_sile(output).read_density_matrix(geometry=geometry)
+        np.testing.assert_allclose(written.tocsr().toarray(), [[2., .5], [.5, 3.]])
+    else:
+        assert output.read_bytes() == b"preserve existing content"
+    assert not list(tmp_path.glob(".g2m-*"))
+
+
+@pytest.mark.parametrize("components", [1, 2])
+@pytest.mark.parametrize("with_reference", [False, True])
+@pytest.mark.parametrize("delayed_processor", [False, True])
+def test_http_density_history_reads_multi_orbital_binary_matrices_with_series_geometry(tmp_path, components, with_reference, delayed_processor):
+    radial = np.linspace(0., 1.4, 50)
+    atom = sisl.Atom("H", orbitals=[
+        sisl.AtomicOrbital("1s", spherical=(radial, np.exp(-radial)), R=1.4),
+        sisl.AtomicOrbital("2s", spherical=(radial, (1. - radial / 2) * np.exp(-radial / 2)), R=1.4),
+    ])
+    geometry = sisl.Geometry([[0., 0., 0.], [1., 0., 0.]], atoms=atom, lattice=[10.] * 3)
+    geometry.set_nsc([1, 1, 1])
+    matrix = sisl.DensityMatrix(geometry, spin="polarized" if components == 2 else "unpolarized")
+    expected = np.fromfunction(lambda i, j: 1. + i + j, (4, 4))
+    for i in range(4):
+        for j in range(4):
+            matrix[i, j] = expected[i, j] * np.arange(1, components + 1)
+    path, reference = tmp_path / "history.DM", tmp_path / "reference.DM"
+    matrix.write(path)
+    (matrix * .25).write(reference)
+    original = {file: file.read_bytes() for file in (path, reference)}
+    processor = MatrixDataProcessor(basis_table=AtomicTableWithEdges([atom]), out_matrix="density_matrix",
+                                    symmetric_matrix=True, sub_point_matrix=False, n_matrix_components=components)
+    geometry_path = tmp_path / "geometry.xyz"
+    geometry.write(geometry_path)
+    original[geometry_path] = geometry_path.read_bytes()
+    states = {}
+    client = TestClient(create_extrapolation_app(time_series=states, data_processors={"dm": processor}),
+                        raise_server_exceptions=False)
+    params = {"history_len": 2}
+    if not delayed_processor:
+        params["data_processor"] = "dm"
+    assert client.get("/init", params=params).status_code == 200
+    assert client.get("/add_step", params={"path": str(geometry_path)}).status_code == 200
+    series = states[0]
+    if delayed_processor:
+        original_config = series.configs[-1]
+        # /setup_processor delegates here after reading the basis from ion files.
+        series.add_processor(processor)
+        np.testing.assert_array_equal(original_config.metadata["geometry"].orbitals, [1, 1])
+    stored_geometry = series.configs[-1].metadata["geometry"]
+    np.testing.assert_array_equal(stored_geometry.orbitals, [2, 2])
+    np.testing.assert_allclose(stored_geometry.xyz, [[0., 0., 0.], [1., 0., 0.]])
+    np.testing.assert_allclose(stored_geometry.cell, np.eye(3) * 10)
+    np.testing.assert_array_equal(stored_geometry.nsc, [1, 1, 1])
+    assert series.configs[-1].metadata["path"] == str(geometry_path)
+    params = {"path": str(path)}
+    if with_reference:
+        params["m_0"] = str(reference)
+    response = client.get("/add_matrix", params=params)
+    assert response.status_code == 200, response.text
+    np.testing.assert_array_equal(series.configs[-1].matrix.basis_count, [2, 2])
+    assert series.configs[-1].matrix._n_components == components
+    assert client.get("/add_step", params={"path": str(geometry_path)}).status_code == 200
+    params = {"path": str(path)}
+    if with_reference:
+        params["m_0"] = str(reference)
+    assert client.get("/add_matrix", params=params).status_code == 200
+    assert client.get("/add_step", params={"path": str(geometry_path)}).status_code == 200
+    output = tmp_path / "predicted.DM"
+    params = {"out": str(output)}
+    if with_reference:
+        params["m_0"] = str(reference)
+    response = client.get("/extrapolate", params=params)
+    assert response.status_code == 200, response.text
+    written = sisl.get_sile(output).read_density_matrix(geometry=geometry)
+    assert written.spin == matrix.spin
+    for channel in range(components):
+        np.testing.assert_allclose(written.tocsr(channel).toarray(), expected * (channel + 1))
+    assert all(file.read_bytes() == value for file, value in original.items())
 
 
 @contextmanager

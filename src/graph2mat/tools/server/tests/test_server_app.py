@@ -59,6 +59,45 @@ def test_model_info_serializes_real_processor_as_json(atomic, array_radius):
     assert processor.node_attr_getters == [OneHotZ, _extra_node_feature]
 
 
+@pytest.mark.parametrize("spec_kind", ["checkpoint", "minimal_spec", "described_spec"])
+def test_filesystem_checkpoint_info_accepts_optional_description(tmp_path, spec_kind):
+    import pytorch_lightning as pl
+    import yaml
+    from graph2mat import BasisConfiguration
+    from graph2mat.tools.lightning import MatrixDataModule
+    from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+    from graph2mat.tools.server.server_app import create_server_app_from_filesystem
+
+    pl.seed_everything(0, workers=True)
+    basis = AtomicTableWithEdges([sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=2.)])])
+    config = BasisConfiguration(point_types=[1, 1], positions=np.array([[0., 0., 0.], [1., 0., 0.]]),
+                                basis=basis, cell=np.eye(3) * 10, pbc=(False, False, False), matrix=np.ones((2, 2)))
+    module = MatrixDataModule(basis_table=basis, symmetric_matrix=True, sub_point_matrix=False,
+                              out_matrix="density_matrix", train_runs=[config], val_runs=[], loader_threads=0)
+    model = LitMACEMatrixModel(basis_table=basis, symmetric_matrix=True, hidden_irreps="2x0e+2x1o",
+                              edge_hidden_irreps="2x0e+2x1o", num_bessel=2, max_ell=1)
+    trainer = pl.Trainer(accelerator="cpu", devices=1, fast_dev_run=True, logger=False,
+                         enable_checkpointing=False, enable_progress_bar=False, enable_model_summary=False)
+    trainer.fit(model, datamodule=module)
+    checkpoint = tmp_path / "model.ckpt"
+    trainer.save_checkpoint(checkpoint)
+    path = checkpoint
+    description = "A described density checkpoint" if spec_kind == "described_spec" else ""
+    if spec_kind != "checkpoint":
+        spec = {"files": {"ckpt": "model.ckpt"}}
+        if description:
+            spec["description"] = description
+        path = tmp_path / "spec.yaml"
+        path.write_text(yaml.safe_dump(spec))
+    app = create_server_app_from_filesystem({"dm": str(path)}, cpu=True)
+    response = TestClient(app, raise_server_exceptions=False).get("/api/models/dm/info")
+    assert response.status_code == 200, response.text
+    assert response.json()["description"] == description
+    assert response.json()["out_matrix"] == "density_matrix"
+    assert response.json()["n_matrix_components"] == 1
+    module.teardown(None)
+
+
 def test_frontend_route_names_and_operation_ids_are_preserved():
     app = create_server_app({})
     paths = ["/models/{model_name}/{model_action}", "/models/{model_name}", "/models", "/about", "/"]
@@ -68,6 +107,22 @@ def test_frontend_route_names_and_operation_ids_are_preserved():
         "get_models__model_name___model_action__get", "get_models__model_name__get",
         "get_models_get", "get_about_get", "get__get",
     ]
+
+
+@pytest.mark.parametrize("path", ["/", "/models", "/about", "/models/dm", "/models/dm/predict", "/models/dm/test"])
+def test_frontend_pages_render_with_real_processor(path):
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges([sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=2.)])]),
+        out_matrix="density_matrix", symmetric_matrix=True, sub_point_matrix=False,
+    )
+    app = create_server_app({"dm": {
+        "data_processor": processor, "prediction_function": lambda data: data,
+        "description": "Density model", "authors": [], "files": {}, "test_metrics_summary": "",
+    }})
+    response = TestClient(app, raise_server_exceptions=False).get(path)
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("text/html")
+    assert "<!doctype html>" in response.text
 
 
 class _DummyMatrix:
@@ -173,7 +228,9 @@ def test_local_prediction_respects_overwrite_permission(tmp_path, monkeypatch, a
     assert output.read_bytes() == (b"dummy" if allow_overwrite else b"existing matrix")
 
 
-def test_uploaded_matrix_is_evaluated_through_real_data_processor(tmp_path):
+@pytest.mark.parametrize("pooled", [False, True])
+def test_uploaded_matrix_is_evaluated_through_real_data_processor(tmp_path, pooled):
+    import torch
     atom = sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=1.4)])
     geometry = sisl.Geometry([[0, 0, 0], [1, 0, 0]], atoms=atom,
                              lattice=sisl.Lattice([10, 10, 10], nsc=[1, 1, 1]))
@@ -186,9 +243,17 @@ def test_uploaded_matrix_is_evaluated_through_real_data_processor(tmp_path):
     processor = MatrixDataProcessor(basis_table=AtomicTableWithEdges([atom]),
                                     out_matrix="density_matrix", symmetric_matrix=True,
                                     sub_point_matrix=False)
+    def predict(data):
+        if pooled:
+            torch.testing.assert_close(data.ptr, torch.tensor([0, 2]))
+            totals = torch.zeros(1).scatter_add(0, data.batch, torch.ones(2))
+            nodes = data.point_labels + totals[data.batch]
+        else:
+            nodes = data.point_labels
+        return {"node_labels": nodes, "edge_labels": data.edge_labels}
+
     app = create_server_app({"dm_model": {
-        "prediction_function": lambda data: {"node_labels": data.point_labels,
-                                               "edge_labels": data.edge_labels},
+        "prediction_function": predict,
         "data_processor": processor, "files": {}, "test_metrics_summary": "",
     }})
 
@@ -198,8 +263,8 @@ def test_uploaded_matrix_is_evaluated_through_real_data_processor(tmp_path):
     })
 
     assert response.status_code == 200
-    assert response.json()["elementwise_mse"] == 0
-    assert response.json()["elementwise_mae"] == 0
+    assert response.json()["elementwise_mse"] == pytest.approx(8 / 3 if pooled else 0)
+    assert response.json()["elementwise_mae"] == pytest.approx(4 / 3 if pooled else 0)
 
 
 @pytest.mark.parametrize("prediction_components", ["h_flat", "h_column", "hs"])

@@ -86,6 +86,27 @@ def test_series_delta_preserves_both_caller_matrices():
     np.testing.assert_array_equal(reference._csr.data, before_reference)
 
 
+@pytest.mark.parametrize("cls", [sisl.DensityMatrix, sisl.EnergyDensityMatrix])
+@pytest.mark.parametrize("polarized", [False, True])
+@pytest.mark.parametrize("all_dims", [False, True])
+def test_density_history_separates_auxiliary_overlap_from_physical_spin_channels(cls, polarized, all_dims):
+    geometry = _geometry()
+    matrix = cls(geometry, spin="polarized" if polarized else "unpolarized", orthogonal=False)
+    raw = [2., 5., .25] if polarized else [2., .25]
+    matrix[0, 0] = raw
+    matrix.finalize()
+    before = matrix._csr.data.copy()
+    series = MatrixTimeSeriesState(1)
+    series.add_next_geometry(geometry)
+    series.add_last_matrix(matrix, all_dims=all_dims)
+    stored = series.configs[-1].matrix
+    wanted = raw if all_dims else raw[:-1]
+    assert stored._n_components == len(wanted)
+    np.testing.assert_array_equal(np.atleast_1d(stored.block_dict[0, 0, 0][0, 0]), wanted)
+    np.testing.assert_array_equal(matrix._csr.data, before)
+    assert not matrix.orthogonal
+
+
 def test_history_copy_accepts_extrapolator_kwargs_without_changing_complete_objective():
     history = {(0, 0, 0): np.array([[[1.]], [[2.]], [[4.]]]),
                (0, 1, 0): np.array([[[10.]], [[20.]], [[40.]]])}

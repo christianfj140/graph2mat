@@ -3,18 +3,18 @@ Usage
 
 ### Server
 
-To serve pretrained models, one can use the command `e3mat serve`. You can do `e3mat serve --help`
+To serve pretrained models, one can use the command `graph2mat serve`. You can do `graph2mat serve --help`
 to check how it works. Serving models is as simple as:
 
 ```bash
-e3mat serve some.ckpt other.ckpt
+graph2mat serve some.ckpt other.ckpt
 ```
 
 This will serve the models in the checkpoint files. However, we recommend that you organize your
 checkpoints into folders and then pass the names of the folders instead.
 
 ```bash
-e3mat serve first_model second_model
+graph2mat serve first_model second_model
 ```
 
 where `first_model` and `second_model` are folders that contain a `spec.yaml` file looking something like:
@@ -33,10 +33,10 @@ files: # All the files related to this model.
   database: http://data.com/link/to/your/matrix_database
 ```
 
-Once your server is running, you will get the url where the server is running, e.g. ttp://localhost:56000.
+Once your server is running, you will get the url where the server is running, e.g. http://localhost:56000.
 You can interact with it in multiple ways:
 - Through the simple graphical interface included in the package, by opening `http://localhost:56000` in a browser.
-- Through the `ServerClient` class in `e3nn_matrix.tools.server.api_client`.
+- Through the `ServerClient` class in `graph2mat.tools.server.api_client`.
 - By simply sending requests to the API of the server. These requests must be sent to `http://localhost:56000/api`. You
 can check the documentation for the requests that the server understands under `http://localhost:56000/api/docs`.
 
@@ -97,6 +97,15 @@ predicted channel, it is excluded before computing a delta, rather than
 broadcast into H/DM/EDM. An H-only delta can recover an explicit S from its
 reference at the target geometry. When overlap is predicted explicitly, the
 reference is added to the overlap delta once. Caller matrices are not modified.
+
+The mounted extrapolation API inherits the server's ``local`` policy: with
+``local=False`` every extrapolation request returns HTTP 403 before accessing
+the filesystem or history. Standalone ``create_extrapolation_app`` keeps its
+historical local-access default; set ``local=False`` to disable that API.
+Extrapolation never overwrites an existing destination unless the request sets
+``allow_overwrite=true`` (otherwise HTTP 409), including publication races.
+The SIESTA Lua client explicitly requests replacement of its generated
+``siesta.DM`` and requires a server launched with ``--local``.
 
 The SIESTA MD Lua integration is **density-matrix-only**: it writes ``siesta.DM``
 for ``DM.UseSaveDM``. Initialization declares ``matrix_type=density_matrix``;
