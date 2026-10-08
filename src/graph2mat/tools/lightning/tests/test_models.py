@@ -22,7 +22,7 @@ def float64():
         torch.set_default_dtype(previous)
 
 
-@pytest.fixture(scope="module", params=["same_basis", "DZP"])
+@pytest.fixture(scope="module", params=["same_basis", "DZP", "f_shells"])
 def model_and_processor(request, float64):
     def shell(l):
         return [sisl.AtomicOrbital(n=l + 1, l=l, m=m, R=2.1) for m in range(-l, l + 1)]
@@ -30,9 +30,11 @@ def model_and_processor(request, float64):
     orbitals = shell(0) + shell(1)
     if request.param == "same_basis":
         atoms = [sisl.Atom("H", orbitals=orbitals), sisl.Atom("O", orbitals=orbitals)]
-    else:
+    elif request.param == "DZP":
         double = shell(0) + shell(0) + shell(1) + shell(1)
         atoms = [sisl.Atom("H", orbitals=double), sisl.Atom("O", orbitals=double + shell(2))]
+    else:
+        atoms = [sisl.Atom("H", orbitals=orbitals), sisl.Atom("O", orbitals=orbitals + shell(2) + shell(3))]
     table = AtomicTableWithEdges(atoms)
     processor = MatrixDataProcessor(basis_table=table, symmetric_matrix=True, sub_point_matrix=False)
     torch.manual_seed(0)
@@ -89,6 +91,11 @@ def test_full_mace_matrix_equivariance_under_seeded_random_rotations(model_and_p
     model, processor, _ = model_and_processor
     original = _matrix(model, processor, geometry)
     assert np.isfinite(original).all() and np.max(np.abs(original)) > 1e-6
+    for atom_index, atom in enumerate(geometry.atoms):
+        if any(orbital.l == 3 for orbital in atom):
+            start = int(geometry.firsto[atom_index])
+            f_rows = [start + i for i, orbital in enumerate(atom) if orbital.l == 3]
+            assert np.max(np.abs(original[f_rows])) > 1e-6
     cob = processor.basis_table.change_of_basis
     for rotation in Rotation.random(64, random_state=np.random.default_rng(0)).as_matrix():
         rotated = geometry.copy()

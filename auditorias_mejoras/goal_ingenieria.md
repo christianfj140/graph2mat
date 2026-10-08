@@ -1194,10 +1194,58 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   No son suites completas de wheel; la suite completa actual es la CPU checkout.
   Cinco pip check, exit 0 (`*-domain-pip-check.log`).
 - Mismas wheels base sin ML: **16 passed, 7 deselected** en 3.9/3.12,
-  6.14/9.08 s (`python39/python312-base-domain-tests.log`).
+  6.26/9.28 s (`python39/python312-base-domain-tests.log`).
 - docs/data_loading.rst actualiza denominadores, sumas, dominios y estabilidad
   del sigmoid. Pendientes de 3.1: pares, gauge/ventana espectral y diagnósticos
   especiales restantes; 3.9: oráculos físicos y pérdidas restantes; revisión final.
+
+### Sublote 3.9.j — oráculos independientes periódicos/spin/S/d-f verificados
+
+- BASE **0437bc9**. Corrección de transcripción: tiempos base del lote anterior
+  son 6.26/9.28 s, como indican sus logs; no 6.14/9.08.
+- Plan de cobertura, sin asumir un bug ni modificar física: campos densos
+  independientes H(R), H(-R)=H(R)^T y S SPD; comparar cada componente reconstruida
+  y H(k)/S(k) con suma de fases exp(2*pi*i*k.R). Casos simétricos/direccionales,
+  bases s/p y s/d/f, spin escalar/colineal y cuatro campos no colineales raw.
+  Raw no colineal se reconstruye por componente numérica, sin asignarle un
+  writer físico nuevo ni retirar el rechazo explícito del formato raw.
+- API/convenciones comprobadas con fuente instalada de sisl y documentación
+  primaria: https://sisl.readthedocs.io/en/latest/api/generated/sisl.physics.Hamiltonian.html
+  Un sondeo de 17 orbitales/5 campos raw reconstruye todos exactamente, Hk y
+  Hermiticidad difieren <1e-15 de la suma independiente; S(k) coincide exactamente.
+  Ese sondeo no sustituye la suite: se convierte en pruebas persistentes.
+- Extender también MACE real a f, sin relajar tolerancias: mismas 64 rotaciones
+  por geometría y tiling, con soporte f no nulo. Conservar seed/dtype/fixtures.
+- Siguen abiertos métricas de pares/gauge/espectral y pérdidas restantes; ninguna
+  revisión final ni declaración de cierre antes de resolver todos los requisitos.
+- Primera ejecución **4 failed, 35 passed**, 9.17 s: el oráculo nuevo pasó spin
+  al Hk no polarizado, que no acepta ese argumento. Se corrigió la llamada del
+  test, no el producto. Enfocado **39 passed**, 504 warnings, 9.43 s
+  (`periodic-spin-f-oracles-focused.log`). No hay bug de producto descubierto.
+- Suite CPU actual **1282 passed, 2 skipped**, 7575 warnings, 204.45 s
+  (`periodic-spin-f-full-cpu.log`). 21 casos nuevos: doce combinaciones del
+  oráculo y nueve MACE f (192 rotaciones más, total 576; nueve tilings en total).
+- Intento instalado con -I y paths absolutos de tests dentro de src reintrodujo
+  el paquete del checkout por la colección de pytest. Falló por falta de Cython
+  runtime en los tres perfiles; **no es RED de producto**. Se construyen wheels
+  nuevas con los tests y se ejecutarán --pyargs desde /tmp, sin instalar Cython.
+- Hooks Ruff/mypy reales Passed, diff --check limpio. La revisión independiente
+  final aún no se inicia; 3.1 y la cobertura de pérdidas de 3.9 siguen abiertos.
+- Wheels nuevas compiladas: cp39 sha256
+  `bf586a349dfba8556122435851374dd52a395a223d8a81695db4643355b6c241`,
+  cp312 `7427000fd2a5c2a5853ece6ee7f68e20d6db364fb14c9a8e3419f6097b5e6b95`.
+  Instaladas con --force-reinstall --no-deps en los cinco venvs temporales.
+  Desde /tmp, -I/--pyargs: **39 passed** por perfil completo 3.9 mínimo,
+  3.12 fijado/latest, 11.45/10.62/10.82 s (`*-periodic-spin-f-wheel.log`).
+  Estas son pruebas enfocadas, no una nueva suite completa instalada.
+- Primera colección base encontró el conftest común instalado que importa Torch
+  incondicionalmente, exit 4; no es un fallo del núcleo sin ML. Se ejecutó el
+  oráculo autocontenido con --noconftest (su RNG local sigue sembrado a cero),
+  sin eliminar ninguna aserción: **12 passed** en base 3.9/3.12, 0.33/0.46 s
+  (`*-base-periodic-spin-f-no-ml.log`). No se instaló Torch ni Cython runtime.
+- Los cinco `pip check` devolvieron exit 0 (`*-symmetry-pip-check.log`).
+  Se conservan los logs fallidos de colección como evidencia de la diferencia
+  entre importar el checkout y verificar la wheel instalada.
 
 ## Cierre del goal
 
