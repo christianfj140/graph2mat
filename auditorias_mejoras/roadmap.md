@@ -8,6 +8,16 @@ Fecha: 2026-09-27. Recoge **todas** las propuestas de las 7 auditorías de `audi
 
 Sustituye a la "Fase 5" de `plan_mejoras.md`. Ese fichero queda como historial de las fases 0–4.
 
+## Prioridad activa — precisión, velocidad y VRAM (2026-10-08)
+
+El usuario aprobó adelantar estos candidatos al resto de la ingeniería general.
+El alcance, orden, criterios y registro están en
+[roadmap_precision_rendimiento.md](roadmap_precision_rendimiento.md), con su
+[prompt de goal](prompt_goal_precision_rendimiento.md). El nuevo goal está activo:
+3.14 necesario → 5.3; 6.1/6.2/6.4; 7.1; 4.4–4.5 y después 7.4.
+Este cambio de prioridad no marca esos puntos como completados ni reabre los
+cinco frentes de ingeniería ya cerrados.
+
 ## Resumen de resultados (27–28 de septiembre)
 
 Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.
