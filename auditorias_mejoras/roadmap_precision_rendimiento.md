@@ -492,3 +492,7 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   reconstruyen durante training; el objetivo nuevo no está conectado. Próximo
   paso: ruta coefficient-only, CPU collate y métricas epoch/DDP sin matrices,
   fallback para callbacks/loss no certificados y checkpoints/defaults intactos.
+- Producto comprometido como **48a9f0f**. Task-done **147 pasan**, 254 warnings,
+  **2.64 s**, exit0, rango41a03f4..48a9f0f. Siguiente subplan concreto:
+  `plan_forward_coeficientes.md`, flag por llamada Graph2Mat/MACE con defaults
+  intactos. Collate/Lightning y medidas todavía no implementados/completados.

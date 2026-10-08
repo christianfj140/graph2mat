@@ -90,7 +90,7 @@ se integran después, sin dar por completo 5.3 al acabar este plan.
   /tmp/g2m-python312-full.LHyni1/venv/bin/python -m pytest -q
   --disable-warnings --tb=short (añadir selección para el gate enfocado).
   Expected: exit0; registrar fallos reales y avisos. No GPU requerida.
-- [ ] Step 6: documentar contrato, fallback e integración pendiente; commit
+- [x] Step 6: documentar contrato, fallback e integración pendiente; commit
   explícito y task-done con el fichero nuevo más orientación/compatibilidad.
   Expected: ledger complete del subproyecto, no de Task1 amplia ni del goal.
 
@@ -111,3 +111,5 @@ Evidencia final: 91 tests específicos; 147 en Python3.9.25/Torch2.4.1cpu;
 suite source CPU completa1821 pasan/2 omitidos,17156warnings,409.36s,exit0.
 Ruff/mypy-core/compileall39/diff verdes. QR con AMP externo protegido después
 de RED2 (error relativo3.68e-4); entrada f32/f64 conserva precisión del objetivo.
+Producto `48a9f0f`; task-done147 pasan/254warnings/2.64s,exit0,
+rango41a03f4..48a9f0f. Cierra solo targets/objetivo, no el training integrado.
