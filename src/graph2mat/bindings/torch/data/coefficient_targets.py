@@ -12,6 +12,8 @@ from graph2mat.core.data.metrics import (
 )
 from graph2mat.core.data.table import BasisTableWithEdges
 
+COEFFICIENT_TARGETS_ATTR = "_graph2mat_coefficient_mse_targets"
+
 
 class CoefficientMSEUnsupported(ValueError):
     """This batch/readout needs the ordinary matrix objective instead."""
@@ -21,6 +23,8 @@ def _local_factors(operation, mask):
     groups = getattr(operation, "_coefficient_groups", None)
     if groups is None:
         raise CoefficientMSEUnsupported("Matrix MSE requires certified local RTP coefficient groups.")
+    if operation.change_of_basis.is_complex():
+        raise CoefficientMSEUnsupported("The real matrix MSE certificate does not support complex Q.")
     q = operation.change_of_basis.detach().cpu().double().flatten(1).clone()
     if not torch.isfinite(q).all():
         raise ValueError("The change of basis must be finite.")
@@ -123,6 +127,8 @@ class CoefficientMatrixMSEProjector:
         for reference in (nodes_ref, edges_ref):
             if not torch.is_tensor(reference) or reference.device.type != "cpu":
                 raise ValueError("Coefficient targets must be prepared from CPU tensors.")
+            if reference.is_complex():
+                raise CoefficientMSEUnsupported("The real matrix MSE certificate does not support complex labels.")
             if reference.ndim not in (1, 2) or (1 if reference.ndim == 1 else reference.shape[1]) != self.n_components:
                 raise ValueError(f"Labels must have {self.n_components} components with shape (rows[, components]).")
             if torch.isinf(reference).any():

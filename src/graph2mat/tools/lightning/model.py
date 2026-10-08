@@ -16,6 +16,7 @@ from torchmetrics import Metric
 
 from graph2mat import AtomicTableWithEdges, BasisTableWithEdges, __version__
 from graph2mat.bindings.torch.load import sanitize_checkpoint
+from graph2mat.bindings.torch.data.coefficient_targets import COEFFICIENT_TARGETS_ATTR
 from graph2mat.bindings.torch.modules.graph2mat import layout_to
 from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 
@@ -273,9 +274,12 @@ class LitBasisMatrixModel(pl.LightningModule):
         """Also moves the batch's type layout (roadmap 6.3), which lives outside the PyG
         store and so is not moved by ``batch.to(device)``."""
         layout = getattr(batch, LAYOUT_ATTR, None)
+        targets = getattr(batch, COEFFICIENT_TARGETS_ATTR, None)
         batch = super().transfer_batch_to_device(batch, device, dataloader_idx)
         if layout is not None:
             object.__setattr__(batch, LAYOUT_ATTR, layout_to(layout, device))
+        if targets is not None:
+            object.__setattr__(batch, COEFFICIENT_TARGETS_ATTR, layout_to(targets, device))
         return batch
 
     @staticmethod

@@ -17,6 +17,8 @@ def _map_layout(layout: dict, fn) -> dict:
             return {k: apply(v) for k, v in value.items()}
         if isinstance(value, tuple):
             return tuple(apply(v) for v in value)
+        if isinstance(value, list):
+            return [apply(v) for v in value]
         if isinstance(value, (np.ndarray, torch.Tensor)):
             return fn(value)
         return value

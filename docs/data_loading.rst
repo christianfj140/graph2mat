@@ -157,8 +157,16 @@ dictionaries, and MatrixMACE returns node_coefficients/edge_coefficients plus
 metadata, without node/edge labels. Sum/mean per-interaction aggregation is
 unchanged. Default forwards still return their original matrix labels.
 MatrixMACE rejects coefficient-only calls with reentrant gradient checkpointing
-or long-range label corrections; their callers must use matrix mode. The new
-route is not yet connected to CPU collate or Lightning's training/epoch logging,
+or long-range label corrections; their callers must use matrix mode.
+``TypeLayoutCollate`` accepts an optional CPU projector, and
+``MatrixDataModule.set_coefficient_mse_projector`` sets it for subsequently created
+training loaders only. Set it after restoring Q and before creating worker
+iterators. Targets travel outside the PyG store, so ``get_example`` remains
+unchanged; Lightning transfers the nested tensors separately. Directed batches
+do not receive the symmetric type layout. Uncertified batches carry a fallback
+reason instead of invented targets; invalid shapes still raise. The real-MSE
+certificate rejects complex Q/labels before any cast that would lose imaginary
+parts. The route is not yet connected to Lightning's training/epoch logging,
 and does not change any default loss.
 Factors in prepared targets share the CPU snapshot and must be consumed read-only.
 

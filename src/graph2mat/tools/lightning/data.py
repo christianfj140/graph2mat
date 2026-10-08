@@ -22,6 +22,7 @@ from graph2mat.bindings.torch import (
     TorchBasisMatrixDataset,
 )
 from graph2mat.bindings.torch.data import TorchBasisMatrixData
+from graph2mat.bindings.torch.data.coefficient_targets import COEFFICIENT_TARGETS_ATTR, CoefficientMSEUnsupported
 from graph2mat.bindings.torch.modules.graph2mat import torch_type_layout
 from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 from graph2mat.core.data.configuration import MatrixComponentPolicy, PhysicsMatrixType
@@ -49,12 +50,22 @@ class TypeLayoutCollate:
     the device in ``transfer_batch_to_device``.
     """
 
-    def __init__(self, collate, basis_table):
+    def __init__(self, collate, basis_table, coefficient_projector=None, symmetric=True):
         self.collate = collate
         self.basis_table = basis_table
+        self.coefficient_projector = coefficient_projector
+        self.symmetric = symmetric
 
     def __call__(self, data_list):
         batch = self.collate(data_list)
+        if self.coefficient_projector is not None:
+            try:
+                targets = self.coefficient_projector(batch, batch.point_labels, batch.edge_labels)
+            except CoefficientMSEUnsupported as error:
+                targets = str(error)
+            object.__setattr__(batch, COEFFICIENT_TARGETS_ATTR, targets)
+        if not self.symmetric:
+            return batch
         layout = torch_type_layout(batch.point_types.numpy(), batch.edge_types.numpy(), self.basis_table)
         if getattr(batch, "point_labels", None) is not None:
             # Structure of every label element, for the per-structure losses
@@ -312,6 +323,15 @@ class MatrixDataModule(pl.LightningDataModule):
         self.tmp_dir = None
         self._tmp_root = None
         self._tmp_pid = None
+        self._coefficient_mse_projector = None
+
+    def set_coefficient_mse_projector(self, projector):
+        """Set the CPU snapshot for subsequent training loaders; ``None`` clears it.
+
+        Call before creating worker iterators, after restoring the effective readout Q.
+        Validation/test loaders and dataset samples remain unchanged.
+        """
+        self._coefficient_mse_projector = projector
 
     def prepare_data(self):
         if not self.copy_root_to_tmp:
@@ -548,14 +568,17 @@ class MatrixDataModule(pl.LightningDataModule):
                 shuffle=True,
                 drop_last=False,
                 **self._loader_kwargs(),
-            )
+            ),
+            coefficient_projector=self._coefficient_mse_projector,
         )
 
-    def _with_type_layout(self, loader):
+    def _with_type_layout(self, loader, coefficient_projector=None):
         """Training and validation batches carry their type layout (symmetric matrices,
         the only case Graph2Mat's fast path covers)."""
-        if self.data_processor.symmetric_matrix:
-            loader.collate_fn = TypeLayoutCollate(loader.collate_fn, self.data_processor.basis_table)
+        symmetric = self.data_processor.symmetric_matrix
+        if symmetric or coefficient_projector is not None:
+            loader.collate_fn = TypeLayoutCollate(loader.collate_fn, self.data_processor.basis_table,
+                                                 coefficient_projector=coefficient_projector, symmetric=symmetric)
         return loader
 
     def _loader_kwargs(self) -> dict:

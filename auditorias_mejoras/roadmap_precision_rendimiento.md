@@ -521,3 +521,28 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   entrenamiento de precisión ni cierre de 5.3/goal por estas pruebas CPU.
 - Producto **ed975eb**. Task-done real **153 pasan**, 63 no seleccionados,
   4331 warnings, **64.69 s**, exit0, rango a5e6b63..ed975eb.
+
+### Task 1.f — targets integrados en collate CPU (verificado)
+
+- Subplan `plan_collate_irreps_cpu.md`, BASE `6b40f2c`. TypeLayoutCollate usa
+  snapshot opcional; setter runtime solo train, sin hparam/caché nueva.
+  Targets fuera del store PyG; transferencia profunda de dict/list/tuple.
+  Layout simétrico no se aplica a batches dirigidos. Fallback explícito string
+  para Unsupported; errors de shape/finite no se ocultan. Complex Q/labels
+  rechazados antes de double, sin perder imaginarios silenciosamente.
+- RED **29 fallos**, 151 warnings, **1.50 s**. Primer intento GREEN reveló
+  fixture con llamada positional inválida al metric: **24 fallos/5 pasan**,
+  151 warnings, **90.50 s**, exit1; SIGINT enviado al pytest propio no cambió
+  ese resultado. Referencia corregida a kwargs, sin tocar producto/tolerancias.
+- GREEN definitivo **29 pasan**, 150 warnings, **36.64 s**, exit0. Workers0/2
+  spawn persistentes, dos iteraciones, sym/dir, grouping3, C1/2 y periodicidad;
+  comparación de pérdidas/gradientes y get_example sin targets.
+- Regresiones source **184 pasan**, 671 warnings, **14.27 s**, exit0;
+  stages/lifecycle/layout workers previos incluidos. Floor3.9/Torch2.4.1cpu
+  source **176 pasan**, 139 warnings, **30.55 s**, exit0.
+- Suite source CPU completa **2003 pasan, 2 omitidos**, 21004 warnings,
+  **503.81 s**, exit0. Logs `collate-targets-*` en
+  `/tmp/g2m-precision-goal.A2Pbgk/`. Source congelado durante gate completo.
+- Ruff selección explícita/all-files, mypy-core, compileall39 y diff verdes.
+  Sin wheels/GPU nuevos. **Training_step/epoch/DDP todavía pendientes**;
+  siguiente subplan `plan_training_irreps_lightning.md`. 5.3/goal no cerrados.
