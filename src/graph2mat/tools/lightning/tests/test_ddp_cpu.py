@@ -84,7 +84,7 @@ def _run_training_script(output_dir, layout):
     return json.loads((output_dir / "result.json").read_text())
 
 
-def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False):
+def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None):
     import pytorch_lightning as pl
     import torch
     from pytorch_lightning.strategies import DDPStrategy
@@ -136,6 +136,21 @@ def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False):
                                loss=block_normalized_huber if physical else block_type_huber if huber else block_type_mse,
                                loss_kwargs=loss_kwargs)
     model.init_model()
+    if coefficient:
+        from graph2mat.tools.lightning.tests.test_coefficient_epoch_metrics import coefficient_model, coefficient_samples
+
+        loss_name, missing_b = coefficient.split(":")
+        samples = coefficient_samples(missing_b == "nan")
+        samples[0].num_nodes = 4
+        samples[0].point_types = torch.zeros(4, dtype=torch.long)
+        samples[0].point_labels = torch.zeros(4)
+        samples[0].node_prediction = torch.tensor([1., 1., 1., 3.])
+        samples[0].edge_labels = torch.zeros(3)
+        samples[0].edge_prediction = torch.tensor([2., 2., 4.])
+        samples[0].edge_types = torch.zeros(6, dtype=torch.long)
+        samples[0].edge_index = torch.tensor([[0, 1, 1, 2, 2, 3], [1, 0, 2, 1, 3, 2]])
+        samples = [samples[0], samples[2]]
+        model = coefficient_model(loss_name)
     trainer = pl.Trainer(
         accelerator="cpu", devices=2,
         strategy=DDPStrategy(process_group_backend="gloo", start_method="popen"),
@@ -227,8 +242,39 @@ def test_two_cpu_ranks_reduce_physical_huber_with_disjoint_types(tmp_path):
             assert result["metrics"][key] == pytest.approx(value), f"Rank {rank}, {key}"
 
 
+@pytest.mark.parametrize("loss_name", ["coefficient_space_mse", "coefficient_space_mae", "hamiltonian_composite_loss"])
+@pytest.mark.parametrize("missing_b", [False, True])
+def test_two_cpu_ranks_reduce_coefficients_with_disjoint_operations(tmp_path, loss_name, missing_b):
+    import math
+
+    _run_training_script(tmp_path, "epoch_coefficient:" + loss_name + (":nan" if missing_b else ":valid"))
+    coefficient = (25 / 12 if missing_b else 55 / 18) if loss_name == "coefficient_space_mae" else (5.5 if missing_b else 12.)
+    label = 4 / 3 if missing_b else 181 / 120
+    want = label + .3 * coefficient if loss_name == "hamiltonian_composite_loss" else coefficient
+    prefix = "coefficient_" if loss_name == "hamiltonian_composite_loss" else ""
+    suffix = "mae" if loss_name == "coefficient_space_mae" else "rmse"
+    for rank in (0, 1):
+        result = json.loads((tmp_path / f"rank{rank}.json").read_text())
+        assert result["world_size"] == 2
+        expected = {
+            "val_loss": want, "hp_metric": want,
+            f"val_{prefix}node_node:0_coeff_{suffix}": 1.5 if suffix == "mae" else math.sqrt(3),
+            f"val_{prefix}node_node:1_coeff_{suffix}": 0. if missing_b else 5.,
+            f"val_{prefix}edge_edge:(0, 0, 0)_coeff_{suffix}": 8 / 3 if suffix == "mae" else math.sqrt(8),
+            f"val_{prefix}edge_edge:(0, 1, 1)_coeff_{suffix}": 0.,
+            f"val_{prefix}edge_edge:(1, 1, 2)_coeff_{suffix}": 0.,
+            f"val_{prefix}coefficient_blocks": 2 if missing_b else 3,
+        }
+        if loss_name == "hamiltonian_composite_loss":
+            expected.update(val_label_huber=label, val_coefficient_mse=coefficient)
+        for key, value in expected.items():
+            assert result["metrics"][key] == pytest.approx(value), f"Rank {rank}, {key}"
+
+
 if __name__ == "__main__":
-    if sys.argv[2].startswith("epoch_metrics"):
+    if sys.argv[2].startswith("epoch_coefficient:"):
+        _evaluate_epoch_metrics(sys.argv[1], False, coefficient=sys.argv[2].split(":", 1)[1])
+    elif sys.argv[2].startswith("epoch_metrics"):
         _evaluate_epoch_metrics(sys.argv[1], sys.argv[2].endswith("spin"), "huber" in sys.argv[2], "physical" in sys.argv[2])
     else:
         _fit(sys.argv[1], sys.argv[2])

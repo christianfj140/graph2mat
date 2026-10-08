@@ -99,9 +99,9 @@ sums and counts, not averages of
 batch losses. ``val_loss`` and ``hp_metric`` share that global objective. Per-step
 training losses and their gradients are unchanged. Absolute-error means, sample
 standard deviations and maxima also reduce across batches and distributed ranks;
-standard deviation is zero with fewer than two valid elements. Special objectives
-(coefficient, pair, spectral, domain and physical-block/composite Huber losses) still have separate pending
-aggregation work. Distributed samplers may pad uneven datasets with repeated
+standard deviation is zero with fewer than two valid elements. Pair, spectral
+and domain objectives still have separate pending aggregation work.
+Distributed samplers may pad uneven datasets with repeated
 samples: the metrics count the samples actually evaluated, including those repeats.
 Block-type Huber's per-branch ``node_smooth_l1`` and ``edge_smooth_l1`` statistics
 use those same valid-element means, including scalar and spin labels.
@@ -114,7 +114,18 @@ in Torch, population std in NumPy) when there are at least two values, and is ze
 otherwise. Physical-block Huber and the composite label-Huber component retain
 block boundaries after masking; wholly missing blocks are excluded from the
 block mean and per-type statistics. A wholly missing branch contributes zero.
-Coefficient, gauge and pair objectives have separate missing-label requirements.
+Physical-block Huber and the complete composite objective also aggregate branch
+means globally. Coefficient MSE/MAE diagnostics use valid coefficient elements
+per operation; the total averages the observed operation means equally, as in
+the per-step objective. Composite adds its configured coefficient weight to
+the global label-Huber component. ``coefficient_blocks`` counts operations (its
+historical meaning), and reports unique observed operations per epoch, not the
+sum of batch counts. Missing operations contribute no weight; all ranks log the
+same ordered schema, even with disjoint species/pairs. A projected block with a
+NaN coefficient is unobserved as a whole: partial matrix labels cannot determine
+its full irreducible coefficients. Empty/unobserved coefficients have connected
+zero gradients. The existing flat single-component H-only contract is unchanged.
+Gauge and pair objectives have separate missing-label requirements.
 
 With the default ``SamplewiseMetricsLogger`` failure-tolerant policy, a failed
 metric writes NaN to its sample rows and emits a warning on its first failure per

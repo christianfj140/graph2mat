@@ -7,6 +7,7 @@ from graph2mat.core.data.metrics import (
     block_type_huber,
     block_type_mse,
     coefficient_space_mse,
+    coefficient_space_mae,
     coefficients_to_labels,
     hamiltonian_composite_loss,
     target_coefficients_from_labels,
@@ -398,3 +399,53 @@ def test_hamiltonian_composite_loss_has_gradients():
 def test_hamiltonian_composite_loss_validates_kwargs(kwargs, match):
     with pytest.raises(ValueError, match=match):
         hamiltonian_composite_loss(**kwargs)
+
+
+@pytest.mark.parametrize("loss_cls,want", [(coefficient_space_mse, 2.5), (coefficient_space_mae, 1.5)])
+@pytest.mark.parametrize("reference_dtype", [torch.float32, torch.float64])
+def test_coefficient_losses_mask_whole_unobserved_blocks_before_subtraction(loss_cls, want, reference_dtype):
+    nodes_ref = torch.tensor([0., float("nan"), 0., 0., 0., float("nan")], dtype=reference_dtype)
+    edges_ref = torch.tensor([0., float("nan"), 0.], dtype=reference_dtype)
+    node_a = torch.tensor([[1.], [99.]], requires_grad=True)
+    node_b = torch.full((1, 4), 99., requires_grad=True)
+    edge_aa = torch.tensor([[2.]], requires_grad=True)
+    edge_ab = torch.full((1, 2), 99., requires_grad=True)
+    out = {"node_coefficients": {"node:0": node_a, "node:1": node_b},
+           "edge_coefficients": {"edge:(0, 0, 0)": edge_aa, "edge:(0, 1, 1)": edge_ab}}
+    loss, stats = loss_cls()(nodes_pred=nodes_ref, nodes_ref=nodes_ref,
+                            edges_pred=edges_ref, edges_ref=edges_ref,
+                            batch=_CoefficientBatch(), basis_table=_CoefficientBasisTable(),
+                            out=out, model=_CoefficientModel())
+    assert float(loss) == pytest.approx(want)
+    assert loss.dtype == node_a.dtype
+    assert float(stats["coefficient_blocks"]) == 2
+    assert all(torch.isfinite(value) for value in stats.values())
+    loss.backward()
+    for value in (node_a, node_b, edge_aa, edge_ab):
+        assert value.grad is not None and torch.isfinite(value.grad).all()
+    assert node_a.grad[1] == 0
+    assert torch.count_nonzero(node_b.grad) == torch.count_nonzero(edge_ab.grad) == 0
+    assert float(node_a.grad[0]) == (1. if loss_cls is coefficient_space_mse else .5)
+    assert float(edge_aa.grad[0]) == (2. if loss_cls is coefficient_space_mse else .5)
+
+
+@pytest.mark.parametrize("loss_cls", [coefficient_space_mse, coefficient_space_mae])
+@pytest.mark.parametrize("missing", ["empty", "nan"])
+def test_coefficient_losses_with_no_observations_return_connected_zero(loss_cls, missing):
+    batch = _CoefficientBatch()
+    count = 0 if missing == "empty" else 1
+    batch.point_types = torch.zeros(count, dtype=torch.long)
+    batch.edge_types = torch.empty(0, dtype=torch.long)
+    reference = torch.full((count,), float("nan"))
+    prediction = torch.ones((count, 1), requires_grad=True)
+    edge_prediction = torch.empty((0, 1), requires_grad=True)
+    out = {"node_coefficients": {"node:0": prediction},
+           "edge_coefficients": {"edge:(0, 0, 0)": edge_prediction}}
+    loss, stats = loss_cls()(nodes_pred=reference, nodes_ref=reference,
+                            edges_pred=torch.empty(0), edges_ref=torch.empty(0),
+                            batch=batch, basis_table=_CoefficientBasisTable(), out=out, model=_CoefficientModel())
+    assert float(loss) == 0.
+    assert float(stats["coefficient_blocks"]) == 0.
+    loss.backward()
+    assert prediction.grad is not None and torch.count_nonzero(prediction.grad) == 0
+    assert edge_prediction.grad is not None and edge_prediction.grad.numel() == 0

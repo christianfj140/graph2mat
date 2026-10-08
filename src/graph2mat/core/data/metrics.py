@@ -445,15 +445,13 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
     return {"node_labels": node_labels, "edge_labels": edge_labels}
 
 
-def _coefficient_space_metric(
+def _coefficient_space_errors(
     nodes_ref,
     edges_ref,
     batch,
     basis_table,
     out,
     model,
-    *,
-    reduction,
 ):
     if out is None or "node_coefficients" not in out or "edge_coefficients" not in out:
         raise ValueError(
@@ -478,30 +476,42 @@ def _coefficient_space_metric(
     )
     predicted = {"node": out["node_coefficients"], "edge": out["edge_coefficients"]}
 
-    losses = []
-    stats = {}
+    errors = {}
     for kind in ("node", "edge"):
         predicted_values = _coefficient_values(predicted, kind)
         for key, target_value in _coefficient_values(target, kind).items():
             if key not in predicted_values:
                 raise ValueError(f"Missing predicted {kind} coefficients for {key}.")
-            error = predicted_values[key] - target_value.to(predicted_values[key])
-            if reduction == "mse":
-                loss = (error**2).mean()
-                stats[f"{kind}_{key}_coeff_rmse"] = loss ** (1 / 2)
-            elif reduction == "mae":
-                loss = abs(error).mean()
-                stats[f"{kind}_{key}_coeff_mae"] = loss
-            else:
-                raise ValueError(f"Unknown coefficient reduction {reduction!r}")
+            prediction = predicted_values[key]
+            valid = _valid_label_rows(target_value)
+            errors[f"{kind}_{key}"] = prediction[valid] - target_value.to(prediction)[valid]
+    return errors
+
+
+def _coefficient_space_metric(nodes_ref, edges_ref, batch, basis_table, out, model, *, reduction):
+    errors = _coefficient_space_errors(nodes_ref, edges_ref, batch, basis_table, out, model)
+    losses = []
+    stats = {}
+    for key, error in errors.items():
+        if reduction == "mse":
+            loss = _mean(error**2)
+            stats[f"{key}_coeff_rmse"] = loss ** (1 / 2)
+        elif reduction == "mae":
+            loss = _mean(abs(error))
+            stats[f"{key}_coeff_mae"] = loss
+        else:
+            raise ValueError(f"Unknown coefficient reduction {reduction!r}")
+        if error.numel():
             losses.append(loss)
 
-    if not losses:
-        raise ValueError(
-            "No coefficient blocks were available for coefficient-space loss."
-        )
-
-    loss = torch.stack(losses).mean()
+    # Keep empty/unobserved outputs connected with zero gradient, without ever
+    # multiplying a NaN prediction by zero.
+    predictions = [value for kind in ("node", "edge") for value in out[f"{kind}_coefficients"].values()]
+    predictions.extend(out[key] for key in ("node_labels", "edge_labels") if key in out)
+    zero = (predictions[0] if predictions else nodes_ref).new_zeros(())
+    for prediction in predictions:
+        zero = zero + prediction.reshape(-1)[:0].sum()
+    loss = torch.stack(losses).mean() + zero if losses else zero
     stats["coefficient_blocks"] = torch.as_tensor(
         len(losses), dtype=loss.dtype, device=loss.device
     )

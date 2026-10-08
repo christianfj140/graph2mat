@@ -1095,6 +1095,64 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   además de la revisión independiente final de los cinco puntos. Nada de GPU,
   entrenamientos activos, autorun, Lua/SIESTA ni CI remota se ha ejecutado.
 
+### Sublote 3.1.g — coeficientes y composite completo
+
+- BASE **4c294f6**, CLI/checkpoints comprometidos. Plan acotado: conservar las
+  fórmulas por paso; extraer los errores de coeficientes una sola vez, omitiendo
+  bloques sin observación antes de restar; acumular por operación sumas/conteos
+  fijos en el Metric existente y añadir el label Huber global en composite.
+  Diagnósticos por operación usan sus elementos válidos; el total mantiene
+  peso igual entre operaciones observadas. coefficient_blocks ya contaba
+  operaciones, no bloques físicos: por época contará operaciones únicas con
+  observaciones, no la suma que duplicaría una operación entre batches.
+- Alcance conectado: metrics.py y sus pérdidas MSE/MAE/composite, model.py y
+  logging train/val/test/hp_metric, tests core/Lightning/DDP, documentación.
+  target_coefficients_from_labels conserva forma/diccionarios para sus otros
+  consumidores, incluida output_scaleshift. No se cambia el contrato H-only.
+- RED: **18 failed**, 114 warnings, .99 s (`coefficient-epoch-red.log`): sesgo
+  de batches, total composite con peso positivo y NaN, incluyendo gradientes y
+  train/val/reset. Fixtures de s-orbitales con readout e3nn real y valores literales.
+  Pruebas adicionales de bloques parcialmente NaN y ausencia completa antes
+  de parchear (`coefficient-missing-red.log`).
+- Siguen pendientes los diagnósticos de pares/ventana/domino/umbral y los
+  oráculos de simetría; no se inicia revisión final ni se marca el goal completo.
+- RED adicional: **6 failed**, .12 s para bloques NaN/vacíos. Primera integración
+  **47 passed**, 1.61 s. Época con grafo realmente vacío descubrió cero sin
+  grad_fn en coeficientes puros; el oráculo de dos casos composite confundía el
+  beta constante con un error. Tras corregir solo ese oráculo: **4 failed,
+  6 passed**, .89 s, dos por grafo vacío y dos por promoción de dtype introducida
+  en el cero auxiliar. Se reparó ese cero conectado usando predicciones y slices
+  vacíos, sin NaN*0 y preservando dtype (`coefficient-empty-dtype-red.log`).
+- Se reutiliza _EpochMatrixLoss, con vectores fijos de sumas/conteos por operación
+  y label Huber separado. Diagnósticos RMSE/MAE usan acumuladores existentes;
+  schema ordenado completo incluso con especies ausentes en un rango.
+  Proyección pública/metadata y fórmulas sobre etiquetas observadas intactas.
+- **38 pruebas nuevas**: valores globales literales, MSE/MAE, composite con peso
+  positivo, batching 1/2/3/1, train dos épocas con validación distinta, reset/splits,
+  bloques parciales NaN, grafo vacío, gradientes literales y dtype mixto. Seis
+  casos DDP CPU/Gloo tienen operaciones disjuntas, con/sin especie desconocida;
+  ambas mitades reciben iguales métricas sin padding de muestras. Enfocado con
+  Huber DDP existente: **7 passed**, 36.40 s (`coefficient-ddp-green.log`).
+- Producto/tests congelados: **1216 passed, 2 skipped**, 7282 warnings, 194.99 s,
+  exit 0 (`coefficient-full-cpu.log`). Enfocado amplio **341 passed**, 4.18 s.
+  Ruff y mypy reales Passed (`coefficient-ruff-check-hook.log`,
+  `coefficient-mypy-core-hook.log`), git diff --check limpio.
+- Wheels nuevas compiladas con constraints: cp39 sha256
+  `3c9e1e2e41e976ff21b196d511020fe7d9a945ebebb099a22860858b6795f45c`,
+  cp312 `573b5d1a7b6c1420ab1eb4b1bccbbf320c2a6534fd5dc4dc394255676f6e8288`.
+  Reinstaladas --force-reinstall --no-deps. Tests instalados -I/--pyargs fuera del
+  checkout: **354 passed** por perfil 3.9 mínimo/3.12 fijado/latest,
+  68.30/85.09/86.99 s, incluyendo todo test_ddp_cpu y los objetivos conectados
+  (`python39/python312/latest-coefficient-wheel-focused.log`). No se presentan
+  estos 354 como suite completa instalada; la suite completa actual es CPU de
+  checkout. Cinco pip check, exit 0 (`*-coefficient-pip-check.log`).
+- Las mismas wheels en perfiles base sin ML: **16 passed, 7 deselected** en
+  3.9/3.12, 6.33/9.38 s (`python39/python312-base-coefficient-tests.log`).
+- docs/data_loading.rst documenta denominadores/operaciones, datos desconocidos,
+  H-only y la diferencia entre conteo histórico de operaciones y bloques físicos.
+  Sigue abierto 3.1 (pares, gauge/espectral, dominios/umbral, entrenamiento físico)
+  y 3.9 (oráculos físicos/pérdidas restantes), además de la revisión final.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

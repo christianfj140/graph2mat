@@ -112,29 +112,50 @@ class _EpochErrorMoments(Metric):
 
 
 class _EpochMatrixLoss(Metric):
-    """Apply the basic matrix objective after reducing its per-branch sums/counts."""
+    """Reduce matrix branches and equal-weight coefficient operations globally."""
 
     full_state_update = False
 
-    def __init__(self):
+    def __init__(self, coefficient_keys=(), statistic=None):
         super().__init__()
         self.add_state("totals", torch.zeros(2, dtype=torch.float64), dist_reduce_fx="sum")
         self.add_state("counts", torch.zeros(2, dtype=torch.float64), dist_reduce_fx="sum")
         self.joint = False
         self.weights = (1., 1.)
+        self.coefficient_keys = tuple(coefficient_keys)
+        self.statistic = statistic
+        self.coefficient_weight = 0.
+        for name in ("coefficient_totals", "coefficient_counts"):
+            self.add_state(name, torch.zeros(len(coefficient_keys), dtype=torch.float64), dist_reduce_fx="sum")
 
-    def update(self, node_error, edge_error, power, joint, node_weight, edge_weight):
+    def update(self, node_error, edge_error, power, joint, node_weight, edge_weight,
+               coefficient_errors=None, coefficient_power=2, coefficient_weight=0.):
         self.joint, self.weights = joint, (node_weight, edge_weight)
         errors = (node_error.detach().double(), edge_error.detach().double())
         self.totals += torch.stack([error.abs().pow(power).sum() for error in errors])
         self.counts += self.counts.new_tensor([error.numel() for error in errors])
+        self.coefficient_weight = coefficient_weight
+        if coefficient_errors is not None:
+            for i, key in enumerate(self.coefficient_keys):
+                error = coefficient_errors.get(key)
+                if error is not None:
+                    self.coefficient_totals[i] += error.detach().double().abs().pow(coefficient_power).sum()
+                    self.coefficient_counts[i] += error.numel()
 
     def compute(self):
+        observed = self.coefficient_counts.count_nonzero()
+        coefficient = (self.coefficient_totals / self.coefficient_counts.clamp_min(1)).sum() / observed.clamp_min(1)
+        if self.statistic == "operations":
+            return observed.double()
+        if self.statistic == "coefficients":
+            return coefficient
         weights = self.totals.new_tensor(self.weights)
         if self.joint:
             denominator = (weights * self.counts).sum()
-            return (weights * self.totals).sum() / torch.where(denominator != 0, denominator, 1.)
-        return (weights * self.totals / self.counts.clamp_min(1)).sum()
+            label = (weights * self.totals).sum() / torch.where(denominator != 0, denominator, 1.)
+        else:
+            label = (weights * self.totals / self.counts.clamp_min(1)).sum()
+        return label + self.coefficient_weight * coefficient
 
 
 class LitBasisMatrixModel(pl.LightningModule):
@@ -318,8 +339,16 @@ class LitBasisMatrixModel(pl.LightningModule):
             policy = (1, False, 1., 1.)
         physical_huber = isinstance(self.loss_fn, (metrics_module.block_normalized_huber,
                                                    metrics_module.hamiltonian_composite_loss))
-        if physical_huber and getattr(self.loss_fn, "coefficient_mse_weight", 0.) == 0:
+        if physical_huber:
             policy = (1, False, self.loss_fn.node_weight, self.loss_fn.edge_weight)
+        coefficient = type(self.loss_fn) in (metrics_module.coefficient_space_mse, metrics_module.coefficient_space_mae)
+        coefficient_keys, coefficient_errors = (), None
+        coefficient_power = 1 if type(self.loss_fn) is metrics_module.coefficient_space_mae else 2
+        coefficient_weight = getattr(self.loss_fn, "coefficient_mse_weight", 0.)
+        if coefficient or coefficient_weight:
+            coefficient_keys, coefficient_errors = self._coefficient_epoch_terms(out, batch)
+        if coefficient:
+            policy, coefficient_weight = (2, False, 0., 0.), 1.
         key = f"{split}_loss"
         value, attribute = loss, None
         if policy is not None:
@@ -331,10 +360,10 @@ class LitBasisMatrixModel(pl.LightningModule):
                 )
                 if huber:
                     errors = tuple(metrics_module._smooth_l1(error, self.loss_fn.beta) for error in errors)
-            if key not in self._epoch_losses:
-                self._epoch_losses[key] = _EpochMatrixLoss().to(self.device)
+            if key not in self._epoch_losses or self._epoch_losses[key].coefficient_keys != coefficient_keys:
+                self._epoch_losses[key] = _EpochMatrixLoss(coefficient_keys).to(self.device)
             value = self._epoch_losses[key]
-            value(*errors, *policy)
+            value(*errors, *policy, coefficient_errors, coefficient_power, coefficient_weight)
             attribute = f"_epoch_losses.{key}"
         self.log(key, value, on_step=split == "train", on_epoch=True,
                  prog_bar=True, logger=True, batch_size=batch.num_graphs,
@@ -369,6 +398,17 @@ class LitBasisMatrixModel(pl.LightningModule):
             tuple(values[ptr[1:] > ptr[:-1]] for values, ptr in zip(types, pointers)),
         )
 
+    def _coefficient_epoch_terms(self, out, batch):
+        readout = self.model.matrix_readouts
+        keys = tuple(sorted(
+            [f"node_node:{i}" for i, operation in enumerate(readout.self_interactions) if operation is not None]
+            + [f"edge_edge:{key}" for key in readout.interactions]
+        ))
+        errors = metrics_module._coefficient_space_errors(
+            batch.point_labels, batch.edge_labels, batch, self.basis_table, out, self.model,
+        )
+        return keys, errors
+
     def _log_stats(self, split, stats, batch, out):
         errors = None
         physical_huber = isinstance(self.loss_fn, (metrics_module.block_normalized_huber,
@@ -376,6 +416,16 @@ class LitBasisMatrixModel(pl.LightningModule):
         huber_terms = huber_types = None
         if physical_huber:
             huber_terms, huber_types = self._huber_epoch_terms(out, batch)
+        coefficient = type(self.loss_fn) in (metrics_module.coefficient_space_mse, metrics_module.coefficient_space_mae)
+        coefficient_keys, coefficient_errors = (), None
+        if coefficient or getattr(self.loss_fn, "coefficient_mse_weight", 0.):
+            coefficient_keys, coefficient_errors = self._coefficient_epoch_terms(out, batch)
+            prefix = "coefficient_" if physical_huber else ""
+            suffix = "mae" if type(self.loss_fn) is metrics_module.coefficient_space_mae else "rmse"
+            stats = dict(stats)
+            for key in coefficient_keys:
+                stats.setdefault(f"{prefix}{key}_coeff_{suffix}", out["node_labels"].new_zeros(()))
+            stats = dict(sorted(stats.items()))
         if isinstance(self.loss_fn, metrics_module.block_normalized_huber) and self.loss_fn.log_type_stats:
             # Every rank logs the same schema, even if it has no blocks of a type.
             stats = dict(stats)
@@ -390,7 +440,30 @@ class LitBasisMatrixModel(pl.LightningModule):
             count = self._rmse_count(name, batch)
             key = f"{split}_{name}"
             attribute = None
-            if count is not None:
+            if coefficient_errors is not None and name.endswith(("_coeff_rmse", "_coeff_mae")):
+                operation = name[len(prefix):].rsplit("_coeff_", 1)[0]
+                terms = coefficient_errors.get(operation, out["node_labels"].new_empty(0))
+                if name.endswith("_rmse"):
+                    if key not in self._epoch_rmse:
+                        self._epoch_rmse[key] = _EpochRMSE().to(self.device)
+                    value = self._epoch_rmse[key]
+                    value(metrics_module._mean(terms.detach().double().square()).sqrt(), terms.numel())
+                    attribute = f"_epoch_rmse.{key}"
+                else:
+                    if key not in self._epoch_errors:
+                        self._epoch_errors[key] = _EpochErrorMoments("mean").to(self.device)
+                    value = self._epoch_errors[key]
+                    value(terms)
+                    attribute = f"_epoch_errors.{key}"
+            elif coefficient_errors is not None and name in ("coefficient_mse", "coefficient_blocks", "coefficient_coefficient_blocks"):
+                if key not in self._epoch_losses:
+                    statistic = "operations" if name.endswith("_blocks") else "coefficients"
+                    self._epoch_losses[key] = _EpochMatrixLoss(coefficient_keys, statistic).to(self.device)
+                value = self._epoch_losses[key]
+                empty = out["node_labels"].new_empty(0)
+                value(empty, empty, 1, False, 0., 0., coefficient_errors)
+                attribute = f"_epoch_losses.{key}"
+            elif count is not None:
                 if key not in self._epoch_rmse:
                     self._epoch_rmse[key] = _EpochRMSE().to(self.device)
                 metric = self._epoch_rmse[key]
