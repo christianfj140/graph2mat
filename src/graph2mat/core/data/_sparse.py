@@ -22,6 +22,8 @@ def _csr_to_block_dict(
     n_atoms: cython.int,
     fill_value: float = 0.0,
 ):
+    # Match Cython's argument coercion: an integer fill must not truncate labels.
+    fill_value = float(fill_value)
     # --- Cython annotations for increased performance (ignored if not compiled with cython)
     atom_i: cython.int
     atomi_firsto: cython.int
