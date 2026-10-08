@@ -10,7 +10,7 @@ sure they share the same interface and that they are all registered.
 
 from copy import copy
 
-from typing import Any, Tuple, Dict, Type, Callable, Union, Optional
+from typing import Any, Tuple, Dict, Type, Callable, Union, Optional, Iterable, TYPE_CHECKING, cast
 import numpy as np
 
 try:
@@ -333,7 +333,7 @@ def target_coefficients_from_labels(
     point_pointers = basis_table.point_block_pointer(point_types)
     graph_node_types = _map_types(readout.types_to_graph2mat, point_types)
 
-    node_coeffs = {}
+    node_coeffs: Dict[str, list[Any]] = {}
     for atom_index, point_type in enumerate(point_types):
         op_key = f"node:{graph_node_types[atom_index]}"
         operation = readout.self_interactions[int(graph_node_types[atom_index])]
@@ -354,7 +354,7 @@ def target_coefficients_from_labels(
         expected_nlabels=_flat_length(edge_labels),
     )
     edge_pointers = basis_table.edge_block_pointer(np.abs(edge_types))
-    edge_coeffs = {}
+    edge_coeffs: Dict[str, list[Any]] = {}
     for unique_edge_index, edge_type in enumerate(edge_types):
         module_key, operation = _edge_module_for_unique_type(readout, int(edge_type))
         op_key = f"edge:{module_key}"
@@ -384,7 +384,7 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
     graph_node_types = _map_types(readout.types_to_graph2mat, point_types)
     node_coeffs = _coefficient_values(coefficients, "node")
     node_offsets = {key: 0 for key in node_coeffs}
-    node_labels = []
+    node_parts = []
 
     for graph_node_type in graph_node_types:
         op_key = f"node:{graph_node_type}"
@@ -395,7 +395,7 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
         offset = node_offsets[op_key]
         coeff = node_coeffs[op_key][offset : offset + 1]
         node_offsets[op_key] += 1
-        node_labels.append(
+        node_parts.append(
             _flatten_reconstructed_block(_coefficients_to_block(operation, coeff))
         )
 
@@ -407,7 +407,7 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
         expected_nlabels=_edge_label_count_from_coefficients(readout, coefficients),
     )
     edge_offsets = {key: 0 for key in edge_coeffs}
-    edge_labels = []
+    edge_parts = []
 
     for edge_type in edge_types:
         module_key, operation = _edge_module_for_unique_type(readout, int(edge_type))
@@ -418,7 +418,7 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
         offset = edge_offsets[op_key]
         coeff = edge_coeffs[op_key][offset : offset + 1]
         edge_offsets[op_key] += 1
-        edge_labels.append(
+        edge_parts.append(
             _flatten_reconstructed_block(_coefficients_to_block(operation, coeff))
         )
 
@@ -433,12 +433,14 @@ def coefficients_to_labels(readout, batch, basis_table, coefficients: dict) -> d
                     f"total={len(values[key])}."
                 )
 
-    node_labels = torch.cat(node_labels, dim=0) if node_labels else None
-    if edge_labels:
-        edge_labels = torch.cat(edge_labels, dim=0)
+    template = next(iter(node_coeffs.values()), next(iter(edge_coeffs.values()), None))
+    node_labels = torch.cat(node_parts, dim=0) if node_parts else (
+        template.new_empty(0) if template is not None else torch.empty(0)
+    )
+    if edge_parts:
+        edge_labels = torch.cat(edge_parts, dim=0)
     else:
-        device = node_labels.device if _is_torch_tensor(node_labels) else None
-        edge_labels = torch.empty(0, dtype=node_labels.dtype, device=device)
+        edge_labels = node_labels.new_empty(0)
 
     return {"node_labels": node_labels, "edge_labels": edge_labels}
 
@@ -655,6 +657,8 @@ class Meta(type):
 
 class OrbitalMatrixMetric(metaclass=Meta):
     requires_model_output = False
+    requires_overlap_labels = False
+    overlap_prediction_optional = False
 
     def __init__(self, **metric_kwargs):
         # Constructor kwargs (``loss_kwargs`` in the lightning models) become
@@ -666,7 +670,7 @@ class OrbitalMatrixMetric(metaclass=Meta):
 
     def get_metric(
         self, config_resolved=False, **kwargs
-    ) -> Union[Tuple[float, Dict[str, float]], np.ndarray]:
+    ) -> Tuple[Union[float, np.ndarray], Dict[str, float]]:
         """Get the value for the metric.
 
         Parameters
@@ -674,15 +678,16 @@ class OrbitalMatrixMetric(metaclass=Meta):
         config_resolved : bool, optional
             Whether the metric should be computed individually for each configuration in the batch, by default False.
 
-            If False, a single float is returned, which is the metric for the whole batch.
-            If True, a numpy array is returned, which contains the metric for each configuration in the batch.
+            If False, the first tuple element is the metric for the whole batch.
+            If True, it is an array with a metric for each configuration.
 
         Returns
         -------
-        Union[Tuple[float, Dict[str, float]], np.ndarray]
+        Tuple[Union[float, np.ndarray], Dict[str, float]]
             The metric value(s), as specified by config_resolved.
 
-            If config_resolved is False, a dictionary is also returned containing additional stats related to the metric.
+            The second tuple element contains additional stats, or an empty dict
+            when config_resolved is True.
         """
 
         if getattr(self, "metric_kwargs", None):
@@ -722,7 +727,7 @@ class OrbitalMatrixMetric(metaclass=Meta):
                 },
             )
 
-            metrics_array = None
+            metrics_array = np.zeros(batch.num_graphs, dtype=np.float64)
 
             for i, (pred, target) in enumerate(zip(pred_iterator, target_iterator)):
                 kwargs["nodes_pred"] = pred.point_labels
@@ -734,23 +739,23 @@ class OrbitalMatrixMetric(metaclass=Meta):
 
                 config_metric, _ = self.compute_metric(**kwargs)
 
-                if metrics_array is None:
-                    metrics_array = np.zeros(batch.num_graphs, dtype=np.float64)
-
                 metrics_array[i] = config_metric
 
             return metrics_array, {}
 
-    @staticmethod
-    def compute_metric(
-        nodes_pred, nodes_ref, edges_pred, edges_ref, **kwargs
-    ) -> Tuple[float, Dict[str, float]]:
-        """Function that actually computes the metric.
-        This function should return the metric and a dictionary of other intermediate metrics that have
-        been computed as intermediate steps (or are easy to compute from intermediate steps), if applicable.
-        This other metrics might be, for example, logged during training.
-        """
-        raise NotImplementedError
+    if TYPE_CHECKING:
+        # Evaluated on instances; generated metrics also expose static functions.
+        def compute_metric(
+            self, nodes_pred, nodes_ref, edges_pred, edges_ref, **kwargs
+        ) -> Tuple[float, Dict[str, float]]:
+            ...
+    else:
+        @staticmethod
+        def compute_metric(
+            nodes_pred, nodes_ref, edges_pred, edges_ref, **kwargs
+        ) -> Tuple[float, Dict[str, float]]:
+            """Compute the metric and optionally return intermediate statistics."""
+            raise NotImplementedError
 
     @classmethod
     def from_metric_func(cls, fn: Callable) -> Type["OrbitalMatrixMetric"]:
@@ -1726,7 +1731,7 @@ def pair_difference_mse(
     is the plain ``elementwise_mse``, so ``val_loss`` and checkpoint selection match runs
     without pairs, and small-amplitude validation structures are never mistaken for pairs.
     """
-    loss, stats = elementwise_mse.compute_metric(
+    loss, stats = cast(Callable[..., Tuple[float, dict]], elementwise_mse.compute_metric)(
         nodes_pred=nodes_pred, nodes_ref=nodes_ref, edges_pred=edges_pred, edges_ref=edges_ref,
         edge_weight=edge_weight, log_verbose=log_verbose,
     )
@@ -2153,6 +2158,7 @@ def normalized_density_error(
     # isolated-atom reference that sub_point_matrix subtracted.
     processor = _error_processor(batch, basis_table)
 
+    matrix_errors: Iterable[Any]
     if isinstance(batch, BasisMatrixDataBase):
         # We haven't really received a batch, but just a single structure.
         # Do as if we received a batch of size 1.

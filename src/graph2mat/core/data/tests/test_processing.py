@@ -22,6 +22,35 @@ def test_orbital_matrix_point_annotation_is_resolvable():
     assert hints["return"] == Dict[int, np.ndarray]
 
 
+def test_neighbour_images_require_edge_indices():
+    with pytest.raises(AssertionError, match="neigh_isc.*edge_index"):
+        BasisMatrixData(neigh_isc=np.array([0]), already_basis=True)
+
+
+@pytest.mark.parametrize("field", ["positions", "shifts", "cell"])
+def test_cartesian_arrays_require_data_processor(field):
+    shape = (3, 3) if field == "cell" else (1, 3)
+    with pytest.raises(ValueError, match="data_processor"):
+        BasisMatrixData(node_attrs=np.ones((1, 1)), **{field: np.ones(shape)})
+
+
+@pytest.mark.parametrize("reference_getter", [None, lambda point: None])
+def test_reconstruction_rejects_missing_point_reference(reference_getter):
+    table = BasisTableWithEdges(
+        [PointBasis("A", R=2, basis=[1])], get_point_matrix=reference_getter
+    )
+    processor = MatrixDataProcessor(basis_table=table, sub_point_matrix=True)
+    arrays = {
+        "point_labels": np.array([2.]), "edge_labels": np.empty(0),
+        "point_types": np.array([0]), "edge_types": np.empty(0, dtype=int),
+        "edge_index": np.empty((2, 0), dtype=int), "neigh_isc": np.empty(0, dtype=int),
+        "nsc": np.ones(3, dtype=int),
+    }
+    with pytest.raises(ValueError, match="point.*reference|reference.*point"):
+        processor.labels_to("numpy", arrays)
+    np.testing.assert_array_equal(arrays["point_labels"], [2.])
+
+
 @pytest.fixture(scope="module")
 def positions():
     return np.array([[0.1, 0, 0], [6.0, 0, 0]])

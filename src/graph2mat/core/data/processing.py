@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Dict,
     Generator,
     Generic,
@@ -38,9 +39,11 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Type,
     TypeVar,
     Union,
     TYPE_CHECKING,
+    cast,
 )
 
 if TYPE_CHECKING:
@@ -56,12 +59,15 @@ except ModuleNotFoundError as exc:
         raise
     torch = None
 
-try:
+if TYPE_CHECKING:
     from torch_geometric.data import Batch
-except ImportError:
+else:
+    try:
+        from torch_geometric.data import Batch
+    except ImportError:
 
-    class Batch:
-        pass
+        class Batch:
+            pass
 
 
 from .configuration import (
@@ -73,7 +79,7 @@ from .configuration import (
 from .formats import Formats, conversions
 from .neighborhood import get_neighborhood
 from .node_feats import OneHotZ
-from .table import BasisTableWithEdges
+from .table import AtomicTableWithEdges, BasisTableWithEdges
 
 __all__ = ["MatrixDataProcessor", "BasisMatrixData"]
 
@@ -149,16 +155,16 @@ class MatrixDataProcessor:
         return dataclasses.replace(self, **kwargs)
 
     @cached_property
-    def default_out_format(self):
+    def default_out_format(self) -> str:
         return {
             "density_matrix": Formats.SISL_DM,
             "energy_density_matrix": Formats.SISL_EDM,
             "hamiltonian": Formats.SISL_H,
-        }.get(self.out_matrix, self.out_matrix or Formats.SCIPY_CSR)
+        }.get(self.out_matrix or "", self.out_matrix or Formats.SCIPY_CSR)
 
     def get_config_kwargs(self, obj: Any) -> Dict[str, Any]:
         if isinstance(obj, (str, Path, zipfile.Path)):
-            kwargs = {"out_matrix": self.out_matrix}
+            kwargs: Dict[str, Any] = {"out_matrix": self.out_matrix}
             if self.out_matrix == "hamiltonian":
                 kwargs["matrix_component_policy"] = self.matrix_component_policy
             if hasattr(self.basis_table, "atoms"):
@@ -195,7 +201,7 @@ class MatrixDataProcessor:
 
     def matrix_from_data(
         self,
-        data: BasisMatrixData,
+        data: Union[BasisMatrixDataBase, Batch],
         predictions: Optional[Dict] = None,
         threshold: Optional[float] = None,
         is_batch: Optional[bool] = None,
@@ -269,9 +275,9 @@ class MatrixDataProcessor:
 
     def yield_from_batch(
         self,
-        data: BasisMatrixData,
+        data: Batch,
         predictions: Optional[Dict] = None,
-        threshold: float = 1e-8,
+        threshold: Optional[float] = 1e-8,
         as_matrix: bool = False,
         out_format: Optional[str] = None,
     ) -> Generator:
@@ -329,13 +335,13 @@ class MatrixDataProcessor:
                 compact_edge_ptr = np.zeros_like(atom_ptr)
                 np.cumsum((arrays.n_edges + 1) // 2, out=compact_edge_ptr[1:])
 
-                compact_edge_types = [
+                compact_parts = [
                     edge_types[start:end:2]
                     for start, end in zip(full_edge_ptr[:-1], full_edge_ptr[1:])
                 ]
                 compact_edge_types = (
-                    np.concatenate(compact_edge_types)
-                    if len(compact_edge_types) > 0
+                    np.concatenate(compact_parts)
+                    if len(compact_parts) > 0
                     else np.empty(0, dtype=arrays.edge_types.dtype)
                 )
                 fallback_edge_labels_ptr = self.basis_table.edge_block_pointer(
@@ -429,7 +435,7 @@ class MatrixDataProcessor:
 
     def _debug_edge_label_accounting(
         self,
-        data: BasisMatrixData,
+        data: Batch,
         example_index: int = 0,
         predictions: Optional[Dict] = None,
     ) -> Dict[str, Any]:
@@ -567,7 +573,7 @@ class MatrixDataProcessor:
         self,
         output: dict,
         input: BasisMatrixData,
-        metrics: Union[Sequence["OrbitalMatrixMetric"], None] = None,
+        metrics: Optional[Sequence[Type["OrbitalMatrixMetric"]]] = None,
     ) -> dict:
         """Computes the metrics for a given output and input.
 
@@ -608,7 +614,7 @@ class MatrixDataProcessor:
             return reference
 
         metrics_values = [
-            metric(
+            cast(Callable[..., Tuple[Any, dict]], metric)(
                 nodes_pred=nodes_pred,
                 nodes_ref=reference_for(nodes_pred, input_arrays.point_labels, metric),
                 edges_pred=edges_pred,
@@ -636,7 +642,7 @@ class MatrixDataProcessor:
         new_geometry = geometry.copy()
 
         for atom in geometry.atoms.atom:
-            for basis_atom in self.basis_table.atoms:
+            for basis_atom in cast(AtomicTableWithEdges, self.basis_table).atoms:
                 if basis_atom.Z == atom.Z:
                     break
             else:
@@ -957,14 +963,17 @@ class MatrixDataProcessor:
             Number of labels required for each edge type.
         """
         unique_edge_types, counts = np.unique(abs(edge_types), return_counts=True)
+        block_counts: np.ndarray
         if self.symmetric_matrix:
-            counts = counts / 2
+            block_counts = counts / 2
+        else:
+            block_counts = counts
 
         edge_type_nlabels = np.zeros(
             self.basis_table.edge_type[-1, -1] + 1, dtype=np.int64
         )
         edge_type_nlabels[unique_edge_types] = (
-            self.basis_table.edge_block_size[unique_edge_types] * counts
+            self.basis_table.edge_block_size[unique_edge_types] * block_counts
         )
 
         return edge_type_nlabels
@@ -997,6 +1006,8 @@ class MatrixDataProcessor:
             Array with the flattened labels for each edge block in the configuration.
         """
 
+        point_labels: Optional[np.ndarray]
+        edge_labels: Optional[np.ndarray]
         if config.matrix is not None:
             if self.symmetric_matrix:
                 needed_edge_blocks = edge_index[:, ::2]  # only unique interactions
@@ -1139,14 +1150,14 @@ class MatrixDataProcessor:
     def labels_to(
         self,
         out_format: str,
-        data: dict[str, np.ndarray],
+        data: Union[dict[str, np.ndarray], BasisMatrixDataBase, NumpyArraysProvider],
         threshold: Optional[float] = None,
         coords_cartesian: bool = False,
         **kwargs,
     ):
         data_format = getattr(data.__class__, "_data_format", Formats.NODESEDGES)
         if not conversions.has_converter(data_format, out_format):
-            converter = conversions.get_converter(data.__class__._format, out_format)
+            converter = conversions.get_converter(getattr(data.__class__, "_format"), out_format)
             return converter(data, **kwargs)
 
         # Get all the arrays that we need.
@@ -1188,10 +1199,14 @@ class MatrixDataProcessor:
 
         # Add back atomic contributions to the node blocks in case they were removed
         if self.sub_point_matrix:
-            assert self.basis_table.point_matrix is not None, "Point matrices"
+            references = self.basis_table.point_matrix
+            if references is None or any(references[i] is None for i in point_types):
+                raise ValueError(
+                    "sub_point_matrix requires a point reference matrix for every point type."
+                )
             point_matrix_flat = np.concatenate(
                 [
-                    self.basis_table.point_matrix[atom_type].ravel()
+                    cast(np.ndarray, references[atom_type]).ravel()
                     for atom_type in point_types
                 ]
             )
@@ -1260,7 +1275,8 @@ class NumpyArraysProvider:
         return dir(self.data)
 
 
-ArrayType = TypeVar("ArrayType", bound="BasisMatrixData")
+ArrayType = TypeVar("ArrayType", bound=Any)
+DataType = TypeVar("DataType", bound="BasisMatrixDataBase")
 
 
 class BasisMatrixDataBase(Generic[ArrayType]):
@@ -1434,6 +1450,11 @@ class BasisMatrixDataBase(Generic[ArrayType]):
     #: postprocess outputs, for example. It includes the data processor.
     metadata: Dict[str, Any]
 
+    _format: ClassVar[str]
+    _data_format: ClassVar[str]
+    _array_format: ClassVar[str]
+    _data: Dict[str, Any]
+
     _init_keys = (
         "edge_index",
         "neigh_isc",
@@ -1466,7 +1487,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         labels_edge_filter: Optional[np.ndarray] = None,  # [n_edge_labels]
         point_types: Optional[np.ndarray] = None,  # [n_nodes]
         edge_types: Optional[np.ndarray] = None,  # [n_edges]
-        data_processor: MatrixDataProcessor = None,
+        data_processor: Optional[MatrixDataProcessor] = None,
         metadata: Optional[Dict[str, Any]] = None,
         already_basis: bool = False,
     ):
@@ -1507,7 +1528,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         labels_edge_filter: Optional[np.ndarray] = None,  # [total_edge_elements]
         point_types: Optional[np.ndarray] = None,  # [n_nodes]
         edge_types: Optional[np.ndarray] = None,  # [n_edges]
-        data_processor: MatrixDataProcessor = None,
+        data_processor: Optional[MatrixDataProcessor] = None,
         metadata: Optional[Dict[str, Any]] = None,
         already_basis: bool = False,
     ) -> Dict[str, Any]:
@@ -1518,8 +1539,10 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             edge_index.shape[0] == 2 and len(edge_index.shape) == 2
         )
         assert neigh_isc is None or (
-            neigh_isc.ndim == 1 and neigh_isc.shape[0] == edge_index.shape[1]
-        )
+            edge_index is not None
+            and neigh_isc.ndim == 1
+            and neigh_isc.shape[0] == edge_index.shape[1]
+        ), "neigh_isc requires matching edge_index"
         assert positions is None or positions.shape == (num_nodes, 3)
         assert shifts is None or shifts.shape[1] == 3
         assert node_attrs is None or len(node_attrs.shape) == 2
@@ -1534,7 +1557,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             ), "point_labels and edge_labels must have the same number of components"
 
         # Aggregate data
-        data = {
+        data: Dict[str, Any] = {
             "num_nodes": num_nodes,
             "edge_index": edge_index,
             "neigh_isc": neigh_isc,
@@ -1569,6 +1592,8 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         if not already_basis:
             for k in ["positions", "shifts", "cell"]:
                 if data[k] is not None:
+                    if data_processor is None:
+                        raise ValueError("Cartesian arrays require data_processor.")
                     data[k] = data_processor.cartesian_to_basis(
                         data[k], process_cob_array=self.process_input_array
                     )
@@ -1593,7 +1618,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             cls = self.__class__
 
         np_arrays = self.numpy_arrays()
-        kwargs = {
+        kwargs: Dict[str, Any] = {
             k: np_arrays[k] if self._data.get(k) is not None else None
             for k in self._init_keys
         }
@@ -1667,12 +1692,12 @@ class BasisMatrixDataBase(Generic[ArrayType]):
 
     @classmethod
     def new(
-        cls,
+        cls: Type[DataType],
         obj: Union[BasisConfiguration, sisl.Geometry, sisl.SparseOrbital, str, Path],
         data_processor: MatrixDataProcessor,
         labels: bool = True,
         **kwargs,
-    ) -> "BasisMatrixData":
+    ) -> DataType:
         """Creates a new basis matrix data object.
 
         If `obj` is a configuration, the `from_config` method is called.
@@ -1711,8 +1736,8 @@ class BasisMatrixDataBase(Generic[ArrayType]):
 
     @classmethod
     def from_config(
-        cls, config: BasisConfiguration, data_processor: MatrixDataProcessor, nsc=None
-    ) -> "BasisMatrixData":
+        cls: Type[DataType], config: BasisConfiguration, data_processor: MatrixDataProcessor, nsc=None
+    ) -> DataType:
         """Creates a basis matrix data object from a configuration.
 
         Parameters
@@ -1775,9 +1800,9 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         supercell = sisl.Lattice(config.cell, nsc=nsc)
 
         # Get the edge types
-        edge_types = data_processor.basis_table.point_type_to_edge_type(
+        edge_types = cast(np.ndarray, data_processor.basis_table.point_type_to_edge_type(
             indices[edge_index]
-        )
+        ))
 
         # Sort the edges to make it easier for the reading routines
         data_processor.sort_edge_index(
@@ -1837,7 +1862,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             out_format, data=self, threshold=threshold, **kwargs
         )
 
-    def node_types_subgraph(self, node_types: np.ndarray) -> "BasisMatrixData":
+    def node_types_subgraph(self: DataType, node_types: np.ndarray) -> DataType:
         """Returns a subgraph with only the nodes of the given types.
 
         If the BasisMatrixData has labels (i.e. a matrix), this function will

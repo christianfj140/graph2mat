@@ -41,6 +41,7 @@ from collections import namedtuple
 from collections.abc import Callable, Mapping
 from functools import cached_property
 from warnings import warn
+from typing import cast
 
 
 def strip_blank_lines(l):
@@ -129,6 +130,8 @@ class Reader:
 
 
 class ParseError(Exception):
+    docstring: str
+
     def __str__(self):
         message = self.args[0]
         if hasattr(self, "docstring"):
@@ -335,6 +338,7 @@ class NumpyDocString(Mapping):
             m = self._func_rgx.match(text)
             if not m:
                 self._error_location(f"Error parsing See Also entry {line!r}")
+            m = cast(re.Match[str], m)
             role = m.group("role")
             name = m.group("name") if role else m.group("name2")
             return name, role, m.end()
@@ -626,7 +630,7 @@ class FunctionDoc(NumpyDocString):
             func = self._f
         return func, func_name
 
-    def __str__(self):
+    def __str__(self, func_role=None):
         out = ""
 
         func, func_name = self.get_func()
@@ -638,7 +642,9 @@ class FunctionDoc(NumpyDocString):
                 print(f"Warning: invalid role {self._role}")
             out += f".. {roles.get(self._role, '')}:: {func_name}\n    \n\n"
 
-        out += super().__str__(func_role=self._role)
+        out += cast(Callable[..., str], super().__str__)(
+            func_role=self._role if func_role is None else func_role
+        )
         return out
 
 
@@ -716,7 +722,7 @@ class ClassDoc(NumpyDocString):
             for name, func in inspect.getmembers(self._cls)
             if (
                 (not name.startswith("_") or name in self.extra_public_methods)
-                and isinstance(func, Callable)
+                and isinstance(func, cast(type, Callable))
                 and self._is_show_member(name)
             )
         ]
@@ -774,7 +780,7 @@ def get_doc_object(
             what = "class"
         elif inspect.ismodule(obj):
             what = "module"
-        elif isinstance(obj, Callable):
+        elif isinstance(obj, cast(type, Callable)):
             what = "function"
         else:
             what = "object"

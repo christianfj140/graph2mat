@@ -7,6 +7,32 @@ from graph2mat import OrbitalMatrixMetric
 REQUIRED_KWARGS = {"block_type_mse_per_domain": {"domain_threshold_atoms": 2}}
 
 
+def test_config_resolved_metric_returns_empty_array_for_empty_batch():
+    import numpy as np
+    import torch
+    from torch_geometric.data import Batch
+    from graph2mat import BasisTableWithEdges, PointBasis
+    from graph2mat.bindings.torch import TorchBasisMatrixData
+    from graph2mat.core.data.metrics import elementwise_mse
+
+    batch = Batch(_base_cls=TorchBasisMatrixData)
+    batch._num_graphs = 0
+    batch.ptr = torch.tensor([0])
+    batch.n_edges = torch.empty(0, dtype=torch.long)
+    batch.point_types = torch.empty(0, dtype=torch.long)
+    batch.edge_types = torch.empty(0, dtype=torch.long)
+    empty = torch.empty(0)
+    values, stats = elementwise_mse(
+        config_resolved=True, batch=batch,
+        basis_table=BasisTableWithEdges([PointBasis("A", R=1, basis=[1])]),
+        symmetric_matrix=True, nodes_pred=empty, nodes_ref=empty,
+        edges_pred=empty, edges_ref=empty,
+    )
+    assert isinstance(values, np.ndarray)
+    assert values.shape == (0,)
+    assert stats == {}
+
+
 # Test that all metrics run
 @pytest.mark.parametrize(
     "metric",

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, cast
 
 from dataclasses import dataclass, field
 import numpy as np
 
 from ..basis_matrix import BasisMatrix
-from ...table import AtomicTableWithEdges
+from ...table import AtomicTableWithEdges, BasisTableWithEdges
 
 OrbitalCount = np.ndarray  # [num_atoms]
 
@@ -41,9 +41,9 @@ class OrbitalMatrix(BasisMatrix):
         self.basis_count = self.orbital_count
 
     def get_point_matrices(
-        self, basis_table: AtomicTableWithEdges
+        self, basis_table: BasisTableWithEdges
     ) -> Dict[int, np.ndarray]:
-        return self.get_atomic_matrices(basis_table)
+        return self.get_atomic_matrices(cast(AtomicTableWithEdges, basis_table))
 
     def get_atomic_matrices(self, z_table: AtomicTableWithEdges):
         """"""

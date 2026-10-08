@@ -1,0 +1,6 @@
+# Static-checking environment (Python 3.12); not runtime requirements.
+# NumPy 1.26 supplies real stubs compatible with the Python 3.9 target.
+ruff==0.16.10
+mypy==1.19.1
+numpy==1.26.4
+pre-commit==4.6.2

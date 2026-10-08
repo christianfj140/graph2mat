@@ -466,11 +466,12 @@ class ConversionManager:
             def _composite(*args, **kwargs):
                 # Find the first argument, which will be passed to the expansion
                 if len(args) > 0:
-                    first_arg, *args = args
+                    first_arg, *remaining_args = args
                 else:
                     first_arg = kwargs.pop(first_param.name)
+                    remaining_args = list(args)
                 # Call the converter with the first argument converted
-                return old_converter(expansion(first_arg), *args, **kwargs)
+                return old_converter(expansion(first_arg), *remaining_args, **kwargs)
 
         elif expansion_source == old_target:
             # Converter expanded "to the right"
@@ -493,10 +494,10 @@ class ConversionManager:
         # Make the function look nice to the outside world
         _composite.__name__ = f"{path[0]}_to_{path[-1]}"
         _composite.__qualname__ = f"{path[0]}_to_{path[-1]}"
-        _composite.__signature__ = signature
+        setattr(_composite, "__signature__", signature)
         _composite.__annotations__ = annotations
-        _composite._converter_path = path
-        _composite._explicit_converter = explicit_converter
+        setattr(_composite, "_converter_path", path)
+        setattr(_composite, "_explicit_converter", explicit_converter)
 
         prev_format = path[0]
         full_path_string = ""
@@ -547,12 +548,12 @@ class ConversionManager:
 
     @overload
     def converter(
-        self, source: str, target: str, exists_ok: bool = False
+        self, source: str, target: str, /, *, exists_ok: bool = False
     ) -> Callable[[Callable], Callable]:
         ...
 
     @overload
-    def converter(self, converter: Callable, exists_ok: bool = False) -> Callable:
+    def converter(self, converter: Callable, /, *, exists_ok: bool = False) -> Callable:
         ...
 
     def converter(self, *args, exists_ok: bool = False):

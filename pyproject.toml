@@ -162,3 +162,29 @@ skip = [
 [tool.black]
 line-length = 88
 target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+target-version = "py39"
+include = ["src/graph2mat/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.lint]
+# Semantic errors first; formatting stays with the existing Black/isort hooks.
+select = ["E9", "F63", "F7", "F82", "F811", "B015", "PLR0133"]
+
+[tool.mypy]
+python_version = "3.9"
+files = ["src/graph2mat/core"]
+exclude = ["/tests/"]
+ignore_missing_imports = true
+check_untyped_defs = true
+follow_imports = "silent"
+
+[[tool.mypy.overrides]]
+# Optional scientific/ML libraries are opaque to this base-core gate.
+# NumPy is deliberately NOT skipped: use real Python-3.9-compatible stubs.
+module = ["torch.*", "torch_geometric.*", "sisl.*", "scipy.*", "ase.*", "e3nn.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true

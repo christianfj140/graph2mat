@@ -1,6 +1,20 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.16.10
+  hooks:
+    - id: ruff-check
+      files: ^(src/graph2mat|tests)/.*\.py$
+- repo: local
+  hooks:
+    - id: mypy-core
+      name: mypy (base core, Python 3.9 target)
+      entry: python -m mypy --config-file pyproject.toml
+      language: python
+      additional_dependencies: [mypy==1.19.1, numpy==1.26.4]
+      files: ^src/graph2mat/core/.*\.py$
+      pass_filenames: false
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:

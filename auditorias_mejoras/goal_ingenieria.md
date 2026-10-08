@@ -747,6 +747,69 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   Gates configurados/ejecutados en CI y tipos siguen pendientes, igual que el
   resto del alcance de 3.1/3.4/3.5/3.9 y la revisión final del objetivo entero.
 
+### Sublote 3.9.g.3 — contratos de tipos del núcleo y gates locales
+
+- Reanudación en HEAD **2ca32dc**, rama g2m-v2; se conservan cambios y archivos
+  ajenos. El gate completo previo 1037/2 no cubre este sublote sin commit.
+- Checker Python 3.9 con NumPy 1.26.4 real: de **210 errores / 13 archivos** a
+  **173 / 8**, luego **123 / 6**, sin desactivar errores propios del núcleo
+  (core-types-basis-progress.log, core-types-sparse-progress.log).
+- Contratos corregidos: bases canónicas tras saneamiento, referencias opcionales,
+  mapas identidad, shape multicanal, registro de features, diccionario de bloques
+  y helpers NumPy/Torch. Casts sobre invariantes ya validados; fórmulas intactas.
+- RED real previo: igualdad con referencias None (dos casos) y FunctionDoc con
+  func_role explícito. GREEN distingue ausencia de referencia y conserva el rol
+  predeterminado. Caracterización Callable con __call__=None mantiene su dispatch.
+- Runtime primer sublote: **671 passed, 1 skipped**, 4067 warnings, 33.56 s
+  (core-types-basis-runtime.log). Segundo: **599 passed, 1 skipped**, 425 warnings,
+  6.39 s (core-types-sparse-runtime.log), con datos Torch y ocho checkpoints.
+- RED adicional **6 failed**, 114 deselected, 47 warnings, 0.11 s
+  (core-types-processing-boundaries-red.log): neigh_isc sin edge_index,
+  coordenadas sin procesador (tres campos) y reconstrucción sin referencias
+  (tabla completa ausente o entrada None). Guardas compartidas rechazan datos
+  inválidos con causa clara; referencias/etiquetas originales no se mutan.
+- GREEN cercano **155 passed**, 184 warnings, 2.51 s
+  (core-types-processing-green.log); mypy baja a **75 errores / 3 archivos**.
+  Se corrigen los contratos de clases/arrays, retornos de factories conservan
+  la subclase NumPy/Torch, tablas/grupos y strings de claves reales del readout.
+  No se introducen imports ML obligatorios ni cambian las fórmulas/orden de bloques.
+- RED batch vacío real de PyG: **1 failed**, 89 deselected, 47 warnings, 0.05 s
+  (core-types-empty-metric-red.log): config_resolved devuelve None. Se inicializa
+  el array antes de iterar, preservando resultados para batches no vacíos.
+  GREEN datos **571 passed, 1 skipped**, 206 warnings, 3.78 s.
+- La primera fixture de coeficientes omitía preprocessing_edges=None y falló
+  antes del bug: no es RED válido (core-types-empty-coefficients-red.log).
+  Fixture corregida con E3nnGraph2Mat real: **2 failed**, 10 deselected,
+  62 warnings, 0.20 s (core-types-empty-coefficients-real-red.log). Reconstrucción
+  vacía conserva dtype/device si hay tensors vacíos; sin ellos usa defaults Torch.
+- GREEN enfocado final **703 passed, 2 skipped**, 2028 warnings, 23.06 s
+  (core-types-final-focused.log). Sondeo de tipos **0 errores / 22 fuentes**
+  (core-types-all-green.log), frente a 210 originales; sin ignores propios.
+- Gates persistentes: Ruff 0.16.10 semántico sobre paquete/tests, mypy 1.19.1
+  sobre todo core no-test con target py39, NumPy real 1.26.4; hooks y job quality.
+  Ruling: conservar Black/isort y darles profile=black; Ruff vigila errores
+  semánticos, no migra formato/estilo de todo el repo — satisface el gate de
+  nombres/redefiniciones sin ampliar este lote a una reescritura mecánica; cuesta
+  mantener formateadores separados. No se ignoran errores propios de mypy.
+- Instalación de checkers real aislada /tmp/g2m-static-gates.YpKMAH/venv:
+  exit 0 (core-types-quality-clean-install.log). Primer hook con PYTHONPATH del
+  overlay falló por ejecutable Ruff ausente (core-types-ruff-hook.log); repetido
+  sin overlay en venv limpio: Ruff y mypy **Passed**, exit 0
+  (core-types-ruff-hook-clean.log, core-types-mypy-hook-clean.log). Comando directo
+  del checker con pyproject también comprueba 22 fuentes y sale 0.
+  CI remota queda configurada, no se afirma ejecutada.
+- Wheel compilada con build isolation: exit 0 (core-types-wheel-build.log),
+  sha256 9cbf4c8663d5ccfe8e8508f228a086e2efa6fa599157b35e1ab20e3f27970a52;
+  venv base limpio /tmp/g2m-types-wheel.NmY0Ac/venv, sin Torch/PyG/e3nn/MACE/PL
+  ni Cython runtime. pip check y graph2mat --help exit 0. **15 passed**, ocho
+  deselected, 8.30 s (core-types-wheel-base-tests.log). Python -I confirma import
+  desde site-packages y _sparse.so; H polarizado reconstruye literalmente
+  [[2,.25],[.25,3]] y [[-1,.125],[.125,-2]], por el conversor compilado.
+- Gate CPU completo del árbol congelado: **1050 passed, 2 skipped**, 6726 warnings,
+  137.83 s, exit 0 (core-types-full-cpu.log), DScribe presente. Las omisiones
+  conocidas son fixture H local y GPU compile, no las nuevas regresiones.
+  Los otros requisitos de 3.1/3.4/3.5/3.9 y la revisión final siguen abiertos.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

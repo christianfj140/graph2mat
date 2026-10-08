@@ -7,7 +7,7 @@ A future refactoring will probably make use of ``sisl``, since this
 is the only place we depend on ASE explicitly.
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import ase.neighborlist
 import numpy as np
@@ -15,7 +15,7 @@ import numpy as np
 
 def get_neighborhood(
     positions: np.ndarray,  # [num_positions, 3]
-    cutoff: float,
+    cutoff: Union[float, np.ndarray],
     pbc: Optional[Tuple[bool, bool, bool]] = None,
     cell: Optional[np.ndarray] = None,  # [3, 3]
     true_self_interaction=False,

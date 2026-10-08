@@ -23,6 +23,30 @@ class _Batch(dict):
         return self[key]
 
 
+@pytest.mark.parametrize("empty_tensors", [False, True])
+def test_empty_coefficients_reconstruct_empty_labels(empty_tensors):
+    readout = E3nnGraph2Mat(
+        unique_basis=[PointBasis("H", R=1, basis=[1])],
+        irreps={"node_feats_irreps": o3.Irreps("1x0e")},
+        symmetric=True, preprocessing_edges=None,
+        node_operation=E3nnDiagnosticDenseNodeBlock,
+        edge_operation=E3nnDiagnosticDenseEdgeBlock,
+    )
+    batch = _Batch(
+        point_types=torch.empty(0, dtype=torch.long),
+        edge_types=torch.empty(0, dtype=torch.long),
+        edge_index=torch.empty((2, 0), dtype=torch.long),
+    )
+    coefficients = {"node": {}, "edge": {}}
+    if empty_tensors:
+        coefficients["node"]["node:0"] = torch.empty((0, 1), dtype=torch.float64)
+        coefficients["edge"]["edge:(0, 0, 0)"] = torch.empty((0, 1), dtype=torch.float64)
+    labels = coefficients_to_labels(readout, batch, readout.basis_table, coefficients)
+    for key in ("node_labels", "edge_labels"):
+        assert labels[key].shape == (0,)
+        assert labels[key].dtype == (torch.float64 if empty_tensors else torch.get_default_dtype())
+
+
 def _assert_has_nonzero_parameter_gradient(module):
     grads = [
         param.grad

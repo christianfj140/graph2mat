@@ -246,7 +246,7 @@ class BasisConfiguration:
     @classmethod
     def from_run(
         cls,
-        runfilepath: Union[str, Path],
+        runfilepath: Union[str, Path, zipfile.Path],
         geometry_path: Optional[Union[str, Path]] = None,
         out_matrix: Optional[PhysicsMatrixType] = None,
         basis: Optional[sisl.Atoms] = None,
@@ -509,7 +509,7 @@ def _sisl_to_orbital_configuration(
 
 @converter(Formats.SISL_SILE, Formats.ORBITALCONFIGURATION)
 def _sisl_run_to_orbitalconfiguration(
-    runfilepath: Union[str, Path],
+    runfilepath: Union[str, Path, zipfile.Path],
     geometry_path: Optional[Union[str, Path]] = None,
     out_matrix: Optional[PhysicsMatrixType] = None,
     cls: type[OrbitalConfiguration] = OrbitalConfiguration,
@@ -635,9 +635,9 @@ def _sisl_run_to_orbitalconfiguration(
 
         if geometry_path is not None:
             # If we have a geometry path, we will read the geometry from there.
-            from ase.io import read
+            from ase.io import read as read_geometry_file
 
-            new_geometry = sisl.Geometry.new(read(geometry_path))
+            new_geometry = sisl.Geometry.new(read_geometry_file(geometry_path))
             geometry = _copy_basis(geometry, new_geometry, notfound_ok=True)
 
         metadata["geometry"] = geometry

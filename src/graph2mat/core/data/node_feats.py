@@ -9,13 +9,14 @@ incorporate the total dipole of water as a global descriptor into
 MACE.
 """
 import numpy as np
+from typing import Dict, Type
 
 
 class NodeFeature:
     def __new__(cls, config, data_processor):
         return cls.get_feature(config, data_processor)
 
-    registry = {}
+    registry: Dict[str, Type["NodeFeature"]] = {}
 
     def __init_subclass__(cls) -> None:
         NodeFeature.registry[cls.__name__] = cls

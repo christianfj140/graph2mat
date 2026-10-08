@@ -45,7 +45,7 @@ class BasisMatrix:
         if block is not None:
             return block
         sample = next(iter(self.block_dict.values()), None)
-        component_shape = (() if self._n_components == 1 else (self._n_components,))
+        component_shape: Tuple[int, ...] = (() if self._n_components == 1 else (self._n_components,))
         if sample is not None:
             component_shape = sample.shape[2:]
         shape = (self.basis_count[i], self.basis_count[j], *component_shape)

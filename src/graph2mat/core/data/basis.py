@@ -1,6 +1,6 @@
 """Utilities to describe a basis set for a point type."""
 
-from typing import Union, Literal, Tuple, Sequence
+from typing import Union, Literal, Tuple, Sequence, cast
 from numbers import Number
 import itertools
 
@@ -13,7 +13,7 @@ _basis_orderings = list(itertools.permutations([0, 1, 2], 3))
 _basis_signs = list(itertools.product([-1, 1], repeat=3))
 _x_y_z = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
-_change_of_basis_conventions: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+_basis_rotations: dict[str, np.ndarray] = {}
 
 # Add all possible (-)[xyz](-)[xyz](-)[xyz] basis conventions.
 for ordering in _basis_orderings:
@@ -23,10 +23,11 @@ for ordering in _basis_orderings:
 
         # Multiply the rows of ordered_basis by the signs.
         # We convert to float *after* the multiplication to avoid having "-0." values.
-        _change_of_basis_conventions[name] = (ordered_basis.T * signs).T.astype(float)
+        _basis_rotations[name] = (ordered_basis.T * signs).T.astype(float)
 
-for k, matrix in _change_of_basis_conventions.items():
-    _change_of_basis_conventions[k] = (matrix, np.linalg.inv(matrix))
+_change_of_basis_conventions: dict[str, tuple[np.ndarray, np.ndarray]] = {
+    name: (matrix, np.linalg.inv(matrix)) for name, matrix in _basis_rotations.items()
+}
 
 # Some aliases to facilitate life for users.
 _change_of_basis_conventions.update(
@@ -41,6 +42,8 @@ _change_of_basis_conventions.update(
 BasisConvention = Union[
     str, Literal["cartesian", "spherical", "siesta_spherical", "qe_spherical"]
 ]
+BasisSpecification = Union[str, Sequence[Union[int, Tuple[int, int, int]]]]
+CanonicalBasis = Tuple[Tuple[int, int, int], ...]
 
 
 def _check_orbital_order(atom: sisl.Atom):
@@ -199,7 +202,7 @@ class PointBasis:
 
     type: Union[str, int]
     R: Union[float, np.ndarray]
-    basis: Union[str, Sequence[Union[int, Tuple[int, int, int]]]] = ()
+    basis: BasisSpecification = ()
     basis_convention: BasisConvention = "spherical"
 
     def __post_init__(self):
@@ -212,8 +215,8 @@ class PointBasis:
         ), f"R must be a float or an array of length {self.basis_size} (the number of functions)."
 
     def _sanitize_basis(
-        self, basis: Union[Sequence[int], str]
-    ) -> Tuple[Tuple[int, int, int], ...]:
+        self, basis: BasisSpecification
+    ) -> CanonicalBasis:
         """Sanitizes the basis ensuring that it is a tuple of tuples."""
 
         def _get_sphericalharm_parity(l: int) -> int:
@@ -233,17 +236,17 @@ class PointBasis:
 
                 vals = irreps.split("x")
                 if len(vals) == 2:
-                    mul, l = vals
+                    mul_text, l_text = vals
                 else:
-                    mul = 1
-                    l = vals[0]
+                    mul_text = "1"
+                    l_text = vals[0]
 
-                parity = l.strip()[-1:] if l.strip()[-1:] in ("e", "o") else None
-                l = int(l.replace("e", "").replace("o", ""))
+                parity = l_text.strip()[-1:] if l_text.strip()[-1:] in ("e", "o") else None
+                l = int(l_text.replace("e", "").replace("o", ""))
                 if parity is not None and parity != "eo"[l % 2]:
                     # Orbitals are spherical harmonics: their parity is always (-1)^l.
                     raise ValueError(f"Basis irrep {irreps!r}: an l={l} orbital has parity '{'eo'[l % 2]}'.")
-                mul = int(mul)
+                mul = int(mul_text)
                 san_basis.append((mul, l, _get_sphericalharm_parity(l)))
 
             return tuple(san_basis)
@@ -257,7 +260,7 @@ class PointBasis:
         """Returns the irreps in the e3nn format."""
         from e3nn import o3
 
-        return o3.Irreps((mul, (l, p)) for mul, l, p in self.basis)
+        return o3.Irreps((mul, (l, p)) for mul, l, p in cast(CanonicalBasis, self.basis))
 
     def copy(self, **kwargs):
         return dataclasses.replace(self, **kwargs)
@@ -274,7 +277,7 @@ class PointBasis:
     @property
     def basis_size(self) -> int:
         """Returns the number of basis functions per point."""
-        return sum(n * (2 * l + 1) for n, l, _ in self.basis)
+        return sum(n * (2 * l + 1) for n, l, _ in cast(CanonicalBasis, self.basis))
 
     @property
     def num_sets(self) -> int:
@@ -283,7 +286,7 @@ class PointBasis:
         E.g. for a basis with 3 l=0 functions and 2 sets of l=1 functions, this
         returns 5.
         """
-        return sum(n for n, _, _ in self.basis)
+        return sum(n for n, _, _ in cast(CanonicalBasis, self.basis))
 
     def maxR(self) -> float:
         """Returns the maximum reach of the basis."""
@@ -332,7 +335,7 @@ class PointBasis:
         )
 
         i = 0
-        for n_shells, l, parity in self.basis:
+        for n_shells, l, parity in cast(CanonicalBasis, self.basis):
             for izeta in range(n_shells):
                 for m in range(-l, l + 1):
                     orb = sisl.AtomicOrbital(n=3, l=l, m=m, zeta=izeta + 1, R=R[i])

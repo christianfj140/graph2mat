@@ -66,6 +66,21 @@ We are very open to suggestions, contributions, discussions...
 
 We are looking forward to your contributions!
 
+The static gates use an isolated Python 3.12 environment:
+
+```bash
+python3.12 -m venv .venv-quality
+.venv-quality/bin/python -m pip install -r requirements-quality.txt
+.venv-quality/bin/pre-commit run ruff-check --all-files
+.venv-quality/bin/pre-commit run mypy-core --all-files
+```
+
+Ruff checks semantic errors across package code and tests. Black and isort
+retain formatting ownership with a common Black profile. Mypy checks the base
+core against Python 3.9 and real NumPy types; optional scientific/ML dependencies
+are opaque. Checker pins do not constrain the package's runtime environment.
+Run the full test suite separately with the test/server/extrapolation extras.
+
 The `graph2mat` package was originally created by Peter Bjørn Jorgensen (@peterbjorgensen) and Pol Febrer (@pfebrer) in the frame of a collaboration to machine learn density matrices. 
 
 Since then, the following users have contributed to the code:

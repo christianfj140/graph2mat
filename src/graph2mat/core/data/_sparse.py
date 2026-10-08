@@ -56,7 +56,7 @@ def _csr_to_block_dict(
 
     no = atom_first_orb[n_atoms]
 
-    block_dict = {}
+    block_dict: dict[tuple[int, int, int], np.ndarray] = {}
     for atom_i in range(n_atoms):
         # Get the orbital limits of the block
         atomi_firsto = atom_first_orb[atom_i]

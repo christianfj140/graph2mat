@@ -3,7 +3,7 @@
 Different sparse representations of a matrix are required during the different
 steps of a typical workflow using `graph2mat`.
 """
-from typing import Dict, Tuple, Type, Optional, Callable, Any, Sequence, Union
+from typing import Dict, Tuple, Type, Optional, Callable, Any, Sequence, Union, TypeVar, Iterable, List
 
 import itertools
 from functools import partial
@@ -44,6 +44,7 @@ conversions.add_callback(register_all_sisl)
 # -----------------------------------------------
 
 converter = conversions.converter
+_ArrayType = TypeVar("_ArrayType", bound=Any)
 
 
 @converter
@@ -106,17 +107,17 @@ def csr_to_block_dict(
     data = spmat.data
 
     if component_indices is not None:
-        component_indices = np.asarray(component_indices, dtype=np.int64)
-        if component_indices.ndim != 1:
+        selected_components = np.asarray(component_indices, dtype=np.int64)
+        if selected_components.ndim != 1:
             raise ValueError("component_indices must be a 1D sequence of integers.")
-        if component_indices.size == 0:
+        if selected_components.size == 0:
             raise ValueError("component_indices must select at least one component.")
-        if component_indices.min() < 0 or component_indices.max() >= data.shape[1]:
+        if selected_components.min() < 0 or selected_components.max() >= data.shape[1]:
             raise ValueError(
                 "component_indices contains an out-of-range component index: "
-                f"indices={component_indices.tolist()}, n_components={data.shape[1]}."
+                f"indices={selected_components.tolist()}, n_components={data.shape[1]}."
             )
-        data = data[:, component_indices]
+        data = data[:, selected_components]
 
     if data.shape[1] == 1:
         block_dict = _csr_to_block_dict(
@@ -141,6 +142,7 @@ def csr_to_block_dict(
 
     orbitals = geometry_atoms.orbitals if geometry_atoms is not None else atoms.orbitals
 
+    matrix: BasisMatrix
     if issubclass(matrix_cls, OrbitalMatrix):
         matrix = matrix_cls(block_dict=block_dict, nsc=nsc, orbital_count=orbitals)
     else:
@@ -161,7 +163,7 @@ def block_dict_to_coo(
 
     Conversions to any other sparse structure can be done once we've got the coo array.
     """
-    data = []
+    data: List[Any] = []
     rows = []
     cols = []
 
@@ -188,10 +190,10 @@ def block_dict_to_coo(
 
 
 def _blockmatrix_coo_coords(
-    orbitals: ArrayLike,
-    edge_index: ArrayLike,
+    orbitals: Union[Sequence[int], np.ndarray],
+    edge_index: _ArrayType,
     n_supercells: int = 1,
-    edge_neigh_isc: Optional[ArrayLike] = None,
+    edge_neigh_isc: Optional[Union[Sequence[int], np.ndarray]] = None,
     symmetrize_edges: bool = False,
 ):
     """Returns the coo cordinates of a block matrix.
@@ -258,13 +260,14 @@ def _blockmatrix_coo_coords(
     cols_symm = []
 
     # Assume unit cell interactions if edge_neigh_isc is not provided
+    isc_values: Iterable[int]
     if edge_neigh_isc is None:
-        edge_neigh_isc = itertools.repeat(0)
+        isc_values = itertools.repeat(0)
     else:
-        edge_neigh_isc = np.array(edge_neigh_isc)
+        isc_values = np.array(edge_neigh_isc)
 
     for i_edge, ((i_at, j_at), neigh_isc) in enumerate(
-        zip(edge_index.T, edge_neigh_isc)
+        zip(edge_index.T, isc_values)
     ):
         i_start = first_orb[i_at]
         i_end = i_start + orbitals[i_at]
@@ -299,14 +302,14 @@ def _blockmatrix_coo_coords(
 
 
 def _nodes_and_edges_to_coo(
-    concatenate: Callable[[tuple[ArrayLike, ArrayLike, ArrayLike]], ArrayLike],
-    init_coo: Callable[[ArrayLike, np.ndarray, np.ndarray, tuple[int, int]], Any],
-    node_vals: ArrayLike,
-    edge_vals: ArrayLike,
-    edge_index: ArrayLike,
-    orbitals: ArrayLike,
+    concatenate: Callable[[Sequence[_ArrayType]], _ArrayType],
+    init_coo: Callable[[_ArrayType, np.ndarray, np.ndarray, tuple[int, int]], Any],
+    node_vals: _ArrayType,
+    edge_vals: _ArrayType,
+    edge_index: _ArrayType,
+    orbitals: Union[Sequence[int], np.ndarray],
     n_supercells: int = 1,
-    edge_neigh_isc: Optional[ArrayLike] = None,
+    edge_neigh_isc: Optional[Union[Sequence[int], np.ndarray]] = None,
     threshold: Optional[float] = None,
     symmetrize_edges: bool = False,
 ) -> Any:

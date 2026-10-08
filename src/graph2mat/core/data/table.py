@@ -15,12 +15,12 @@ different points. Therefore, these tables also need to keep track of edge types.
 import itertools
 from io import StringIO
 from pathlib import Path
-from typing import Callable, Generator, List, Literal, Optional, Sequence, Union
+from typing import Callable, Generator, List, Literal, Optional, Sequence, Union, cast
 
 import numpy as np
 import sisl
 
-from .basis import BasisConvention, PointBasis, get_change_of_basis
+from .basis import BasisConvention, CanonicalBasis, PointBasis, get_change_of_basis
 
 
 class IdentityTypeMap:
@@ -71,7 +71,7 @@ class BasisTableWithEdges:
     types: List[Union[str, int]]
 
     #: The matrix that is constant for each type of point.
-    point_matrix: Union[List[np.ndarray], None]
+    point_matrix: Optional[List[Optional[np.ndarray]]]
     #: The edge type for each pair of point types.
     #: Array of shape (n_point_types, n_point_types).
     edge_type: np.ndarray
@@ -242,7 +242,8 @@ class BasisTableWithEdges:
             if other.point_matrix is None:
                 return False
             same &= all(
-                np.allclose(x, y)
+                (x is None and y is None)
+                or (x is not None and y is not None and np.allclose(x, y))
                 for x, y in itertools.zip_longest(self.point_matrix, other.point_matrix)
             )
 
@@ -257,7 +258,7 @@ class BasisTableWithEdges:
 
     def group(
         self, grouping: Literal["basis_shape", "point_type", "max"]
-    ) -> tuple["BasisTableWithEdges", np.ndarray, np.ndarray, Optional[np.ndarray]]:
+    ) -> tuple["BasisTableWithEdges", Union[np.ndarray, IdentityTypeMap], Union[np.ndarray, IdentityTypeMap], Optional[np.ndarray]]:
         r"""Groups the basis in this table and creates a new table.
 
         It also returns useful objects to convert between the ungrouped
@@ -320,6 +321,8 @@ class BasisTableWithEdges:
 
         """
         filters = None
+        point_type_conversion: Union[np.ndarray, IdentityTypeMap]
+        edge_type_conversion: Union[np.ndarray, IdentityTypeMap]
         if grouping == "point_type":
             new_table = self
             point_type_conversion = IdentityTypeMap()
@@ -328,7 +331,7 @@ class BasisTableWithEdges:
             # Get all basis sizes:
             basis_sizes = np.zeros((len(self.basis), 5), dtype=int)
             for i, point_type_basis in enumerate(self.basis):
-                for n, l, _ in point_type_basis.basis:
+                for n, l, _ in cast(CanonicalBasis, point_type_basis.basis):
                     basis_sizes[i, l] += n
 
             # Get the unique basis sizes
@@ -360,7 +363,7 @@ class BasisTableWithEdges:
             # Get all basis sizes:
             basis_sizes = np.zeros((len(self.basis), 5), dtype=int)
             for i, point_type_basis in enumerate(self.basis):
-                for n, l, _ in point_type_basis.basis:
+                for n, l, _ in cast(CanonicalBasis, point_type_basis.basis):
                     basis_sizes[i, l] += n
 
             # Maximum sizes:
@@ -421,7 +424,7 @@ class BasisTableWithEdges:
         """
         return self.types.index(point_type)
 
-    def types_to_indices(self, types: Sequence) -> np.ndarray:
+    def types_to_indices(self, types: Union[Sequence, np.ndarray]) -> np.ndarray:
         """Converts from an array of types IDs to their indices in the basis table.
 
         Parameters
@@ -459,7 +462,7 @@ class BasisTableWithEdges:
         """Maximum cutoff radius in the basis."""
         return self.R.max()
 
-    def point_block_pointer(self, point_types: Sequence[int]) -> np.ndarray:
+    def point_block_pointer(self, point_types: Union[Sequence[int], np.ndarray]) -> np.ndarray:
         """Pointers to the beggining of node blocks in a flattened matrix.
 
         Given a flat array that contains all the elements of the matrix
@@ -478,7 +481,7 @@ class BasisTableWithEdges:
         np.cumsum(self.point_block_size[point_types], out=pointers[1:])
         return pointers
 
-    def edge_block_pointer(self, edge_types: Sequence[int]):
+    def edge_block_pointer(self, edge_types: Union[Sequence[int], np.ndarray]):
         """Pointers to the beggining of edge blocks in a flattened matrix.
 
         Given a flat array that contains all the elements of the matrix
@@ -640,7 +643,7 @@ class AtomicTableWithEdges(BasisTableWithEdges):
         return obj
 
     def _set_state_by_atoms(self, atoms: Sequence[sisl.Atom]):
-        self.__init__(atoms)
+        type(self).__init__(self, atoms)
 
     def _set_state_by_filecontents(
         self, file_names: List[str], file_contents: List[str]
@@ -652,7 +655,7 @@ class AtomicTableWithEdges(BasisTableWithEdges):
             sile_class = sisl.get_sile_class(fname)
             with sile_class(f) as sile:
                 atom_list.append(sile.read_basis())
-        self.__init__(atom_list)
+        type(self).__init__(self, atom_list)
         self.file_names = file_names.copy()
         self.file_contents = file_contents.copy()
 
