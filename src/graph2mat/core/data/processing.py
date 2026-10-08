@@ -40,7 +40,11 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    TYPE_CHECKING,
 )
+
+if TYPE_CHECKING:
+    from .metrics import OrbitalMatrixMetric
 
 import numpy as np
 import sisl

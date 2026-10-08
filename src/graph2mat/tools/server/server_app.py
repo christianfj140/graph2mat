@@ -36,13 +36,17 @@ try:
     from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
     from fastapi.templating import Jinja2Templates
     from fastapi.staticfiles import StaticFiles
-except ImportError as e:
+except ModuleNotFoundError as exc:
+    if exc.name != "fastapi":
+        raise
 
     class FastAPI:
+        _import_error = exc
+
         def __init__(self, *args, **kwargs):
             raise ImportError(
-                "You need to install fastapi to initialize a server."
-            ) from e
+                "Install graph2mat[server] to initialize a server."
+            ) from self._import_error
 
         def get(self, *args, **kwargs):
             def decorator(func):

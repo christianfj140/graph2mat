@@ -6,6 +6,37 @@ import sys
 import pytest
 
 
+@pytest.mark.parametrize("missing", ["fastapi", "starlette"])
+def test_server_missing_dependency_preserves_cause(missing):
+    code = r'''
+import importlib.abc
+import sys
+
+missing = sys.argv[1]
+class MissingFastAPI(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.partition(".")[0] == "fastapi":
+            raise ModuleNotFoundError("simulated missing: " + missing, name=missing)
+
+sys.meta_path.insert(0, MissingFastAPI())
+try:
+    from graph2mat.tools.server.server_app import create_server_app
+    create_server_app({})
+except ImportError as exc:
+    if missing == "fastapi":
+        assert "graph2mat[server]" in str(exc)
+        assert isinstance(exc.__cause__, ModuleNotFoundError)
+        assert exc.__cause__.name == "fastapi"
+    else:
+        assert isinstance(exc, ModuleNotFoundError)
+        assert exc.name == "starlette"
+else:
+    raise AssertionError("The server cannot start without its dependency")
+'''
+    result = subprocess.run([sys.executable, "-c", code, missing], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
 SMOKE = r'''
 import importlib.abc
 import sys

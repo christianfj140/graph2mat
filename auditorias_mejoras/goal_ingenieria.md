@@ -684,6 +684,44 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   checker compatible con la compatibilidad declarada; no subir el mínimo Python
   para hacer pasar el gate. Aún no hay gate de tipos verificado ni CI de calidad.
 
+### Sublote 3.9.g.1 — nombres indefinidos con regresiones reales
+
+- Extrapolación anterior comprometida en **187402e**. Sin cambios a entrenamientos,
+  colas, g2m_autorun.py ni al entorno compartido.
+- RED de ejecución: **7 failed, 134 deselected**, 52 warnings, 5.77 s
+  (ruff-undefined-runtime-red.log). Cuatro patrones ZIP con clases de caracteres
+  fallan en _re_setops_sub; get_type_hints falla en ndarray; dos subprocesses
+  reproducen el NameError del fallback FastAPI, también cuando falta starlette.
+- Parche mínimo: restaurar la sustitución de operadores del helper vendorizado,
+  np.ndarray en la anotación y conservar la excepción como atributo de clase del
+  fallback. Solo ausencia del paquete raíz fastapi activa el fallback; una
+  dependencia interna rota se propaga. El error indica graph2mat[server].
+- OrbitalMatrixMetric se importa bajo TYPE_CHECKING: resuelve la referencia del
+  checker sin introducir el ciclo metrics→processing→metrics ni nuevos imports
+  opcionales en el núcleo. Su import de ejecución sigue local a compute_metrics.
+- GREEN cercano: **150 passed**, 178 warnings, 24.47 s
+  (ruff-undefined-focused-green.log). Ruff E9/F63/F7/F82: exit 0, sin ignorar las
+  cuatro incidencias. Gate completo CPU con DScribe presente: **1032 passed,
+  2 skipped**, 6726 warnings, 139.92 s (static-names-full-cpu.log), exit 0.
+- Mypy **1.19.1** compatible con --python-version 3.9 instalado solo en
+  /tmp/g2m-mypy39-deps.Qvt5CT. Los dos primeros sondeos no llegaron al código:
+  Torch actual usa match (>=3.10), NumPy actual usa type (>=3.12) en sus stubs.
+  Son incompatibilidades entre stubs instalados y target, no pruebas del producto.
+- Diagnóstico con imports externos opacos por módulo y follow_imports_for_stubs:
+  **156 errores en 13 archivos**, 22 fuentes comprobadas
+  (mypy39-core-scoped-baseline.log). No se desactivan errores del núcleo. Se
+  contrasta también con stubs NumPy 1.26.4 compatibles con Python 3.9 en un
+  overlay exclusivo del checker, no cambiando NumPy del producto ni sus tests.
+  Ese sondeo conserva tipos NumPy reales: **210 errores en 13 archivos**, 22
+  fuentes comprobadas (mypy39-numpy126-baseline.log). Algunos errores del sondeo
+  opaco eran artefactos de aliases NumPy tratados como Any; el gate definitivo
+  deberá conservar los stubs reales. No se afirma que los tipos pasen.
+  Referencia de configuración: https://mypy.readthedocs.io/en/stable/config_file.html.
+- El sondeo amplio Ruff E/F/B/I/UP/PLR0133 registra 1652 incidencias
+  (ruff-full-baseline.log), principalmente líneas largas, imports/anotaciones.
+  El sondeo semántico adicional conserva los detalles de redefiniciones y otros
+  avisos en ruff-semantic-baseline.log. Aún no hay gate completo ni cierre 3.9.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

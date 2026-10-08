@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Union
 
 _re_escape = functools.lru_cache(maxsize=512)(re.escape)
+_re_setops_sub = re.compile(r"([&~|])").sub
 
 
 def fnmatch_translate(pat, star, question_mark):

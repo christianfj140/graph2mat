@@ -42,7 +42,7 @@ class OrbitalMatrix(BasisMatrix):
 
     def get_point_matrices(
         self, basis_table: AtomicTableWithEdges
-    ) -> Dict[int, ndarray]:
+    ) -> Dict[int, np.ndarray]:
         return self.get_atomic_matrices(basis_table)
 
     def get_atomic_matrices(self, z_table: AtomicTableWithEdges):

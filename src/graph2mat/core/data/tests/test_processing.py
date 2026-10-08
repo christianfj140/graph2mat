@@ -14,6 +14,14 @@ from graph2mat import (
 )
 
 
+def test_orbital_matrix_point_annotation_is_resolvable():
+    from typing import Dict, get_type_hints
+    from graph2mat.core.data.matrices.physics.orbital_matrix import OrbitalMatrix
+
+    hints = get_type_hints(OrbitalMatrix.get_point_matrices)
+    assert hints["return"] == Dict[int, np.ndarray]
+
+
 @pytest.fixture(scope="module")
 def positions():
     return np.array([[0.1, 0, 0], [6.0, 0, 0]])
