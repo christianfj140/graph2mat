@@ -5,6 +5,10 @@ con código, regresiones y evidencia. Un sublote verde no completa el goal.
 
 ## Estado y límites
 
+- Estado final verificado (2026-10-08): **los cinco frentes implementados,
+  verificados y aprobados en revisión independiente**. La matriz y los comandos
+  definitivos están al final; las reanudaciones y cifras siguientes son historia
+  del trabajo, no pendientes actuales. El resto del roadmap no se cierra aquí.
 - Checkout solicitado: `/home/christian/repositorios/graph2mat`, `g2m-v2`.
 - HEAD inicial verificado: `d7c87f4`; sin modificaciones tracked previas.
 - Preservar `.agents/`, `.claude/`, `agent-skills/`, el informe de evolución y los planes previos untracked.
@@ -43,7 +47,8 @@ con código, regresiones y evidencia. Un sublote verde no completa el goal.
 | 3.9 | ENG_QUALITY-18/26, LOSS_TRAIN-25/29, ENG_QUALITY-20 | Gates efectivos de lint/tipos, tests deterministas/temporales limpios, split configurable y pool sembrado, provenance/versiones, pruebas numéricas de pérdidas/gradientes, equivariancia/supercelda, checkpoints, DDP CPU y simetría periódica/spin/S/d-f |
 
 Cada punto requiere verificar todos sus requisitos; no se cierra mediante etiquetas
-de aplazado ni por tener configurada una CI. La revisión final cubrirá los cinco.
+de aplazado ni por tener configurada una CI. La revisión final cubrió los cinco;
+su dictamen y la comprobación requisito por requisito se registran al final.
 
 ## Secuencia de ejecución
 
@@ -1460,7 +1465,296 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 
 ## Cierre del goal
 
-Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar
-archivo/prueba/comando y salida real; comprobar cobertura, no solo color verde.
-Solo después de completar todos, pasar revisión final, corregir hallazgos y ejecutar
-todos los gates se podrá marcar el goal completo. Antes, seguir activo.
+### Revisión independiente transversal (aprobada, reanudada tras cuota)
+
+- Revisor único `/root/g2m_final_goal_review`, sin historial heredado, rango
+  d7c87f4..e664d02, lectura de los cinco frentes/auditorías y probes CPU.
+  No modificó checkout/índice/entornos. No se sustituyó por revisiones de sublotes.
+- Candidato e664d02: suite CPU **1442 passed, 2 skipped**, 7915 warnings,
+  322.11 s (`engineering-final-full-cpu.log`). Tres wheels instaladas con el
+  oráculo angular: **1417 passed, 2 skipped** cada una, 262.79/286.23/293.95 s;
+  raíz **25 passed** por perfil, 17.04/23.70/23.99 s. Base: **16 oráculos +16
+  CLI** por 3.9/3.12; cinco pip check y Ruff/mypy verdes. Son verificaciones
+  del candidato previo a hallazgos, no pruebas del estado corregido final.
+- Hallazgos recibidos y reproducibles: (I1) inferencia CLI itera runs=None y
+  lee train inactivo antes de setup; (I2) /test omite batch/ptr para pooling;
+  (I3) conteo de estructuras por max(batch) pierde grafos vacíos finales;
+  (I4) extra server omite la pila ML que importa/usa. (C1) extrapolación montada
+  ignora local=False y permite sobrescribir destinos sin permiso explícito.
+- I1 RED **16 failed**, 5.46 s (`review-cli-stage-red.log`); GREEN **49 passed**,
+  8.27 s (`review-cli-stage-green.log`). Selección de etapas compartida con
+  DataModule, inferencia omite None, validate conserva fallback automático de
+  train, predict geométrico no infiere etiquetas. Real CLI validate/test/predict
+  con checkpoints viejo/nuevo y train inexistente en runs_json no lo abre.
+- I2 RED **1 failed, 1 passed**, 0.55 s (`review-server-pooling-red.log`), ptr
+  ausente. Parche suministra índices de un grafo como torch_predict; GREEN
+  **15 passed**, 0.51 s (`review-server-pooling-green.log`). Pool real scatter_add,
+  MSE/MAE literales con etiquetas conservadas, H/S y rutas previas incluidos.
+- C1 RED **6 failed, 1 passed**, 0.47 s
+  (`review-extrapolation-policy-sequence-red.log`): secuencia init/add_step/
+  extrapolate devuelve200 y sobrescribe con local=False; None/False tampoco
+  impiden overwrite en standalone. Parche propaga local, guarda API completa
+  antes de acceder a filesystem/historial y publica atómicamente con permiso
+  explícito; 409 para destino existente. Standalone preserva default local=True;
+  Lua declara overwrite de su siesta.DM y necesita --local. GREEN conjunto
+  **129 passed**, 5.85 s (`review-extrapolation-policy-green.log`).
+- En aquella interrupción el revisor agotó su cuota antes de emitir dictamen.
+  Se reanudó el mismo agente, sin sustituir la revisión por la de sublotes.
+  Lo siguiente registra las correcciones posteriores; no se usan los gates del
+  candidato e664d02 para afirmar cierre del código corregido.
+
+### Hallazgos finales reproducidos y corregidos — 2026-10-08
+
+- I3: max(batch) pierde grafos vacíos finales. `_num_structures` comparte la
+  cardinalidad de num_graphs/ptr con per-elemento, ventana y pairing; la media
+  vacía conserva cero conectado al gradiente. RED: **30 failed, 14 passed**
+  (`review-empty-graphs-red.log`). Un primer parche alcanzó la ocurrencia
+  equivocada de la expresión; sus **30 fallos** no se presentan como GREEN.
+  Tras corregir la capa compartida, **147 passed** (128 ML +19 raíz), 20.66 s.
+  Extensión del revisor: cell.reshape y max de parejas sin átomos; diez casos
+  añadidos, **8 failed, 2 passed** → conjunto **152 passed**, 4.60 s
+  (`review-all-empty-graphs-green.log`). Batching, reset, caché, spin y gradientes
+  preservados; no se fabrican parejas ni se unen batches/ranks separados.
+- I4: extra `[server]` ahora incluye Torch/PyG/e3nn/Lightning/MACE/jsonargparse
+  con los rangos del perfil completo. Metadatos: **1 failed** → regresión verde.
+  Venv nuevo `/tmp/g2m-server-profile.hcnKj2/venv`: instalación real únicamente
+  de la wheel `[server]` con constraints CPU, sin pytest/httpx ni extras test/docs.
+  Importación, MACE CPU, guardar/cargar checkpoint y construir la API pasaron
+  (`review-server-profile-smoke.log`); pip check exit 0. El runtime HTTP ampliado
+  encontró I8, documentado abajo; no se ocultó como fallo del entorno.
+- I5: lectores binarios DM no conocen la geometría: cuatro orbitales se toman
+  como cuatro átomos. HTTP `/init`→XYZ `/add_step`→DM `/add_matrix`: **4 failed**,
+  0.42 s (`review-history-full-http-red.log`). Se aplica la base del procesador
+  al historial y a ambos lectores (matriz/m_0), manteniendo posiciones, celda,
+  imágenes y provenance. DM/EDM no ortogonales traen S auxiliar, que no es spin:
+  **4 failed, 4 passed** → ocho regresiones del historial; all_dims=True sigue
+  guardando todos los slots y la matriz del llamador no cambia. Conjunto HTTP,
+  serialización y SOAP: **141 passed**, 6.07 s.
+  Extensión independiente: adjuntar processor después del primer XYZ dejaba
+  metadata orbital antigua y hacía ragged el descriptor SOAP. `add_processor`
+  reemplaza configuraciones con geometría/base coherentes, sin mutar el objeto
+  anterior, etiquetas, pbc, peso o provenance. Cuatro casos adicionales cubren
+  dos matrices históricas, spin y m_0. El primer RED mixto tuvo cuatro fallos
+  reales de metadata y cuatro de fixture sin función radial; diagnóstico
+  `review-history-multi-orbital-soap-diagnostic.log`. Se suministraron radiales
+  numéricas reales 1s/2s; no se modificó SOAP para esconder NotImplementedError.
+- I6: errores del reader/transfer y salida abrupta dejan el pool anterior visible.
+  Tres casos reales (lectura, deserialización y terminate del recurso propio):
+  **3 failed**, 6.08 s → **8 passed** lifecycle, 1.61 s. Estado de error compartido
+  con el handle mínimo del DataLoader, no solo `pool.__getitem__`; close sigue
+  idempotente. Con worker spawn también: **8 passed**, 8.66 s; data/ZIP/stages/
+  split/componentes **95 passed**, 7.76 s.
+  Extensión independiente: Queue.put serializa la muestra en el feeder y no
+  propaga TypeError al reader. **1 failed**, 8.56 s (muestras obsoletas)
+  (`review-pool-feeder-serialization-red.log`). ForkingPickler serializa dentro
+  del try del reader y deserializa dentro del try de transfer; la cola transporta
+  bytes. Se conservan los reductores Torch y la vida del emisor. **9 passed**,
+  11.43 s, y conjunto de datos **96 passed**, 18.05 s. Las cinco vías de acceso
+  (owner/handle/loader0/loader1/loader-spawn) reciben la causa, sin cambiar muestreo.
+- I7: TemplateResponse posicional antigua falla con Starlette 1.7. Seis páginas
+  reales dan **6 failed** HTTP500, 0.41 s → **21 passed** servidor, 0.66 s, con
+  request/name/context por keyword. `/models/dm/info` era una acción UI inexistente
+  y una aserción de branding tenía mayúsculas erróneas: se corrigieron las
+  fixtures, no se ampliaron las rutas. La firma nueva existe desde FastAPI 0.108
+  (documentación oficial https://fastapi.tiangolo.com/advanced/templates/,
+  también consultada con Context7). Server/tools/docs declaran >=0.108,<1:
+  **3 failed** metadata → **4 passed** junto a I4, 0.03 s.
+- I8, encontrado por el runtime limpio: el checkpoint directo o YAML sin texto
+  descriptivo carga, pero `/info` indexaba una descripción opcional ausente.
+  Tres checkpoints MACE reales: **2 failed, 1 passed**, 3.80 s → **24 passed**
+  servidor, 4.11 s. `model.get('description', '')` conserva los textos provistos
+  y permite el checkpoint crudo sin inventar metadata científica.
+- Revisión independiente propia ya favorable para I1/I2/I3/C1: **116 pruebas**
+  CLI/etapas/épocas, **277 pruebas** pérdidas/pares/oráculos periódicos y **21**
+  MACE+angular p/d/f; nueve HTTP de permisos/pooling. Un intento del revisor con
+  overlays incompletos produjo fallos por uvicorn/dscribe ausentes; no se usó
+  como GREEN. Repetición con todos los overlays completa las rutas HTTP/SOAP.
+- Gate intermedio antes de I8: source **1533 passed, 2 skipped**, 341.43 s;
+  tres wheels **1504 passed, 2 skipped**, 278.07/304.74/312.30 s, raíz **29** cada
+  una; base **16 oráculos +20 CLI** por Python. Gate posterior a I8 pero anterior
+  a las extensiones I5/I6: source **1536 passed, 2 skipped**, 339.23 s; tres wheels
+  **1507 passed, 2 skipped**, 277.71/301.27/309.95 s. Son candidatos intermedios,
+  no sustituyen la última suite sobre el estado extendido.
+- Runtime limpio HTTP posterior a I8: MACE CPU real+checkpoint, seis páginas
+  HTML, `/info`, `/predict` DM finita y bloqueo local=False HTTP403 **pasan**, sin
+  pytest/httpx (`server-review-final-profile-runtime.log`). Cada recurso/socket/
+  hilo/temporal creado por la prueba se cierra; sin GPU ni entrenamientos reales.
+  Ruff y mypy del núcleo reales Passed, sin silenciar fallos.
+
+### Dictamen independiente definitivo — 2026-10-08
+
+- El mismo revisor único `/root/g2m_final_goal_review` terminó la revisión del
+  rango completo y de las correcciones C1/I1–I8, incluidas ambas extensiones
+  I5/I6. **Ningún Critical, Important o Minor abierto; aprobación técnica de
+  código para 3.1/3.4/3.5/3.6/3.9.** No se sustituyó por auto-revisión.
+- Sus últimas ejecuciones propias: **178 passed**, 395 warnings, 20.45 s,
+  lifecycle/HTTP/SOAP/serialización/info con DataLoader spawn, feeder, ocho
+  flujos multi-orbital y checkpoints reales; **352 passed**, 1475 warnings,
+  17.45 s, siete familias de épocas y CLI. Las colecciones anteriores se
+  solapan: no se suman como cobertura única.
+- Confirmó también la corrección documental de los nombres antiguos e3mat /
+  e3nn_matrix y del esquema ttp://. Los cuatro ejecutables instalados del
+  perfil completo/server ejecutaron `graph2mat serve --help`, exit 0
+  (`{py39,py312,latest,server}-review-verified-serve-help.log`).
+- El dictamen exigía todavía gates completos del implementador, documentación
+  y commits; los resultados siguientes son posteriores a las extensiones y
+  satisfacen esas condiciones. No se tomó la aprobación como sustituto de tests.
+
+### Matriz de aceptación cerrada, requisito por requisito
+
+Los paths de tests siguientes son relativos a `src/graph2mat`, salvo los de raíz.
+Cada familia se ejecutó en la suite final source y en las tres wheels instaladas;
+las pruebas propias del revisor son una comprobación adicional, no su reemplazo.
+
+| Punto / auditorías | Implementación y aceptación verificadas | Regresiones y evidencia | Commits locales principales |
+|---|---|---|---|
+| 3.1 — LOSS_TRAIN-06, ENG_QUALITY-23 | Objetivos y diagnósticos básicos/Huber/composite/coeficientes/dominios/umbrales/gauge/S/ventana/pares/MAPE/mix/densidad con sumas y denominadores propios globales; mean/std/max, batch_size explícito, reset entre épocas/splits, NaN/vacíos/grafos vacíos finales y fail_ok visible. Fórmulas y gradientes por paso conservados; DDP con schema fijo y conteos distintos. Pairing sigue local a batch/rank y expected_pairs detecta separaciones: no se crea otro algoritmo. | `tools/lightning/tests/test_epoch_metrics.py`, `test_epoch_special_metrics.py`, `test_coefficient_epoch_metrics.py`, `test_gauge_epoch_metrics.py`, `test_pair_epoch_metrics.py`, `test_relative_epoch_metrics.py`, `test_density_epoch_metrics.py`; `core/data/tests/test_metrics_valid_labels.py`, `test_per_structure_losses.py`, `test_hamiltonian_training_losses.py`, `test_density_numpy_oracle.py`. Valores literales, integral independiente, RED→GREEN por familia y DDP descritos en cada sublote. | 0f3529f, 35585f7, 234102b, 0cdf723, ac74c7f, 0437bc9, b13ca5f, 4920a55, bbde216, e664d02; final I3 **30ee1a7** |
+| 3.4 — PHYS_H-21/22/20, ENG_QUALITY-15/16 | /info JSON con metadata real y descripción opcional; /test con pooling y comparación H/S correcta; /predict/cliente Requests/escritura física H/DM/EDM y referencias sin mutación. Publicación atómica/409, rutas locales coherentes y extrapolación montada bloqueada antes del acceso con local=False. HistoryCopy API, periodicidad SOAP/PBC/celdas históricas, observaciones incompletas/NaN, DM multi-orbital/m_0/processor tardío y S auxiliar separada del spin. PlotMatrixError distingue imágenes y cuenta entradas/componentes válidos. | `tools/server/tests/test_server_app.py`, `test_physical_serialization.py`, `test_extrapolation.py`; `tools/lightning/tests/test_plot_matrix_error.py`, `test_matrix_writer_validation.py`. Conjunto enfocado final **169 passed**; runtime limpio real [server], seis HTML +/info +/predict +403, sin pytest/httpx. Tests reales NetCDF/DM/EDM/TSHS y Requests; Lua revisado por contrato, no ejecutado con SIESTA. | 015fc98, 187402e, 2ca32dc, 3172bc9, dd2fccf; final C1/I2/I5/I7/I8 **c51be04** |
+| 3.5 — ENG_QUALITY-12/13/14 | Núcleo/NumPy/CLI base/cliente HTTP sin ML, imports perezosos y mensajes de extras. Python 3.9/3.12 reales, wheels compiladas, ranges/constraints de build y runtime CPU compatibles, MACE/docs resueltos juntos. Extra [server] autosuficiente y piso FastAPI compatible con templates. Tres perfiles completos, dos base sin Torch/Cython runtime y uno solo [server]; seis pip check. CI configurada y sus gates ejecutados localmente, nunca declarada ejecutada remotamente. | `tests/test_minimal_install.py`, `tools/lightning/tests/test_cli.py`, `test_matrix_components.py`; `pyproject.toml`, `constraints/{build,ci}-py39.txt`, `constraints/{build,ci}-py312.txt`, `.github/workflows/tests.yaml`. Full **1512 +29** por perfil; base **16 oráculos +20 CLI** por Python; runtime independiente del extra servidor. | 024fecb, 75e4080, ee337e9; selección CLI **ae7d6f9**, packaging/runtime **c51be04** |
+| 3.6 — DATA_PIPE-21/12/09/08/24/25, ENG_QUALITY-24 | Filtros preservados, subgrafos sin labels reindexados sin transformar dos veces. setup e inferencia CLI comparten stages; None y splits inactivos no se abren, fallback val se conserva y caché no se reconstruye. ZIP por PID/archivo, fork tras lectura parental, lectores prestados preservados y compatibilidad 3.9; temporales aislados, subdirectorios y supervivencia entre stages. Pool cerrable/sembrado y fail-fast ante reader/feeder/transfer/salida abrupta, también handles/DataLoader fork/spawn. torch_predict conserva ptr/batch por nodo. | `core/data/tests/test_data_filters_and_subgraphs.py`, `test_configuration_zip.py`; `bindings/torch/data/tests/test_dataset_resources.py`, `test_rotating_pool_lifecycle.py`; `tools/lightning/tests/test_datamodule_stages.py`, `test_datamodule_temporary_roots.py`, `test_datamodule_split.py`, `test_matrix_components.py`. Último conjunto datos **96 passed**, lifecycle **9 passed**, CLI/components **49 passed**; incluidos en los gates completos. | d7ddf67, 6227edf, ee337e9; final I1/I6 **ae7d6f9** |
+| 3.9 — ENG_QUALITY-18/26/20, LOSS_TRAIN-25/29 | Ruff semántico efectivo y mypy py39 en 22 fuentes core con NumPy real, sin silenciar errores propios. Fixtures/semillas/split configurables y temporales limpios. Provenance aditiva, ocho checkpoints antiguo/nuevo y CLI real con pesos/predicciones/radios conservados. Pérdidas y gradientes literales, masks/sparse/roundtrips; MatrixMACE real (576 rotaciones, nueve superceldas), dos entrenamientos sintéticos CPU DDP de dos pasos equivalentes al serial, parámetros ausentes incluidos. Doce oráculos periódicos H(R)/H(k)/spin/S/s-p/s-d-f y convenio p/d/f independiente sisl.psi (64 direcciones, 24 rotaciones, atol=2e-14); tolerancias no relajadas. | `core/data/tests/test_missing_matrix_blocks.py`, `test_periodic_hermiticity_oracles.py`; `bindings/e3nn/tests/test_rtps.py`, `bindings/e3nn/modules/tests/test_e3nngraph2mat.py`; `tools/lightning/tests/test_models.py`, `test_ddp_cpu.py`, `test_checkpoint_provenance.py`, `test_cli.py`, y familias de pérdidas arriba. `.pre-commit-config.yaml`, `requirements-quality.txt`, `pyproject.toml` y job quality reales; hooks finales Passed. | 7fe54b5, d35f1a6, aaa5eb8, 69a8f08, d4ad82b, 4c294f6, 2f08fa6, e664d02; las regresiones finales están en 30ee1a7/ae7d6f9/c51be04 |
+
+### Gates definitivos del código final
+
+- Última interrupción por cuota: los primeros procesos de gates quedaron
+  terminados y sus logs eran parciales, sin resumen. Se comprobó su ausencia
+  antes de reiniciar; **no se contabilizaron como aprobados**. Los cuatro logs
+  completos aceptados llevan `review-verified-resume` y sus procesos terminaron
+  con **exit 0**, confirmado al recuperar los mismos handles.
+- Source final CPU: **1541 passed, 2 skipped, 8481 warnings, 338.89 s**,
+  `review-verified-resume-full-cpu.log`.
+- Wheels finales instaladas desde `/tmp` con `python -I --pyargs`, no usando
+  fuentes/Cython del checkout:
+
+| Perfil completo | Paquete instalado | Tests de raíz sobre paquete instalado | Logs |
+|---|---|---|---|
+| Python 3.9.25 mínimo (Torch 2.4.1 CPU, Lightning 2.1.4, MACE 0.3.15) | **1512 passed, 2 skipped**, 3449 warnings, 278.32 s | **29 passed**, 44 warnings, 18.60 s | `py39-review-verified-resume-wheel-{full,root}.log` |
+| Python 3.12 fijado (Torch 2.11 CPU, Lightning 2.6.1, MACE 0.3.15) | **1512 passed, 2 skipped**, 8484 warnings, 303.24 s | **29 passed**, 46 warnings, 25.60 s | `py312-review-verified-resume-wheel-{full,root}.log` |
+| Python 3.12.3 latest compatible (Torch 2.14.1 CPU, Lightning 2.6.6, MACE 0.3.16) | **1512 passed, 2 skipped**, 6507 warnings, 311.65 s | **29 passed**, 45 warnings, 25.37 s | `latest-review-verified-resume-wheel-{full,root}.log` |
+
+- Las 29 pruebas de raíz más las 1512 del paquete corresponden a las 1541 de
+  source; no se suman las tres plataformas como nuevos casos científicos.
+  Frente a la línea base 515 passed /1 skipped se añadieron **1027 casos** a
+  la colección (516→1543). El incremento de skips es la prueba CUDA existente
+  al ocultar GPU; las dos omisiones finales son esa prueba y la fixture H local
+  ausente. No se añadieron skips para conseguir verde. Warnings conservados,
+  no se afirma una suite libre de avisos.
+- Base sin Torch/PyG/e3nn/Lightning/MACE/Cython runtime: **16 oráculos** por
+  Python 3.9/3.12, 0.51/0.64 s; **20 CLI passed, 7 deselected**, 8.55/11.93 s.
+  Logs `base{39,312}-review-verified-base-{oracles,cli}.log`.
+- Seis `python -m pip check`: **No broken requirements found**, exit 0,
+  `{py39,py312,latest,base39,base312,server}-review-verified-pip-check.log`.
+- Ruff/mypy efectivos repetidos tras la matriz final: **Passed**, exit 0,
+  `closure-ruff.log`, `closure-mypy.log`; git diff y cached diff --check exit 0.
+  Los commits usan hooksPath=/dev/null solo después de estos hooks reales, para
+  no introducir un restyle global Black/isort; no se sustituyen ni omiten los
+  gates semánticos aceptados.
+- Wheels construidas y reinstaladas en los seis entornos, exit 0:
+  `review-verified-build-{py39,py312}.log`,
+  `{py39,py312,latest,base39,base312,server}-review-verified-wheel-install.log`.
+  SHA256 cp39: `40bb889f710e3c939529c966db6ceaf438e3cd21fafd26415eb7c1f2d49df427`;
+  cp312: `4274648be1b8b61fa36d0bf4eac58e4d659940808e1c35c322d1067e2270be76`.
+  `unzip -p` +`cmp` confirma que todos los archivos de src modificados desde
+  e664d02 coinciden byte por byte con ambas wheels; después de los gates solo
+  cambiaron documentación y referencias Git, no el código verificado.
+
+### Comandos y entornos exactos del cierre
+
+Logs y wheels conservados en `/tmp/g2m-engineering-goal.mJBRD9/`; comandos,
+resúmenes, decisiones y hashes persistentes en este ledger versionado. Los
+artefactos de /tmp no son almacenamiento permanente y pueden limpiarse fuera
+de esta sesión. No se borraron pruebas ni recursos ajenos.
+
+```bash
+# Source: cwd /home/christian/repositorios/graph2mat
+CUDA_VISIBLE_DEVICES='' \
+PYTHONPATH=/tmp/g2m-http-runtime.LOcBGk:/tmp/g2m-soap-deps.o0Kjat:/tmp/g2m-server-tests.IcPjmO \
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
+/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/pytest \
+  -q --disable-warnings --tb=short
+
+# Wheel: cwd /tmp; repetir para cada PY de perfil completo listado abajo
+CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
+"$PY" -I -m pytest -q --pyargs graph2mat --disable-warnings --tb=short
+CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
+"$PY" -I -m pytest -q /home/christian/repositorios/graph2mat/tests \
+  --disable-warnings --tb=short
+
+# Base: cwd /tmp; repetir para ambos PY base
+"$PY" -I -m pytest -q --noconftest \
+  --pyargs graph2mat.core.data.tests.test_density_numpy_oracle \
+  graph2mat.core.data.tests.test_periodic_hermiticity_oracles \
+  --disable-warnings --tb=short
+"$PY" -I -m pytest -q /home/christian/repositorios/graph2mat/tests/test_minimal_install.py \
+  -k 'base_cli_help or core_optional_torch and base or optional_command_reports or importing_graph2mat_cli or server_extra_declares or legacy_template_api' \
+  --disable-warnings --tb=short
+"$PY" -m pip check
+
+# Gates reales: cwd del repositorio, checker aislado, sin overlays
+PRE_COMMIT_HOME=/tmp/g2m-static-gates.YpKMAH/hooks \
+/tmp/g2m-static-gates.YpKMAH/venv/bin/pre-commit run ruff-check --all-files
+PRE_COMMIT_HOME=/tmp/g2m-static-gates.YpKMAH/hooks \
+/tmp/g2m-static-gates.YpKMAH/venv/bin/pre-commit run mypy-core --all-files
+git diff --check
+git diff --cached --check
+```
+
+| Entorno | PY |
+|---|---|
+| Completo 3.9 mínimo | `/tmp/g2m-python39.D7TJAp/full-venv/bin/python` |
+| Completo 3.12 fijado | `/tmp/g2m-python312-full.LHyni1/venv/bin/python` |
+| Completo 3.12 latest | `/tmp/g2m-python312-latest.Ai15yc/venv/bin/python` |
+| Base 3.9 | `/tmp/g2m-python39.D7TJAp/venv/bin/python` |
+| Base 3.12 | `/tmp/g2m-python312-full.LHyni1/base-venv/bin/python` |
+| Únicamente extra [server] | `/tmp/g2m-server-profile.hcnKj2/venv/bin/python` |
+
+`--noconftest` en los oráculos base evita solamente el conftest del paquete que
+importa Torch; no quita aserciones. El selector base declara sus siete casos
+deselected; los perfiles completos ejecutan la raíz entera. El entorno compartido
+se usó como ejecutable, sin instalaciones ni modificaciones.
+
+### Límites del dictamen: decisiones explícitas, no requisitos aplazados
+
+- Final: Ruling: GPU/CUDA/compile/AMP/NCCL no verificados — el usuario limita
+  este goal a CPU y prohíbe tocar GPU/entrenamientos — coste si se extrapolara
+  el resultado: no existe garantía de esas rutas, incluida la prueba omitida.
+- Final: Ruling: fixture H local ausente — mantener su skip existente y usar
+  oráculos físicos independientes disponibles, sin fabricar el fichero — coste:
+  ese caso específico no se acredita; no bloquea las regresiones sintéticas reales.
+- Final: Ruling: CI remota/publicación/SIESTA-Lua no ejecutados — push/merge/
+  publicación y trabajos físicos ajenos están fuera de la autorización; se
+  prueban instalación/gates locales y contratos Lua, no su runtime — coste:
+  integración real/infraestructura remota no garantizadas.
+- Final: Ruling: otras plataformas/intérpretes/combinaciones de rangos no
+  verificados exhaustivamente — se conserva la API Python>=3.9 y se prueba el
+  piso real y dos perfiles 3.12 Linux CPU — coste: no es certificación de todo
+  el producto cartesiano ni de Windows/macOS.
+- Final: Ruling: exactitud de modelos/utilidad científica/positividad completa
+  de S/determinismo temporal del pool no inferidos de tests — se preservan las
+  fórmulas y contratos existentes sin redefinir ciencia ni scheduling — coste:
+  equivariancia/oráculos/semillas no prometen esas propiedades adicionales.
+- Final: Ruling: carga prolongada/rendimiento/OOM/autenticación/seguridad
+  exhaustiva no evaluados — este cierre prueba límites filesystem y publicación
+  atómica de las APIs asignadas, no otra auditoría productiva — coste: no es
+  autorización de despliegue público sin su evaluación específica.
+- Final: Ruling: no incluir untracked ajenos ni reemplazar la matriz final del
+  implementador con pruebas enfocadas del revisor — ownership y cobertura total
+  conservados — coste: no se juzga el contenido excluido; los cuatro gates
+  completos y controles asociados finales sí se ejecutaron.
+
+Sin menores diferidos ni hallazgos de producto rechazados. Las decisiones
+anteriores del ledger (launcher scripts DDP, gradientes cero distribuidos, caché
+RTP por dtype, estadísticos float64, máscara por fila, rechazo raw H ambiguo y
+formateadores separados) conservan los costes explícitos de sus sublotes.
+
+### Resultado de cierre
+
+Todos los requisitos asignados a 3.1, 3.4, 3.5, 3.6 y 3.9 están implementados,
+con regresiones y evidencia final comprobada; **sin tareas fallidas abiertas ni
+pendientes dentro de esos cinco frentes**. Los intentos RED/fallidos históricos
+se conservan como evidencia, no se convierten en tareas completadas sin prueba.
+Los commits finales de código son **30ee1a7**, **ae7d6f9**, **c51be04**; la
+documentación de cierre se compromete aparte. Roadmap actualizado únicamente
+en esos cinco puntos y su párrafo de evidencia, sin cerrar otras olas.
+Rama g2m-v2 y archivos ajenos preservados; ninguna modificación de autorun,
+colas, fonones u otros repositorios, ni push/merge/publicación.
