@@ -99,8 +99,8 @@ sums and counts, not averages of
 batch losses. ``val_loss`` and ``hp_metric`` share that global objective. Per-step
 training losses and their gradients are unchanged. Absolute-error means, sample
 standard deviations and maxima also reduce across batches and distributed ranks;
-standard deviation is zero with fewer than two valid elements. Pair and spectral
-objectives still have separate pending aggregation work.
+standard deviation is zero with fewer than two valid elements. Pair objectives
+still have separate pending aggregation work.
 Distributed samplers may pad uneven datasets with repeated
 samples: the metrics count the samples actually evaluated, including those repeats.
 Block-type Huber's per-branch ``node_smooth_l1`` and ``edge_smooth_l1`` statistics
@@ -125,7 +125,18 @@ same ordered schema, even with disjoint species/pairs. A projected block with a
 NaN coefficient is unobserved as a whole: partial matrix labels cannot determine
 its full irreducible coefficients. Empty/unobserved coefficients have connected
 zero gradients. The existing flat single-component H-only contract is unchanged.
-Gauge and pair objectives have separate missing-label requirements.
+Gauge H and optional predicted S use independent valid-element means, with the
+configured edge weight. Alignment ignores any H/S reference row with a NaN
+component before subtraction; missing rows have zero gradients. Empty gauge
+branches return connected zero. Shift magnitudes average structures/components,
+including a zero shift for an entirely unobserved structure.
+The optional spectral term reduces its own squared-error sum over
+``sum(k_window**2)`` across batches/ranks, not the number of structures.
+``spectral_elements`` reports that summed denominator; zero padding and empty
+windows add no weight. The per-step spectral formula and gradients are unchanged.
+Spectral projection requires complete H/S reference labels and finite
+``spectral_C``: NaN inputs raise explicitly instead of inventing missing matrix
+elements. Pair objectives still have separate missing-label requirements.
 
 Size-domain epoch losses first average per-structure losses in each domain, then
 apply its configured weight, normalized over domains present in the epoch.

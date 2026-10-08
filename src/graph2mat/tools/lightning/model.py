@@ -164,6 +164,29 @@ class _EpochMatrixLoss(Metric):
         return label + self.coefficient_weight * coefficient
 
 
+class _EpochWeightedLoss(Metric):
+    """Combine physical terms only after reducing each term's own denominator."""
+
+    full_state_update = False
+
+    def __init__(self, terms):
+        super().__init__()
+        self.add_state("totals", torch.zeros(terms, dtype=torch.float64), dist_reduce_fx="sum")
+        self.add_state("counts", torch.zeros(terms, dtype=torch.float64), dist_reduce_fx="sum")
+        self.weights = (1.,) * terms
+
+    def update(self, means, counts, weights):
+        means = torch.as_tensor(means, dtype=torch.float64, device=self.device).detach()
+        counts = torch.as_tensor(counts, dtype=torch.float64, device=self.device)
+        self.totals += torch.where(counts > 0, means * counts, 0.)
+        self.counts += counts
+        self.weights = weights
+
+    def compute(self):
+        denominator = torch.where(self.counts > 0, self.counts, 1.)
+        return (self.totals / denominator * self.totals.new_tensor(self.weights)).sum()
+
+
 class LitBasisMatrixModel(pl.LightningModule):
     """Base class to wrap a matrix model to use it in pytorch_lightning."""
 
@@ -300,19 +323,22 @@ class LitBasisMatrixModel(pl.LightningModule):
             loss = loss + sum(parameter.reshape(-1)[:1].sum() * 0
                               for parameter in self.model.parameters() if parameter.requires_grad)
 
-        self._log_loss("train", loss, out, batch)
+        self._log_loss("train", loss, out, batch, stats)
         self._log_stats("train", stats, batch, out)
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
         return {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"]}
 
-    def _rmse_count(self, name, batch):
+    def _rmse_count(self, name, batch, stats=None):
         """Number of terms used by the standard matrix RMSE statistics."""
         if name in ("gauge_h_rmse", "overlap_rmse"):
             edge_weight = self.loss_fn.metric_kwargs.get("edge_weight", 1.0)
-            count = batch.point_labels.shape[0] + edge_weight * batch.edge_labels.shape[0]
+            count = (metrics_module._valid_label_rows(batch.point_labels).sum()
+                     + edge_weight * metrics_module._valid_label_rows(batch.edge_labels).sum())
             return count * (batch.point_labels.shape[1] - 1) if name == "gauge_h_rmse" else count
+        if name == "spectral_rmse" and stats is not None:
+            return stats["spectral_elements"]
         for kind, labels in (("node", batch.point_labels), ("edge", batch.edge_labels)):
             if name != f"{kind}_rmse" and not name.startswith(f"{kind}_rmse_spin"):
                 continue
@@ -330,7 +356,7 @@ class LitBasisMatrixModel(pl.LightningModule):
             return count
         return None
 
-    def _log_loss(self, split, loss, out, batch):
+    def _log_loss(self, split, loss, out, batch, stats=None):
         policies = {
             metrics_module.block_type_mse: (2, False, 1., 1.),
             metrics_module.elementwise_mse: (2, True, 1., self.loss_fn.metric_kwargs.get("edge_weight", 1.)),
@@ -369,7 +395,19 @@ class LitBasisMatrixModel(pl.LightningModule):
             policy, coefficient_weight = (2, False, 0., 0.), 1.
         key = f"{split}_loss"
         value, attribute = loss, None
-        if policy is not None:
+        if type(self.loss_fn) is metrics_module.gauge_invariant_mse:
+            kwargs = self.loss_fn.metric_kwargs
+            if key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss):
+                self._epoch_losses[key] = _EpochWeightedLoss(3).to(self.device)
+            value = self._epoch_losses[key]
+            means = torch.stack([stats["gauge_h_rmse"].square(), stats["overlap_rmse"].square(),
+                                 torch.as_tensor(stats.get("spectral_rmse", 0.), device=self.device).square()])
+            counts = torch.stack([self._rmse_count("gauge_h_rmse", batch),
+                                  self._rmse_count("overlap_rmse", batch),
+                                  torch.as_tensor(stats.get("spectral_elements", 0.), device=self.device)])
+            value(means, counts, (1., kwargs.get("overlap_weight", 1.), kwargs.get("spectral_weight", 0.)))
+            attribute = f"_epoch_losses.{key}"
+        elif policy is not None:
             if domain:
                 loss_s, _ = metrics_module._per_structure_losses(
                     out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
@@ -395,6 +433,7 @@ class LitBasisMatrixModel(pl.LightningModule):
                         factor = self.loss_fn.metric_kwargs.get("sigmoid_factor", 1e-5)
                         errors = tuple(metrics_module._sigmoid_threshold(error.abs(), cutoff, factor) for error in errors)
             if (key not in self._epoch_losses
+                    or not isinstance(self._epoch_losses[key], _EpochMatrixLoss)
                     or (self._epoch_losses[key].coefficient_keys, self._epoch_losses[key].statistic,
                         self._epoch_losses[key].normalize_weights) != (coefficient_keys, statistic, normalize_weights)):
                 self._epoch_losses[key] = _EpochMatrixLoss(coefficient_keys, statistic, normalize_weights).to(self.device)
@@ -403,10 +442,10 @@ class LitBasisMatrixModel(pl.LightningModule):
             attribute = f"_epoch_losses.{key}"
         self.log(key, value, on_step=split == "train", on_epoch=True,
                  prog_bar=True, logger=True, batch_size=batch.num_graphs,
-                 metric_attribute=attribute, sync_dist=policy is None)
+                 metric_attribute=attribute, sync_dist=attribute is None)
         if split == "val":
             self.log("hp_metric", value, batch_size=batch.num_graphs,
-                     metric_attribute=attribute, sync_dist=policy is None)
+                     metric_attribute=attribute, sync_dist=attribute is None)
 
     def _huber_epoch_terms(self, out, batch):
         """Huber elements or physical-block means, with valid block types."""
@@ -473,7 +512,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         for name, value in stats.items():
             huber_mean = (type(self.loss_fn) in (metrics_module.block_type_huber, metrics_module.block_type_smooth_l1)
                           and name in ("node_smooth_l1", "edge_smooth_l1"))
-            count = self._rmse_count(name, batch)
+            count = self._rmse_count(name, batch, stats)
             key = f"{split}_{name}"
             attribute = None
             if coefficient_errors is not None and name.endswith(("_coeff_rmse", "_coeff_mae")):
@@ -499,7 +538,13 @@ class LitBasisMatrixModel(pl.LightningModule):
                 empty = out["node_labels"].new_empty(0)
                 value(empty, empty, 1, False, 0., 0., coefficient_errors)
                 attribute = f"_epoch_losses.{key}"
-            elif name in ("n_structures", "n_large_structures"):
+            elif name == "gauge_shift_mean_abs":
+                if key not in self._epoch_losses:
+                    self._epoch_losses[key] = _EpochWeightedLoss(1).to(self.device)
+                value = self._epoch_losses[key]
+                value(stats[name].reshape(1), [batch.num_graphs * (batch.point_labels.shape[1] - 1)], (1.,))
+                attribute = f"_epoch_losses.{key}"
+            elif name in ("n_structures", "n_large_structures", "spectral_elements"):
                 if key not in self._epoch_errors:
                     self._epoch_errors[key] = _EpochErrorMoments("sum").to(self.device)
                 value = self._epoch_errors[key]
@@ -601,7 +646,7 @@ class LitBasisMatrixModel(pl.LightningModule):
             model=self.model,
         )
 
-        self._log_loss("val", loss, out, batch)
+        self._log_loss("val", loss, out, batch, stats)
         self._log_stats("val", stats, batch, out)
 
         # Only what callbacks read: keeping every MACE output alive until the end of
@@ -626,7 +671,7 @@ class LitBasisMatrixModel(pl.LightningModule):
             model=self.model,
         )
 
-        self._log_loss("test", loss, out, batch)
+        self._log_loss("test", loss, out, batch, stats)
         self._log_stats("test", stats, batch, out)
 
         return out

@@ -892,6 +892,8 @@ def _spectral_window_loss(d_nodes, d_edges, node_struct, edge_struct, n_structur
     C = _batch_field(batch, "spectral_C")
     if C is None:
         raise ValueError("spectral_weight needs batch.spectral_C (MatrixDataModule(spectral_window=True)).")
+    if not torch.isfinite(C).all():
+        raise ValueError("spectral_weight needs finite batch.spectral_C.")
     layout = getattr(batch, LAYOUT_ATTR, None) or {}
     if "node_row" not in layout:
         layout = spectral_window_layout(edges_ref, batch, basis_table)
@@ -913,7 +915,8 @@ def _spectral_window_loss(d_nodes, d_edges, node_struct, edge_struct, n_structur
     k = mask.sum(1)
     shift = (torch.diagonal(m, dim1=1, dim2=2) * mask).sum(1) / k.clamp_min(1)
     residual = m - shift[:, None, None] * torch.diag_embed(mask)
-    return (residual**2).sum() / (k**2).sum().clamp_min(1)
+    count = (k**2).sum()
+    return (residual**2).sum() / count.clamp_min(1), count
 
 
 def _per_element_structure_ids(nodes_ref, edges_ref, batch, basis_table):
@@ -1790,15 +1793,22 @@ def gauge_invariant_mse(
     (H, S), and then the predicted overlap is fitted with a plain MSE weighted by
     ``overlap_weight``, or only H (one component fewer than the labels): S is then just
     the label that defines the shift, and the readout is half the size.
-    ``edge_weight`` as in ``elementwise_mse``. Labels are assumed NaN-free (as H is).
+    ``edge_weight`` as in ``elementwise_mse``. Rows with any NaN H/S label
+    component are unobserved and excluded before alignment and subtraction.
     ``spectral_weight`` > 0 adds the Gamma-point window loss of ``_spectral_window_loss``
-    (one H component; needs ``batch.spectral_C``).
+    (one H component; needs finite ``batch.spectral_C`` and complete H/S labels).
     """
     node_struct, edge_struct, n_structures = _per_element_structure_ids(
         nodes_ref, edges_ref, batch, basis_table
     )
     node_struct = node_struct.to(nodes_pred.device)
     edge_struct = edge_struct.to(edges_pred.device)
+    valid_nodes, valid_edges = _valid_label_rows(nodes_ref), _valid_label_rows(edges_ref)
+    if spectral_weight and (not valid_nodes.all() or not valid_edges.all()):
+        raise ValueError("spectral_weight requires complete H/S reference labels.")
+    node_struct, edge_struct = node_struct[valid_nodes], edge_struct[valid_edges]
+    nodes_pred, nodes_ref = nodes_pred[valid_nodes], nodes_ref[valid_nodes]
+    edges_pred, edges_ref = edges_pred[valid_edges], edges_ref[valid_edges]
     n_h = nodes_ref.shape[1] - 1
     if nodes_pred.ndim == 1:  # a single predicted component: H only
         nodes_pred, edges_pred = nodes_pred[:, None], edges_pred[:, None]
@@ -1820,26 +1830,28 @@ def gauge_invariant_mse(
     aligned_nodes = d_nodes - shift[node_struct] * s_nodes
     aligned_edges = d_edges - shift[edge_struct] * s_edges
     n_elements = nodes_ref.shape[0] + edge_weight * edges_ref.shape[0]
-    h_loss = ((aligned_nodes**2).sum() + edge_weight * (aligned_edges**2).sum()) / (n_elements * n_h)
+    denominator = n_elements if n_elements > 0 else 1
+    h_loss = ((aligned_nodes**2).sum() + edge_weight * (aligned_edges**2).sum()) / (denominator * n_h)
     if predicts_overlap:
         s_loss = (((nodes_pred[:, -1] - s_nodes[:, 0]) ** 2).sum()
-                  + edge_weight * ((edges_pred[:, -1] - s_edges[:, 0]) ** 2).sum()) / n_elements
+                  + edge_weight * ((edges_pred[:, -1] - s_edges[:, 0]) ** 2).sum()) / denominator
     else:
         s_loss = h_loss.new_zeros(())
 
     stats = {
         "gauge_h_rmse": h_loss.detach() ** 0.5,
         "overlap_rmse": s_loss.detach() ** 0.5,
-        "gauge_shift_mean_abs": shift.detach().abs().mean(),
+        "gauge_shift_mean_abs": _mean(shift.detach().abs()),
     }
     loss = h_loss + overlap_weight * s_loss
     if spectral_weight:
         if n_h != 1:
             raise ValueError("spectral_weight supports a single H component.")
-        spectral = _spectral_window_loss(
+        spectral, count = _spectral_window_loss(
             d_nodes[:, 0], d_edges[:, 0], node_struct, edge_struct, n_structures, batch, edges_ref, basis_table
         )
         stats["spectral_rmse"] = spectral.detach() ** 0.5
+        stats["spectral_elements"] = count.detach()
         loss = loss + spectral_weight * spectral
     return loss, stats
 

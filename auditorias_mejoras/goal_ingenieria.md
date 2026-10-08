@@ -20,9 +20,12 @@ con código, regresiones y evidencia. Un sublote verde no completa el goal.
 - Evidencia inicial: `/tmp/g2m-engineering-goal.mJBRD9/baseline.log`.
 - Línea base reproducida: **515 passed, 1 skipped, 6023 warnings**, 62.05 s.
 - Turno de goal anterior interrumpido: solo lectura de skills/estado del goal, sin cambios de producto.
-- La última consulta de estado fue **sin progreso de producto**; get_goal sigue
-  active, HEAD=6227edf y no hay bloqueo. Esta continuación retoma los tests RED
+- Una consulta anterior de estado fue **sin progreso de producto**; get_goal seguía
+  active, HEAD=6227edf y no había bloqueo. Esa continuación retomó los tests RED
   existentes de checkpoints, sin repetir las correcciones comprometidas.
+- Reanudación actual del 08-10: get_goal devuelve **active**, sin bloqueo.
+  BASE de este turno 0437bc9; lote de oráculos comprometido como 2f08fa6.
+  No se creó un objetivo sustituto ni se marcaron frentes pendientes completos.
 - Corrección de evidencia CPU: el entorno compartido ve CUDA y los Trainer
   originales usaban accelerator=auto. Los gates anteriores prueban resultados
   verdes, **no uso exclusivo de CPU**. Desde este sublote se ejecutan con
@@ -1246,6 +1249,51 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
 - Los cinco `pip check` devolvieron exit 0 (`*-symmetry-pip-check.log`).
   Se conservan los logs fallidos de colección como evidencia de la diferencia
   entre importar el checkout y verificar la wheel instalada.
+
+### Sublote 3.1.i — gauge y ventana espectral verificados
+
+- BASE **2f08fa6**. Alcance: reducir H alineado, S y ventana con sus propias
+  sumas/conteos globales; la ventana usa sum(k_window^2), no número de grafos.
+  Reusar RMSE y añadir solo la reducción ponderada de objetivos que requieren
+  denominadores distintos, sin cambiar la fórmula ni gradiente de cada paso.
+- Gauge sin ventana: máscara común de filas H/S antes de restar/alinear,
+  denominadores válidos, vacíos con cero conectado y medias de shifts por
+  estructura/componente. Con ventana: H/S completas y C finita son necesarias;
+  rechazar NaN explícitamente, no completar la matriz desconocida con ceros.
+- Pruebas literales con tamaños/ventanas distintos, padding, H-only/H+S,
+  spin, pesos fraccionarios, train/reset/splits y dos ranks CPU. Pares y
+  diagnósticos relativos restantes se conservan pendientes; no revisión final.
+- RED corregido **41 failed, 1 passed**, 1.05 s
+  (`gauge-spectral-red-corrected-oracle.log`). La ejecución inicial de 42 fallos
+  contenía además un gradiente esperado mal derivado en el test nuevo: corregido
+  antes del parche de producto, dejó la prueba literal pasando en el original.
+  El resto reproduce sesgo de batch, NaN/vacíos y proyecciones incompletas.
+- Primera integración **196 passed**, 355 warnings, 4.82 s
+  (`gauge-spectral-first-green.log`): nuevo módulo más métricas de época/core.
+  Train/reset y cuatro DDP con ventanas desiguales/H-only/H+S/spin/rank sin
+  observaciones: **49 passed, 18 deselected**, 174 warnings, 23.09 s
+  (`gauge-spectral-train-ddp.log`).
+- Dos regresiones adicionales de denominador fraccionario <1 y reemplazo
+  gauge→elementwise→gauge verificadas: módulo final **47 passed**, 180 warnings,
+  1.94 s (`gauge-spectral-all-focused.log`). Son 51 casos nuevos con cuatro DDP.
+- Ruff/mypy reales Passed y diff --check limpio. Se ejecuta suite CPU completa
+  y pruebas enfocadas de wheels nuevas en los tres perfiles, aún sin declarar
+  este sublote cerrado ni iniciar revisión final del goal.
+- Suite CPU congelada **1333 passed, 2 skipped**, 7702 warnings, 294.11 s,
+  exit 0 (`gauge-spectral-full-cpu.log`). Se conserva el gradiente literal del
+  original: H +/-19/24, S .1; no se modifica el objetivo completo finito del paso.
+- Wheels compiladas: cp39 sha256
+  `b723377c231cb79973d31b80dc088a50b5f0588531c523fb247e03f1fc12aa47`,
+  cp312 `399a6d7cf538808d382b9df11e5e06ffd101c17881240b213e5717143416265b`.
+  --force-reinstall --no-deps en cinco venvs temporales. Enfocado instalado
+  -I/--pyargs: **223 passed** por perfil completo 3.9 mínimo/3.12 fijado/latest,
+  129.92/169.94/173.04 s (`*-gauge-wheel-focused.log`), incluye todo DDP/métricas
+  de época previas y core metrics. No es suite completa de wheel.
+- Base sin ML: **16 passed, 7 deselected** en 3.9/3.12, 8.42/12.23 s
+  (`*-base-gauge-tests.log`). Cinco pip check, exit 0 (`*-gauge-pip-check.log`).
+  Ruff/mypy reales Passed; docs/data_loading.rst explicita denominadores,
+  máscaras y el rechazo físico de datos espectrales incompletos. Pares,
+  diagnósticos relativos restantes y revisión final continúan pendientes.
 
 ## Cierre del goal
 

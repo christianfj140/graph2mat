@@ -84,7 +84,7 @@ def _run_training_script(output_dir, layout):
     return json.loads((output_dir / "result.json").read_text())
 
 
-def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None, special=None):
+def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coefficient=None, special=None, gauge=None):
     import pytorch_lightning as pl
     import torch
     from pytorch_lightning.strategies import DDPStrategy
@@ -167,6 +167,14 @@ def _evaluate_epoch_metrics(output_dir, spin, huber=False, physical=False, coeff
         model = LitBasisMatrixModel(model_cls=Predictions, basis_table=table,
                                    loss=getattr(metrics_module, loss_name), loss_kwargs=kwargs)
         model.init_model()
+    if gauge:
+        from graph2mat.tools.lightning.tests.test_gauge_epoch_metrics import gauge_model, gauge_samples
+
+        samples = gauge_samples(2 if gauge == "spin" else 1, gauge != "h_only")[:2]
+        if gauge == "missing_rank":
+            samples[0].point_labels.fill_(float("nan"))
+            samples[0].edge_labels.fill_(float("nan"))
+        model = gauge_model(overlap_weight=.3, spectral_weight=.25 if gauge in ("h_only", "h_s") else 0.)
     trainer = pl.Trainer(
         accelerator="cpu", devices=2,
         strategy=DDPStrategy(process_group_backend="gloo", start_method="popen"),
@@ -306,8 +314,28 @@ def test_two_cpu_ranks_reduce_size_domains_and_threshold_selections(tmp_path, sp
             assert result["metrics"][key] == pytest.approx(value), f"Rank {rank}, {key}"
 
 
+@pytest.mark.parametrize("gauge", ["h_only", "h_s", "spin", "missing_rank"])
+def test_two_cpu_ranks_reduce_gauge_and_spectral_denominators(tmp_path, gauge):
+    _run_training_script(tmp_path, "epoch_gauge:" + gauge)
+    h = 9. if gauge == "missing_rank" else 95 / 7 if gauge == "spin" else 38 / 7
+    s = 0. if gauge == "h_only" else 1. if gauge == "missing_rank" else 19 / 28
+    loss = h + .3 * s + (.25 * 19 / 10 if gauge in ("h_only", "h_s") else 0.)
+    for rank in (0, 1):
+        result = json.loads((tmp_path / f"rank{rank}.json").read_text())
+        assert result["world_size"] == 2
+        expected = {"val_loss": loss, "hp_metric": loss, "val_gauge_h_rmse": h ** .5,
+                    "val_overlap_rmse": s ** .5,
+                    "val_gauge_shift_mean_abs": 10. if gauge == "missing_rank" else 22.5 if gauge == "spin" else 15.}
+        if gauge in ("h_only", "h_s"):
+            expected.update(val_spectral_rmse=(19 / 10) ** .5, val_spectral_elements=20)
+        for name, value in expected.items():
+            assert result["metrics"][name] == pytest.approx(value), f"Rank {rank}, {name}"
+
+
 if __name__ == "__main__":
-    if sys.argv[2].startswith("epoch_special:"):
+    if sys.argv[2].startswith("epoch_gauge:"):
+        _evaluate_epoch_metrics(sys.argv[1], False, gauge=sys.argv[2].split(":", 1)[1])
+    elif sys.argv[2].startswith("epoch_special:"):
         _evaluate_epoch_metrics(sys.argv[1], False, special=sys.argv[2].split(":", 1)[1])
     elif sys.argv[2].startswith("epoch_coefficient:"):
         _evaluate_epoch_metrics(sys.argv[1], False, coefficient=sys.argv[2].split(":", 1)[1])
