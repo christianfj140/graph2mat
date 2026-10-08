@@ -52,22 +52,22 @@ por operación de forma `(n_blocks, n_components * dim_irrep)`.
 Produce los mismos diccionarios, ahora también para componentes y ModuleList
 compatibles; `_coefficient_epoch_terms` conserva nombres y ponderación.
 
-- [ ] Step 1: escribir tests con readouts e3nn reales. Caso literal s:
+- [x] Step 1: escribir tests con readouts e3nn reales. Caso literal s:
   nodos A/B/A `[[1,2],[7,8],[3,4]]`, arista A-B `[[5,6]]`;
   coeficientes A `[[1,2],[3,4]]`, B `[[7,8]]`, A-B `[[5,6]]`.
   Añadir s/p/d/f, vacíos, NaN, errores de componentes, ModuleList y épocas.
-- [ ] Step 2: ejecutar los tests nuevos y registrar fallos de producto RED.
+- [x] Step 2: ejecutar los tests nuevos y registrar fallos de producto RED.
   Run: comando CPU de Task 0, sustituyendo la selección por ambos ficheros
   de tests listados aquí. Expected: incompatibilidades reproducidas, no import errors.
-- [ ] Step 3: parche mínimo en los consumidores compartidos. Usar
+- [x] Step 3: parche mínimo en los consumidores compartidos. Usar
   `block.reshape(*shape, n_components).unsqueeze(0)` para varias componentes;
   no `reshape(-1)` de etiquetas que mezcla componentes con elementos.
   Resolver readouts solo si su metadata/contrato de base es compatible.
-- [ ] Step 4: ejecutar los tests del sublote y familias existentes de coeficientes.
+- [x] Step 4: ejecutar los tests del sublote y familias existentes de coeficientes.
   Expected: exit 0 y valores/gradientes de referencia preservados.
-- [ ] Step 5: suite CPU completa, Ruff, mypy y diff --check; registrar todos
+- [x] Step 5: suite CPU completa, Ruff, mypy y diff --check; registrar todos
   los fallos/omisiones. Expected: sin regresiones ni errores propios de tipos/lint.
-- [ ] Step 6: commit explícito y registro de comandos/resultados; marcar solo
+- [x] Step 6: commit explícito y registro de comandos/resultados; marcar solo
   este sublote como verificado. Ganancias GPU/precisión siguen sin medir.
 
 ## Pre-flight

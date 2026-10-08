@@ -275,7 +275,7 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
 - Siguiente acción: plan concreto y primer RED de las incompatibilidades de
   coeficientes de Task 1, comenzando por multi-componente y readout por interacción.
 
-### Task 1.a — componentes y readouts por interacción (en curso)
+### Task 1.a — componentes y readouts por interacción (implementación verificada)
 
 - Turno previo clasificado como **progreso**: commit f1bb647, documentos,
   goal activo y referencia de 67 tests. No se reabre el goal anterior.
@@ -319,13 +319,29 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   instalado **155 pasan**, 1829 warnings, **79.25 s**, exit 0;
   `components-wheel39-tests.log`. Las siete fuentes Python modificadas/nuevas
   coinciden byte por byte con ambas wheels (unzip -p | cmp), incluidas las regresiones.
-- Wheel 3.12 instalada solo en su venv aislado; pip check pasa. El gate
-  enfocado instalado final es la siguiente comprobación.
+- Wheel 3.12 instalada solo en su venv aislado; pip check pasa. Gate instalado
+  final **155 pasan**, 4028 warnings, **60.86 s**, exit 0. Log:
+  `.superpowers/sdd/plan_coeficientes_multicomponente/task-1-tests.log`.
+  Importación -I confirmada desde site-packages y la extensión `_sparse...so`.
 - Corrección de precisión CSR comprometida como **bb01435**, con su regresión.
 - Revisión propia: callers de proyección/reconstrucción/fit_output_scaleshift/
   pérdidas y schema de épocas leídos; cambios de dimensiones coherentes.
   No sustituye la revisión independiente final del goal amplio.
-- Pendiente en este sublote: gate instalado 3.12 y registro definitivo del commit.
+- Coeficientes/componentes/readouts comprometidos como **bf10967**. El comando
+  task-done registró el subproyecto completo en el rango f1bb647..bf10967;
+  no se refiere a la Task 1 completa del roadmap amplio.
+- Ruling de ejecución: primer task-done se lanzó desde /tmp y falló en su
+  preflight Git, antes de ejecutar tests; se relanzó desde el checkout, con
+  -I/--pyargs para verificar la wheel instalada. No hay tests ficticiamente verdes.
+- **Implementación del sublote verificada; ganancia de entrenamiento/GPU no
+  medida.** La corrección CSR garantiza conservación de decimales en la ruta
+  Python, pero no implica una mejora nueva de precisión en entrenamientos que
+  ya utilizaban la extensión compilada correcta.
 - Task 1 general sigue abierta: agrupación/orientación/padding, targets fuera
   del hot path y entrenamiento sin reconstrucción, equivalencia científica y
   mediciones GPU. Tasks 2–4 no se sustituyen por esta compatibilidad.
+- Siguiente acción concreta: reproducir orientación de aristas agrupadas
+  (`basis_shape`, signed edges) y definir el tratamiento de padding; después
+  preparar targets fuera del hot path y el camino de entrenamiento en irreps.
+- No hay procesos de prueba de este sublote pendientes; GPU/autorun/colas
+  ajenos permanecen intactos. Goal general sigue **active**, sin cierre solicitado.
