@@ -24,7 +24,6 @@ from graph2mat import (
     MatrixDataProcessor,
 )
 from graph2mat.core.data.matrices import get_matrix_cls
-from graph2mat.core.data.sparse import csr_to_block_dict
 
 
 class DescriptorManager(ABC):
@@ -142,13 +141,24 @@ class HistorySOAPs(DescriptorManager):
         rbf="gto",
     ):
         """Computes SOAP descriptors for all atoms in a data batch"""
-        from dscribe.descriptors import SOAP
+        try:
+            from dscribe.descriptors import SOAP
+        except ModuleNotFoundError as exc:
+            if exc.name != "dscribe":
+                raise
+            raise ModuleNotFoundError(
+                "SOAP descriptors require graph2mat[extrapolation].", name="dscribe"
+            ) from exc
 
-        species = [at.tag for at in data_processor.basis_table.atoms]
+        species = sorted({at.Z for at in data_processor.basis_table.atoms})
+        pbc = [
+            config.pbc if config.pbc is not None else config.metadata["geometry"].lattice.pbc
+            for config in configs
+        ]
 
         soap = SOAP(
             species=species,
-            periodic=False,
+            periodic=bool(np.any(pbc)),
             r_cut=r_cut,
             n_max=n_max,
             l_max=l_max,
@@ -156,13 +166,11 @@ class HistorySOAPs(DescriptorManager):
         )
 
         na = data[0].num_nodes
-        all_edges = [data_example.edge_index[:, ::2] for data_example in data]
-        unique_edges = np.unique(np.concatenate(all_edges, axis=-1), axis=1)
 
         target_geom = configs[-1].metadata["geometry"]
         target_data_arrays = data[-1].numpy_arrays()
         unique_edges = target_data_arrays.edge_index[:, ::2]
-        edge_shifts = target_data_arrays.shifts[::2]
+        edge_shifts = target_geom.sc_off[target_data_arrays.neigh_isc[::2]]
 
         atom_neighs = []
         atom_shifts = []
@@ -183,6 +191,7 @@ class HistorySOAPs(DescriptorManager):
         for i_molec, config in enumerate(configs):
             geom = config.metadata["geometry"]
             atoms = geom.to.ase()
+            atoms.set_pbc(pbc[i_molec])
 
             atom_soaps = soap.create(atoms)
 
@@ -196,7 +205,7 @@ class HistorySOAPs(DescriptorManager):
                             geom,
                             i,
                             atom_neighs[i],
-                            atom_shifts[i],
+                            atom_shifts[i] @ geom.cell,
                             processor=data_processor,
                         ),
                     ]
@@ -215,7 +224,7 @@ class HistorySOAPs(DescriptorManager):
                     if i_molec in missing_block_steps[i, j, isc]:
                         continue
 
-                    shift = target_geom.sc_off[isc] @ target_geom.cell
+                    shift = target_geom.sc_off[isc] @ geom.cell
 
                     edge_sender_descriptors = all_descriptors[(i, i, 0)][-1]
                     edge_receiver_descriptors = all_descriptors[(j, j, 0)][-1]
@@ -298,6 +307,7 @@ class HistoryCopy(DescriptorManager):
         hist_b_dict,
         missing_block_steps,
         data_processor,
+        **kwargs,
     ):
         descriptors = {k: v.reshape(len(v), -1) for k, v in hist_b_dict.items()}
 
@@ -330,8 +340,9 @@ def get_history_block_dicts(configs, target_data):
     target_geom = target_config.metadata["geometry"]
 
     arrays = target_data.numpy_arrays()
-    target_edges = arrays.edge_index[:, ::2]
-    target_isc = arrays.neigh_isc[::2]
+    stride = 2 if target_data.metadata["data_processor"].symmetric_matrix else 1
+    target_edges = arrays.edge_index[:, ::stride]
+    target_isc = arrays.neigh_isc[::stride]
 
     # Initialize the history block dict
     hist_b_dict = {(i, j, isc): [] for (i, j), isc in zip(target_edges.T, target_isc)}
@@ -347,9 +358,10 @@ def get_history_block_dicts(configs, target_data):
         for i, j, isc in hist_b_dict:
             if isc != 0:
                 target_sc_off = target_geom.sc_off[isc]
-                # print("TARGET SC_OFF:", i, j, isc, target_sc_off)
+                if np.any(np.abs(target_sc_off) > step_geom.nsc // 2):
+                    missing_block_steps[i, j, isc].append(i_step)
+                    continue
                 new_isc = step_geom.isc_off[tuple(target_sc_off)]
-                # print("NEW ISC:", i, j, isc, new_isc)
             else:
                 new_isc = 0
 
@@ -400,20 +412,12 @@ class MatrixTimeSeriesState:
         if self.last_matrix_ref is not None:
             matrix = matrix - self.last_matrix_ref
 
-        if all_dims and matrix.shape[-1] > 1:
-            matrix_data = matrix._csr.data.copy()
-            matrix._csr.data[:, 0] = np.arange(matrix_data.shape[0])
-
-        matrix_cls = get_matrix_cls(matrix.__class__)
-        last_config.matrix = csr_to_block_dict(
-            matrix._csr, matrix.atoms, nsc=matrix.nsc, matrix_cls=matrix_cls
-        )
-
-        if all_dims and matrix.shape[-1] > 1:
-            last_config.matrix.block_dict = {
-                k: matrix_data[v.astype(int)]
-                for k, v in last_config.matrix.block_dict.items()
-            }
+        kwargs = self.processor.get_config_kwargs(matrix) if self.processor else {}
+        if all_dims:
+            kwargs["matrix_component_policy"] = "raw_components"
+        # The regular converter already preserves channels and the target's
+        # missing-entry policy, without using matrix entries as row indices.
+        last_config.matrix = OrbitalConfiguration.from_matrix(matrix, **kwargs).matrix
 
 
 def extrapolate_from_series(

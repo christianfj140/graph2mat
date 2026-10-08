@@ -37,6 +37,9 @@ Install `graph2mat[siesta]` to generate SIESTA input templates,
 prediction server and client. Adding the tools extra installs the dependencies
 for the complete toolset.
 
+SOAP-based extrapolation additionally needs `graph2mat[extrapolation]`. It uses
+the periodic boundary conditions of each configuration, including partial PBC.
+
 ```
 pip install graph2mat[tools]
 ```

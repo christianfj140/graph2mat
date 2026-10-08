@@ -45,6 +45,22 @@ without inserting them into the input matrix. They retain the converter's
 missing-entry policy: zero for Hamiltonians and NaN for density/energy-density
 matrices. A wholly empty multi-component matrix retains its component axis.
 
+Extrapolation history uses this same converter and component policy without
+modifying the caller's sparse entries. ``MatrixTimeSeriesState.add_last_matrix``
+with ``all_dims=True`` retains raw components, including explicit overlap;
+raw storage does not authorize physical Hamiltonian serialization.
+``HistoryCopy`` accepts the extrapolator's descriptor options without changing
+its objective for complete histories. Histories retain both edge directions for
+non-symmetric matrices and mark image blocks outside an older auxiliary cell as
+missing instead of indexing a different image.
+
+SOAP descriptors require ``graph2mat[extrapolation]``. They use atomic numbers,
+not arbitrary SIESTA atom tags, and honor each configuration's partial PBC.
+Local image vectors are Cartesian vectors from integer cell offsets and the
+cell of each historical configuration, including variable-cell trajectories.
+The optional dependency and its public API were verified against DScribe 2.1.2;
+see `DScribe SOAP documentation <https://singroup.github.io/dscribe/latest/tutorials/descriptors/soap.html>`_.
+
 Reproducibility and checkpoint provenance
 ----------------------------------------
 

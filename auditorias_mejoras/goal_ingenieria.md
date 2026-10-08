@@ -613,6 +613,77 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   físicos H/EDM; 3.5 de rangos/constraints y perfil completo; 3.9 de gates/pérdidas,
   CLI --ckpt_path y oráculos científicos independientes. Revisión final pendiente.
 
+### Sublote 3.4.c — canales, SOAP y bloques históricos
+
+- Lote mapas/cliente comprometido en **015fc98**. La continuación trabaja solo
+  sobre extrapolation.py, sus nuevas regresiones, extra/CI y documentación.
+- RED canales/HistoryCopy: **15 failed**, 56 warnings, 0.12 s
+  (series-channel-policy-red.log). DM/EDM se rellenaban con cero; H ignoraba su
+  política y conservaba S fuera de las labels; all_dims sobrescribía la columna
+  cero del llamador y rellenaba huecos tomando el no-nulo índice 0. HistoryCopy
+  rechazaba kwargs reales del extrapolador antes de calcular nada.
+- Parche: reutilizar OrbitalConfiguration.from_matrix y get_config_kwargs;
+  all_dims pide raw_components explícitamente. Eliminar el truco de índices, no
+  duplicar la extracción existente. H retiene 0 y DM/EDM NaN, canales y bloques
+  ausentes; matrices originales y referencias no se mutan, incluida su resta.
+  HistoryCopy acepta kwargs y conserva los valores/autoregresión anteriores en
+  datos completos. GREEN servidor: **24 passed**, 57 warnings, 0.39 s
+  (series-channel-policy-green.log), con nueve regresiones HTTP existentes.
+- DScribe **2.1.2** y sparse **0.19.2** instalados solo en overlay temporal
+  /tmp/g2m-soap-deps.o0Kjat; dependencias restantes ya presentes y de solo lectura.
+  No instalación compartida. El import y SOAP reales funcionaron; el primer
+  sondeo falló después por usar un orbital sin función radial. La fixture SOAP
+  usa un SphericalOrbital real con radial exp(-r), sin sustituir el descriptor.
+- La primera fixture SOAP anidaba una lista de orbitales y dio tres fallos antes
+  de la función, no evidencia del bug. Corregida la lista, RED real **3 failed,
+  1 passed**, 15 deselected, 52 warnings, 2.24 s (soap-periodicity-real-red.log):
+  SOAP periódico daba 6.796562 frente a 25.140762; tags H_custom no eran especies
+  químicas válidas; el error sin DScribe no indicaba el extra. La caracterización
+  no periódica pasó. API primaria contrastada:
+  https://singroup.github.io/dscribe/latest/tutorials/descriptors/soap.html.
+- SOAP usa Z, PBC de cada configuración y el extra declarado
+  graph2mat[extrapolation] (dscribe>=2.1.2,<3, Requires-Python>=3.9 verificado en
+  METADATA). Una dependencia interna rota no se oculta. CI completa instala el
+  extra para no omitir estos tests; no se afirma CI remota ejecutada.
+- RED de vectores tras corregir SOAP: **6 failed, 6 passed**, 16 deselected,
+  52 warnings, 0.33 s (soap-all-image-vectors-red.log). Mezclaba shifts ya en
+  convención SIESTA con coordenadas Cartesianas (distancia 3.969887 en vez de .4)
+  y usaba la celda nueva para historias antiguas (.9,.9,.9 en vez de .4,.4,.9).
+  Parche: offsets enteros de sc_off por la celda de cada frame en nodos/aristas;
+  sin redefinir la fórmula del descriptor. GREEN **37 passed**, 57 warnings,
+  2.81 s (soap-image-vectors-green.log), con SOAP real, custom tags, parcial PBC,
+  celda variable y oráculos literales de distancias/descriptor nativo.
+- Historial: el primer oráculo eligió el representante inverso al declarado por
+  el grafo simétrico; no se cambió su convención para obtener verde. Corregido a
+  (1,0,+x), se retiró temporalmente el parche antes de repetir RED: **3 failed,
+  1 passed**, 28 deselected, 52 warnings, 0.15 s (history-images-real-red.log).
+  Faltaba una dirección en matrices no simétricas; imágenes fuera del nsc previo
+  lanzaban IndexError. Ahora el stride depende de symmetric_matrix y esas imágenes
+  cuentan como bloques ausentes, sin índices negativos/alias inventados.
+- GREEN final cercano: **64 passed**, 57 warnings, 6.64 s
+  (series-soap-final-focused.log): 32 regresiones de series/SOAP/historial, nueve
+  HTTP y 23 mapas periódicos. Gate CPU completo con overlay DScribe presente:
+  **1025 passed, 2 skipped**, 6726 warnings, 240.18 s
+  (series-soap-full-cpu.log), exit 0. No se omiten los tests nuevos de SOAP.
+- Este lote no termina 3.4: quedan /info, formatos físicos H/EDM, política explícita
+  del Lua DM y extrapolación de bloques NaN/vacíos con historial incompleto y
+  canales. Los otros frentes y la revisión final conservan su alcance íntegro.
+
+### Inicio de diagnóstico 3.9.g — gates estáticos
+
+- Herramientas instaladas en otro overlay temporal /tmp/g2m-quality-deps.UsKznt:
+  Ruff 0.16.10, mypy 2.4.0 y pre-commit 4.6.2; entorno compartido intacto.
+  Comprobaciones solo de lectura, no se aplicó autofix ni formateo a otros lotes.
+- Baseline Ruff crítico E9/F63/F7/F82 con target py39: **4 errores**, exit 1
+  (ruff-critical-baseline.log): ndarray no definido en OrbitalMatrix,
+  OrbitalMatrixMetric no definido en processing, _re_setops_sub en el helper
+  de globs y referencia a e fuera del except en el fallback FastAPI. Pendientes
+  de regresión/parche, no se deshabilitan las reglas para obtener verde.
+- El sondeo de tipos con mypy 2.4.0 no llegó al código: exit 2, esa versión ya
+  no acepta --python-version 3.9 (mypy-core-baseline.log). Elegir una versión de
+  checker compatible con la compatibilidad declarada; no subir el mínimo Python
+  para hacer pasar el gate. Aún no hay gate de tipos verificado ni CI de calidad.
+
 ## Cierre del goal
 
 Releer el objetivo, el roadmap y los IDs arriba. Para cada requisito registrar

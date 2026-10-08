@@ -35,7 +35,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install ".[test,server]" httpx "mace-torch==0.3.15" "e3nn==0.4.4" "sisl==0.16.4" "pytorch-lightning==2.6.1"
+          pip install ".[test,server,extrapolation]" httpx "mace-torch==0.3.15" "e3nn==0.4.4" "sisl==0.16.4" "pytorch-lightning==2.6.1"
       - name: Run tests
         run: |
           pytest --pyargs graph2mat -q -p no:cacheprovider -W ignore::DeprecationWarning

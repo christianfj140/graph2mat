@@ -67,6 +67,10 @@ analysis = [
     "jinja2"
 ]
 
+extrapolation = [
+    "dscribe>=2.1.2,<3"
+]
+
 lightning = [
     "pytorch-lightning",
     "jsonargparse[signatures]",
