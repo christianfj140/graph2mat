@@ -89,7 +89,8 @@ load_physical_data(path: Union[str, Path], processor: MatrixDataProcessor, *,
                    ) -> BasisMatrixDataBase
 physical_layout(batch: Any, basis_table: BasisTableWithEdges) -> Dict[str, Any]
 physical_contractions(nodes: Any, edges: Any, partner_nodes: Any,
-                      partner_edges: Any, *, layout: Dict[str, Any]) -> Any
+                      partner_edges: Any, *, layout: Dict[str, Any],
+                      reverse_partner_edges: Optional[Any] = None) -> Any
 physical_loss_terms(nodes_pred: Any, edges_pred: Any, *, batch: Any,
                     basis_table: BasisTableWithEdges,
                     electron_weight: float = 0.0, mulliken_weight: float = 0.0,
@@ -118,7 +119,9 @@ Auxiliares de cada muestra, concatenables por PyG:
 | `physical_version`, `physical_kind`, `physical_spin`, `physical_capabilities` | `(1,)`, enteros; versión 1, H=0/DM=1/EDM=2, spin 1/2, bits anteriores. |
 | `physical_reference_nodes/edges` | `(n_label_rows, n_spin)`, target físico de referencia sin S y sin resta D0. |
 | `physical_overlap_nodes/edges` | `(n_label_rows, 1)`, S de referencia. |
+| `physical_overlap_reverse_edges` | `(n_edge_rows, 1)`, partner de la otra orientación de media arista. |
 | `physical_partner_nodes/edges` | Solo energy: H→D, DM→H, EDM→S; canales físicos o S escalar. |
+| `physical_partner_reverse_edges`, `physical_partner_known_reverse_edges` | Solo energy: partner y máscara de la otra orientación, misma forma de edge. |
 | `physical_reference_known_nodes/edges`, `physical_partner_known_nodes/edges` | Máscaras bool con la misma forma que sus arrays, no inferidas de `value!=0`. |
 | `physical_population_reference` | Solo charge: `(n_atoms,)`, población completa por átomo. |
 | `physical_energy_reference_residual` | Solo energy: `(n_atoms,)`, H–D menos E–S completo. |
@@ -1089,3 +1092,8 @@ pendientes hasta los experimentos expresamente aplazados.
   sustituye el RED→GREEN ni los gates de producto pendientes.
 - Límite adicional explícito de loader: solo malla FDF diagonal sin offset en
   primera versión; otras mallas requieren API directa con k/pesos declarados.
+- Ruling de ejecución por evidencia real: H/S presentan asimetría numérica
+  de 1e-8/1e-9. Política y cota explícitas en spec y ledger; las contracciones
+  usan verdaderas imágenes contrapuestas y partners forward/reverse, sin
+  alterar datos. Esto sustituye el atajo de reutilizar un mismo partner para
+  ambos extremos en los snippets anteriores cuando la referencia no es exacta.

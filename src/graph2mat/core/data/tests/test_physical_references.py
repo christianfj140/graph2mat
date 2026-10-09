@@ -164,6 +164,32 @@ def test_unknown_times_exact_zero_is_excluded_before_multiplication(physical):
     np.testing.assert_allclose(result["population"], [.7, .8], atol=1e-14)
 
 
+def test_bounded_archive_asymmetry_uses_true_opposite_partner_without_changing_input(physical):
+    matrices = analytic_matrices()
+    epsilon = 1e-9
+    for name, matrix in matrices.items():
+        if name in ("kpoints", "kweights"):
+            continue
+        component = 0 if name == "overlap" else matrix.S_idx
+        matrix[0, 1, component] += epsilon
+        matrix[1, 0, component] -= epsilon
+    before = {name: matrix.tocsr(0).copy() for name, matrix in matrices.items()
+              if name not in ("kpoints", "kweights")}
+    result = physical.physical_reference_targets(**matrices, requested=("charge", "energy"))
+    # D_01 * S_10 belongs to atom 0, not D_01 * S_01.
+    np.testing.assert_allclose(result["population"], [1-5*epsilon/6, 1+5*epsilon/6], rtol=0, atol=1e-15)
+    np.testing.assert_allclose(result["energy_residual"], [5*epsilon/36, -5*epsilon/36], rtol=0, atol=1e-15)
+    for name, original in before.items():
+        np.testing.assert_array_equal(matrices[name].tocsr(0).toarray(), original.toarray())
+
+
+def test_large_archive_asymmetry_is_rejected(physical):
+    matrices = analytic_matrices()
+    matrices["overlap"][0, 1, 0] += 1e-4
+    with pytest.raises(ValueError, match="Hermitian|hermitian"):
+        physical.physical_reference_targets(**matrices, requested=("charge",))
+
+
 @pytest.mark.parametrize("name", ["electron_weight", "mulliken_weight", "energy_weight"])
 @pytest.mark.parametrize("value", [-1., np.nan, np.inf])
 def test_invalid_physical_weight_is_rejected(physical, name, value):

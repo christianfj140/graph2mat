@@ -64,6 +64,16 @@ H/EDM se leen en eV; población en electrones; residuos de energía en eV por
 átomo. Las poblaciones son Mulliken, no cargas netas ni cargas de Bader.
 La identidad de referencia es `u_A(H_ref,D_ref) = v_A(S_ref,E_ref)`.
 Se comprueban spin, geometría, base, celda, imágenes y cero de energía común.
+Nota de ejecución Native (contraste adicional de referencias reales): H/S
+archivadas tienen asimetrías numéricas pequeñas, hasta 1.45e-8 eV/2.62e-9
+en las dos muestras utilizables. Se certifica una cota explícita de 1e-8 por
+la escala máxima de entrada (mínimo 1), rechazando asimetrías mayores. No se
+simetrizan etiquetas: las contracciones conservan `Y_ji(-R)` de verdad, y las
+medias aristas necesitan partners de ambas orientaciones. Para S(k), se mide
+la positividad de su parte hermítica después de certificar la cota; lambda_min
+también debe superar la cota Frobenius de su parte antihermítica. No se recortan
+autovalores ni se modifica S usada en la pérdida. Los oráculos analíticos
+conservan sus tolerancias estrictas; esta política no cambia el gate energético.
 La referencia energética se rechaza si su residuo máximo supera 1e−6 eV por
 átomo; no se desplaza EDM de forma implícita para hacerla pasar.
 

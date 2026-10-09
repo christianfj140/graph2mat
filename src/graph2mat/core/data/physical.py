@@ -5,6 +5,8 @@ from typing import Dict, Optional, Sequence, Tuple
 import numpy as np
 import sisl
 
+_HERMITICITY_RTOL = 1e-8
+
 
 def normalize_physical_labels(labels: Optional[Sequence[str]] = None) -> Tuple[str, ...]:
     """Select charge/energy preparation explicitly, preserving the default off path."""
@@ -78,7 +80,8 @@ def _validate_hermitian(matrix, channels, name, *, allow_unknown=False):
         original.data[np.isnan(original.data)] = 0.
         opposite.data[np.isnan(opposite.data)] = 0.
         difference = original - opposite
-        if difference.nnz and np.max(np.abs(difference.data)) > 1e-10:
+        scale = max(1., float(np.max(np.abs(original.data))) if original.nnz else 0.)
+        if difference.nnz and np.max(np.abs(difference.data)) > _HERMITICITY_RTOL * scale:
             raise ValueError(f"{name} reference is not Hermitian across opposite images")
 
 
@@ -141,12 +144,17 @@ def physical_reference_targets(
         raise ValueError("physical reference spin components do not agree")
     for kpoint in points:
         sk = np.asarray(overlap.Sk(kpoint, format="array"), dtype=np.complex128)
-        if not np.isfinite(sk).all() or not np.allclose(sk, sk.conj().T, rtol=0, atol=1e-12):
+        antisymmetric = sk - sk.conj().T
+        scale = max(1., float(np.max(np.abs(sk))))
+        if not np.isfinite(sk).all() or np.max(np.abs(antisymmetric)) > _HERMITICITY_RTOL * scale:
             raise ValueError("reference overlap must be finite and Hermitian")
-        eigenvalues = np.linalg.eigvalsh(sk)
-        if eigenvalues[0] <= 0 or eigenvalues[0] / eigenvalues[-1] <= 1e-12:
+        # Certify numerical positivity without changing the S used by observables.
+        eigenvalues = np.linalg.eigvalsh((sk + sk.conj().T) / 2)
+        uncertainty = np.linalg.norm(antisymmetric, ord="fro") / 2
+        if eigenvalues[0] <= uncertainty or eigenvalues[0] / eigenvalues[-1] <= 1e-12:
             raise ValueError("reference overlap is singular or ill-conditioned")
     scalar_overlap = overlap.tocsr(0)
+    reverse_overlap = overlap.transpose().tocsr(0)
     for name, (matrix, _) in matrices.items():
         if name == "overlap" or matrix.orthogonal:
             continue
@@ -164,12 +172,13 @@ def physical_reference_targets(
     targets = {"spin_components": np.array([spin], dtype=np.int64),
                "capabilities": np.array([int("charge" in requested) + 2*int("energy" in requested)], dtype=np.int64)}
     if "charge" in requested:
-        rows = sum(_weighted_reference_rows(density, c, scalar_overlap, "density") for c in range(spin))
+        rows = sum(_weighted_reference_rows(density, c, reverse_overlap, "density") for c in range(spin))
         targets["population"] = atomic_sum(rows)
     if "energy" in requested:
         assert hamiltonian is not None and energy_density is not None
-        rows = sum(_weighted_reference_rows(density, c, hamiltonian.tocsr(c), "density")
-                   - _weighted_reference_rows(energy_density, c, scalar_overlap, "energy_density") for c in range(spin))
+        reverse_density = density.transpose()
+        rows = sum(_weighted_reference_rows(reverse_density, c, hamiltonian.tocsr(c), "density")
+                   - _weighted_reference_rows(energy_density, c, reverse_overlap, "energy_density") for c in range(spin))
         targets["energy_residual"] = atomic_sum(rows)
         if np.max(np.abs(targets["energy_residual"])) > 1e-6:
             raise ValueError("physical energy reference residual exceeds 1e-6 eV/atom; check its energy gauge")
