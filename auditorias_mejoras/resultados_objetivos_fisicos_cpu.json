@@ -1,0 +1,2293 @@
+{
+  "smokes": {
+    "graphene": {
+      "fdf": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/RUN.fdf",
+      "source_hashes": {
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/RUN.fdf": "042d979aad2468da6cab0aa73c0d19d2615ebbb6310b98e0529323fc8ca1f011",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/graphene.HSX": "ccdaf5768d19b3e25bfc4e5922a8df218d4ef32b33d23f13aebd9a80ec1e332f",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/graphene.TSDE": "039883e2a7e89c59efcbd8e3d0645b03756d3dd4793209831b8da64d3b941676",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/graphene.TSHS": "b64b166be3bf7d223ba41a91e4cbeaa1e6b589ae0b9869d52ff322adaf5991d9"
+      },
+      "cases": [
+        {
+          "target": "density_matrix",
+          "term": "electron_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 5.092918176649022,
+          "physical_gradient_l1": 104.01589263877776,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 5.0021826193720385
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 0.011318296174317802
+          }
+        },
+        {
+          "target": "density_matrix",
+          "term": "mulliken_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 5.092918176649021,
+          "physical_gradient_l1": 104.01589263877773,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 5.002182619372038
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 0.011318296174317802
+          }
+        },
+        {
+          "target": "density_matrix",
+          "term": "energy_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 390.3579882761486,
+          "physical_gradient_l1": 5289.397390181465,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 385.2315065574025
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 0.011318296174317802
+          }
+        },
+        {
+          "target": "hamiltonian",
+          "term": "energy_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 384.9229899866195,
+          "physical_gradient_l1": 640.7046463216599,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 386.5793258803201
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 2.302889097269173
+          }
+        },
+        {
+          "target": "energy_density_matrix",
+          "term": "energy_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 383.3692657309737,
+          "physical_gradient_l1": 902.4538406725154,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 383.1899889510557
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 0.7350771683360228
+          }
+        }
+      ],
+      "oracles": {
+        "population_full": [
+          4.000000000000067,
+          3.9999999999999294
+        ],
+        "population_G": [
+          4.0000000000000675,
+          3.9999999999999276
+        ],
+        "population_tail_outside_G": [
+          -8.881784197001252e-16,
+          1.7763568394002505e-15
+        ],
+        "energy_reference_residual_eV_atom": [
+          -1.6086687537608668e-11,
+          -1.602273869139026e-11
+        ],
+        "sisl_mulliken_checked": true,
+        "opposite_image_oracle_checked": true
+      },
+      "scope": "two-step CPU integration, not accuracy",
+      "model_limit": "tiny MACE does not span every high-l coefficient; this is a gradient smoke",
+      "source_hashes_unchanged": true
+    },
+    "hBN": {
+      "fdf": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/RUN.fdf",
+      "source_hashes": {
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/RUN.fdf": "a4ee22559c86679ca7bd908a01181040c56ee800c932e9e9488c3dd94e492d03",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/graphene_hBN_AA.HSX": "a4002540d88c99280794a7773b3e643f5a5ce1f02a12ff11584953f5c3b16855",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/graphene_hBN_AA.TSDE": "3b4cc4f5e0ea33689f9f96f1baf8de4278706dd9a68b210bae542ca30a0988f2",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/graphene_hBN_AA.TSHS": "9aef2f10c5b40be29646520a562e07b1fc82750f4eb34c3617a2af362d8caece"
+      },
+      "cases": [
+        {
+          "target": "density_matrix",
+          "term": "electron_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 5.124856719023968,
+          "physical_gradient_l1": 71.29907110976173,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 5.058036850885299
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 0.0013209098440467371
+          }
+        },
+        {
+          "target": "density_matrix",
+          "term": "mulliken_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 5.159362954607399,
+          "physical_gradient_l1": 73.94871878821733,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 5.090172805659284
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 0.0013209098440467371
+          }
+        },
+        {
+          "target": "density_matrix",
+          "term": "energy_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 479.3636911179701,
+          "physical_gradient_l1": 34641.28931324018,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 447.02122101039976
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 0.0013209098440467371
+          }
+        },
+        {
+          "target": "hamiltonian",
+          "term": "energy_weight",
+          "status": "blocked",
+          "reason": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/RUN.fdf: physical reference loading failed: unknown/unobserved density partner where predicted H can vary"
+        },
+        {
+          "target": "energy_density_matrix",
+          "term": "energy_weight",
+          "status": "verified_cpu",
+          "weight": 0.3,
+          "physical_loss_initial": 347.4713941074322,
+          "physical_gradient_l1": 527.4845868295547,
+          "candidate_fit": {
+            "steps": 2,
+            "loss": 346.99730998179876
+          },
+          "control_fit": {
+            "steps": 2,
+            "loss": 0.07300219478062345
+          }
+        }
+      ],
+      "oracles": {
+        "population_full": [
+          4.009193944706218,
+          4.0039094362813605,
+          3.5853673471701963,
+          4.401529271842324
+        ],
+        "population_G": [
+          4.009193944706218,
+          4.0039094362813605,
+          3.5853673471701963,
+          4.401529271842324
+        ],
+        "population_tail_outside_G": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "energy_reference_residual_eV_atom": [
+          -5.297096095091547e-10,
+          1.375397573610826e-10,
+          -6.278355613176245e-11,
+          -5.777529565875739e-10
+        ],
+        "sisl_mulliken_checked": true,
+        "opposite_image_oracle_checked": true
+      },
+      "scope": "two-step CPU integration, not accuracy",
+      "model_limit": "tiny MACE does not span every high-l coefficient; this is a gradient smoke",
+      "source_hashes_unchanged": true
+    }
+  },
+  "benchmarks": {
+    "graphene": {
+      "fdf": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/RUN.fdf",
+      "source_hashes": {
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/RUN.fdf": "042d979aad2468da6cab0aa73c0d19d2615ebbb6310b98e0529323fc8ca1f011",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/graphene.HSX": "ccdaf5768d19b3e25bfc4e5922a8df218d4ef32b33d23f13aebd9a80ec1e332f",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/graphene.TSDE": "039883e2a7e89c59efcbd8e3d0645b03756d3dd4793209831b8da64d3b941676",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500/MD_steps/0/graphene.TSHS": "b64b166be3bf7d223ba41a91e4cbeaa1e6b589ae0b9869d52ff322adaf5991d9"
+      },
+      "source_hashes_unchanged": true,
+      "provenance": {
+        "python": "3.12.3",
+        "versions": {
+          "torch": "2.11.0+cpu",
+          "torch-geometric": "2.8.0.post1",
+          "pytorch-lightning": "2.6.1",
+          "e3nn": "0.4.4",
+          "mace-torch": "0.3.15",
+          "sisl": "0.16.4"
+        },
+        "git_commit": "8cfbc857e4a88b482b206cd058c0d22fcfabd0be",
+        "git_dirty": false
+      },
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "script_hashes": {
+        "/home/christian/repositorios/graph2mat/auditorias_mejoras/bench_objetivos_fisicos.py": "99cf088bda59f639e155e04ba174ede5baef958cde5d155f8ddb0fe8569351d2",
+        "/home/christian/repositorios/graph2mat/auditorias_mejoras/smoke_objetivos_fisicos.py": "59c39a7dbf08d17f9e6466bc0372507e906e67b5d998389e3153875bb353f206"
+      },
+      "cpu": "Intel(R) Core(TM) Ultra 9 285K",
+      "host_logical_cpus": 24,
+      "threads": 2,
+      "thread_env": {
+        "OMP_NUM_THREADS": "2",
+        "OPENBLAS_NUM_THREADS": "2",
+        "MKL_NUM_THREADS": "2"
+      },
+      "host_load_before": [
+        3.57373046875,
+        4.322265625,
+        5.0302734375
+      ],
+      "host_load_after": [
+        3.7353515625,
+        4.32275390625,
+        5.0185546875
+      ],
+      "dtype": "float64",
+      "seed": 13,
+      "warmup": 3,
+      "rounds": 12,
+      "rss_peak_before_KiB": 543324,
+      "rss_peak_after_KiB": 760204,
+      "rss_scope": "whole benchmark process including imports/models/all cases; not paired allocation and not VRAM",
+      "first_invocation_scope": "first invocation in this process; OS filesystem cache not evicted",
+      "load_control_scope": "matched physical channels, original sparse support, no auxiliary certification; S read for geometry",
+      "lightning_scope": "one-step Trainer.fit includes setup, logging, optimizer construction and prepared-data preflight",
+      "auxiliary_scope": "physical tensors + physical layout arrays + k metadata array payload; excludes Python container overhead",
+      "accuracy_or_gpu_claim": false,
+      "cases": [
+        {
+          "target": "density_matrix",
+          "term": "electron_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.0072924913838505745,
+            "physical": 0.020781762897968292
+          },
+          "atoms": 2,
+          "node_rows": 32,
+          "edge_rows": 480,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 25648,
+          "auxiliary_bytes_batch1": 33608,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.006775110028684139,
+                "mad_s": 6.882636807858944e-05,
+                "samples_s": [
+                  0.0068787760101258755,
+                  0.006764967925846577,
+                  0.00700546195730567,
+                  0.006942224223166704,
+                  0.006837477907538414,
+                  0.006734235677868128,
+                  0.006699825171381235,
+                  0.006785252131521702,
+                  0.0066843959502875805,
+                  0.007394651882350445,
+                  0.006729758344590664,
+                  0.006760971620678902
+                ]
+              },
+              "physical": {
+                "median_s": 0.019864864414557815,
+                "mad_s": 0.00018695183098316193,
+                "samples_s": [
+                  0.01938541093841195,
+                  0.019351620692759752,
+                  0.02047987701371312,
+                  0.020416649989783764,
+                  0.019917253870517015,
+                  0.02002039924263954,
+                  0.019440521020442247,
+                  0.019778450019657612,
+                  0.019812474958598614,
+                  0.019796011969447136,
+                  0.01992556406185031,
+                  0.02008323324844241
+                ]
+              },
+              "physical_over_baseline": 2.932035691000573
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.0017151010688394308,
+                "mad_s": 7.329043000936508e-06,
+                "samples_s": [
+                  0.0017362688668072224,
+                  0.001713908277451992,
+                  0.001737270038574934,
+                  0.00170555105432868,
+                  0.001720209140330553,
+                  0.0017108148895204067,
+                  0.0017192508094012737,
+                  0.0017162938602268696,
+                  0.0017374418675899506,
+                  0.0016984171234071255,
+                  0.0017113038338720798,
+                  0.0017048520967364311
+                ]
+              },
+              "physical": {
+                "median_s": 0.0018625857774168253,
+                "mad_s": 6.550224497914314e-06,
+                "samples_s": [
+                  0.001866254024207592,
+                  0.001869663130491972,
+                  0.0018737800419330597,
+                  0.0018703830428421497,
+                  0.0018467861227691174,
+                  0.001860413234680891,
+                  0.0018463009037077427,
+                  0.0018583396449685097,
+                  0.0018650819547474384,
+                  0.0018647583201527596,
+                  0.0018376540392637253,
+                  0.0018565626814961433
+                ]
+              },
+              "physical_over_baseline": 1.085991846927828
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.00046339305117726326,
+                "mad_s": 5.948357284069061e-06,
+                "samples_s": [
+                  0.0004785582423210144,
+                  0.0004726196639239788,
+                  0.00046048639342188835,
+                  0.0004709889180958271,
+                  0.00046182097867131233,
+                  0.0004649651236832142,
+                  0.00045725004747509956,
+                  0.00046118488535284996,
+                  0.0004748948849737644,
+                  0.0004691467620432377,
+                  0.0004529696889221668,
+                  0.000459061935544014
+                ]
+              },
+              "physical": {
+                "median_s": 0.0007716398686170578,
+                "mad_s": 1.0592397302389145e-05,
+                "samples_s": [
+                  0.0007865400984883308,
+                  0.0007880269549787045,
+                  0.0007660496048629284,
+                  0.0007699760608375072,
+                  0.0007593552581965923,
+                  0.0007612360641360283,
+                  0.000786920078098774,
+                  0.0007816506549715996,
+                  0.0007752841338515282,
+                  0.0007733036763966084,
+                  0.0007584230042994022,
+                  0.000760858878493309
+                ]
+              },
+              "physical_over_baseline": 1.6651951656518904
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.0001129454467445612,
+                "mad_s": 6.952090188860893e-06,
+                "samples_s": [
+                  0.00011812616139650345,
+                  0.00012684613466262817,
+                  0.00010243477299809456,
+                  0.00011397106572985649,
+                  0.00010422198101878166,
+                  0.00011303508654236794,
+                  9.688502177596092e-05,
+                  0.00011285580694675446,
+                  9.522633627057076e-05,
+                  0.00011399202048778534,
+                  9.794533252716064e-05,
+                  0.00011396734043955803
+                ]
+              },
+              "physical": {
+                "median_s": 0.000544433481991291,
+                "mad_s": 8.010538294911385e-06,
+                "samples_s": [
+                  0.0005430197343230247,
+                  0.0005686040967702866,
+                  0.0005579600110650063,
+                  0.0005525518208742142,
+                  0.0005357409827411175,
+                  0.0005432786419987679,
+                  0.0005324399098753929,
+                  0.0005557104013860226,
+                  0.0005372688174247742,
+                  0.000547435600310564,
+                  0.0005365307442843914,
+                  0.0005455883219838142
+                ]
+              },
+              "physical_over_baseline": 4.820322533431458
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.017937339143827558,
+                "mad_s": 0.0003969999961555004,
+                "samples_s": [
+                  0.01833459921181202,
+                  0.018334079068154097,
+                  0.017386960797011852,
+                  0.01723049394786358,
+                  0.017921426333487034,
+                  0.01789691997691989,
+                  0.01795325195416808,
+                  0.016841875854879618,
+                  0.017028235364705324,
+                  0.018928551115095615,
+                  0.018058673944324255,
+                  0.017966239247471094
+                ]
+              },
+              "physical": {
+                "median_s": 0.021839786553755403,
+                "mad_s": 0.0006406954489648342,
+                "samples_s": [
+                  0.023169525898993015,
+                  0.022533968556672335,
+                  0.021602995228022337,
+                  0.021783498115837574,
+                  0.023059212137013674,
+                  0.022475340869277716,
+                  0.021738218143582344,
+                  0.023380376398563385,
+                  0.02189607499167323,
+                  0.021193949971348047,
+                  0.021674994844943285,
+                  0.021100793965160847
+                ]
+              },
+              "physical_over_baseline": 1.217559994748202
+            }
+          }
+        },
+        {
+          "target": "density_matrix",
+          "term": "mulliken_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.006965220905840397,
+            "physical": 0.021066270302981138
+          },
+          "atoms": 2,
+          "node_rows": 32,
+          "edge_rows": 480,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 25648,
+          "auxiliary_bytes_batch1": 33608,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.0068756588734686375,
+                "mad_s": 6.865197792649269e-05,
+                "samples_s": [
+                  0.0070038121193647385,
+                  0.007173454854637384,
+                  0.0071027870289981365,
+                  0.006870242767035961,
+                  0.006870162673294544,
+                  0.006881074979901314,
+                  0.006803976837545633,
+                  0.00721048004925251,
+                  0.006868955213576555,
+                  0.006810896098613739,
+                  0.006709560286253691,
+                  0.006941280793398619
+                ]
+              },
+              "physical": {
+                "median_s": 0.019992424407973886,
+                "mad_s": 0.0002154076937586069,
+                "samples_s": [
+                  0.020812348928302526,
+                  0.020872822031378746,
+                  0.019626823253929615,
+                  0.01975625567138195,
+                  0.019547959323972464,
+                  0.020109997130930424,
+                  0.019946178887039423,
+                  0.020805884152650833,
+                  0.020017943810671568,
+                  0.020187071058899164,
+                  0.019807520788162947,
+                  0.019966905005276203
+                ]
+              },
+              "physical_over_baseline": 2.9077103410582805
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.001708901021629572,
+                "mad_s": 1.0190065950155258e-05,
+                "samples_s": [
+                  0.0017366381362080574,
+                  0.001702107023447752,
+                  0.0017261309549212456,
+                  0.0016939719207584858,
+                  0.0017042639665305614,
+                  0.0016909828409552574,
+                  0.0017166193574666977,
+                  0.0016962392255663872,
+                  0.001711257267743349,
+                  0.0017143343575298786,
+                  0.0017354781739413738,
+                  0.0017065447755157948
+                ]
+              },
+              "physical": {
+                "median_s": 0.001854711677879095,
+                "mad_s": 1.3843178749084473e-05,
+                "samples_s": [
+                  0.0018814019858837128,
+                  0.0018813470378518105,
+                  0.0018576881848275661,
+                  0.001849641092121601,
+                  0.0018353858031332493,
+                  0.001851735170930624,
+                  0.001834547147154808,
+                  0.0018452862277626991,
+                  0.00183130893856287,
+                  0.001862437929958105,
+                  0.0018654386512935162,
+                  0.001871671061962843
+                ]
+              },
+              "physical_over_baseline": 1.0853242255718714
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.00048027001321315765,
+                "mad_s": 9.88389365375042e-06,
+                "samples_s": [
+                  0.00048293592408299446,
+                  0.0005688401870429516,
+                  0.0004886030219495296,
+                  0.0004777819849550724,
+                  0.00048323534429073334,
+                  0.00048359204083681107,
+                  0.00046706292778253555,
+                  0.0004827580414712429,
+                  0.0004656650125980377,
+                  0.0004688352346420288,
+                  0.0004648682661354542,
+                  0.00046196719631552696
+                ]
+              },
+              "physical": {
+                "median_s": 0.0008140676654875278,
+                "mad_s": 5.6533608585596085e-06,
+                "samples_s": [
+                  0.0008192770183086395,
+                  0.0008583609014749527,
+                  0.0010470589622855186,
+                  0.0008137356489896774,
+                  0.0008143996819853783,
+                  0.0008286349475383759,
+                  0.0007825368084013462,
+                  0.0008179438300430775,
+                  0.000809145625680685,
+                  0.0008079702965915203,
+                  0.0008091079071164131,
+                  0.0007774010300636292
+                ]
+              },
+              "physical_over_baseline": 1.6950208072354107
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.00011281203478574753,
+                "mad_s": 7.2503462433815e-06,
+                "samples_s": [
+                  0.00011649914085865021,
+                  0.00011512497439980507,
+                  9.872112423181534e-05,
+                  0.0001206081360578537,
+                  9.888317435979843e-05,
+                  0.00011355802416801453,
+                  9.586988016963005e-05,
+                  0.00011206604540348053,
+                  9.747827425599098e-05,
+                  0.00011951662600040436,
+                  9.819073602557182e-05,
+                  0.00011552730575203896
+                ]
+              },
+              "physical": {
+                "median_s": 0.000551924342289567,
+                "mad_s": 5.7960860431194305e-06,
+                "samples_s": [
+                  0.0005500372499227524,
+                  0.0005515157245099545,
+                  0.0005437722429633141,
+                  0.0005536321550607681,
+                  0.0005421987734735012,
+                  0.0005577271804213524,
+                  0.0005572373047471046,
+                  0.0005523329600691795,
+                  0.000542136374861002,
+                  0.0005628317594528198,
+                  0.0005461350083351135,
+                  0.0005594687536358833
+                ]
+              },
+              "physical_over_baseline": 4.89242431747447
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.018234272953122854,
+                "mad_s": 0.0003524057101458311,
+                "samples_s": [
+                  0.018486542161554098,
+                  0.01720734080299735,
+                  0.016851715743541718,
+                  0.017896168865263462,
+                  0.016802367754280567,
+                  0.018600980285555124,
+                  0.018227336928248405,
+                  0.018481231294572353,
+                  0.018043715972453356,
+                  0.019043880980461836,
+                  0.018793921917676926,
+                  0.018241208977997303
+                ]
+              },
+              "physical": {
+                "median_s": 0.021939135156571865,
+                "mad_s": 0.0005218673031777143,
+                "samples_s": [
+                  0.022418266162276268,
+                  0.02136961231008172,
+                  0.02212631283327937,
+                  0.020950497593730688,
+                  0.021219895221292973,
+                  0.02210181299597025,
+                  0.02250373875722289,
+                  0.02177645731717348,
+                  0.02327683987095952,
+                  0.02146662399172783,
+                  0.022383983712643385,
+                  0.02120204782113433
+                ]
+              },
+              "physical_over_baseline": 1.2031812407861595
+            }
+          }
+        },
+        {
+          "target": "density_matrix",
+          "term": "energy_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.007030470296740532,
+            "physical": 0.02732805022969842
+          },
+          "atoms": 2,
+          "node_rows": 32,
+          "edge_rows": 480,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 34576,
+          "auxiliary_bytes_batch1": 42536,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.006996464682742953,
+                "mad_s": 0.0001722513698041439,
+                "samples_s": [
+                  0.007086446974426508,
+                  0.007191529031842947,
+                  0.006872978061437607,
+                  0.0068040648475289345,
+                  0.006713378243148327,
+                  0.006932349409908056,
+                  0.006844361778348684,
+                  0.007102638017386198,
+                  0.007197841070592403,
+                  0.007199831772595644,
+                  0.0066897328943014145,
+                  0.00706057995557785
+                ]
+              },
+              "physical": {
+                "median_s": 0.025846343021839857,
+                "mad_s": 0.0003213845193386078,
+                "samples_s": [
+                  0.025556750129908323,
+                  0.026085973251610994,
+                  0.026050733868032694,
+                  0.025919213891029358,
+                  0.02587163308635354,
+                  0.025821052957326174,
+                  0.02514510927721858,
+                  0.026474307291209698,
+                  0.025465579237788916,
+                  0.02528239507228136,
+                  0.025229398161172867,
+                  0.02619951916858554
+                ]
+              },
+              "physical_over_baseline": 3.6942004560661683
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.001723727909848094,
+                "mad_s": 1.912051811814308e-05,
+                "samples_s": [
+                  0.0017459690570831299,
+                  0.0017076171934604645,
+                  0.0017321109771728516,
+                  0.0016924859955906868,
+                  0.0017458582296967506,
+                  0.0017246869392693043,
+                  0.001750122755765915,
+                  0.0016939090564846992,
+                  0.0017493069171905518,
+                  0.0017179697751998901,
+                  0.0017227688804268837,
+                  0.0017203842289745808
+                ]
+              },
+              "physical": {
+                "median_s": 0.0019179829396307468,
+                "mad_s": 1.3179844245314598e-05,
+                "samples_s": [
+                  0.0019257557578384876,
+                  0.0019065281376242638,
+                  0.0019049830734729767,
+                  0.001920647919178009,
+                  0.0018961019814014435,
+                  0.0019150637090206146,
+                  0.0019046231172978878,
+                  0.0019153179600834846,
+                  0.0019474090076982975,
+                  0.0019405200146138668,
+                  0.0019441349431872368,
+                  0.001957640051841736
+                ]
+              },
+              "physical_over_baseline": 1.1126947174625559
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.0004611941985785961,
+                "mad_s": 7.327180355787277e-06,
+                "samples_s": [
+                  0.0004790201783180237,
+                  0.0004773354157805443,
+                  0.00046169525012373924,
+                  0.0004599648527801037,
+                  0.0004573110491037369,
+                  0.00047766417264938354,
+                  0.000453190878033638,
+                  0.00046784523874521255,
+                  0.00045308610424399376,
+                  0.000460693147033453,
+                  0.00045287515968084335,
+                  0.0004660356789827347
+                ]
+              },
+              "physical": {
+                "median_s": 0.0008797973860055208,
+                "mad_s": 4.469649866223335e-06,
+                "samples_s": [
+                  0.000892185140401125,
+                  0.0008860118687152863,
+                  0.0008910377509891987,
+                  0.00088459812104702,
+                  0.0008779680356383324,
+                  0.0008891071192920208,
+                  0.0008668839000165462,
+                  0.0008756588213145733,
+                  0.0008793007582426071,
+                  0.0008801356889307499,
+                  0.0008794590830802917,
+                  0.0008771652355790138
+                ]
+              },
+              "physical_over_baseline": 1.907650592130306
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.00011250586248934269,
+                "mad_s": 6.443588063120842e-06,
+                "samples_s": [
+                  0.00011745188385248184,
+                  0.00012044701725244522,
+                  9.74070280790329e-05,
+                  0.00011571263894438744,
+                  9.656883776187897e-05,
+                  0.00011505791917443275,
+                  9.684311226010323e-05,
+                  0.00011159293353557587,
+                  9.55481082201004e-05,
+                  0.0001135566271841526,
+                  9.666383266448975e-05,
+                  0.00011341879144310951
+                ]
+              },
+              "physical": {
+                "median_s": 0.0005289863329380751,
+                "mad_s": 3.8440339267253876e-06,
+                "samples_s": [
+                  0.0005345731042325497,
+                  0.0005314880982041359,
+                  0.0005184472538530827,
+                  0.0005340529605746269,
+                  0.0005271942354738712,
+                  0.0005536302924156189,
+                  0.0005278913304209709,
+                  0.0005300813354551792,
+                  0.0005211341194808483,
+                  0.0005269767716526985,
+                  0.0005243029445409775,
+                  0.0005319910123944283
+                ]
+              },
+              "physical_over_baseline": 4.701855718746961
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.018357629887759686,
+                "mad_s": 0.00040414254181087017,
+                "samples_s": [
+                  0.017546990886330605,
+                  0.018501817248761654,
+                  0.019655236043035984,
+                  0.018390672747045755,
+                  0.018491570837795734,
+                  0.018076983280479908,
+                  0.01722887111827731,
+                  0.01912868907675147,
+                  0.01768012112006545,
+                  0.01874580094590783,
+                  0.018324587028473616,
+                  0.01793751586228609
+                ]
+              },
+              "physical": {
+                "median_s": 0.021777620306238532,
+                "mad_s": 0.0006131408736109734,
+                "samples_s": [
+                  0.021036162972450256,
+                  0.021270134951919317,
+                  0.022390419151633978,
+                  0.02258190792053938,
+                  0.022391103208065033,
+                  0.021130766719579697,
+                  0.02165119769051671,
+                  0.021904042921960354,
+                  0.021131500136107206,
+                  0.022212541196495295,
+                  0.022030130960047245,
+                  0.02070087008178234
+                ]
+              },
+              "physical_over_baseline": 1.1862980373495378
+            }
+          }
+        },
+        {
+          "target": "hamiltonian",
+          "term": "energy_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.0072509730234742165,
+            "physical": 0.02719151321798563
+          },
+          "atoms": 2,
+          "node_rows": 32,
+          "edge_rows": 480,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 34320,
+          "auxiliary_bytes_batch1": 42280,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.00737562938593328,
+                "mad_s": 0.00020089163444936275,
+                "samples_s": [
+                  0.007389417849481106,
+                  0.007774960249662399,
+                  0.007361840922385454,
+                  0.00765569694340229,
+                  0.007204083260148764,
+                  0.007466136943548918,
+                  0.00743312481790781,
+                  0.00694794999435544,
+                  0.006941239349544048,
+                  0.007145392242819071,
+                  0.006985985208302736,
+                  0.007415205705910921
+                ]
+              },
+              "physical": {
+                "median_s": 0.026964603224769235,
+                "mad_s": 0.0005100176203995943,
+                "samples_s": [
+                  0.028053131885826588,
+                  0.027317066676914692,
+                  0.02739022485911846,
+                  0.028331852052360773,
+                  0.026865563355386257,
+                  0.027063643094152212,
+                  0.026370189618319273,
+                  0.025997187942266464,
+                  0.026586000807583332,
+                  0.0273144762031734,
+                  0.02633298421278596,
+                  0.02634365763515234
+                ]
+              },
+              "physical_over_baseline": 3.6559053897414953
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.0017404153477400541,
+                "mad_s": 9.912997484207153e-06,
+                "samples_s": [
+                  0.0017277030274271965,
+                  0.0017440449446439743,
+                  0.0017354167066514492,
+                  0.0017253360711038113,
+                  0.0017174547538161278,
+                  0.0017475290223956108,
+                  0.001735013909637928,
+                  0.001741049811244011,
+                  0.0017397808842360973,
+                  0.0018191756680607796,
+                  0.001953758765012026,
+                  0.0018495302647352219
+                ]
+              },
+              "physical": {
+                "median_s": 0.0019211384933441877,
+                "mad_s": 2.412707544863224e-05,
+                "samples_s": [
+                  0.001961270347237587,
+                  0.0019032186828553677,
+                  0.0019174031913280487,
+                  0.0018846802413463593,
+                  0.0019248737953603268,
+                  0.0019016088917851448,
+                  0.001940797083079815,
+                  0.0018961369059979916,
+                  0.001944533083587885,
+                  0.0018962789326906204,
+                  0.0020085549913346767,
+                  0.0019716820679605007
+                ]
+              },
+              "physical_over_baseline": 1.1038390898119832
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.00046591414138674736,
+                "mad_s": 7.22147524356842e-06,
+                "samples_s": [
+                  0.0005010329186916351,
+                  0.00047780899330973625,
+                  0.00046580424532294273,
+                  0.0004945709370076656,
+                  0.000466024037450552,
+                  0.0004630689509212971,
+                  0.00046212319284677505,
+                  0.00046679191291332245,
+                  0.0004588039591908455,
+                  0.00047324690967798233,
+                  0.0004460555501282215,
+                  0.0004577329382300377
+                ]
+              },
+              "physical": {
+                "median_s": 0.0008808556012809277,
+                "mad_s": 1.8709339201450348e-05,
+                "samples_s": [
+                  0.0009054578840732574,
+                  0.0009187203831970692,
+                  0.0008789100684225559,
+                  0.0008930540643632412,
+                  0.0008828011341392994,
+                  0.0009233662858605385,
+                  0.0008619232103228569,
+                  0.0009381305426359177,
+                  0.0008724839426577091,
+                  0.0008652298711240292,
+                  0.0008551497012376785,
+                  0.0008623693138360977
+                ]
+              },
+              "physical_over_baseline": 1.8905964061514597
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.0001109754666686058,
+                "mad_s": 5.59748150408268e-06,
+                "samples_s": [
+                  0.00011532893404364586,
+                  0.0001141643151640892,
+                  9.775208309292793e-05,
+                  0.00011486513540148735,
+                  0.00010232394561171532,
+                  0.00011761300265789032,
+                  9.585311636328697e-05,
+                  0.00011553289368748665,
+                  9.642122313380241e-05,
+                  0.00011138292029500008,
+                  9.518815204501152e-05,
+                  0.00011056801304221153
+                ]
+              },
+              "physical": {
+                "median_s": 0.0005230538081377745,
+                "mad_s": 6.543006747961044e-06,
+                "samples_s": [
+                  0.000544263981282711,
+                  0.0005388269200921059,
+                  0.0005194093100726604,
+                  0.0005307598039507866,
+                  0.0005237683653831482,
+                  0.0005341162905097008,
+                  0.0005132537335157394,
+                  0.000531855970621109,
+                  0.0005178698338568211,
+                  0.0005223392508924007,
+                  0.0005176737904548645,
+                  0.000520103145390749
+                ]
+              },
+              "physical_over_baseline": 4.7132381943453705
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.018720897613093257,
+                "mad_s": 0.0007239144761115313,
+                "samples_s": [
+                  0.018962995149195194,
+                  0.01967177214100957,
+                  0.019499768037348986,
+                  0.018699337262660265,
+                  0.018041834235191345,
+                  0.019489663187414408,
+                  0.019822859670966864,
+                  0.01874245796352625,
+                  0.01864407490938902,
+                  0.01806796481832862,
+                  0.016814513131976128,
+                  0.017927200999110937
+                ]
+              },
+              "physical": {
+                "median_s": 0.021935982396826148,
+                "mad_s": 0.0005073233041912317,
+                "samples_s": [
+                  0.021205491852015257,
+                  0.021533712279051542,
+                  0.022192220203578472,
+                  0.022106231190264225,
+                  0.02294990886002779,
+                  0.022548358887434006,
+                  0.023744880687445402,
+                  0.021880986634641886,
+                  0.02199097815901041,
+                  0.021579063963145018,
+                  0.019565521273761988,
+                  0.019927058834582567
+                ]
+              },
+              "physical_over_baseline": 1.1717377473120885
+            }
+          }
+        },
+        {
+          "target": "energy_density_matrix",
+          "term": "energy_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.0069016460329294205,
+            "physical": 0.027943629771471024
+          },
+          "atoms": 2,
+          "node_rows": 32,
+          "edge_rows": 480,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 34320,
+          "auxiliary_bytes_batch1": 42280,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.006928795948624611,
+                "mad_s": 5.279737524688244e-05,
+                "samples_s": [
+                  0.006968419998884201,
+                  0.006947978865355253,
+                  0.006908600218594074,
+                  0.007064587902277708,
+                  0.006879432126879692,
+                  0.006985026877373457,
+                  0.00725396117195487,
+                  0.0068717291578650475,
+                  0.006909613031893969,
+                  0.00718736182898283,
+                  0.006679418962448835,
+                  0.006909370422363281
+                ]
+              },
+              "physical": {
+                "median_s": 0.025739059317857027,
+                "mad_s": 0.00022836239077150822,
+                "samples_s": [
+                  0.026434946339577436,
+                  0.025868867989629507,
+                  0.026350774336606264,
+                  0.02566694002598524,
+                  0.02579789562150836,
+                  0.026183470617979765,
+                  0.025501484982669353,
+                  0.025586683303117752,
+                  0.025434258859604597,
+                  0.025680223014205694,
+                  0.025519908871501684,
+                  0.02609615819528699
+                ]
+              },
+              "physical_over_baseline": 3.7147954000530663
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.001717104809358716,
+                "mad_s": 8.968403562903404e-06,
+                "samples_s": [
+                  0.001716047991067171,
+                  0.0017031887546181679,
+                  0.0017064581625163555,
+                  0.0017249188385903835,
+                  0.0017561651766300201,
+                  0.001721828244626522,
+                  0.0017277179285883904,
+                  0.0017069820314645767,
+                  0.0017225230112671852,
+                  0.0016864440403878689,
+                  0.001715217251330614,
+                  0.001718161627650261
+                ]
+              },
+              "physical": {
+                "median_s": 0.0018991953693330288,
+                "mad_s": 8.95909033715725e-06,
+                "samples_s": [
+                  0.0018995278514921665,
+                  0.001913588959723711,
+                  0.0018933615647256374,
+                  0.0018877428956329823,
+                  0.0019431402906775475,
+                  0.0019371169619262218,
+                  0.001898862887173891,
+                  0.001909715123474598,
+                  0.0018917969428002834,
+                  0.0018885261379182339,
+                  0.0018923222087323666,
+                  0.0019058859907090664
+                ]
+              },
+              "physical_over_baseline": 1.106045105098924
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.0004557135980576277,
+                "mad_s": 4.307832568883896e-06,
+                "samples_s": [
+                  0.0004536597989499569,
+                  0.0004536313936114311,
+                  0.0004486730322241783,
+                  0.0004681623540818691,
+                  0.00045368215069174767,
+                  0.00046992814168334007,
+                  0.00044988514855504036,
+                  0.0004577450454235077,
+                  0.0004529263824224472,
+                  0.00046366825699806213,
+                  0.00045794202014803886,
+                  0.00047165388241410255
+                ]
+              },
+              "physical": {
+                "median_s": 0.0008587164338678122,
+                "mad_s": 7.802853360772133e-06,
+                "samples_s": [
+                  0.0008546090684831142,
+                  0.0008585769683122635,
+                  0.0008514830842614174,
+                  0.0008792020380496979,
+                  0.0008503440767526627,
+                  0.0008684801869094372,
+                  0.0008714739233255386,
+                  0.0008528041653335094,
+                  0.0008831210434436798,
+                  0.0009141722694039345,
+                  0.0008558398112654686,
+                  0.0008588558994233608
+                ]
+              },
+              "physical_over_baseline": 1.8843335760176776
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.00011482555419206619,
+                "mad_s": 7.278984412550926e-06,
+                "samples_s": [
+                  0.00011671381071209908,
+                  0.0001329728402197361,
+                  0.00010346295312047005,
+                  0.00011624302715063095,
+                  9.978702291846275e-05,
+                  0.00011611497029662132,
+                  9.833602234721184e-05,
+                  0.00011452706530690193,
+                  9.848782792687416e-05,
+                  0.0001180209219455719,
+                  9.711412712931633e-05,
+                  0.00011512404307723045
+                ]
+              },
+              "physical": {
+                "median_s": 0.0005225434433668852,
+                "mad_s": 6.96093775331974e-06,
+                "samples_s": [
+                  0.0005293209105730057,
+                  0.0005497126840054989,
+                  0.000536459032446146,
+                  0.0005496558733284473,
+                  0.0005208272486925125,
+                  0.0005412478931248188,
+                  0.000518428161740303,
+                  0.0005207178182899952,
+                  0.0005153990350663662,
+                  0.0005176858976483345,
+                  0.0005071652121841908,
+                  0.0005242596380412579
+                ]
+              },
+              "physical_over_baseline": 4.550759167187107
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.01748508051969111,
+                "mad_s": 0.0003863770980387926,
+                "samples_s": [
+                  0.017554299905896187,
+                  0.01847754791378975,
+                  0.017080953810364008,
+                  0.0174096766859293,
+                  0.016561014112085104,
+                  0.01852643908932805,
+                  0.017363217193633318,
+                  0.017415861133486032,
+                  0.017116453032940626,
+                  0.017702799290418625,
+                  0.0180169059894979,
+                  0.019133523106575012
+                ]
+              },
+              "physical": {
+                "median_s": 0.020379418041557074,
+                "mad_s": 0.0004895110614597797,
+                "samples_s": [
+                  0.022221858147531748,
+                  0.021561089903116226,
+                  0.020221610087901354,
+                  0.020858743228018284,
+                  0.02018401911482215,
+                  0.019850868731737137,
+                  0.02008637599647045,
+                  0.019903238862752914,
+                  0.020537225995212793,
+                  0.019879721105098724,
+                  0.021630070637911558,
+                  0.021171750966459513
+                ]
+              },
+              "physical_over_baseline": 1.165531838335343
+            }
+          }
+        }
+      ]
+    },
+    "hBN": {
+      "fdf": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/RUN.fdf",
+      "source_hashes": {
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/RUN.fdf": "a4ee22559c86679ca7bd908a01181040c56ee800c932e9e9488c3dd94e492d03",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/graphene_hBN_AA.HSX": "a4002540d88c99280794a7773b3e643f5a5ce1f02a12ff11584953f5c3b16855",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/graphene_hBN_AA.TSDE": "3b4cc4f5e0ea33689f9f96f1baf8de4278706dd9a68b210bae542ca30a0988f2",
+        "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/graphene_hBN_AA.TSHS": "9aef2f10c5b40be29646520a562e07b1fc82750f4eb34c3617a2af362d8caece"
+      },
+      "source_hashes_unchanged": true,
+      "provenance": {
+        "python": "3.12.3",
+        "versions": {
+          "torch": "2.11.0+cpu",
+          "torch-geometric": "2.8.0.post1",
+          "pytorch-lightning": "2.6.1",
+          "e3nn": "0.4.4",
+          "mace-torch": "0.3.15",
+          "sisl": "0.16.4"
+        },
+        "git_commit": "8cfbc857e4a88b482b206cd058c0d22fcfabd0be",
+        "git_dirty": false
+      },
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "script_hashes": {
+        "/home/christian/repositorios/graph2mat/auditorias_mejoras/bench_objetivos_fisicos.py": "99cf088bda59f639e155e04ba174ede5baef958cde5d155f8ddb0fe8569351d2",
+        "/home/christian/repositorios/graph2mat/auditorias_mejoras/smoke_objetivos_fisicos.py": "59c39a7dbf08d17f9e6466bc0372507e906e67b5d998389e3153875bb353f206"
+      },
+      "cpu": "Intel(R) Core(TM) Ultra 9 285K",
+      "host_logical_cpus": 24,
+      "threads": 2,
+      "thread_env": {
+        "OMP_NUM_THREADS": "2",
+        "OPENBLAS_NUM_THREADS": "2",
+        "MKL_NUM_THREADS": "2"
+      },
+      "host_load_before": [
+        3.5849609375,
+        4.25830078125,
+        4.9853515625
+      ],
+      "host_load_after": [
+        3.49853515625,
+        4.1923828125,
+        4.94775390625
+      ],
+      "dtype": "float64",
+      "seed": 13,
+      "warmup": 3,
+      "rounds": 12,
+      "rss_peak_before_KiB": 543120,
+      "rss_peak_after_KiB": 859552,
+      "rss_scope": "whole benchmark process including imports/models/all cases; not paired allocation and not VRAM",
+      "first_invocation_scope": "first invocation in this process; OS filesystem cache not evicted",
+      "load_control_scope": "matched physical channels, original sparse support, no auxiliary certification; S read for geometry",
+      "lightning_scope": "one-step Trainer.fit includes setup, logging, optimizer construction and prepared-data preflight",
+      "auxiliary_scope": "physical tensors + physical layout arrays + k metadata array payload; excludes Python container overhead",
+      "accuracy_or_gpu_claim": false,
+      "cases": [
+        {
+          "target": "density_matrix",
+          "term": "electron_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.019470715895295143,
+            "physical": 0.08076480776071548
+          },
+          "atoms": 4,
+          "node_rows": 370,
+          "edge_rows": 10373,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 281439,
+          "auxiliary_bytes_batch1": 450407,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.018825632985681295,
+                "mad_s": 0.00018890947103500366,
+                "samples_s": [
+                  0.01903823995962739,
+                  0.018854112830013037,
+                  0.019194087013602257,
+                  0.018797153141349554,
+                  0.018596495036035776,
+                  0.01877307891845703,
+                  0.019153329078108072,
+                  0.019047732930630445,
+                  0.018569123931229115,
+                  0.018878571689128876,
+                  0.018660421017557383,
+                  0.018768825102597475
+                ]
+              },
+              "physical": {
+                "median_s": 0.07948396075516939,
+                "mad_s": 0.0004703968297690153,
+                "samples_s": [
+                  0.08010783232748508,
+                  0.08011146588250995,
+                  0.08038500417023897,
+                  0.08060022071003914,
+                  0.07884613424539566,
+                  0.07883726805448532,
+                  0.0796175729483366,
+                  0.0793371400795877,
+                  0.07942129578441381,
+                  0.07936707092449069,
+                  0.07916703866794705,
+                  0.07954662572592497
+                ]
+              },
+              "physical_over_baseline": 4.222113583942946
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.009312138194218278,
+                "mad_s": 5.742604844272137e-05,
+                "samples_s": [
+                  0.009007436223328114,
+                  0.009236672893166542,
+                  0.009859149809926748,
+                  0.00929040601477027,
+                  0.009450944606214762,
+                  0.009322813246399164,
+                  0.009395405184477568,
+                  0.00928620295599103,
+                  0.009301463142037392,
+                  0.009349870961159468,
+                  0.009351524990051985,
+                  0.00920956814661622
+                ]
+              },
+              "physical": {
+                "median_s": 0.009613515576347709,
+                "mad_s": 6.597326137125492e-05,
+                "samples_s": [
+                  0.009550943970680237,
+                  0.009417319670319557,
+                  0.009705265052616596,
+                  0.009628619067370892,
+                  0.009679039008915424,
+                  0.009598412085324526,
+                  0.009679369162768126,
+                  0.009547422640025616,
+                  0.009565081913024187,
+                  0.009506205096840858,
+                  0.009680924005806446,
+                  0.009683107025921345
+                ]
+              },
+              "physical_over_baseline": 1.0323639292978437
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.0009127678349614143,
+                "mad_s": 1.4136778190732002e-05,
+                "samples_s": [
+                  0.0009102886542677879,
+                  0.0009287968277931213,
+                  0.0009123426862061024,
+                  0.0008924067951738834,
+                  0.0008857659995555878,
+                  0.0009710290469229221,
+                  0.0009106658399105072,
+                  0.0009502172470092773,
+                  0.0009433641098439693,
+                  0.0009181071072816849,
+                  0.0009005232714116573,
+                  0.0009131929837167263
+                ]
+              },
+              "physical": {
+                "median_s": 0.0012522621545940638,
+                "mad_s": 1.321663148701191e-05,
+                "samples_s": [
+                  0.0012566549703478813,
+                  0.0012708972208201885,
+                  0.0012392816133797169,
+                  0.0012478693388402462,
+                  0.0012287297286093235,
+                  0.0012165401130914688,
+                  0.001245258841663599,
+                  0.0014077811501920223,
+                  0.0012928470969200134,
+                  0.0012655938044190407,
+                  0.0012653637677431107,
+                  0.001241766382008791
+                ]
+              },
+              "physical_over_baseline": 1.3719393986390864
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.00020422390662133694,
+                "mad_s": 1.3272743672132492e-05,
+                "samples_s": [
+                  0.00022639194503426552,
+                  0.0002084840089082718,
+                  0.0001857164315879345,
+                  0.00020857201889157295,
+                  0.00018056901171803474,
+                  0.0002075042575597763,
+                  0.00018168101087212563,
+                  0.0002036108635365963,
+                  0.00018530525267124176,
+                  0.00021285610273480415,
+                  0.00018631061539053917,
+                  0.00020483694970607758
+                ]
+              },
+              "physical": {
+                "median_s": 0.0009071840904653072,
+                "mad_s": 7.757917046546936e-06,
+                "samples_s": [
+                  0.000912743154913187,
+                  0.0009247860871255398,
+                  0.0009038802236318588,
+                  0.0009160949848592281,
+                  0.0009020240977406502,
+                  0.0009005791507661343,
+                  0.0008959448896348476,
+                  0.0009104879572987556,
+                  0.0008919727988541126,
+                  0.0009170440025627613,
+                  0.000901256687939167,
+                  0.0009180838242173195
+                ]
+              },
+              "physical_over_baseline": 4.442105263157894
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.02935661841183901,
+                "mad_s": 0.0005553914234042168,
+                "samples_s": [
+                  0.028963868971914053,
+                  0.028038113843649626,
+                  0.029707722831517458,
+                  0.03139691334217787,
+                  0.028537613805383444,
+                  0.02993719093501568,
+                  0.029843412805348635,
+                  0.029886828735470772,
+                  0.02769942907616496,
+                  0.029297852888703346,
+                  0.027938665356487036,
+                  0.02941538393497467
+                ]
+              },
+              "physical": {
+                "median_s": 0.034738384652882814,
+                "mad_s": 0.0003544257488101721,
+                "samples_s": [
+                  0.03596216207370162,
+                  0.03443674137815833,
+                  0.0347384512424469,
+                  0.03379060188308358,
+                  0.034948302898555994,
+                  0.03473831806331873,
+                  0.03543698834255338,
+                  0.03441466577351093,
+                  0.03435325203463435,
+                  0.03553192503750324,
+                  0.03622705116868019,
+                  0.034617848228663206
+                ]
+              },
+              "physical_over_baseline": 1.183323779515199
+            }
+          }
+        },
+        {
+          "target": "density_matrix",
+          "term": "mulliken_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.020083875861018896,
+            "physical": 0.08116599079221487
+          },
+          "atoms": 4,
+          "node_rows": 370,
+          "edge_rows": 10373,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 281439,
+          "auxiliary_bytes_batch1": 450407,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.018554405542090535,
+                "mad_s": 0.00018144678324460983,
+                "samples_s": [
+                  0.018573940731585026,
+                  0.018371970392763615,
+                  0.018675460014492273,
+                  0.019176154863089323,
+                  0.018168319016695023,
+                  0.018964207731187344,
+                  0.01813237927854061,
+                  0.018534870352596045,
+                  0.018438795115798712,
+                  0.019611988216638565,
+                  0.018464292865246534,
+                  0.018734863959252834
+                ]
+              },
+              "physical": {
+                "median_s": 0.07929013622924685,
+                "mad_s": 0.0007477242033928633,
+                "samples_s": [
+                  0.08092275774106383,
+                  0.08094619400799274,
+                  0.07945635169744492,
+                  0.07987718190997839,
+                  0.07829639315605164,
+                  0.08018730394542217,
+                  0.08003893820568919,
+                  0.07854348979890347,
+                  0.0787566639482975,
+                  0.07853334676474333,
+                  0.07891300600022078,
+                  0.0791239207610488
+                ]
+              },
+              "physical_over_baseline": 4.273385964825321
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.009311051107943058,
+                "mad_s": 7.31444451957941e-05,
+                "samples_s": [
+                  0.009154352359473705,
+                  0.00916223879903555,
+                  0.009308716282248497,
+                  0.009248028974980116,
+                  0.00941369216889143,
+                  0.009358225855976343,
+                  0.009394317865371704,
+                  0.009290718007832766,
+                  0.009313385933637619,
+                  0.009562584105879068,
+                  0.009565137792378664,
+                  0.009269812144339085
+                ]
+              },
+              "physical": {
+                "median_s": 0.009682954987511039,
+                "mad_s": 7.272674702107906e-05,
+                "samples_s": [
+                  0.009611277375370264,
+                  0.009493520017713308,
+                  0.01033784681931138,
+                  0.009609179105609655,
+                  0.009620913304388523,
+                  0.009532829746603966,
+                  0.009947131853550673,
+                  0.009705360978841782,
+                  0.009660548996180296,
+                  0.009724429342895746,
+                  0.009770286735147238,
+                  0.009731678757816553
+                ]
+              },
+              "physical_over_baseline": 1.0399422015040511
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.0008932731579989195,
+                "mad_s": 7.1069225668907166e-06,
+                "samples_s": [
+                  0.0008946731686592102,
+                  0.0009043347090482712,
+                  0.0009166100062429905,
+                  0.0008953879587352276,
+                  0.0008918731473386288,
+                  0.0008885953575372696,
+                  0.0008819620124995708,
+                  0.0008908789604902267,
+                  0.0008722231723368168,
+                  0.0009275916963815689,
+                  0.0008880780078470707,
+                  0.0009022918529808521
+                ]
+              },
+              "physical": {
+                "median_s": 0.001233281334862113,
+                "mad_s": 7.508089765906334e-06,
+                "samples_s": [
+                  0.0012266398407518864,
+                  0.0012320107780396938,
+                  0.0012631416320800781,
+                  0.0012227441184222698,
+                  0.0012345518916845322,
+                  0.0012381812557578087,
+                  0.0012296168133616447,
+                  0.0012279460206627846,
+                  0.0012605739757418633,
+                  0.001241656020283699,
+                  0.0011776559986174107,
+                  0.00125174131244421
+                ]
+              },
+              "physical_over_baseline": 1.380631807659897
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.0002055419608950615,
+                "mad_s": 7.98259861767292e-06,
+                "samples_s": [
+                  0.00020702509209513664,
+                  0.00020880019292235374,
+                  0.0001928349956870079,
+                  0.0002197539433836937,
+                  0.0001866440288722515,
+                  0.0002059577964246273,
+                  0.00018740491941571236,
+                  0.00020556198433041573,
+                  0.00018360000103712082,
+                  0.00020706793293356895,
+                  0.0001877620816230774,
+                  0.00020552193745970726
+                ]
+              },
+              "physical": {
+                "median_s": 0.0009056150447577238,
+                "mad_s": 9.724404662847519e-06,
+                "samples_s": [
+                  0.0008969209156930447,
+                  0.0009055500850081444,
+                  0.0008836518973112106,
+                  0.0009077531285583973,
+                  0.0008926903828978539,
+                  0.0009117028675973415,
+                  0.0008942531421780586,
+                  0.0009062448516488075,
+                  0.0008948603644967079,
+                  0.0009234929457306862,
+                  0.0009056800045073032,
+                  0.0009259795770049095
+                ]
+              },
+              "physical_over_baseline": 4.405986207459028
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.02911206684075296,
+                "mad_s": 0.00042277644388377666,
+                "samples_s": [
+                  0.03060798393562436,
+                  0.028395756147801876,
+                  0.02923552505671978,
+                  0.02898438787087798,
+                  0.029510048683732748,
+                  0.028664495795965195,
+                  0.03004724020138383,
+                  0.029142805840820074,
+                  0.029081327840685844,
+                  0.02900988794863224,
+                  0.02740163914859295,
+                  0.030845830217003822
+                ]
+              },
+              "physical": {
+                "median_s": 0.034368824446573853,
+                "mad_s": 0.0004895550664514303,
+                "samples_s": [
+                  0.03356612706556916,
+                  0.03356610517948866,
+                  0.03452856885269284,
+                  0.034057049080729485,
+                  0.03449597815051675,
+                  0.03478084318339825,
+                  0.03639592370018363,
+                  0.0340197510086,
+                  0.03493591584265232,
+                  0.03528738580644131,
+                  0.03424167074263096,
+                  0.03342191502451897
+                ]
+              },
+              "physical_over_baseline": 1.18056971477072
+            }
+          }
+        },
+        {
+          "target": "density_matrix",
+          "term": "energy_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.01946266135200858,
+            "physical": 0.10455358074977994
+          },
+          "atoms": 4,
+          "node_rows": 370,
+          "edge_rows": 10373,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 471483,
+          "auxiliary_bytes_batch1": 640451,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.01941043557599187,
+                "mad_s": 0.0001909630373120308,
+                "samples_s": [
+                  0.019502302166074514,
+                  0.01952716801315546,
+                  0.018983691930770874,
+                  0.019366538152098656,
+                  0.019096014089882374,
+                  0.018855805043131113,
+                  0.019532461185008287,
+                  0.01990043604746461,
+                  0.019150535110384226,
+                  0.01951167033985257,
+                  0.018784115090966225,
+                  0.019454332999885082
+                ]
+              },
+              "physical": {
+                "median_s": 0.10300970217213035,
+                "mad_s": 0.0007615410722792149,
+                "samples_s": [
+                  0.10198578564450145,
+                  0.10315394029021263,
+                  0.10321238590404391,
+                  0.10156375169754028,
+                  0.10358697734773159,
+                  0.10274302121251822,
+                  0.10395550914108753,
+                  0.10286546405404806,
+                  0.1018298133276403,
+                  0.10358352400362492,
+                  0.10453182691708207,
+                  0.10195802990347147
+                ]
+              },
+              "physical_over_baseline": 5.306923781738297
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.009281883714720607,
+                "mad_s": 0.00017325696535408497,
+                "samples_s": [
+                  0.009262956213206053,
+                  0.00930081121623516,
+                  0.009526379872113466,
+                  0.00924817519262433,
+                  0.009134822059422731,
+                  0.00887313624843955,
+                  0.008874389808624983,
+                  0.00906794611364603,
+                  0.009323472157120705,
+                  0.009382284246385098,
+                  0.00952085992321372,
+                  0.009481335990130901
+                ]
+              },
+              "physical": {
+                "median_s": 0.009741153102368116,
+                "mad_s": 0.00023990590125322342,
+                "samples_s": [
+                  0.009817312005907297,
+                  0.009668729268014431,
+                  0.010265829041600227,
+                  0.010256987996399403,
+                  0.009505865164101124,
+                  0.009447154123336077,
+                  0.00927539262920618,
+                  0.009496629238128662,
+                  0.00970449298620224,
+                  0.009777813218533993,
+                  0.010138061828911304,
+                  0.009809974115341902
+                ]
+              },
+              "physical_over_baseline": 1.0494801919268963
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.0009168286342173815,
+                "mad_s": 1.4428049325942993e-05,
+                "samples_s": [
+                  0.0009513399563729763,
+                  0.0009282450191676617,
+                  0.0009197751060128212,
+                  0.0009138821624219418,
+                  0.0008888440206646919,
+                  0.0009064041078090668,
+                  0.0009026620537042618,
+                  0.000922040082514286,
+                  0.0008997730910778046,
+                  0.0009388113394379616,
+                  0.0009021391160786152,
+                  0.0009379060938954353
+                ]
+              },
+              "physical": {
+                "median_s": 0.0013714318629354239,
+                "mad_s": 9.57888551056385e-06,
+                "samples_s": [
+                  0.0013975352048873901,
+                  0.0013956837356090546,
+                  0.001341894268989563,
+                  0.0013655987568199635,
+                  0.0013604839332401752,
+                  0.001378580927848816,
+                  0.0013587460853159428,
+                  0.0013834820128977299,
+                  0.0013711247593164444,
+                  0.0013717389665544033,
+                  0.001379641704261303,
+                  0.0013701547868549824
+                ]
+              },
+              "physical_over_baseline": 1.4958431835040782
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.00021108053624629974,
+                "mad_s": 6.36884942650795e-06,
+                "samples_s": [
+                  0.0002127988263964653,
+                  0.00021649431437253952,
+                  0.00018805824220180511,
+                  0.00021236808970570564,
+                  0.00018794601783156395,
+                  0.00021789688616991043,
+                  0.00018360186368227005,
+                  0.0002119150012731552,
+                  0.00018198415637016296,
+                  0.00021024607121944427,
+                  0.00017967913299798965,
+                  0.00021700188517570496
+                ]
+              },
+              "physical": {
+                "median_s": 0.0009018261916935444,
+                "mad_s": 1.0861782357096672e-05,
+                "samples_s": [
+                  0.0009009269997477531,
+                  0.0009429538622498512,
+                  0.0008905068971216679,
+                  0.0009041139855980873,
+                  0.0008860453963279724,
+                  0.000900025013834238,
+                  0.0009129839017987251,
+                  0.0009286259301006794,
+                  0.0008890130557119846,
+                  0.0009027253836393356,
+                  0.0008934261277318001,
+                  0.000912392046302557
+                ]
+              },
+              "physical_over_baseline": 4.272427044818793
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.02911840402521193,
+                "mad_s": 0.0012258363422006369,
+                "samples_s": [
+                  0.03033316694200039,
+                  0.03117574006319046,
+                  0.028564675245434046,
+                  0.02843415318056941,
+                  0.027367135975509882,
+                  0.030920515302568674,
+                  0.027881494257599115,
+                  0.028151618782430887,
+                  0.027689995244145393,
+                  0.029672132804989815,
+                  0.02972226869314909,
+                  0.030410134699195623
+                ]
+              },
+              "physical": {
+                "median_s": 0.034361516358330846,
+                "mad_s": 0.0006246338598430157,
+                "samples_s": [
+                  0.03447652328759432,
+                  0.0337970070540905,
+                  0.034006134141236544,
+                  0.03419512091204524,
+                  0.03504627477377653,
+                  0.033839449752122164,
+                  0.03572008991613984,
+                  0.03424650942906737,
+                  0.03527236543595791,
+                  0.03298626560717821,
+                  0.035498247016221285,
+                  0.03519307868555188
+                ]
+              },
+              "physical_over_baseline": 1.1800618031324523
+            }
+          }
+        },
+        {
+          "target": "hamiltonian",
+          "term": "energy_weight",
+          "status": "blocked",
+          "reason": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_hBN_AA_md30/graphene_hbn_aa_md30/MD_steps/0/RUN.fdf: physical reference loading failed: unknown/unobserved density partner where predicted H can vary"
+        },
+        {
+          "target": "energy_density_matrix",
+          "term": "energy_weight",
+          "weight": 0.3,
+          "status": "measured_cpu",
+          "first_invocation_s": {
+            "baseline": 0.019834844395518303,
+            "physical": 0.1040107780136168
+          },
+          "atoms": 4,
+          "node_rows": 370,
+          "edge_rows": 10373,
+          "spin": [
+            1
+          ],
+          "auxiliary_bytes_sample": 468523,
+          "auxiliary_bytes_batch1": 637491,
+          "phases": {
+            "load_prepare_validate": {
+              "baseline": {
+                "median_s": 0.019251280464231968,
+                "mad_s": 0.00040890322998166084,
+                "samples_s": [
+                  0.018620317801833153,
+                  0.020018394105136395,
+                  0.01978122116997838,
+                  0.019139174837619066,
+                  0.018675129394978285,
+                  0.01931584719568491,
+                  0.019086527172476053,
+                  0.019186713732779026,
+                  0.01896341471001506,
+                  0.019508999306708574,
+                  0.019830159842967987,
+                  0.01978944381698966
+                ]
+              },
+              "physical": {
+                "median_s": 0.10268545476719737,
+                "mad_s": 0.000696416012942791,
+                "samples_s": [
+                  0.10243574809283018,
+                  0.10185073595494032,
+                  0.10151435807347298,
+                  0.10421191900968552,
+                  0.10125828115269542,
+                  0.10295626986771822,
+                  0.1032435679808259,
+                  0.1026207902468741,
+                  0.10275011928752065,
+                  0.10223700432106853,
+                  0.10588218038901687,
+                  0.2892755586653948
+                ]
+              },
+              "physical_over_baseline": 5.333954536581731
+            },
+            "cached_access": {
+              "baseline": {
+                "median_s": 0.009614866459742188,
+                "mad_s": 6.448198109865189e-05,
+                "samples_s": [
+                  0.00961985532194376,
+                  0.00947809824720025,
+                  0.009613662026822567,
+                  0.009598465170711279,
+                  0.009760926943272352,
+                  0.009517632890492678,
+                  0.00961607089266181,
+                  0.009539485909044743,
+                  0.009768406860530376,
+                  0.009771277662366629,
+                  0.00956128304824233,
+                  0.00962435593828559
+                ]
+              },
+              "physical": {
+                "median_s": 0.00998639827594161,
+                "mad_s": 4.9462541937828064e-05,
+                "samples_s": [
+                  0.010033408179879189,
+                  0.009824802167713642,
+                  0.009992121253162622,
+                  0.010032854974269867,
+                  0.010112565942108631,
+                  0.010054918006062508,
+                  0.010027319192886353,
+                  0.009943549986928701,
+                  0.009926589205861092,
+                  0.009786169975996017,
+                  0.009980675298720598,
+                  0.009934483096003532
+                ]
+              },
+              "physical_over_baseline": 1.0386413911992476
+            },
+            "collate": {
+              "baseline": {
+                "median_s": 0.0009506528731435537,
+                "mad_s": 1.3185432180762291e-05,
+                "samples_s": [
+                  0.0009935200214385986,
+                  0.0009826049208641052,
+                  0.0009474018588662148,
+                  0.0009539038874208927,
+                  0.0009571900591254234,
+                  0.0009699100628495216,
+                  0.0009451019577682018,
+                  0.0009552361443638802,
+                  0.0009361188858747482,
+                  0.0009325658902525902,
+                  0.0009195259772241116,
+                  0.0009388159960508347
+                ]
+              },
+              "physical": {
+                "median_s": 0.0014229570515453815,
+                "mad_s": 2.2903550416231155e-05,
+                "samples_s": [
+                  0.0014693760313093662,
+                  0.001467413268983364,
+                  0.0014246650971472263,
+                  0.0014575468376278877,
+                  0.001429794356226921,
+                  0.0014391560107469559,
+                  0.001401165034621954,
+                  0.001411627046763897,
+                  0.0013974439352750778,
+                  0.0013989419676363468,
+                  0.0014212490059435368,
+                  0.001398380845785141
+                ]
+              },
+              "physical_over_baseline": 1.4968208604262088
+            },
+            "loss_backward": {
+              "baseline": {
+                "median_s": 0.00022778986021876335,
+                "mad_s": 1.061311922967434e-05,
+                "samples_s": [
+                  0.00023585930466651917,
+                  0.00024014385417103767,
+                  0.00020205369219183922,
+                  0.00022919196635484695,
+                  0.0002069561742246151,
+                  0.00022879987955093384,
+                  0.00020595360547304153,
+                  0.0002366621047258377,
+                  0.00020301900804042816,
+                  0.00022677984088659286,
+                  0.00020054494962096214,
+                  0.00023652566596865654
+                ]
+              },
+              "physical": {
+                "median_s": 0.0009548191446810961,
+                "mad_s": 1.070578582584858e-05,
+                "samples_s": [
+                  0.0009552035480737686,
+                  0.000965440645813942,
+                  0.0009594233706593513,
+                  0.0009544347412884235,
+                  0.0009337281808257103,
+                  0.0009656092151999474,
+                  0.0009460859000682831,
+                  0.000969999935477972,
+                  0.0009388956241309643,
+                  0.0009527131915092468,
+                  0.0009386148303747177,
+                  0.0009659030474722385
+                ]
+              },
+              "physical_over_baseline": 4.191666581489242
+            },
+            "lightning_one_step_fit": {
+              "baseline": {
+                "median_s": 0.029966054717078805,
+                "mad_s": 0.0002423482947051525,
+                "samples_s": [
+                  0.029862957075238228,
+                  0.03126754006370902,
+                  0.029683930799365044,
+                  0.029961167834699154,
+                  0.029246623162180185,
+                  0.030651632230728865,
+                  0.02976348204538226,
+                  0.03012576699256897,
+                  0.029970941599458456,
+                  0.032000665087252855,
+                  0.02988954307511449,
+                  0.030449637677520514
+                ]
+              },
+              "physical": {
+                "median_s": 0.03514787834137678,
+                "mad_s": 0.00047960132360458374,
+                "samples_s": [
+                  0.035107854288071394,
+                  0.03457931196317077,
+                  0.03727348893880844,
+                  0.03412817418575287,
+                  0.035497765988111496,
+                  0.03643529489636421,
+                  0.036675012204796076,
+                  0.03475724207237363,
+                  0.037932712119072676,
+                  0.03512212773784995,
+                  0.03517362894490361,
+                  0.035104003734886646
+                ]
+              },
+              "physical_over_baseline": 1.1729231182823896
+            }
+          }
+        }
+      ]
+    }
+  }
+}
