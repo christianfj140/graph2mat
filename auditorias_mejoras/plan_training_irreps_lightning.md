@@ -99,7 +99,7 @@ Extiende `_EpochMatrixLoss.update(..., matrix_stats=None)` y `_log_loss` /
   epoch global SSE/counts y reinicio. Expected: procesos exit0, no GPU.
 - [x] Step 7: focused, floorPython3.9/Torch2.4.1, suite source CPU completa,
   Ruff/mypy/compile39/diff. Expected: exit0, leer outputs; fallos no ocultos.
-- [ ] Step 8: docs/registro, commit explícito y task-done con fichero nuevo y
+- [x] Step 8: docs/registro, commit explícito y task-done con fichero nuevo y
   `test_ddp_cpu.py -k 'coefficient_matrix_training or irreps_training'`.
   Expected: exit0; Task1 general no cerrada sin medida GPU y revisión final.
 

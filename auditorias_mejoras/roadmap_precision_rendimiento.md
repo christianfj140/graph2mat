@@ -580,7 +580,8 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   compileall39 y diff verdes. Suite source CPU completa final **2067 pasan,
   2 omitidos**, 25998 warnings, **612.41s**, exit0;
   `training-irreps-full-cpu-final.log`, sin cambios de source/tests durante el gate.
-  Commit/task-done de este lote se registran a continuación al ejecutarlos.
+  Producto **beb0098**. Task-done real **64 pasan, 33 no seleccionados**,
+  4864warnings, **107.96s**, exit0, rango274d7b0..beb0098.
 - AMP CPU end-to-end NO certificado: backbone basal MACE falla dtype f32/bf16
   antes del readout, tanto con readout_fp32 False como True. Guard de elegibilidad
   y MSE outerAMP se comprueban por separado; integración CUDA AMP sigue pendiente.
