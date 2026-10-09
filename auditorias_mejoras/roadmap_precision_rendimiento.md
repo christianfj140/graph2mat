@@ -739,3 +739,24 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   **Sin ejecución GPU, AMP CUDA, VRAM ni precisión/bandas/OOD** por decisión
   del usuario. Subplan de implementación CPU cerrado; Task 3 experimental
   y resto del roadmap abiertos. No comenzar 4.4–4.5/7.4 dentro de este goal.
+
+### 2026-10-09 — Nuevo goal 4.4–4.5: inventario inicial, producto pendiente
+
+- El nuevo objetivo es precisión física 4.4–4.5; no incluye 7.4. El usuario
+  indicó `MD_vs_AtomicDisplacement` como fuente de materiales, autorizando
+  su inspección en lectura sola. No se modificaron archivos de ese repositorio.
+- [Inventario y evidencia](inventario_objetivos_fisicos.md): 1560 tripletes
+  TSHS/TSDE/HSX localizados en tres conjuntos; matrices y hashes comprobados
+  en `MD_steps/0` de cada uno, no validación exhaustiva de todos los snapshots.
+- Contrastes independientes de imágenes/Bloch, Mulliken de sisl, referencia
+  de energía, rotaciones de base por átomo y ocupaciones fraccionarias.
+  La suma periódica da N=8/16/16; Γ puede dar 16.584 en grafeno–hBN y no
+  puede sustituirla. Las poblaciones/energías atómicas, no las componentes
+  orbitales aisladas, se conservan bajo las transformaciones examinadas.
+- McWeeny no aplicable como objetivo exacto a estas muestras fraccionarias.
+  Bicapa AA: etiquetas legibles, pero `benchmark_ready=false` por ausencia de
+  `electronic_convergence.json`; no se reparó ni se declara benchmark válido.
+- Alcance conversacional propuesto pendiente de aprobación. Después deberán
+  revisarse diseño y plan; implementación, RED→GREEN, integración, gates,
+  costes CPU y protocolo de precisión siguen pendientes. No se cerró Task 4
+  ni se atribuyeron mejoras de precisión, velocidad o VRAM a este inventario.

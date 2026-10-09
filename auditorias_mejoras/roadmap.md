@@ -550,6 +550,18 @@ ocultada. **Este cierre no completa el resto del roadmap.**
 
 ## Ola 4 — Paquete S (4.1 primero; el resto depende de ella)
 
+**Inventario inicial 4.4–4.5 (2026-10-09):** tras la indicación del usuario,
+se localizaron en `MD_vs_AtomicDisplacement` 1500 snapshots de grafeno y
+30+30 de bicapa AA/grafeno–hBN con TSHS/TSDE/HSX. Tres muestras leídas
+confirman H/S/DM/EDM, conteo periódico y consistencia energética; Γ no
+sustituye la suma periódica y los objetivos escalares deben agrupar por
+átomo. Ocupaciones fraccionarias: McWeeny no aplicable como identidad exacta
+en estos datos. La bicapa AA carece del informe de convergencia electrónica
+exigido por su manifiesto. Evidencia y límites en
+[inventario_objetivos_fisicos.md](inventario_objetivos_fisicos.md).
+**Todavía sin pérdidas nuevas implementadas ni mejora ML medida; diseño y
+plan pendientes de revisión.** Los estados de la tabla no se dan por cerrados.
+
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` lee (H, S) y ya escribe H con S (la política no llegaba a la conversión a `sisl_H`, 72b468c); la predicción del benchmark la admite. Falta la reconstrucción no ortogonal completa |
