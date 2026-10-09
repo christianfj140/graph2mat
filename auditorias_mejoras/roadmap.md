@@ -559,8 +559,11 @@ sustituye la suma periódica y los objetivos escalares deben agrupar por
 en estos datos. La bicapa AA carece del informe de convergencia electrónica
 exigido por su manifiesto. Evidencia y límites en
 [inventario_objetivos_fisicos.md](inventario_objetivos_fisicos.md).
-**Todavía sin pérdidas nuevas implementadas ni mejora ML medida; diseño y
-plan pendientes de revisión.** Los estados de la tabla no se dan por cerrados.
+**Todavía sin pérdidas nuevas implementadas ni mejora ML medida.** Alcance
+conversacional aprobado; [diseño escrito](../docs/superpowers/specs/2026-10-09-physical-losses-4-4-4-5-design.md)
+pendiente de revisión, después plan. El contraste grafo/referencia además
+detecta colas H–DM pequeñas pero no nulas, documentadas en el inventario.
+Los estados de la tabla no se dan por cerrados.
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|

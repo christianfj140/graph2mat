@@ -172,10 +172,37 @@ Sus conteos train/validation/test declarados son 1198/150/150, 22/3/3 y
 22/3/3. Son menores que el total localizado: no se redistribuyeron los
 snapshots restantes ni se supuso por qué quedaron fuera.
 
+## Contraste adicional: soporte del grafo y soporte de las referencias
+
+Después de aprobar el alcance conversacional se comparó el aplanado actual
+`h_and_overlap`, simétrico y sin baseline, con las matrices sparse completas.
+Se reutilizó `get_labels_from_types_and_edges` para alinear DM/EDM al mismo
+grafo H. Es una comprobación de la ruta existente, no implementación nueva.
+
+| `MD_steps/0` | Grafeno | Bicapa AA | Grafeno–hBN AA |
+| --- | ---: | ---: | ---: |
+| Elementos node / edge (media arista) | 32 / 480 | 64 / 1568 | 370 / 10373 |
+| Filas DM/EDM no finitas en edges aplanados | 0 | 90 | 1956 |
+| Esas filas con H o S de referencia no nulos | 0 | 0 | 0 |
+| Tr(HD) usando solo el grafo, eV | −71.73587286931681 | −147.85223484690832 | −135.73519218690075 |
+| Tr(HD)−Tr(SE) usando solo el grafo, eV | −2.98861e−6 | −1.42140e−5 | −4.40696e−6 |
+
+El conteo del grafo coincide con el completo en grafeno/bicapa; en hBN difiere
+en 2.25e−10 electrones. Las colas H–DM son pequeñas pero no idénticamente
+nulas. Por tanto, una identidad truncada no puede exigirse a cero ni presentarse
+como la identidad de referencia completa de la tabla anterior. Las filas
+no finitas de la conversión requieren una política explícita de observación/
+ceros estructurales, no un reemplazo indiscriminado de NaNs por cero.
+
+El diseño propuesto separa carga de la matriz representada y consistencia
+energética de la perturbación con referencia conservada fuera del grafo.
+Esta decisión y sus límites deben revisarse antes de implementar.
+
 ## Próxima decisión y límites de esta entrega
 
-Está pendiente la aprobación conversacional del alcance propuesto, después
-la revisión del diseño escrito y del plan antes de tocar producto, según la
-guía de diseño activa. El goal sigue abierto. Este inventario no sustituye
+El usuario aprobó el alcance conversacional. Está pendiente la revisión del
+[diseño escrito](../docs/superpowers/specs/2026-10-09-physical-losses-4-4-4-5-design.md)
+y después del plan antes de tocar producto, según la guía de diseño activa.
+El goal sigue abierto. Este inventario no sustituye
 RED→GREEN, smoke Lightning, suite completa, gates de tipos/Python 3.9,
 benchmark CPU pareado ni protocolo experimental de tres semillas.
