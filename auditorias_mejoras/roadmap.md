@@ -560,8 +560,9 @@ en estos datos. La bicapa AA carece del informe de convergencia electrónica
 exigido por su manifiesto. Evidencia y límites en
 [inventario_objetivos_fisicos.md](inventario_objetivos_fisicos.md).
 **Todavía sin pérdidas nuevas implementadas ni mejora ML medida.** Alcance
-conversacional aprobado; [diseño escrito](../docs/superpowers/specs/2026-10-09-physical-losses-4-4-4-5-design.md)
-pendiente de revisión, después plan. El contraste grafo/referencia además
+conversacional y [diseño escrito](../docs/superpowers/specs/2026-10-09-physical-losses-4-4-4-5-design.md)
+aprobados; [plan de implementación](../docs/superpowers/plans/2026-10-09-physical-losses-4-4-4-5.md)
+redactado, pendiente de revisión y método de ejecución. El contraste grafo/referencia además
 detecta colas H–DM pequeñas pero no nulas, documentadas en el inventario.
 Los estados de la tabla no se dan por cerrados.
 

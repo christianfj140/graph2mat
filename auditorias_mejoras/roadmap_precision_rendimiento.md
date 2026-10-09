@@ -756,8 +756,9 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
 - McWeeny no aplicable como objetivo exacto a estas muestras fraccionarias.
   Bicapa AA: etiquetas legibles, pero `benchmark_ready=false` por ausencia de
   `electronic_convergence.json`; no se reparó ni se declara benchmark válido.
-- Alcance conversacional aprobado. [Diseño escrito](../docs/superpowers/specs/2026-10-09-physical-losses-4-4-4-5-design.md)
-  pendiente de revisión; después plan. Contraste adicional grafo/referencia:
+- Alcance conversacional y [diseño escrito](../docs/superpowers/specs/2026-10-09-physical-losses-4-4-4-5-design.md)
+  aprobados. [Plan de implementación](../docs/superpowers/plans/2026-10-09-physical-losses-4-4-4-5.md)
+  redactado, pendiente de revisión y método de ejecución. Contraste adicional grafo/referencia:
   Tr(HD)−Tr(SE) truncado tiene residuos 3e−6/1.4e−5/4.4e−6 eV, no cero exacto.
   Implementación, RED→GREEN, integración, gates,
   costes CPU y protocolo de precisión siguen pendientes. No se cerró Task 4
