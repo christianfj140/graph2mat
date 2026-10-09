@@ -1,0 +1,255 @@
+{
+  "note": "Paired synthetic CPU results; no GPU, VRAM or predictive accuracy measurement. Source hashes identify the uncommitted implementation at base 7225ca4.",
+  "results": [
+    {
+      "python": "3.12.3",
+      "versions": {
+        "torch": "2.11.0+cpu",
+        "e3nn": "0.4.4",
+        "mace-torch": "0.3.15",
+        "pytorch-lightning": "2.6.1"
+      },
+      "device": "cpu",
+      "dtype": "float32",
+      "threads": 2,
+      "source_sha256": "2eed3f3a89bce0cc2a542e1c65d4645ee843d53b9a46fb68c2fa3e7cb32146d4",
+      "git_head": "7225ca453eb05d883e23271950dc3efdef0b368f",
+      "rank": 4,
+      "rounds": 12,
+      "warmup": 3,
+      "measure": {
+        "points": 16,
+        "directed_edges": 96,
+        "batch_tensor_sha256": "a35b7bd82cdd49b53b9fce9c122da40b618223f62306963e5f466b82ce05875d",
+        "initial_model_sha256": {
+          "baseline": "97f34ed5d9d5afd4a9f70db11387d0fea3196a2ddd536ace620de861bbf0d235",
+          "candidate": "2db813b99867c14fdfd756e7144790a538734598e9bd7778e5c3d9207c5ff96d"
+        },
+        "parameters": {
+          "baseline": {
+            "total": 526016,
+            "edge_operations": 197120
+          },
+          "candidate": {
+            "total": 356400,
+            "edge_operations": 27504
+          }
+        },
+        "full_model": {
+          "baseline": {
+            "forward_ms": {
+              "median": 42.63877007178962,
+              "min": 41.88803303986788,
+              "max": 43.929713778197765,
+              "mad": 0.4380578175187111
+            },
+            "backward_ms": {
+              "median": 89.87244311720133,
+              "min": 88.81760900840163,
+              "max": 90.66015016287565,
+              "mad": 0.5119936540722847
+            },
+            "step_ms": {
+              "median": 142.17219897545874,
+              "min": 139.66432120651007,
+              "max": 143.9092829823494,
+              "mad": 0.4530944861471653
+            }
+          },
+          "candidate": {
+            "forward_ms": {
+              "median": 28.942431323230267,
+              "min": 28.726244810968637,
+              "max": 29.978298116475344,
+              "mad": 0.09168055839836597
+            },
+            "backward_ms": {
+              "median": 70.67767344415188,
+              "min": 69.75970696657896,
+              "max": 72.1801626496017,
+              "mad": 0.2972641959786415
+            },
+            "step_ms": {
+              "median": 107.9950318671763,
+              "min": 105.84614612162113,
+              "max": 110.87163724005222,
+              "mad": 0.5703030619770288
+            }
+          }
+        },
+        "operation_parameters": {
+          "baseline": 45440,
+          "candidate": 2896
+        },
+        "operation": {
+          "baseline": {
+            "forward_ms": {
+              "median": 0.6341913249343634,
+              "min": 0.6041200831532478,
+              "max": 0.8492260240018368,
+              "mad": 0.01818547025322914
+            },
+            "backward_ms": {
+              "median": 0.8572831284254789,
+              "min": 0.8463491685688496,
+              "max": 0.8846595883369446,
+              "mad": 0.009377487003803253
+            },
+            "step_ms": {
+              "median": 1.7021724488586187,
+              "min": 1.6508190892636776,
+              "max": 1.7652129754424095,
+              "mad": 0.034757889807224274
+            }
+          },
+          "candidate": {
+            "forward_ms": {
+              "median": 0.7074123714119196,
+              "min": 0.7009939290583134,
+              "max": 0.7755840197205544,
+              "mad": 0.005375826731324196
+            },
+            "backward_ms": {
+              "median": 1.1904865968972445,
+              "min": 1.1784168891608715,
+              "max": 1.205173321068287,
+              "mad": 0.0029669608920812607
+            },
+            "step_ms": {
+              "median": 2.0683440379798412,
+              "min": 2.0427252165973186,
+              "max": 2.1527200005948544,
+              "mad": 0.005959067493677139
+            }
+          }
+        }
+      },
+      "limits": "synthetic CPU only; host load not isolated; architectures differ; no VRAM/accuracy conclusion"
+    },
+    {
+      "python": "3.12.3",
+      "versions": {
+        "torch": "2.11.0+cpu",
+        "e3nn": "0.4.4",
+        "mace-torch": "0.3.15",
+        "pytorch-lightning": "2.6.1"
+      },
+      "device": "cpu",
+      "dtype": "float32",
+      "threads": 2,
+      "source_sha256": "2eed3f3a89bce0cc2a542e1c65d4645ee843d53b9a46fb68c2fa3e7cb32146d4",
+      "git_head": "7225ca453eb05d883e23271950dc3efdef0b368f",
+      "rank": 4,
+      "rounds": 12,
+      "warmup": 3,
+      "measure": {
+        "points": 72,
+        "directed_edges": 432,
+        "batch_tensor_sha256": "4e94567aada4ba8faeb0d3f47e4e15c01be8bedc7ab8ff31694a5fb40b55129b",
+        "initial_model_sha256": {
+          "baseline": "97f34ed5d9d5afd4a9f70db11387d0fea3196a2ddd536ace620de861bbf0d235",
+          "candidate": "2db813b99867c14fdfd756e7144790a538734598e9bd7778e5c3d9207c5ff96d"
+        },
+        "parameters": {
+          "baseline": {
+            "total": 526016,
+            "edge_operations": 197120
+          },
+          "candidate": {
+            "total": 356400,
+            "edge_operations": 27504
+          }
+        },
+        "full_model": {
+          "baseline": {
+            "forward_ms": {
+              "median": 133.1125341821462,
+              "min": 125.48609031364322,
+              "max": 134.57744661718607,
+              "mad": 1.0994847398251295
+            },
+            "backward_ms": {
+              "median": 206.79470500908792,
+              "min": 206.03653695434332,
+              "max": 210.4047005996108,
+              "mad": 0.7192816119641066
+            },
+            "step_ms": {
+              "median": 359.6439079847187,
+              "min": 355.9243381023407,
+              "max": 361.63328727707267,
+              "mad": 0.4470210988074541
+            }
+          },
+          "candidate": {
+            "forward_ms": {
+              "median": 52.813936956226826,
+              "min": 51.717895083129406,
+              "max": 53.552363999187946,
+              "mad": 0.41914801113307476
+            },
+            "backward_ms": {
+              "median": 117.68102273344994,
+              "min": 115.1841189712286,
+              "max": 119.06171916052699,
+              "mad": 0.3752096090465784
+            },
+            "step_ms": {
+              "median": 179.91798743605614,
+              "min": 178.37740993127227,
+              "max": 184.08261518925428,
+              "mad": 0.9417345281690359
+            }
+          }
+        },
+        "operation_parameters": {
+          "baseline": 45440,
+          "candidate": 2896
+        },
+        "operation": {
+          "baseline": {
+            "forward_ms": {
+              "median": 1.329339575022459,
+              "min": 1.298069953918457,
+              "max": 1.4423183165490627,
+              "mad": 0.024337787181138992
+            },
+            "backward_ms": {
+              "median": 1.668230863288045,
+              "min": 1.644824631512165,
+              "max": 1.7125559970736504,
+              "mad": 0.016881152987480164
+            },
+            "step_ms": {
+              "median": 3.2028495334088802,
+              "min": 3.1041777692735195,
+              "max": 3.4522940404713154,
+              "mad": 0.0725090503692627
+            }
+          },
+          "candidate": {
+            "forward_ms": {
+              "median": 1.1474606581032276,
+              "min": 1.1287741363048553,
+              "max": 1.180328894406557,
+              "mad": 0.008290167897939682
+            },
+            "backward_ms": {
+              "median": 1.939539099112153,
+              "min": 1.9262679852545261,
+              "max": 1.9681169651448727,
+              "mad": 0.011568423360586166
+            },
+            "step_ms": {
+              "median": 3.2993610948324203,
+              "min": 3.2498352229595184,
+              "max": 3.436393104493618,
+              "mad": 0.04134140908718109
+            }
+          }
+        }
+      },
+      "limits": "synthetic CPU only; host load not isolated; architectures differ; no VRAM/accuracy conclusion"
+    }
+  ]
+}

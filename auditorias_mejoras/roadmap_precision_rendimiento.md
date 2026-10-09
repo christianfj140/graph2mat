@@ -180,16 +180,23 @@ y tests de operaciones/readout/modelos bajo `src/graph2mat/`.
 variante opcional de TP canal a canal o de rango bajo, integrada en la selección
 de operaciones actual. Elegir una primera variante, no construir ambas por anticipación.
 
-- [ ] Fijar diseño y capacidad alcanzable según el readout real, con plan propio.
-- [ ] Escribir RED de equivariancia, intercambio de extremos, corte radial,
+- [x] Fijar diseño y capacidad alcanzable según el readout real, con plan propio.
+- [x] Escribir RED de equivariancia, intercambio de extremos, corte radial,
   matrices simétricas y backpropagation en homo/heteronucleares y s/p/d/f.
-- [ ] Implementar la variante mínima con pesos/gates necesarios y defaults intactos.
+- [x] Implementar la variante mínima con pesos/gates necesarios y defaults intactos.
 - [ ] Medir parámetros, coste, memoria y throughput de la arquitectura completa.
+  Parámetros y tiempos CPU sintéticos medidos; GPU/VRAM/throughput real pendientes.
 - [ ] Smoke de entrenamiento, luego evaluación pareada de precisión y física;
   si pierde capacidad, medir el tradeoff y no sustituir la referencia.
+  Smoke CPU de dos pasos y checkpoints pasa; precisión/bandas/OOD sin evaluar.
 
 Expected: variante correcta, seleccionable y evaluada; no obligatoriedad de
 ganancia, pues se cambia la capacidad del modelo.
+El goal acotado de implementación 7.1 permite cerrar código/CPU/protocolo sin
+ejecutar GPU; **Task 3 completa sigue abierta por sus experimentos**. Diseño,
+resultados y comandos en [informe_readout_rango_bajo.md](informe_readout_rango_bajo.md),
+[plan_readout_rango_bajo.md](plan_readout_rango_bajo.md) y
+[protocolo_gpu_precision_7_1.md](protocolo_gpu_precision_7_1.md).
 
 ## Task 4 — precisión física: 4.4–4.5; después 7.4
 
@@ -696,3 +703,39 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   Hashdata.py ed975e57... coincide con benchmark final. Producto3a0af15;
   task-done real40pasan/659warnings/30.66s,exit0,rango903a132..3a0af15.
   Subplan cerrado CPU; evaluación GPU pendiente y goal general abierto.
+
+### 2026-10-09 — Task 3 / 7.1: variante de rango bajo, cierre CPU
+
+- Producto/tests `5d607b3`, base `7225ca4`. Una variante opcional:
+  `E3nnLowRankEdgeBlock`, proyecciones independientes a rank canales,
+  TP `uuu` con todos los caminos angulares admitidos, pesos radiales por
+  operación/par y gates SiLU/tanh; skip lineal a ancho original. No equivalente
+  al TP completo; capacidad restringida. Defaults/checkpoints anteriores intactos.
+- Selección existente en Graph2Mat/MatrixMACE y Lightning, kwargs rank
+  serializables al final de la firma. Sin cambios de preprocessing ni dependencias.
+  Se rechazan rank/fuentes/formas/radiales 0o o no escalares incorrectos.
+- Revisión independiente: un Important reproducido (contexto Hamiltoniano
+  concatena features no nulas después del envelope). Guard sobre operaciones
+  construidas rechaza esa combinación, incluidas API directa y readouts propios.
+  Cinco RED→GREEN nuevos; no Minor aplazados ni cambio del contexto anterior.
+- 42 pruebas nuevas: oráculo escalar, O(3)/paridad, intercambio y periódicos
+  homo/hetero s/p/d/f, C1/C2, agrupadores y single/sum/mean, empty edges,
+  gradcheck, fits CPU de dos pasos y checkpoint candidato/legacy. Con 19
+  regresiones de contexto: 61 pasan en 3.12 (33.48s/2715warnings) y 3.9
+  (43.62s/1261warnings), exit0 ambos. Ruffall/explicitbench, mypy-core,
+  compile39 y diff checks verdes. Full final **2251 pasan/2 omitidos/
+  28815warnings/751.75s, exit0**. Primer full falló por PYTHONPATH relativo
+  en DDP importando una wheel antigua; corregido el comando, no código ajeno.
+- Bench CPU sintético C2,16/72puntos,rank4,fp32,2threads,3warmups/12rondas
+  alternadas: paso modelo142.172→107.995 y359.644→179.918ms (−24%/−50%);
+  parámetros526016→356400 (−32.2%). Operación aislada **+21.5%/+3.0% de tiempo**.
+  Fuente2eed3f3a, hashes/MAD/versiones en JSON; host no aislado. Guard añadido
+  después sin cambiar la operación medida ni la fixture sin contexto.
+- Informe, plan, script y resultados: `informe_readout_rango_bajo.md`,
+  `plan_readout_rango_bajo.md`, `bench_readout_rango_bajo.py`,
+  `resultados_readout_rango_bajo_cpu.json`. Protocolo posterior separado en
+  `protocolo_gpu_precision_7_1.md`: procesos aislados, CUDA allocated/reserved,
+  mismo dtype/budget/splits, warmup/rondas/MAD y tres semillas pareadas.
+  **Sin ejecución GPU, AMP CUDA, VRAM ni precisión/bandas/OOD** por decisión
+  del usuario. Subplan de implementación CPU cerrado; Task 3 experimental
+  y resto del roadmap abiertos. No comenzar 4.4–4.5/7.4 dentro de este goal.
