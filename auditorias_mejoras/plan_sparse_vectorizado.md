@@ -84,6 +84,6 @@ mismo dict y coordenadas, sin alterar conversiones registradas ni kernel escalar
   misma fixture, warmup3,12rondas alternadas y memoria/RSS fresh procesos.
   Primaria tiempo coords y CSRC2, tolerancia no regresión10%; valores exactos.
   Registrar dispersión/dtype/source/kernelPython, sin extrapolar a wheel/GPU.
-- [ ] Step 6: gates focused, floor3.9, full sourceCPU con source/tests congelados,
+- [x] Step 6: gates focused, floor3.9, full sourceCPU con source/tests congelados,
   Ruff/mypy-core/compile39/diff; docs/report y commit explícito + task-done.
   Expected exit0 leído y límites abiertos honestos; después batching6.4.

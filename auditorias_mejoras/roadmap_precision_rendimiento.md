@@ -650,3 +650,5 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   local CPU, no paso entrenamiento ni kernel escalar compilado.
   Próximo6.4: `plan_batching_coste.md` preparado, **no implementado**; perfil
   readonly de proxy/bytes en fixture desigual, no evidencia de sampler/GPU.
+- Producto22029ca; task-done real222pasan/68warnings/5.91s,exit0, rango
+  cc334f0..22029ca. Subplan completo CPU; siguiente ejecutar6.4 desde su plan.

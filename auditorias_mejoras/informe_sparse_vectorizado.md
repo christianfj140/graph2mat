@@ -88,4 +88,7 @@ points/rounds inválidos y CUDA habilitada. Sin modificar converters del product
   torch.load, no afirmar vacío como en certified16/72 Python3.12.
 - Logs /tmp/g2m-precision-goal.A2Pbgk/sparse-vector-*. GPU compute ajeno
   (pipeline_ui.py,498MiB) presente aunque utilización0; ningún lanzamiento propio.
-- A cerrar con commit/task-done. Próximo bloque6.4; goal sigue abierto.
+- Producto22029ca; task-done real222pasan/68warnings/5.91s,exit0, rango
+  cc334f0..22029ca; salida y ledger leídos. Subplan completo CPU.
+  Próximo bloque6.4: plan_batching_coste.md preparado, aún no implementado.
+  Goal sigue abierto, sin beneficio GPU/precisión científica demostrado.
