@@ -2,8 +2,8 @@
 
 Fecha: 2026-10-09. Repositorio Graph2Mat, rama `g2m-v2`, mismo checkout.
 Estado: **diseño escrito aprobado explícitamente por el usuario** (2026-10-09).
-Siguiente gate: revisión del [plan de implementación](../plans/2026-10-09-physical-losses-4-4-4-5.md)
-y elección del método de ejecución antes de modificar producto.
+[Plan de implementación](../plans/2026-10-09-physical-losses-4-4-4-5.md)
+aprobado explícitamente por el usuario; ejecución Native (2026-10-09).
 Antecedente: `auditorias_mejoras/inventario_objetivos_fisicos.md`, commit `61ed294`.
 
 ## 1. Intención, éxito y límites

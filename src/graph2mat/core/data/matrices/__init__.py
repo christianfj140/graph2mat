@@ -27,6 +27,8 @@ _KEY_TO_MATRIX_CLS = {
     sisl.DensityMatrix: DensityMatrix,
     "hamiltonian": OrbitalMatrix,
     sisl.Hamiltonian: OrbitalMatrix,
+    "energy_density_matrix": OrbitalMatrix,
+    sisl.EnergyDensityMatrix: OrbitalMatrix,
 }
 
 

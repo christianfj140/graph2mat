@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python >=3.9, NumPy, SciPy/sisl, Torch/PyG, Lightning y los gates Ruff/mypy existentes; ninguna dependencia nueva.
 
-**Spec:** [Diseño aprobado](../specs/2026-10-09-physical-losses-4-4-4-5-design.md), aprobación explícita del usuario el 2026-10-09. Evidencia: [inventario](../../../auditorias_mejoras/inventario_objetivos_fisicos.md). Este plan todavía requiere revisión antes de implementar.
+**Spec:** [Diseño aprobado](../specs/2026-10-09-physical-losses-4-4-4-5-design.md), aprobación explícita del usuario el 2026-10-09. Evidencia: [inventario](../../../auditorias_mejoras/inventario_objetivos_fisicos.md). Plan aprobado explícitamente; método Native elegido por el usuario (2026-10-09).
 
 ## Global Constraints
 
@@ -133,7 +133,7 @@ planas y la transferencia reutiliza `layout_to` sin cambios.
 
 ## Preflight de ejecución, antes del primer RED
 
-- [ ] Releer spec/instrucciones, comprobar rama/status y registrar HEAD. No ejecutar producto hasta que el usuario haya revisado este plan y elegido método.
+- [x] Releer spec/instrucciones, comprobar rama/status y registrar HEAD. No ejecutar producto hasta que el usuario haya revisado este plan y elegido método.
 
 ```bash
 git status --short --branch
