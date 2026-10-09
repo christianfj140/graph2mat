@@ -27,6 +27,7 @@ from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 from graph2mat.core.data import metrics as metrics_module
 from graph2mat.core.data.metrics import OrbitalMatrixMetric, elementwise_mse
 from graph2mat.core.data.node_feats import NodeFeature
+from graph2mat.core.data.physical import validate_physical_weights
 
 from ._helpers import glob, maybe_zip_path
 
@@ -335,6 +336,8 @@ class LitBasisMatrixModel(pl.LightningModule):
         from graph2mat.models.mace import MatrixMACE
         from .callbacks import MatrixWriter, SamplewiseMetricsLogger
 
+        if any(self._physical_weights(self.loss_fn)):
+            return "physical objectives require matrix predictions"
         if self._coefficient_training_unavailable is not None:
             return self._coefficient_training_unavailable
         if not isinstance(self.model, MatrixMACE):
@@ -511,7 +514,10 @@ class LitBasisMatrixModel(pl.LightningModule):
                              metrics_module.block_type_mapemaemix: (1, 100., 0),
                              metrics_module.block_type_mapemsemix: (2, 10000., 0),
                              metrics_module.block_type_mapestdmix: (1, 0., 2)}
-        if type(self.loss_fn) is metrics_module.normalized_density_error:
+        if any(self._physical_weights(self.loss_fn)):
+            value = self._physical_epoch_loss(key, batch, stats)
+            attribute = f"_epoch_losses.{key}"
+        elif type(self.loss_fn) is metrics_module.normalized_density_error:
             if (key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss)
                     or len(self._epoch_losses[key].totals) != 1):
                 self._epoch_losses[key] = _EpochWeightedLoss(1).to(self.device)
@@ -605,6 +611,34 @@ class LitBasisMatrixModel(pl.LightningModule):
             self.log("hp_metric", value, batch_size=batch.num_graphs,
                      metric_attribute=attribute, sync_dist=attribute is None)
 
+    def _physical_epoch_loss(self, key, batch, stats):
+        """Matrix means use element counts; each physical mean uses structures."""
+        kwargs = self.loss_fn.metric_kwargs
+        if type(self.loss_fn) is metrics_module.gauge_invariant_mse:
+            means = [stats["gauge_h_rmse"].double().square(), stats["overlap_rmse"].double().square(),
+                torch.as_tensor(stats.get("spectral_rmse", 0.), device=self.device).double().square()]
+            counts = [self._rmse_count("gauge_h_rmse", batch), self._rmse_count("overlap_rmse", batch),
+                torch.as_tensor(stats.get("spectral_elements", 0.), device=self.device)]
+            weights = [1., kwargs.get("overlap_weight", 1.), kwargs.get("spectral_weight", 0.)]
+        else:
+            node_count = self._rmse_count("node_rmse", batch).double()
+            edge_count = self._rmse_count("edge_rmse", batch).double() * kwargs.get("edge_weight", 1.)
+            count = node_count + edge_count
+            base = (stats["node_rmse"].double().square()*node_count
+                + stats["edge_rmse"].double().square()*edge_count) / torch.where(count > 0, count, 1.)
+            means, counts, weights = [base], [count], [1.]
+        for name, weight in zip(("electron", "mulliken", "energy"), self._physical_weights(self.loss_fn)):
+            if weight:
+                means.append(stats[f"physical_{name}_mse"].double())
+                counts.append(torch.as_tensor(stats["physical_structures"], device=self.device))
+                weights.append(weight)
+        if (key not in self._epoch_losses or not isinstance(self._epoch_losses[key], _EpochWeightedLoss)
+                or len(self._epoch_losses[key].totals) != len(means)):
+            self._epoch_losses[key] = _EpochWeightedLoss(len(means)).to(self.device)
+        value = self._epoch_losses[key]
+        value(torch.stack(means), torch.stack(counts), tuple(weights))
+        return value
+
     def _huber_epoch_terms(self, out, batch):
         """Huber elements or physical-block means, with valid block types."""
         errors = metrics_module.get_predictions_error(
@@ -674,7 +708,25 @@ class LitBasisMatrixModel(pl.LightningModule):
                      else self._rmse_count(name, batch, stats))
             key = f"{split}_{name}"
             attribute = None
-            if coefficient_errors is not None and name.endswith(("_coeff_rmse", "_coeff_mae")):
+            if name == "physical_structures":
+                if key not in self._epoch_errors:
+                    self._epoch_errors[key] = _EpochErrorMoments("sum").to(self.device)
+                value = self._epoch_errors[key]
+                value(torch.as_tensor(stats[name], device=self.device))
+                attribute = f"_epoch_errors.{key}"
+            elif name == "physical_delta_n_rmse":
+                if key not in self._epoch_rmse:
+                    self._epoch_rmse[key] = _EpochRMSE().to(self.device)
+                value = self._epoch_rmse[key]
+                value(stats[name], stats["physical_structures"])
+                attribute = f"_epoch_rmse.{key}"
+            elif name.startswith("physical_"):
+                if key not in self._epoch_losses:
+                    self._epoch_losses[key] = _EpochWeightedLoss(1).to(self.device)
+                value = self._epoch_losses[key]
+                value([stats[name]], [stats["physical_structures"]], (1.,))
+                attribute = f"_epoch_losses.{key}"
+            elif coefficient_errors is not None and name.endswith(("_coeff_rmse", "_coeff_mae")):
                 operation = name[len(prefix):].rsplit("_coeff_", 1)[0]
                 terms = coefficient_errors.get(operation, out["node_labels"].new_empty(0))
                 if name.endswith("_rmse"):
@@ -778,9 +830,78 @@ class LitBasisMatrixModel(pl.LightningModule):
                      metric_attribute=attribute, sync_dist=attribute is None)
 
     def on_fit_start(self) -> None:
+        self._preflight_physical_objectives()
         self._apply_training_stage_for_epoch(getattr(self, "current_epoch", 0))
         self._fit_output_scaleshift()
         self._configure_coefficient_training()
+
+    @staticmethod
+    def _physical_weights(loss_fn):
+        kwargs = getattr(loss_fn, "metric_kwargs", {})
+        return validate_physical_weights(**{name: kwargs.get(name, 0.)
+            for name in ("electron_weight", "mulliken_weight", "energy_weight")})
+
+    def _preflight_physical_objectives(self):
+        """Check every future physical objective before forward/scale fitting/steps.
+
+        Index map-style datasets in CPU, reusing existing caches without consuming
+        sampler/worker RNG or streams. Lazy data pay one full validation pass.
+        """
+        from torch.utils.data import DataLoader, IterableDataset
+        from .data import MatrixDataModule
+        from graph2mat.bindings.torch.data.dataset import RotatingPoolData
+
+        objectives = [("default", self.default_loss_fn)]
+        for stage in self._validated_training_stages:
+            loss_fn = (self._resolve_metric(stage["loss"])(**(stage.get("loss_kwargs") or {}))
+                if "loss" in stage else self.default_loss_fn)
+            objectives.append((stage["name"], loss_fn))
+        objectives = [(name, fn) for name, fn in objectives if any(self._physical_weights(fn))]
+        if not objectives:
+            return
+
+        def loaders(value):
+            if isinstance(value, DataLoader):
+                yield value
+            elif isinstance(value, dict):
+                for child in value.values():
+                    yield from loaders(child)
+            elif isinstance(value, (list, tuple)):
+                for child in value:
+                    yield from loaders(child)
+            else:
+                raise ValueError("physical preflight requires inspectable map-style DataLoaders")
+
+        trainer = self.trainer
+        # Lightning has not created worker iterators at on_fit_start. Its source
+        # covers both explicit loaders and module hooks; fail closed if unavailable.
+        loops = (("train", trainer.fit_loop), ("val", trainer.fit_loop.epoch_loop.val_loop))
+        for split, loop in loops:
+            source = getattr(loop, "_data_source", None)
+            if source is None:
+                raise ValueError("physical preflight cannot inspect this Lightning loader source")
+            if split == "val" and (not trainer.limit_val_batches or not source.is_defined()):
+                continue
+            for loader in loaders(source.dataloader()):
+                dataset = loader.dataset
+                module = trainer.datamodule
+                if isinstance(module, MatrixDataModule):
+                    pool = getattr(module, split + "_dataset", None)
+                    if isinstance(pool, RotatingPoolData):
+                        dataset = pool.parent_data  # Validate future replacements, not only today's pool.
+                if isinstance(dataset, IterableDataset) or not hasattr(dataset, "__len__") or not hasattr(dataset, "__getitem__"):
+                    raise ValueError(f"physical preflight cannot inspect {split} streaming data without consuming them")
+                for index in range(len(dataset)):
+                    name = "all physical objectives"
+                    try:
+                        batch = loader.collate_fn([dataset[index]])
+                        for name, loss_fn in objectives:
+                            with torch.no_grad():
+                                loss_fn(nodes_pred=batch["point_labels"], nodes_ref=batch["point_labels"],
+                                    edges_pred=batch["edge_labels"], edges_ref=batch["edge_labels"],
+                                    batch=batch, basis_table=self.basis_table)
+                    except (ValueError, TypeError, KeyError, AttributeError) as error:
+                        raise ValueError(f"physical preflight {split} sample {index}, stage {name}: {error}") from error
 
     def _configure_coefficient_training(self):
         """Snapshot after normal restore/device setup, before train worker iterators."""
@@ -977,6 +1098,12 @@ class LitBasisMatrixModel(pl.LightningModule):
                     stage["loss_kwargs"], dict
                 ):
                     raise TypeError("training stage loss_kwargs must be a dictionary.")
+                self._resolve_metric(stage["loss"])(**(stage.get("loss_kwargs") or {}))
+            elif stage.get("loss_kwargs"):
+                weights = validate_physical_weights(**{name: stage["loss_kwargs"].get(name, 0.)
+                    for name in ("electron_weight", "mulliken_weight", "energy_weight")})
+                if any(weights):
+                    raise ValueError("physical stage loss_kwargs require an explicit stage loss")
 
             validated.append(validated_stage)
         return validated

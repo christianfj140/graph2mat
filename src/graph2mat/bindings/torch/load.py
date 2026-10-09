@@ -15,7 +15,7 @@ def sanitize_checkpoint(checkpoint: dict) -> dict:
     if "z_table" in checkpoint:
         checkpoint["basis_table"] = checkpoint.pop("z_table")
 
-    data_ckpt = checkpoint["datamodule_hyper_parameters"]
+    data_ckpt = checkpoint.get("datamodule_hyper_parameters", {})
     model_ckpt = checkpoint["hyper_parameters"]
 
     for sub_ckpt in (data_ckpt, model_ckpt):

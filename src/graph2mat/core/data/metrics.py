@@ -740,6 +740,12 @@ class OrbitalMatrixMetric(metaclass=Meta):
     def __init__(self, **metric_kwargs):
         # Constructor kwargs (``loss_kwargs`` in the lightning models) become
         # defaults for every metric evaluation, e.g. per-domain weights.
+        from .physical import validate_physical_weights
+
+        weights = validate_physical_weights(**{name: metric_kwargs.get(name, 0.)
+            for name in ("electron_weight", "mulliken_weight", "energy_weight")})
+        if any(weights) and type(self) not in (elementwise_mse, gauge_invariant_mse):
+            raise ValueError("physical objectives are supported only by elementwise_mse and gauge_invariant_mse")
         self.metric_kwargs = dict(metric_kwargs)
 
     def __call__(self, *args, **kwargs):
