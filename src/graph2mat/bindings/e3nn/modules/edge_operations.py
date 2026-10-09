@@ -18,6 +18,7 @@ from ._utils import tp_out_irreps_with_instructions
 __all__ = [
     "E3nnSimpleEdgeBlock",
     "E3nnLinearEdgeBlock",
+    "E3nnLowRankEdgeBlock",
     "E3nnEdgeBlockNodeMix",
 ]
 
@@ -85,6 +86,96 @@ class E3nnLinearEdgeBlock(E3nnSimpleEdgeBlock):
         for linear, (a, b) in zip(self.linears, _ordered_inputs(tuple_kwargs)):
             out = out + linear(a + b)
         return out
+
+
+class E3nnLowRankEdgeBlock(torch.nn.Module):
+    """Experimental low-rank bilinear readout with pair-specific radial gates.
+
+    Each input irrep is projected to ``rank`` channels separately at the two
+    ends. Channel-aligned products retain every allowed angular coupling, but
+    share input projections: this is a capacity restriction, not an equivalent
+    replacement for ``E3nnLinearEdgeBlock``. A bias-free radial MLP and ``tanh``
+    supply per-edge TP weights and a gate for a full-width linear skip. All
+    terms vanish when the radial features vanish, including with reused nodes.
+
+    Select with ``edge_operation`` (or Lightning's ``edge_block_readout``).
+    The enclosing matrix block handles exchange/transpose symmetry. Separate
+    block operations learn separate pair weights, unless basis grouping shares
+    those operations. Radial inputs must be even scalars (0e).
+    """
+
+    _data_get_edge_args = ("edge_feats",)
+
+    def __init__(self, irreps_in, irreps_out, edge_feats_irreps, rank: int = 4):
+        super().__init__()
+        if isinstance(rank, bool) or not isinstance(rank, int) or rank < 1:
+            raise ValueError("rank must be a positive integer.")
+        if isinstance(irreps_in, (o3.Irreps, str)):
+            irreps_in = [irreps_in]
+        self.input_irreps = [o3.Irreps(value) for value in irreps_in]
+        if not 1 <= len(self.input_irreps) <= 2 or any(value.dim == 0 for value in self.input_irreps):
+            raise ValueError("Expected one or two nonempty input sources (node_feats, edge_messages).")
+        self.irreps_out = o3.Irreps(irreps_out)
+        self.edge_feats_irreps = o3.Irreps(edge_feats_irreps)
+        if not self.edge_feats_irreps.dim or any(ir != o3.Irrep("0e") for _, ir in self.edge_feats_irreps):
+            raise ValueError("edge_feats_irreps must contain only nonempty even scalars (0e).")
+
+        self.left_projections = torch.nn.ModuleList()
+        self.right_projections = torch.nn.ModuleList()
+        self.tensor_products = torch.nn.ModuleList()
+        self.output_linears = torch.nn.ModuleList()
+        self.linears = torch.nn.ModuleList()
+        self.radial_gates = torch.nn.ModuleList()
+        for source in self.input_irreps:
+            projected = o3.Irreps([(rank, ir) for ir in sorted({ir for mul, ir in source if mul})])
+            mid, instructions = [], []
+            for i, (_, left) in enumerate(projected):
+                for j, (_, right) in enumerate(projected):
+                    for out in left * right:
+                        if out in self.irreps_out:
+                            instructions.append((i, j, len(mid), "uuu", True))
+                            mid.append((rank, out))
+            mid = o3.Irreps(mid)
+            tp = o3.TensorProduct(projected, projected, mid, instructions,
+                                  internal_weights=False, shared_weights=False)
+            self.left_projections.append(o3.Linear(source, projected))
+            self.right_projections.append(o3.Linear(source, projected))
+            self.tensor_products.append(tp)
+            self.output_linears.append(o3.Linear(mid, self.irreps_out))
+            self.linears.append(o3.Linear(source, self.irreps_out))
+            self.radial_gates.append(torch.nn.Sequential(
+                torch.nn.Linear(self.edge_feats_irreps.dim, 32, bias=False),
+                torch.nn.SiLU(),
+                torch.nn.Linear(32, tp.weight_numel + 1, bias=False),
+            ))
+
+    @staticmethod
+    def _validate_pair(name, pair, shape):
+        if not isinstance(pair, tuple) or len(pair) != 2:
+            raise ValueError(f"{name} must be a two-tensor tuple.")
+        if any(not isinstance(value, torch.Tensor) or value.shape != shape for value in pair):
+            raise ValueError(f"{name} input shape must be {tuple(shape)} at both ends.")
+
+    def forward(self, edge_feats=None, **tuple_kwargs):
+        if set(tuple_kwargs) - set(_INPUT_ORDER) or len(tuple_kwargs) != len(self.input_irreps):
+            raise ValueError("Input sources must match the declared node_feats/edge_messages irreps.")
+        pairs = _ordered_inputs(tuple_kwargs)
+        if not isinstance(pairs[0], tuple) or len(pairs[0]) != 2 or not isinstance(pairs[0][0], torch.Tensor) or pairs[0][0].ndim != 2:
+            raise ValueError("Each input source must be a tuple of two 2D tensors.")
+        n = pairs[0][0].shape[0]
+        self._validate_pair("edge_feats", edge_feats, (n, self.edge_feats_irreps.dim))
+        radial = (edge_feats[0] + edge_feats[1]) * 0.5
+        result = radial.new_zeros((n, self.irreps_out.dim))
+        for source, pair, left, right, tp, output, linear, gate in zip(
+            self.input_irreps, pairs, self.left_projections, self.right_projections,
+            self.tensor_products, self.output_linears, self.linears, self.radial_gates,
+        ):
+            self._validate_pair("source", pair, (n, source.dim))
+            a, b = pair
+            weights = torch.tanh(gate(radial))
+            result = result + output(tp(left(a), right(b), weights[:, :-1]))
+            result = result + linear(a + b) * weights[:, -1:]
+        return result
 
 
 class E3nnEdgeBlockNodeMix(torch.nn.Module):

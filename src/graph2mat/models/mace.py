@@ -11,6 +11,7 @@ from mace.modules.utils import get_edge_vectors_and_lengths
 
 from graph2mat import Graph2Mat
 from graph2mat.bindings.e3nn import E3nnGraph2Mat
+from graph2mat.bindings.e3nn.modules.edge_operations import E3nnLowRankEdgeBlock
 from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
     HamiltonianLocalContext,
 )
@@ -131,7 +132,8 @@ class MatrixMACE(torch.nn.Module):
     hamiltonian_local_context :
         If ``True``, append deterministic scalar local Hamiltonian context
         channels to node readout features and edge radial features. This is
-        experimental and opt-in.
+        experimental and opt-in. Not supported with ``E3nnLowRankEdgeBlock``:
+        its radial gates require every edge feature to vanish at the cutoff.
     mp_cutoff :
         If given, MACE only passes messages through edges shorter than this (the
         matrix edges are still all read out). The number of message passing edges
@@ -285,6 +287,14 @@ class MatrixMACE(torch.nn.Module):
                     **edge_update,
                 ),
                 **kwargs,
+            )
+
+        if self.hamiltonian_local_context is not None and any(
+            isinstance(module, E3nnLowRankEdgeBlock) for module in self.matrix_readouts.modules()
+        ):
+            raise ValueError(
+                "E3nnLowRankEdgeBlock does not support hamiltonian_local_context: "
+                "context edge features do not vanish at the radial cutoff."
             )
 
         self.long_range_smearing = long_range_smearing

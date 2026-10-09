@@ -33,7 +33,12 @@ def _cueq_config():
 
 
 class LitMACEMatrixModel(LitBasisMatrixModel):
-    """Wrapper to use MACEMatrix in pytorch_lightning."""
+    """Wrapper to use MACEMatrix in pytorch_lightning.
+
+    ``edge_block_readout`` selects the edge operation; the optional
+    ``edge_block_readout_kwargs`` forwards its constructor arguments (e.g.
+    ``{"rank": 4}`` for ``E3nnLowRankEdgeBlock``). The default stays unchanged.
+    """
 
     model: MACE
 
@@ -109,6 +114,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         training_stages: Optional[list[dict]] = None,
         initial_node_feats: str = "OneHotZ",
         version: str = "new",
+        edge_block_readout_kwargs: Optional[dict] = None,
     ):
         if version != "new":
             # The old OrbitalMatrixMACE path is gone; the argument stays for saved checkpoints.
@@ -215,6 +221,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 preprocessing_edges_reuse_nodes=preprocessing_edges_reuse_nodes,
                 node_operation=node_block_readout,
                 edge_operation=edge_block_readout,
+                **({"edge_operation_kwargs": dict(edge_block_readout_kwargs)}
+                   if edge_block_readout_kwargs is not None else {}),
                 basis_grouping=basis_grouping,
                 n_matrix_components=n_output_components or n_matrix_components,
             )
