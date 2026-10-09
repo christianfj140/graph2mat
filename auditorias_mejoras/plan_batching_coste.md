@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL `superpowers:executing-plans`.
 > Ejecución directa/TDD, mismo checkout, sin agentes por tarea; revisión final
-> independiente solo al cerrar el goal completo. **Verificado CPU; commit/task-done por registrar.**
+> independiente solo al cerrar el goal completo. **Cerrado CPU; medidas GPU/precisión abiertas.**
 
 **Goal:** Opt-in para limitar un proxy explícito de coste por batch sin perder
 muestras, romper métricas/lifecycle o producir diferente número de pasos DDP.
@@ -118,8 +118,10 @@ produce batches normales PyG/TypeLayoutCollate. No export público nuevo.
   CPU: pico proxy313152→178944, cobertura exacta; collate1.307→2.557ms,
   inicialización.153→17.625ms. Equivalencia MACE real C1/C2 simétrico/dirigido.
   GPU con cómputo ajeno: recurso ausente; no beneficio VRAM/velocidad GPU demostrado.
-- [ ] Step 7: focused/floor3.9/fullCPU final source/tests congelados;
+- [x] Step 7: focused/floor3.9/fullCPU final source/tests congelados;
   Ruff/mypy-core/compile39/diff, docs/roadmaps, commit explícito y task-done real.
   Luego7.1; medidas GPU/precisión siguen abiertas si faltan recursos/datos.
   FinalCPU2209pasan/2omitidos/26518warnings/634.88s,exit0; focused40 y floor40
   verdes. Source/tests congelados; benchmark repetido con hash finaled975e57.
+  Producto3a0af15; task-done real40pasan/659warnings/30.66s,exit0, rango
+  903a132..3a0af15. Subplan cerrado CPU, goal global no completado.

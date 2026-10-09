@@ -693,5 +693,6 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   invalidar plan antes del len posterior de Lightning. Retener plan durante
   toda época Trainer lo corrige; standalone conserva RNG entre iteraciones.
   Final40enfocados verdes en ambos perfiles; full final2209/2skip exit0.
-  Hashdata.py ed975e57... coincide con benchmark final. Commit/task-done por
-  registrar; evaluación GPU pendiente y goal general abierto.
+  Hashdata.py ed975e57... coincide con benchmark final. Producto3a0af15;
+  task-done real40pasan/659warnings/30.66s,exit0,rango903a132..3a0af15.
+  Subplan cerrado CPU; evaluación GPU pendiente y goal general abierto.

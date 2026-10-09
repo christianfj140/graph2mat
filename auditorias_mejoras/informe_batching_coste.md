@@ -169,8 +169,10 @@ inválidos se rechazan. Logs/JSON en `/tmp/g2m-precision-goal.A2Pbgk/cost-batchi
   cost-batching-full-cpu-final.log; salida leída, source/tests congelados y sus
   hashes idénticos al finalizar. Incluye CLI/checkpoints/ZIP/stages previos y
   todos los DDP, además del nuevo caso de prefetch. Sin wheel nueva.
-- Commit local y task-done del subplan pendientes de registrar; no cierre del
-  goal completo ni afirmación de mejora GPU/precisión científica.
+- Producto local **3a0af15**; task-done real40pasan/36deseleccionados/
+  659warnings/30.66s,exit0, rango903a132..3a0af15. Ledger y salida leídos.
+  Subplan cerrado CPU, sin cierre del goal completo ni afirmación de mejora
+  GPU/precisión científica. Archivos ajenos sin modificar, sin push/merge.
 
 GPU al verificar: RTX5090,5671MiB,100%, cómputo ajeno. Ningún lanzamiento propio;
 allocated/reserved, paso/throughput y entrenamientos científicos pendientes.
