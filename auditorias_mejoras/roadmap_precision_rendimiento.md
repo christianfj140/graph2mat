@@ -208,14 +208,14 @@ resultados y comandos en [informe_readout_rango_bajo.md](informe_readout_rango_b
 objetivos físicos opcionales con convenciones explícitas, y después una primera
 variante de readout local SO(2) **o** Slater–Koster neuronal con residuo.
 
-- [ ] Inventariar datos propios disponibles: H, S, DM, EDM, spin y ocupaciones.
-- [ ] Cerrar únicamente la parte de 4.1 necesaria para esos objetivos y demostrar
+- [x] Inventariar datos propios disponibles: H, S, DM, EDM, spin y ocupaciones.
+- [x] Cerrar únicamente la parte de 4.1 necesaria para esos objetivos y demostrar
   con oráculos independientes el ensamblado no ortogonal.
-- [ ] Implementar términos N_e/Mulliken pertinentes y `Tr(DS)` con convención
+- [x] Implementar términos N_e/Mulliken pertinentes y `Tr(DS)` con convención
   de spin/ocupación explícita; probar electrones, gauge, simetría y gradientes.
-- [ ] McWeeny solo bajo hipótesis de idempotencia declaradas; EDM ligada a DM/H
+- [x] McWeeny solo bajo hipótesis de idempotencia declaradas; EDM ligada a DM/H
   con factores y convención comprobados contra una referencia independiente.
-- [ ] Datos H-only no justifican inventar DM/EDM ni convertir sus objetivos en ceros.
+- [x] Datos H-only no justifican inventar DM/EDM ni convertir sus objetivos en ceros.
 - [ ] Evaluar las pérdidas por separado; mantener apagados los términos perjudiciales.
 - [ ] Diseñar una primera variante 7.4 con plan separado, bases soportadas
   explícitas y fallback/error para las demás; no dos arquitecturas a la vez.
@@ -225,6 +225,16 @@ variante de readout local SO(2) **o** Slater–Koster neuronal con residuo.
 Expected: código físico bajo sus hipótesis, variantes opcionales y evidencia
 experimental real. Si faltan etiquetas imprescindibles, registrar el recurso
 concreto y seguir con los bloques independientes, sin cerrar falsamente éste.
+
+Estado 2026-10-09: parte física implementada/verificada CPU (suite de integración
+2466 passed / 2 skipped, nueve smokes reales); revisión final y gate posterior
+a su corrección en curso. McWeeny no aplicable como identidad exacta en estos
+datos fraccionarios; no se implementó una penalización incorrecta. H-energy/hBN
+bloqueado por entradas DM no observadas; bicapa no-ready por informe SCF ausente.
+Precisión, bandas/OOD y GPU pendientes, no beneficios ML/VRAM demostrados.
+Coste y comandos: [informe CPU](informe_objetivos_fisicos_cpu.md).
+Experimento preparado, no ejecutado: [protocolo](protocolo_precision_4_4_4_5.md).
+Task 4 global y 7.4 siguen abiertos; esta ejecución no implementa 7.4.
 
 ## Fuera de esta prioridad
 

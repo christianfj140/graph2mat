@@ -559,12 +559,19 @@ sustituye la suma periódica y los objetivos escalares deben agrupar por
 en estos datos. La bicapa AA carece del informe de convergencia electrónica
 exigido por su manifiesto. Evidencia y límites en
 [inventario_objetivos_fisicos.md](inventario_objetivos_fisicos.md).
-**Todavía sin pérdidas nuevas implementadas ni mejora ML medida.** Alcance
-conversacional y [diseño escrito](../docs/superpowers/specs/2026-10-09-physical-losses-4-4-4-5-design.md)
-aprobados; [plan de implementación](../docs/superpowers/plans/2026-10-09-physical-losses-4-4-4-5.md)
-redactado, pendiente de revisión y método de ejecución. El contraste grafo/referencia además
-detecta colas H–DM pequeñas pero no nulas, documentadas en el inventario.
-Los estados de la tabla no se dan por cerrados.
+**Actualización de implementación (2026-10-09):** diseño y plan aprobados,
+ejecución Native en `g2m-v2`. N_e/Mulliken para DM y consistencia H–DM–EDM
+opcionales implementados, incluidos gradientes, colas periódicas, máscaras,
+stages y checkpoints. Suite de integración: 2466 passed / 2 skipped; nueve
+smokes reales soportados pasan. Revisión independiente y gate posterior a su
+corrección aún en curso. No se ha medido mejora de precisión ni ahorro VRAM.
+H-energy en hBN está bloqueado por soporte DM desconocido donde H puede variar;
+la bicapa sigue sin informe SCF. McWeeny no aplica como identidad exacta a estas
+ocupaciones fraccionarias. Coste CPU medido positivo, no aceleración:
++16–25 % en `Trainer.fit` de un paso tras el fix final. Véanse
+[informe CPU](informe_objetivos_fisicos_cpu.md) y
+[protocolo de precisión pendiente](protocolo_precision_4_4_4_5.md).
+Esto no cierra 4.1, todo 4.4, toda ola 4 ni los experimentos de 4.5.
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
@@ -572,7 +579,7 @@ Los estados de la tabla no se dan por cerrados.
 | 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **con S solo como etiqueta (`n_output_components=1`, misma VRAM): `6x6` H alineado 1,05 → 0,70 meV (−33 %, 5 de 5 semillas); bicapa → moiré bandas alineadas 14,5 → 7,3 (−50 %, 3 de 3) e intracapa −43 %; H2O H alineado 29,6 → 5,6 (−81 %), gap 986 → 80 meV (−92 %).** Monocapa → bicapa: H −15 % pero bandas peores en 3 de 5. Prediciendo también S: peor y +48 % de VRAM. `gauge_invariant_mse` (7b97b7a, 71c1afa) con `h_and_overlap`; métrica c* en `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` y `val_metrics` (`H_MAE_gauge_meV`) |
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ sin el desplazamiento c·S, por on-site/capa de vecinos/par l, y fuera de alcance orbital. `6x6` (semilla 0, meV por elemento): lin 1,79 → 0,93 quitó el 82 % del error a ~4,3 Å; la pérdida de gauge 0,93 → 0,62 mejora todas las capas (primeros vecinos 6,1 → 3,6, terceros 2,8 → 1,4) pero el **on-site** solo 12,3 → 10,3: es ya el 23 % del error y el mayor por elemento, el siguiente objetivo |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | 🔶 **pérdida espectral de primer orden implementada** (`gauge_invariant_mse(spectral_weight=…)` + `MatrixDataModule(spectral_window=True)`): por estructura, `‖Cᵀ ΔH(Γ) C − media(diag)·I‖²` con C los autovectores S-ortonormales de la H de referencia completa en una ventana alrededor de E_F en Γ (`spectral_window.npz` junto a cada muestra, columnas de relleno a cero). La diagonal es el error de primer orden de cada autovalor y el resto el acoplamiento dentro de la ventana; CᵀSC = I, así que el desplazamiento cS se va con la media: no depende del gauge y solo necesita ΔH = predicción − etiqueta, luego vale tal cual con Δ (no hace falta H0 como componente auxiliar). El collate calcula en los workers el orbital (fila, columna) de cada elemento de etiqueta. Test: el H(Γ) ensamblado coincide con `matrix_from_data` (1e-12; homo/heteronuclear, imágenes periódicas, 2 estructuras), H + cS no cuesta nada y la diagonal reproduce el cambio exacto de los autovalores. `6x6` ±3 eV: 34 estados (±2 eV solo los 4 de Dirac); en el mejor modelo, error espectral de entrenamiento 1,5 meV RMSE frente a 2,1 de H. Solo Γ: sirve para superceldas (`6x6`, bicapa), no para `w90` (2 átomos, sin estados cerca de E_F en Γ). **Medido en `6x6` (mejor receta, 3 semillas; validación / bicapa H, bandas / MD AB H, bandas / moiré H, bandas, meV): sin el término 0,136 / 4,43, 15,1 / 5,17, 10,6 / 0,86, 9,7; peso 1: 0,134 / 5,38, 15,3 / 5,74, 11,3 / 1,11, 10,8; peso 10: 0,166 / 4,27, 20,3 / 5,04, 13,5 / 0,84, 13,2.** No mejora las bandas fuera de distribución: con peso 1 empeora el H de fuera (+20 %, sobre todo intracapa) sin cambiar las bandas; con peso 10 el H se mantiene pero las bandas empeoran un 35 % y la validación un 22 %. El entrenamiento tarda ~40 % más (62–64 min frente a 45, con la carga de la noche). La ventana en Γ de la monocapa no representa el error de bandas de la bicapa y el moiré, que viene sobre todo del acoplamiento entre capas, ausente en el entrenamiento. ⚪ en grafeno (monocapa → bicapa/moiré) en esta forma; podría servir entrenando con el sistema objetivo (bicapa) o con varios puntos k |
-| 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | ⏳ |
+| 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | 🔶 N_e/Mulliken y consistencia energética opcionales implementados/verificados CPU; McWeeny no aplicable como identidad exacta en estos datos fraccionarios. H-energy/hBN bloqueado por soporte DM desconocido; precisión y GPU pendientes. Véase informe CPU; no cierre experimental. |
 | 4.7 | Pérdida en la métrica de S (Löwdin S^−1/2 ΔH S^−1/2) o penalización de ΔH en el espacio casi nulo de S | P | M | medio | 🔶 **implementada** como término espectral con las direcciones casi nulas de S (λ < 10⁻², columnas u/√max(λ, 10⁻³), métrica de Löwdin en ese subespacio; `spectral_window` admite el nombre del fichero, `spectral_null.npz`). **H2O en clústeres (con Δ, 3 semillas):** con peso 10⁻⁴ el gap de (H2O)32 sin ortogonalización canónica pasa de 1847 a **260 meV** de error medio (de 3/9 a 0/9 gaps cerrados) y las bandas brutas de 386 a 121 meV, igual que con la ortogonalización canónica; cuesta +17 % en validación (4,16 → 4,86 meV) y +8 % en (H2O)32. Pesos 10⁻³ y 10⁻² peores en todo; 10⁻⁵ y 3·10⁻⁵ no arreglan el espectro. En controles de una semilla, 10⁻⁴ empeora H de validación en LiF (1,76 → 5,33 meV) y ZnO (1,72 → 4,23), por lo que no se amplía a tres semillas en sólidos |
 | 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ⚪ (solo medido en grafeno (base SZ)) en grafeno (base SZ) el error fuera del alcance de los orbitales es ≤1 % del total y los ceros exactos ya salen a cero: no hay nada que enmascarar |
 

@@ -1,8 +1,16 @@
 # Inventario de etiquetas para 4.4–4.5
 
 Fecha: 2026-10-09. Checkout inspeccionado: `g2m-v2`, HEAD `b5a4d26`.
-Estado: evidencia preliminar de datos y convenciones; **no implementación,
-no diseño aprobado, no cierre de 4.4–4.5**.
+Estado inicial: evidencia preliminar de datos y convenciones. La inspección
+siguiente es histórica; no certifica todos los snapshots del conjunto.
+
+Actualización 2026-10-09: diseño/plan aprobados e implementación opcional CPU
+realizada; revisión final/gate posterior en curso. Registro EDM explícito,
+preparación/collate, pérdidas, gradientes, stages y checkpoints ya implementados.
+Nueve casos reales soportados pasan; H-energy/hBN rechaza soporte DM desconocido.
+Los datos permanecen intactos. No se han ejecutado experimentos de precisión,
+GPU ni nuevos cálculos SIESTA. Véanse [informe CPU](informe_objetivos_fisicos_cpu.md)
+y [protocolo pendiente](protocolo_precision_4_4_4_5.md). No cierre de todo 4.4–4.5.
 
 ## Alcance y autorización
 
@@ -104,8 +112,8 @@ e_A = sum_(i in A,j,R) H_ij(R) D_ij(R)
 Aquí `E` es EDM, no un autovalor. La segunda forma del conteo usa realidad y
 hermiticidad; no autoriza extender un producto sin conjugación a SOC complejo.
 Las sumas recorren las imágenes originales, antes de plegar a Γ. En grafos
-simétricos con solo media arista habrá que redistribuir ambos extremos; no se
-ha implementado todavía esa adaptación.
+simétricos con solo media arista hay que redistribuir ambos extremos;
+la implementación posterior ya incluye esa adaptación y tests independientes.
 
 | Diagnóstico de `MD_steps/0` | Grafeno | Bicapa AA | Grafeno–hBN AA |
 | --- | ---: | ---: | ---: |
@@ -152,9 +160,9 @@ el dataset ni en toda la zona de Brillouin.** No se aplicó regularización.
   una DM(k) reconstruida de coeficientes espacialmente truncados sin demostrar
   antes las hipótesis necesarias.
 - La pérdida espectral de primer orden ya existente no se rehizo ni reactivó.
-- La integración de etiquetas auxiliares, máscaras, restauración del residuo
-  atómico, batching, gradientes, checkpoints y normalización sigue pendiente.
-  El registro de matrices aún trata EDM mediante el fallback genérico.
+- La integración inicialmente pendiente de etiquetas auxiliares, máscaras,
+  restauración del residuo atómico, batching, gradientes, checkpoints y
+  normalización ya se implementó; EDM tiene registro explícito.
 - No se han medido costes de pérdidas nuevas, precisión, velocidad ni VRAM.
   Los resultados anteriores prueban convenciones en muestras, no mejoras ML.
 
@@ -196,13 +204,13 @@ ceros estructurales, no un reemplazo indiscriminado de NaNs por cero.
 
 El diseño propuesto separa carga de la matriz representada y consistencia
 energética de la perturbación con referencia conservada fuera del grafo.
-Esta decisión y sus límites deben revisarse antes de implementar.
+Esta decisión y sus límites fueron aprobados antes de implementar.
 
 ## Próxima decisión y límites de esta entrega
 
-El usuario aprobó el alcance conversacional. Está pendiente la revisión del
+El usuario aprobó el alcance conversacional, el
 [diseño escrito](../docs/superpowers/specs/2026-10-09-physical-losses-4-4-4-5-design.md)
-y después del plan antes de tocar producto, según la guía de diseño activa.
-El goal sigue abierto. Este inventario no sustituye
+y el plan antes de tocar producto, con ejecución Native.
+Este inventario histórico no sustituye
 RED→GREEN, smoke Lightning, suite completa, gates de tipos/Python 3.9,
 benchmark CPU pareado ni protocolo experimental de tres semillas.

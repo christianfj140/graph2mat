@@ -167,7 +167,8 @@ La suite histórica 2251/2 no es evidencia nueva de este bloque.
 ### Verificación preparatoria ejecutada (2026-10-09)
 
 - Estado comprobado: HEAD `1e09715`, rama `g2m-v2`, producto sin cambios;
-  untracked ajenos conservados. Aprobación del plan/método aún pendiente.
+  untracked ajenos conservados. Estado preparatorio histórico; plan/método
+  aprobados después explícitamente por el usuario.
 - Python 3.12.3, sisl 0.16.4, Torch 2.11.0+cpu, Lightning 2.6.1; importación
   desde `/home/christian/repositorios/graph2mat/src/graph2mat/__init__.py`,
   CUDA no disponible con la variable de entorno vacía.
@@ -188,7 +189,7 @@ La suite histórica 2251/2 no es evidencia nueva de este bloque.
 
 **Interfaces:** Consumes `sisl.*.tocsr(component)`, `Overlap.Sk`, `geometry.o2a`; produces `normalize_physical_labels`, `validate_physical_weights`, `physical_reference_targets` y fixture `analytic_matrices(spin=1, fractional=False) -> dict`.
 
-- [ ] **1.1 RED: crear fixture analítica, sin usar implementación nueva para el esperado.**
+- [x] **1.1 RED: crear fixture analítica, sin usar implementación nueva para el esperado.**
 
 ```python
 def analytic_matrices(spin=1, fractional=False):
@@ -234,7 +235,7 @@ def test_reference_population_and_energy_are_independent(spin, fractional):
 Run: `"$G2M_PHYS_PY" -m pytest src/graph2mat/core/data/tests/test_physical_references.py -q`.
 Expected RED: import/helper absent, not a fixture-construction error. Run fixture-only checks first if construction fails.
 
-- [ ] **1.2 Implementar selección/pesos y registro EDM.**
+- [x] **1.2 Implementar selección/pesos y registro EDM.**
 
 ```python
 def normalize_physical_labels(labels=None):
@@ -260,7 +261,7 @@ sisl.EnergyDensityMatrix: OrbitalMatrix,
 
 Probar pesos `-1,nan,inf`; lista/string inválida; las entradas EDM no emiten fallback ni adquieren `atomic_DM`.
 
-- [ ] **1.3 RED de frontera y validación de referencias; después implementar en `physical_reference_targets`.**
+- [x] **1.3 RED de frontera y validación de referencias; después implementar en `physical_reference_targets`.**
 
 ```python
 @pytest.mark.parametrize("small", [0., -1e-3, 1e-13])
@@ -304,7 +305,7 @@ Energía: mismo producto H·D menos E·S, agrupar por átomo **antes** de tolera
 Comprobar Hermiticidad por imágenes y máscaras antes de contraer. Unknown-D/E
 con contraparte no nula es error; no usar `nan_to_num`. Residuo <=1e-6.
 
-- [ ] **1.4 RED periódico independiente, y GREEN de referencias.** En la fixture de una cadena de un átomo/1s, cell `(3,20,20)`, R=2, nsc `(3,1,1)`, construir por `geometry.sc_off` los campos:
+- [x] **1.4 RED periódico independiente, y GREEN de referencias.** En la fixture de una cadena de un átomo/1s, cell `(3,20,20)`, R=2, nsc `(3,1,1)`, construir por `geometry.sc_off` los campos:
 
 ```python
 fields = {
@@ -349,7 +350,7 @@ random que ya incumplan la identidad energética.
 Run: `"$G2M_PHYS_PY" -m pytest src/graph2mat/core/data/tests/test_physical_references.py src/graph2mat/core/data/tests/test_periodic_hermiticity_oracles.py -q`.
 Expected GREEN: todos pasan, sin regularización y con test fraccionario aceptado.
 
-- [ ] **1.5 Commit propio.**
+- [x] **1.5 Commit propio.**
 
 ```bash
 git add src/graph2mat/core/data/physical.py src/graph2mat/core/data/matrices/__init__.py src/graph2mat/core/data/tests/physical_fixtures.py src/graph2mat/core/data/tests/test_physical_references.py
@@ -362,7 +363,7 @@ git commit -m "feat: validate physical matrix references and periodic targets"
 
 **Interfaces:** Consumes Task 1 and `csr_to_block_dict(..., component_indices=...)`, `MatrixDataProcessor.get_labels_from_types_and_edges`, `BasisMatrixDataBase.from_config`, `_label_edge_mask`, `layout_to`. Produces `prepare_physical_data`, `load_physical_data`, `physical_layout`; appends `physical_labels=None` to dataset/DataModule constructors. Test helper `prepared_sample(target="density_matrix", spin=1, baseline=False, symmetric=True, requested=("charge", "energy"), data_cls=BasisMatrixData, fractional=False, gauge=False) -> (data, table)`.
 
-- [ ] **2.1 RED: componentes, baseline, aislamiento y unknown frente a cero observado.**
+- [x] **2.1 RED: componentes, baseline, aislamiento y unknown frente a cero observado.**
 
 ```python
 @pytest.mark.parametrize("spin", [1, 2])
@@ -400,7 +401,7 @@ no puede pasar omitiendo esa distinción. Añadir un caso con NaN almacenado.
 
 Run nuevo módulo: expected RED helpers ausentes.
 
-- [ ] **2.2 Implementar preparación con conversores existentes y máscaras de observación.**
+- [x] **2.2 Implementar preparación con conversores existentes y máscaras de observación.**
 
 ```python
 # Dentro de prepare_physical_data, antes de construir el grafo:
@@ -472,7 +473,7 @@ Imports de test: `BasisMatrixData`, `AtomicTableWithEdges`, `MatrixDataProcessor
 desde graph2mat y `prepare_physical_data` desde su módulo. Ningún helper genera
 esperados mediante el producto que comprueba.
 
-- [ ] **2.3 RED del loader FDF y modo apagado; implementar carga mínima explícita.**
+- [x] **2.3 RED del loader FDF y modo apagado; implementar carga mínima explícita.**
 
 ```python
 @pytest.mark.parametrize("block", [None, ["2 1 0 0", "0 2 0 0", "0 0 1 0"],
@@ -516,7 +517,7 @@ fallar cualquier lectura H/EDM, y modo off con espías sobre todas las lecturas
 auxiliares. No desactivar una petición física de entrenamiento por tratarla
 como predict.
 
-- [ ] **2.4 Implementar ownership CPU, batching y transferencia; probar GREEN.**
+- [x] **2.4 Implementar ownership CPU, batching y transferencia; probar GREEN.**
 
 ```python
 sizes = basis_table.basis_size[point_types]
@@ -546,7 +547,7 @@ campos, añadir regresión antes de un cambio mínimo en `processing.py`.
 Run: nuevo módulo más `test_datamodule_stages.py`, tests existentes de caché,
 ZIP y spin. Expected GREEN; sin cambiar salidas de muestras legacy.
 
-- [ ] **2.5 Commit únicamente archivos propios modificados en esta tarea.**
+- [x] **2.5 Commit únicamente archivos propios modificados en esta tarea.**
 
 ```bash
 git add src/graph2mat/core/data/physical.py src/graph2mat/core/data/tests/physical_fixtures.py src/graph2mat/bindings/torch/data/dataset.py src/graph2mat/tools/lightning/data.py src/graph2mat/bindings/torch/data/tests/test_physical_dataset.py
@@ -559,7 +560,7 @@ git commit -m "feat: prepare optional physical labels and atomic layouts"
 
 **Interfaces:** Consumes prepared contract/layout from Task 2. Produces `physical_contractions` and `physical_loss_terms` with signatures above. Existing metrics accept the three final optional kwargs before `**kwargs`; gauge passes `aligned_nodes/aligned_edges` expanded to original rows, never recalculates c.
 
-- [ ] **3.1 RED con valor y derivada literales.**
+- [x] **3.1 RED con valor y derivada literales.**
 
 ```python
 @pytest.mark.parametrize("baseline", [False, True])
@@ -580,7 +581,7 @@ def test_dm_terms_have_literal_loss_and_gradient(baseline):
 
 Run module: expected RED metric ignores physical kwargs or helper absent.
 
-- [ ] **3.2 Implementar scatter compartido, sin desconectar autograd.**
+- [x] **3.2 Implementar scatter compartido, sin desconectar autograd.**
 
 ```python
 # Después de validar shapes, masks y convertir auxiliares al dtype/device:
@@ -607,7 +608,7 @@ filtran **antes** del producto con selección/where independiente de la predicci
 unknown con contraparte no cero es error. Predicciones no finitas en términos
 activos tampoco se convierten en ceros.
 
-- [ ] **3.3 Implementar términos y conectar ambas métricas conservando zero-off.**
+- [x] **3.3 Implementar términos y conectar ambas métricas conservando zero-off.**
 
 Charge, con nodos/edges normalizados a 2D físicos:
 
@@ -687,7 +688,7 @@ activos. No modificar denominador H/S/espectral, c ni stats legacy cuando los
 pesos son cero. Testear explícitamente una fila gauge descartada por NaN con
 partner cero y otra con partner no cero.
 
-- [ ] **3.4 RED/GREEN del factor de aristas, energía y gradcheck.**
+- [x] **3.4 RED/GREEN del factor de aristas, energía y gradcheck.**
 
 ```python
 def test_half_edge_and_directed_self_image_agree():
@@ -726,7 +727,7 @@ representado menor; perturbación cero no implica charge=0 cuando la matriz
 writer está truncada. Para energy, `prediction=reference_G` deja exactamente
 `mean(r_ref**2)`, no el residuo truncado G ni un cero impuesto artificialmente.
 
-- [ ] **3.5 Invariancias y regresiones; no sustituirlas por roundtrips.**
+- [x] **3.5 Invariancias y regresiones; no sustituirlas por roundtrips.**
 
 En fixture de dos átomos con dos orbitales cada uno definir S SPD y matrices
 compatibles por solución generalizada independiente:
@@ -768,7 +769,7 @@ que bloquea Torch: preparación/contracción NumPy siguen importables.
 Run: nuevos tests core y regresiones gauge/espectral/NumPy/DM. Expected GREEN,
 gradcheck y FD sin relajar tolerancias de oráculos previos.
 
-- [ ] **3.6 Commit propio.**
+- [x] **3.6 Commit propio.**
 
 ```bash
 git add src/graph2mat/core/data/physical.py src/graph2mat/core/data/metrics.py src/graph2mat/core/data/tests/physical_fixtures.py src/graph2mat/core/data/tests/test_physical_losses.py
@@ -781,7 +782,7 @@ git commit -m "feat: add optional charge Mulliken and energy perturbation losses
 
 **Interfaces:** Consumes prepared contract and detached stats Task 3, `_EpochWeightedLoss.update(means, counts, weights, stds=None)`, existing validated stages. Produces early validation of default/all future objectives, physical epoch logs, matrix fallback and unchanged checkpoint schema for model parameters.
 
-- [ ] **4.1 Crear helpers de test y RED de integración real.**
+- [x] **4.1 Crear helpers de test y RED de integración real.**
 
 ```python
 def physical_model(table, loss_kwargs, *, stages=None):
@@ -831,7 +832,7 @@ Expected RED: coefficient certificate accepts elementwise with nonzero physical
 weights or preflight/logging absent. No afirmación de éxito por una pérdida base
 con gradiente no nulo: se mide `total-base`.
 
-- [ ] **4.2 Implementar guard y validación previa de todas las etapas.**
+- [x] **4.2 Implementar guard y validación previa de todas las etapas.**
 
 ```python
 weights = validate_physical_weights(**{
@@ -874,7 +875,7 @@ Comprobar también target incorrecto, contract/version/spin inválidos, physical
 flags ausentes y etapas sin física con datos legacy. El error identifica etapa
 y recurso, no llega tras una actualización.
 
-- [ ] **4.3 RED/GREEN de agregación por época con denominadores separados.**
+- [x] **4.3 RED/GREEN de agregación por época con denominadores separados.**
 
 Con física activa, componer términos base y físicos usando `_EpochWeightedLoss`.
 Elementwise base: count=node_count+edge_weight*edge_count; gauge base conserva
@@ -904,7 +905,7 @@ de cada término físico. DDP CPU dos ranks, mismas muestras que serial, suma de
 SSE/count y gradientes equivalentes; incluir un rank sin aristas. Lanzar con
 PYTHONPATH absoluto y comprobar exit code, no solo texto del log.
 
-- [ ] **4.4 Checkpoints, stages y separación features/targets.**
+- [x] **4.4 Checkpoints, stages y separación features/targets.**
 
 Entrenar dos pasos CPU, guardar checkpoint propio en tmp_path y cargar con
 `LitMACEMatrixModel.load_from_checkpoint`. Misma predicción/kwargs/stage al
@@ -932,7 +933,7 @@ pérdida distinta/rechazo de contrato. Ninguna referencia se usa para generar
 features. Run nuevo módulo más stages/checkpoint/coefficient/gauge epoch/DDP
 existentes. Expected GREEN; pesos cero siguen usando ruta rápida certificada.
 
-- [ ] **4.5 Commit propio.**
+- [x] **4.5 Commit propio.**
 
 ```bash
 git add src/graph2mat/tools/lightning/model.py src/graph2mat/tools/lightning/data.py src/graph2mat/tools/lightning/tests/test_physical_training.py
@@ -945,7 +946,7 @@ git commit -m "feat: integrate physical objectives with Lightning stages and met
 
 **Interfaces:** Consumes local FDF loader, direct preparation, MACE model and all three metric kwargs. Produces JSON benchmark and CPU evidence; no entrenamiento experimental ni promoción de defaults.
 
-- [ ] **5.1 Smoke real, con autoverificaciones del script antes de medir.**
+- [x] **5.1 Smoke real, con autoverificaciones del script antes de medir.**
 
 CLI exacta: `smoke_objetivos_fisicos.py --fdf PATH --output PATH`. Solo aceptar
 FDF explícito y output fuera de dataset. Guardar hashes antes/después de
@@ -979,7 +980,7 @@ prueba anunciada como soportada falla; un objetivo no aplicable se distingue
 explícitamente y no cuenta como validado. Ejecutar primero self-check con la
 fixture analítica, con esperado literal Task 3, después datos reales.
 
-- [ ] **5.2 Benchmark CPU pareado con trabajo comparable.**
+- [x] **5.2 Benchmark CPU pareado con trabajo comparable.**
 
 CLI: `bench_objetivos_fisicos.py --fdf PATH --warmup 3 --rounds 12 --output PATH`.
 Fases independientes: carga/preparación/validación, collate, loss+backward y
@@ -1033,7 +1034,7 @@ reclasificar un fallo como skip ni limitar mypy excluyendo el módulo nuevo.
 Si un fix cambia producto después de los gates, repetir los gates afectados y
 suite completa final; guardar resultados por commit, no mezclar antecedentes.
 
-- [ ] **5.4 Protocolo posterior de precisión, sin ejecutarlo.** Escribir cuatro brazos antes de combinaciones: control, N, Mulliken y energy; para cada target aplicable, semillas 0/1/2 pareadas. Congelar lista/hash de muestras y splits de manifiesto existentes, no repartir frames excluidos ni usar bicapa no-ready como benchmark. Mismo modelo, inicialización, dtype, optimizer, steps, scheduler y stopping; pesos elegidos solo con train/validation. Registrar tiempo y bytes de auxiliares, no afirmar ahorro.
+- [x] **5.4 Protocolo posterior de precisión, sin ejecutarlo.** Escribir cuatro brazos antes de combinaciones: control, N, Mulliken y energy; para cada target aplicable, semillas 0/1/2 pareadas. Congelar lista/hash de muestras y splits de manifiesto existentes, no repartir frames excluidos ni usar bicapa no-ready como benchmark. Mismo modelo, inicialización, dtype, optimizer, steps, scheduler y stopping; pesos elegidos solo con train/validation. Registrar tiempo y bytes de auxiliares, no afirmar ahorro.
 
 Medir error matricial raw/alineado, delta-N total, poblaciones por átomo, energía
 de perturbación y observables físicos de la matriz writer **completa**, bandas,
@@ -1097,3 +1098,15 @@ pendientes hasta los experimentos expresamente aplazados.
   usan verdaderas imágenes contrapuestas y partners forward/reverse, sin
   alterar datos. Esto sustituye el atajo de reutilizar un mismo partner para
   ambos extremos en los snippets anteriores cuando la referencia no es exacta.
+
+## Evidencia de ejecución Native (2026-10-09)
+
+Tasks 1–4 completas según ledger y commits propios; Task 5 cierre en curso.
+Suite Task4: 2466 passed/2 skipped, 710.02 s, exit0. Una revisión independiente
+identificó un hueco Important de preflight, corregido con tres regresiones RED→GREEN
+en `371f5a2`; ningún Critical/Minor. Gate físico posterior: 226 passed en
+Python 3.12 y 3.9, exit0; Ruff/mypy/compileall pasan. Ambos smokes y benchmarks
+repetidos sobre el fix: nueve casos válidos, H-energy/hBN bloqueado sin ceros
+inventados, hashes científicos intactos. Suite completa posterior pendiente.
+Informe, costes, límites y protocolo: [informe CPU](../../../auditorias_mejoras/informe_objetivos_fisicos_cpu.md).
+No se declaran mejoras de precisión, bandas, OOD ni GPU/VRAM.
