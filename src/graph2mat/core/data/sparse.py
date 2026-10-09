@@ -3,9 +3,8 @@
 Different sparse representations of a matrix are required during the different
 steps of a typical workflow using `graph2mat`.
 """
-from typing import Dict, Tuple, Type, Optional, Callable, Any, Sequence, Union, TypeVar, Iterable, List
+from typing import Dict, Tuple, Type, Optional, Callable, Any, Sequence, Union, TypeVar, List
 
-import itertools
 from functools import partial
 
 import numpy as np
@@ -234,71 +233,33 @@ def _blockmatrix_coo_coords(
         that are in the opposite direction as the ones provided in
         `edge_index`.
     """
-    # Initialize the arrays to store the coordinates.
-    rows = []
-    cols = []
-
-    # Store index of first orbital for each atom, as well as total number of orbitals.
-    first_orb = np.cumsum([0, *orbitals])
+    orbitals = np.asarray(orbitals, dtype=np.int64)
+    edges = np.asarray(edge_index, dtype=np.int64)
+    first_orb = np.r_[0, np.cumsum(orbitals)]
     no = first_orb[-1]
+    nodes = np.arange(len(orbitals))
+    sources = np.r_[nodes, edges[0]]
+    targets = np.r_[nodes, edges[1]]
+    sizes = orbitals[sources] * orbitals[targets]
+    starts = np.cumsum(sizes) - sizes
+    local = np.arange(sizes.sum()) - np.repeat(starts, sizes)
+    widths = np.repeat(orbitals[targets], sizes)
+    rows = np.repeat(first_orb[sources], sizes) + local // widths
+    cols = np.repeat(first_orb[targets], sizes) + local % widths
 
-    # First, compute the coordinates for the node blocks.
-    for i_at, dim in enumerate(orbitals):
-        i_start = first_orb[i_at]
-        i_end = i_start + dim
+    images = np.zeros(edges.shape[1], dtype=np.int64) if edge_neigh_isc is None else np.asarray(edge_neigh_isc)
+    edge_sizes = sizes[len(orbitals):]
+    edge_start = int(np.square(orbitals).sum())
+    image_offsets = no * np.repeat(images, edge_sizes)
+    edge_cols = cols[edge_start:].copy()
+    cols[edge_start:] += image_offsets
+    if symmetrize_edges:
+        # Swap original coordinates, not block traversal: reverse values keep their order.
+        opposite = np.where(images == 0, 0, n_supercells - images)
+        cols = np.r_[cols, rows[edge_start:] + no * np.repeat(opposite, edge_sizes)]
+        rows = np.r_[rows, edge_cols]
 
-        block_rows, block_cols = np.mgrid[i_start:i_end, i_start:i_end].reshape(2, -1)
-
-        rows.extend(block_rows)
-        cols.extend(block_cols)
-
-    # Then, the coordinates for the edge blocks.
-
-    # Initialize lists for symmetrized edges, which we store separately
-    # so that we can append all of them at the end.
-    rows_symm = []
-    cols_symm = []
-
-    # Assume unit cell interactions if edge_neigh_isc is not provided
-    isc_values: Iterable[int]
-    if edge_neigh_isc is None:
-        isc_values = itertools.repeat(0)
-    else:
-        isc_values = np.array(edge_neigh_isc)
-
-    for i_edge, ((i_at, j_at), neigh_isc) in enumerate(
-        zip(edge_index.T, isc_values)
-    ):
-        i_start = first_orb[i_at]
-        i_end = i_start + orbitals[i_at]
-        j_start = first_orb[j_at]
-        j_end = j_start + orbitals[j_at]
-
-        block_rows, block_cols = np.mgrid[i_start:i_end, j_start:j_end].reshape(2, -1)
-        sc_block_cols = block_cols + no * neigh_isc
-
-        rows.extend(block_rows)
-        cols.extend(sc_block_cols)
-
-        if symmetrize_edges:
-            # Columns and rows are easy to determine if the connection is in the unit
-            # cell, as the opposite block is in the transposed location.
-            opp_block_cols = block_rows
-            opp_block_rows = block_cols
-
-            if neigh_isc != 0:
-                # For supercell connections we need to find out what is the the supercell
-                # index of the neighbor in the opposite connection.
-                opp_block_cols += no * (n_supercells - neigh_isc)
-
-            rows_symm.extend(opp_block_rows)
-            cols_symm.extend(opp_block_cols)
-
-    # Add coordinates of symmetrized edges to the list of coordinates.
-    rows.extend(rows_symm)
-    cols.extend(cols_symm)
-
-    return np.array(rows), np.array(cols), (no, no * n_supercells)
+    return rows, cols, (no, no * n_supercells)
 
 
 def _nodes_and_edges_to_coo(
@@ -640,43 +601,37 @@ def _csr_to_block_dict_components(
 
     Each block has shape ``(n_orb_i, n_orb_j, n_components)``.
     """
-    rc_to_atom_index = np.concatenate(
-        [np.ones(o, dtype=np.int32) * i for i, o in enumerate(orbitals)]
-    )
-    rc_to_orbital_index = np.concatenate(
-        [np.arange(o) for o in orbitals], dtype=np.int32
-    )
-
     no = atom_first_orb[n_atoms]
     n_components = data.shape[1]
     block_dict: Dict[Tuple[int, int, int], np.ndarray] = {}
+    if no == 0:
+        return block_dict
+    entries = np.arange(ptr[0], ptr[no])
+    rows = np.repeat(np.arange(no), np.diff(ptr[:no + 1]))
+    columns = cols[entries]
+    # Unused sisl capacity terminates a row; later positive columns are not entries.
+    stops = ptr[1:no + 1].copy()
+    unused = columns < 0
+    np.minimum.at(stops, rows[unused], entries[unused])
+    valid = entries < stops[rows]
+    entries, rows, columns = entries[valid], rows[valid], columns[valid]
+    if entries.size == 0:
+        return block_dict
 
-    for atom_i in range(n_atoms):
-        atomi_firsto = atom_first_orb[atom_i]
-        atomi_lasto = atom_first_orb[atom_i + 1]
-        atomi_norbs = atomi_lasto - atomi_firsto
-
-        for orbital_i in range(atomi_norbs):
-            row = atomi_firsto + orbital_i
-
-            for ival in range(ptr[row], ptr[row + 1]):
-                sc_col = cols[ival]
-                if sc_col < 0:
-                    break
-
-                col = sc_col % no
-                i_sc = sc_col // no
-
-                atom_j = rc_to_atom_index[col]
-                orbital_j = rc_to_orbital_index[col]
-
-                key = (atom_i, atom_j, i_sc)
-                if key not in block_dict:
-                    block_dict[key] = np.full(
-                        (orbitals[atom_i], orbitals[atom_j], n_components),
-                        fill_value,
-                    )
-
-                block_dict[key][orbital_i, orbital_j, :] = data[ival, :]
-
+    atoms = np.repeat(np.arange(len(orbitals)), orbitals)
+    keys = np.column_stack((atoms[rows], atoms[columns % no], columns // no))
+    unique, first, inverse, counts = np.unique(keys, axis=0, return_index=True, return_inverse=True, return_counts=True)
+    groups = np.split(np.argsort(inverse, kind="stable"), np.cumsum(counts)[:-1])
+    dtype = np.result_type(data.dtype, np.float64)
+    for group in np.argsort(first):
+        atom_i, atom_j, image = unique[group]
+        indices = groups[group]
+        local_rows = rows[indices] - atom_first_orb[atom_i]
+        local_cols = columns[indices] % no - atom_first_orb[atom_j]
+        positions = local_rows * orbitals[atom_j] + local_cols
+        # Explicit last-write-wins, independent of repeated advanced-index assignment.
+        last = len(indices) - 1 - np.unique(positions[::-1], return_index=True)[1]
+        block = np.full((orbitals[atom_i], orbitals[atom_j], n_components), float(fill_value), dtype=dtype)
+        block.reshape(-1, n_components)[positions[last]] = data[entries[indices[last]]]
+        block_dict[atom_i, atom_j, image] = block
     return block_dict

@@ -65,6 +65,16 @@ without inserting them into the input matrix. They retain the converter's
 missing-entry policy: zero for Hamiltonians and NaN for density/energy-density
 matrices. A wholly empty multi-component matrix retains its component axis.
 
+Sparse block coordinates are built without densifying the global matrix.
+Reverse periodic edges keep the original value traversal order, including
+rectangular blocks. Multi-component CSR conversion stops at the first unused
+(negative) column of each row, keeps the last value of duplicate coordinates,
+and retains block insertion order. Integer fill values no longer truncate
+fractional components; real blocks retain float64 allocation and raw complex
+components retain their imaginary parts. This does not authorize physical
+Hamiltonian serialization of arbitrary raw channels or certify the scalar
+complex/CUDA conversion paths.
+
 Extrapolation history uses this same converter and component policy without
 modifying the caller's sparse entries. ``MatrixTimeSeriesState.add_last_matrix``
 with ``all_dims=True`` retains raw components, including explicit overlap;

@@ -156,9 +156,9 @@ caché CPU reutilizable, conversiones equivalentes y batching de coste explícit
 - [ ] Perfilar cada tramo antes de optimizarlo y escribir su plan acotado.
 - [x] Caché de tensores opt-in: delimitar ownership/invalidez y comprobar que
   mutar una muestra no altera accesos futuros; registrar RAM y coste inicial.
-- [ ] Vectorizar los tramos medidos de CSR/bloques y reconstrucción, sin
+- [x] Vectorizar los tramos medidos de CSR/bloques y reconstrucción, sin
   densificar la matriz global; contrastar elementos y gradientes donde aplique.
-- [ ] Probar imágenes periódicas, bloques ausentes, multi-componente y orden.
+- [x] Probar imágenes periódicas, bloques ausentes, multi-componente y orden.
 - [ ] Introducir lotes por coste de aristas/orbitales con presupuesto declarado;
   estructura sobredimensionada produce singleton o error explícito documentado.
 - [ ] Probar determinismo, cobertura de muestras, último lote, métricas y DDP;
@@ -620,3 +620,33 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   coords/CSR; borde público C2fill0 entero trunca decimales, H nativo usa0.0.
 - Producto bc54e91; task-done real57pasan/51warnings/5.02s,exit0, rango
   beb0098..bc54e91. Subplan completo; evaluación GPU/VRAM sigue pendiente.
+
+### Task 2.b — sparse COO/CSR C2 (implementación CPU y mejora local medidas)
+
+- Subplan `plan_sparse_vectorizado.md`, BASEcc334f0. Coordenadas NumPy por
+  offsets/repeat, reverse rectangular conserva orden original; CSR C2 por grupos,
+  sentinel de capacidad por fila, firstkeyorder y último duplicado explícito.
+  Corrige defaultfillint C2 que truncaba decimales y fillfloat que perdía imaginaria.
+  Realblocks mantienenfloat64, C2complexcomplex128. Sin APIs/flags/deps/export
+  nuevos; scalarCython/vecinos no cambiados, sin extrapolar soportecomplexglobal.
+- REDválido33fallos/28pasan/0.20s; GREEN61/0.08s. Primer intento colecciónexit2
+  por basename de test nuevo duplicado, corregido renombrando Torch, no producto.
+  Doce semillas adicionales de CSR; focused165pasan/63warnings/0.38s,exit0;
+  floor3.9/Torch2.4.1cpu222pasan/81warnings/4.78s,exit0. Incluye oráculos,
+  gradientes TorchCPU, ghost/vacíos, H/DM/EDM, capacidad/duplicates, ZIP/cache/stages.
+- Ruffexplicit/allfiles/benchmarkdirect, mypy-core, compile39/diff verdes.
+  Full sourceCPU definitivo2169pasan/2omitidos/25991warnings/650.27s,exit0,
+  source/tests congelados durante gate y salida leída. Smoke benchmark source3.9
+  points4/rounds1 exit0 con asserts exactos; warnings e3nn basales, no stderrvacío.
+- Benchcertified16/72 propios s/p/d/f,periodic,C2,float64,3warmups/12rondas
+  alternadas: coords1.228→.080ms/6.641→.260ms (≈15.3×/25.5×), C2
+  4.677→2.508ms/21.377→11.214ms (≈1.87×/1.91×). Exactdtype/values/order.
+  Constructor fixture independiente no calienta helpers; primera medida con
+  CSR armado usando candidato queda sustituida. Hashsourcef5704cd7...;
+  baselineAST dos helpers exactos Gitcc334f0, sin modulebody/convertersmutados.
+  RSS/outputbytes/primera llamada/dispersión en `informe_sparse_vectorizado.md`;
+  RSS deltas incluso0/negativos, no afirmar reducción RAM/VRAM. Host no aislado.
+- GPU compute ajeno498MiB/0%, noGPUpropio/wheel/precisión nuevos. Beneficio es
+  local CPU, no paso entrenamiento ni kernel escalar compilado.
+  Próximo6.4: `plan_batching_coste.md` preparado, **no implementado**; perfil
+  readonly de proxy/bytes en fixture desigual, no evidencia de sampler/GPU.
