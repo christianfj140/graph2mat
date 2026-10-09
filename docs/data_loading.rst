@@ -8,6 +8,23 @@ Repeated setup calls reuse existing datasets. Without explicit validation data,
 validation can draw its subset lazily from training data; ``store_in_memory``
 materializes only the splits requested by the current stage.
 
+``store_in_memory=True`` reuses preprocessed CPU samples through ``InMemoryData``;
+it is not a new disk cache. Materialization owns a deep snapshot, and each access
+returns an independent copy of tensors and mutable metadata, including NumPy
+arrays. In-place transforms or device transfers therefore cannot contaminate
+later accesses. Rebuild the cache when input files, labels or preprocessing
+change; there is no automatic invalidation. Stored ``data_objects`` are the
+snapshots and must not be mutated directly. Explicit ``InMemoryData(size=0)``
+loads no samples; negative or oversized limits raise before loading.
+
+This safety costs a per-access copy and keeps the processed dataset in host RAM,
+plus transient returned samples/batches and possible per-worker process copies. It is not
+a VRAM reduction. A paired synthetic CPU test measured ~0.14–0.15ms per copied
+sample and ~0.31–0.32ms extra (~91%) for cached two-sample collate versus the
+previous unsafe shared-object cache. The lazy path also avoids formatting entire in-memory
+configurations merely to check the FDF suffix. Its speedup on such inputs does
+not establish faster file parsing or faster end-to-end training.
+
 The automatic validation split accepts ``split_seed`` (default 32) and
 ``val_fraction`` (default 0.1, in [0, 1)). Explicit ``val_runs`` take priority;
 an explicit empty list disables validation. The automatic split keeps at least

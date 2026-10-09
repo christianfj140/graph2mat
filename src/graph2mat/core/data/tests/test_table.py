@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import pickle
 import sisl
+from copy import deepcopy
 
 from graph2mat import PointBasis, BasisTableWithEdges, AtomicTableWithEdges
 
@@ -70,3 +71,43 @@ def test_atomic_table_loads_legacy_atoms_state_without_new_metadata():
     restored.__setstate__({"atoms": [atom]})
     np.testing.assert_array_equal(restored.basis[0].R, [1.4])
     assert restored.atoms[0] is atom
+
+
+@pytest.mark.parametrize("radial", [False, True])
+def test_atomic_table_deepcopy_preserves_runtime_state_and_orbital_cutoffs(radial):
+    radius = 2.1
+    if radial:
+        r = np.linspace(0., radius, 100)
+        orbitals = sisl.SphericalOrbital(2, (r, np.exp(-r)), R=radius).toAtomicOrbital(n=3)
+    else:
+        orbitals = [sisl.AtomicOrbital(n=3, l=2, m=m, R=radius) for m in range(-2, 3)]
+    table = AtomicTableWithEdges([sisl.Atom("H", orbitals=orbitals)])
+    table.point_matrix = [np.eye(5) * 7.]
+    expected_basis = deepcopy(table.basis)
+    duplicated = deepcopy(table)
+    np.testing.assert_array_equal(duplicated.point_matrix[0], table.point_matrix[0])
+    assert duplicated.basis == expected_basis
+    np.testing.assert_array_equal([orb.R for orb in duplicated.atoms[0]], [radius] * 5)
+    np.testing.assert_array_equal([orb.orb.R for orb in duplicated.atoms[0]], [radius] * 5)
+    duplicated.point_matrix[0][0, 0] = -9
+    assert table.point_matrix[0][0, 0] == 7
+    duplicated.R[0] = -1
+    assert table.R[0] == radius
+
+
+def test_atomic_table_deepcopy_does_not_deserialize_portable_file_metadata():
+    table = AtomicTableWithEdges([sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=1.4)])])
+    table.file_names = ["original.ion.xml"]
+    table.file_contents = ["metadata is not an instruction to deserialize during deepcopy"]
+    copied = deepcopy(table)
+    assert copied.file_names == table.file_names and copied.file_names is not table.file_names
+    assert copied.file_contents == table.file_contents and copied.file_contents is not table.file_contents
+    assert copied.basis == table.basis
+
+
+def test_atomic_table_deepcopy_preserves_distinct_atomic_and_radial_support():
+    table = AtomicTableWithEdges([sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=1.4)])])
+    table.atoms[0][0].orb._R = 1.3
+    copied = deepcopy(table)
+    assert copied.atoms[0][0].R == table.atoms[0][0].R
+    assert copied.atoms[0][0].orb.R == table.atoms[0][0].orb.R

@@ -13,6 +13,7 @@ different points. Therefore, these tables also need to keep track of edge types.
 """
 
 import itertools
+from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 from typing import Callable, Generator, List, Literal, Optional, Sequence, Union, cast
@@ -566,6 +567,18 @@ class AtomicTableWithEdges(BasisTableWithEdges):
     @property
     def zs(self):
         return self.types
+
+    def __deepcopy__(self, memo):
+        # Pickle's portable reconstruction discards runtime references/metadata.
+        copied = type(self).__new__(type(self))
+        memo[id(self)] = copied
+        copied.__dict__.update(deepcopy(self.__dict__, memo))
+        for source, target in zip(self.atoms, copied.atoms):
+            for original, orbital in zip(source, target):
+                orbital._R = float(original.R)
+                if hasattr(orbital, "orb"):
+                    orbital.orb._R = float(original.orb.R)
+        return copied
 
     def atom_type_to_edge_type(self, atom_type: np.ndarray):
         return self.point_type_to_edge_type(atom_type)

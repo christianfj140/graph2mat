@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+import sisl
 
 from graph2mat import BasisConfiguration, BasisTableWithEdges, PointBasis
 from graph2mat.bindings.torch import InMemoryData
@@ -107,3 +108,51 @@ def test_setup_skips_component_inference_for_empty_dataset():
     )
     module.setup("test")
     assert len(module.test_dataset) == 0
+
+
+def test_store_in_memory_keeps_train_and_validation_snapshots_on_cpu():
+    basis, config = _inputs()
+    module = MatrixDataModule(basis_table=basis, sub_point_matrix=False, train_runs=[config] * 10,
+                              store_in_memory=True, loader_threads=0)
+    module.setup("fit")
+    train, val = module.train_dataset, module.val_dataset
+    expected = train[0].point_labels.clone()
+    train[0].point_labels.add_(7)
+    val[0].to("meta")
+    assert train[0].point_labels.equal(expected)
+    assert val[0].point_labels.device.type == "cpu"
+    module.setup("fit")
+    assert module.train_dataset is train and module.val_dataset is val
+    module.teardown(None)
+
+
+@pytest.mark.parametrize("archived", [False, True])
+def test_cached_native_geometry_survives_owned_temporary_root_cleanup(tmp_path, archived):
+    import zipfile
+    import torch
+
+    source = tmp_path / "source"
+    source.mkdir()
+    sisl.Geometry([[0., 0., 0.], [1., 0., 0.]], atoms=[1, 1], lattice=[10] * 3).write(source / "sample.XV")
+    root = source
+    if archived:
+        root = tmp_path / "source.zip"
+        with zipfile.ZipFile(root, "w") as archive:
+            archive.write(source / "sample.XV", "sample.XV")
+    module = MatrixDataModule(root_dir=str(root), copy_root_to_tmp=True, predict_structs="*.XV",
+        basis_table=BasisTableWithEdges([PointBasis(1, R=2, basis=[1])]),
+        sub_point_matrix=False, store_in_memory=True, loader_threads=0)
+    try:
+        module.setup("predict")
+        snapshot = module.predict_dataset
+        expected = snapshot[0].positions.clone()
+        snapshot[0].positions.add_(9)
+        temporary = module.tmp_dir
+        module.teardown(None)
+        assert not temporary.exists()
+        assert root.exists()
+        torch.testing.assert_close(snapshot[0].positions, expected, rtol=0, atol=0)
+        assert snapshot[0].num_nodes == 2
+        assert snapshot[0].positions.device.type == "cpu"
+    finally:
+        module.teardown(None)

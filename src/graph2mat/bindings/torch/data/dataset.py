@@ -112,7 +112,7 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         data = self.data_cls.new(
             item, data_processor=self.data_processor, labels=self.load_labels
         )
-        if str(item).endswith(".fdf"):
+        if isinstance(item, (str, os.PathLike, zipfile.Path)) and str(item).endswith(".fdf"):
             # Total charge of the structure (SIESTA NetCharge, 0 by default), for models whose
             # charges depend on it (long_range="qeq", roadmap 8.4).
             path = item if isinstance(item, zipfile.Path) else Path(item)
@@ -157,7 +157,10 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
 
 
 class InMemoryData(torch.utils.data.Dataset):
-    """Wrapper for a dataset that loads all data into memory.
+    """CPU snapshots with independent tensor/metadata ownership on each access.
+
+    Rebuild after changing source data or preprocessing. Returned samples may
+    be mutated or transferred without changing the stored snapshots.
 
     Parameters
     ----------
@@ -171,14 +174,16 @@ class InMemoryData(torch.utils.data.Dataset):
         self, dataset: TorchBasisMatrixDataset, size: Optional[int] = None, **kwargs
     ):
         super().__init__(**kwargs)
-        size = size or len(dataset)
-        self.data_objects = [dataset[i] for i in range(size)]
+        size = len(dataset) if size is None else size
+        if not 0 <= size <= len(dataset):
+            raise ValueError("size must be between zero and the dataset length.")
+        self.data_objects = [deepcopy(dataset[i]) for i in range(size)]
 
     def __len__(self):
         return len(self.data_objects)
 
     def __getitem__(self, index: int) -> TorchBasisMatrixData:
-        return self.data_objects[index]
+        return deepcopy(self.data_objects[index])
 
 
 class SimpleCounter:

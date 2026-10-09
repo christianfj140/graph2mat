@@ -154,7 +154,7 @@ el camino certificado. Precisión mayor no es un requisito intrínseco de 5.3.
 caché CPU reutilizable, conversiones equivalentes y batching de coste explícito.
 
 - [ ] Perfilar cada tramo antes de optimizarlo y escribir su plan acotado.
-- [ ] Caché de tensores opt-in: delimitar ownership/invalidez y comprobar que
+- [x] Caché de tensores opt-in: delimitar ownership/invalidez y comprobar que
   mutar una muestra no altera accesos futuros; registrar RAM y coste inicial.
 - [ ] Vectorizar los tramos medidos de CSR/bloques y reconstrucción, sin
   densificar la matriz global; contrastar elementos y gradientes donde aplique.
@@ -591,3 +591,30 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   reutilizar InMemoryData, snapshot/acceso aislados y retirar repr lazy medido.
   Perfil previo propio periódico s/p/d/f,C2; cache legacy mutable y representación
   FDF innecesaria confirmados. No nueva caché/flag/dependencia.
+
+### Task 2.a — caché CPU segura (implementación y medida CPU verificadas)
+
+- Subplan `plan_cache_tensores_cpu.md`, BASEbeb0098. Reutiliza InMemoryData:
+  snapshot/acceso deepcopy, límites size antes de leer, guard pathlike sin repr
+  de configuraciones. Sin flag nuevo; `store_in_memory=False` permanece default.
+  AtomicTable deepcopy preserva referencias runtime y radios atomic/radial
+  independientes; no modifica pickle/checkpoints ni reparsea XML.
+- RED24fallos/11pasan/44.61s; coreAtomic3 fallos de producto más errores propios
+  de fixture corregidos. Control negativo process-local sin deepcopy reproduce
+  cache7→0; retirado antes de gates. REDradiosdistintos1 y GREENcertificado57.
+- Focus57pasan/51warnings/5.67s; floor3.9/Torch2.4.1cpu171pasan/2322warnings/
+  127.17s; full sourceCPU2100pasan/2omitidos/26002warnings/629.52s, exit0 todos.
+  Source/tests congelados durante full. Ruff fuente/tests/all-files y benchmark
+  directo, mypy-core, compile39/diff verdes; no contar hookSkipped comoPass.
+- Benchmark propio s/p/d/f periódico dirigido,C2,fp32,16/72puntos,3warmups y
+  12rondas alternadas. Igualdad exacta de muestras/batches. Corrige collate que
+  inicialmente usó default simétrico: porcentajes previos sustituidos.
+  Lazy5.984→1.127ms y23.251→2.024ms (≈5.3×/11.5×); cacheaccess copia.145/.148ms;
+  cachecollate2 .338→.646ms y.353→.674ms (≈+91%,~.31/.32ms adicionales).
+  Seguridad **regresa** coste respecto al cache compartido; no caché nueva.
+  RSS8samples fresh5044→5228/8744→8800KiB, tensorbytes93424/420240 idénticos.
+- Condiciones/script/limitaciones en `informe_cache_tensores_cpu.md` y
+  `bench_cache_tensores_cpu.py`; logs cache-tensor-*-certified en registro temporal.
+  Carga host no aislada, sin wheel/GPU/VRAM/precisión nuevos: evaluación6.1/goal
+  no cerrada como mejora GPU. Siguiente6.2 perfil propio confirma bucles CPU en
+  coords/CSR; borde público C2fill0 entero trunca decimales, H nativo usa0.0.

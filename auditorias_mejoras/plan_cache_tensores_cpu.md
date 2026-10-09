@@ -56,6 +56,8 @@ RSS bruto incluye allocator/runtime y no equivale a tensor_bytes exactos.
 ### Task 1: snapshot, acceso aislado y filtro de paths
 
 **Files:** Modify `src/graph2mat/bindings/torch/data/dataset.py`;
+Modify `src/graph2mat/core/data/table.py` y tests/test_table.py únicamente para
+preservar estado runtime/radios en deepcopy de AtomicTable, sin cambiar pickle;
 Create `src/graph2mat/bindings/torch/data/tests/test_tensor_cache.py`;
 Modify `src/graph2mat/tools/lightning/tests/test_datamodule_stages.py`,
 `docs/data_loading.rst` y roadmaps; benchmark propio en auditorias_mejoras.
@@ -64,7 +66,7 @@ Modify `src/graph2mat/tools/lightning/tests/test_datamodule_stages.py`,
 InMemoryData(dataset,size=None), MatrixDataModule(store_in_memory=True).
 Produce el mismo tipo de muestra con storage independiente; no API nueva.
 
-- [ ] Step 1: RED sample real periódico s/p/d/f C1/2, sym/dir y entradas
+- [x] Step 1: RED sample real periódico s/p/d/f C1/2, sym/dir y entradas
   BasisConfiguration/PyG. Comparar con lazy, mutar tensores y nested metadata
   NumPy; siguiente acceso idéntico al oráculo. Cambiar input después del snapshot
   tampoco cambia caché; `.to('meta')` no transforma snapshot. Código central:
@@ -81,7 +83,7 @@ Produce el mismo tipo de muestra con storage independiente; no API nueva.
   Incluir `InMemoryData(dataset,size=0)` vacío, negativos/exceso ValueError antes
   de leer y truncación válida; cambiar selección `size or len` a `size is None`
   y validar `0<=size<=len(dataset)` antes de cargar para delimitar RAM explícita.
-- [ ] Step 2: RED perfil repr reproducible con clase de configuración cuyo
+- [x] Step 2: RED perfil repr reproducible con clase de configuración cuyo
   `__repr__` falla si se invoca para comprobar suffix; dataset real se construye.
   Implementar guard path y deepcopies usando import existente:
   ```python
@@ -91,17 +93,21 @@ Produce el mismo tipo de muestra con storage independiente; no API nueva.
   return deepcopy(self.data_objects[index])
   ```
   Expected: GREEN contrato, paths FDF siguen cargando charge/spectral_C.
-- [ ] Step 3: workers0/2 con spawn y fork si disponibles, persistentes dos
+- [x] Step 3: workers0/2 con spawn y fork si disponibles, persistentes dos
   iteraciones. Transform in-place de tensor/metadata dentro de wrapper consume
   caché sin acumulación; comparar batches con literal original+una transformación.
   Snapshot pickle sin readers ZIP. Fixture ZIP/FDF real existente más cache,
   archivo caller sigue legible tras materializar/close del dataset y después
   caché sigue legible con archive caller cerrado. Expected: exit0 sin procesos vivos.
-- [ ] Step 4: RED store-memory actual por stage/Subset; transferir sample a meta
+- [x] Step 4: RED store-memory actual por stage/Subset; transferir sample a meta
   y mutar labels no cambia siguiente acceso, con setters CPU-target existentes.
   Ejecutar lifecycle, ZIP, split/stages, collate/train irreps nuevos. Expected:
   pérdida/targets/defaults iguales, no cache-specific constructor flag.
-- [ ] Step 5: benchmark CPU pareado antes/después con fixture común y warmup;
+  Borde encontrado: deepcopy Atomic usaba pickle y reconstruía referencias
+  on-site7→0. RED core/real cache-reconstrucción; método __deepcopy__ copia dict
+  runtime con memo, restauraR como pickle existente, no modifica estado portable.
+  Verificar radial/no radial y no deserializar file_contents durante copia.
+- [x] Step 5: benchmark CPU pareado antes/después con fixture común y warmup;
   alternar legacy repr/cache-compartida y candidato usando subclase local,
   no checkout ni mutación de source. Medir inicialización, access+collate,
   tensor_bytes y RSS en procesos aislados; registrar coste de copias como regresión
