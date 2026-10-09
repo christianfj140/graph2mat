@@ -1,7 +1,8 @@
 # 7.4 — Slater–Koster neuronal con residual equivarante: diseño CPU
 
-Estado: **propuesta pendiente de aprobación del usuario**. No autoriza código
-de producto. Goal creado el 2026-10-09; base inspeccionada `8c8dc3e`, rama
+Estado: **diseño aprobado por el usuario** el 2026-10-09: «Apruebo el diseño
+7.4: redacta el plan». Autoriza planificación, no ejecución de producto hasta
+revisar el plan. Goal creado el 2026-10-09; base inspeccionada `8c8dc3e`, rama
 `g2m-v2`, checkout `/home/christian/repositorios/graph2mat`.
 
 ## 1. Intención y contrato
@@ -53,8 +54,8 @@ pero mantiene reconstrucción y residual: **no** obtiene automáticamente la
 reducción de complejidad de un readout SO(2) directo. Puede ser más lento que
 7.1 solo; la comparación debe mostrarlo.
 
-Se propone B exclusivamente. No construir eSCN/QHNetV2 ni una segunda opción
-SO(2) en este goal. La elección es una recomendación, no una aprobación.
+Se aprueba B exclusivamente. No construir eSCN/QHNetV2 ni una segunda opción
+SO(2) en este goal. La ejecución queda condicionada a revisar el plan escrito.
 
 ## 3. Modelo matemático
 
@@ -222,7 +223,7 @@ de ejecutar; no se cambian defaults por ganar un microbenchmark.
 - [x] Crear goal, confirmar rama/base y conservar cambios ajenos.
 - [x] Inspeccionar puntos de extensión y comparar dos alternativas.
 - [x] Escribir propuesta y revisar alcance/contradicciones sin producto.
-- [ ] Aprobación explícita del usuario de este diseño escrito.
+- [x] Aprobación explícita del usuario de este diseño escrito (2026-10-09).
 - [ ] Plan escrito aprobado y ejecución Native.
 - [ ] Implementación, tests, benchmark y gates CPU con evidencia nueva.
 - [ ] Informe, resultados crudos, protocolo GPU/precisión y roadmap actualizado.
