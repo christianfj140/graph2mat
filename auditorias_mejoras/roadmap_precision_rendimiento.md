@@ -226,9 +226,10 @@ Expected: código físico bajo sus hipótesis, variantes opcionales y evidencia
 experimental real. Si faltan etiquetas imprescindibles, registrar el recurso
 concreto y seguir con los bloques independientes, sin cerrar falsamente éste.
 
-Estado 2026-10-09: parte física implementada/verificada CPU (suite de integración
-2466 passed / 2 skipped, nueve smokes reales); revisión final y gate posterior
-a su corrección en curso. McWeeny no aplicable como identidad exacta en estos
+Estado 2026-10-09: parte física implementada/verificada CPU (suite final
+2477 passed / 2 skipped, nueve smokes reales); revisión independiente terminada,
+hallazgo Important corregido con RED→GREEN y gate completo posterior verde.
+Goal acotado de implementación CPU cerrado. McWeeny no aplicable como identidad exacta en estos
 datos fraccionarios; no se implementó una penalización incorrecta. H-energy/hBN
 bloqueado por entradas DM no observadas; bicapa no-ready por informe SCF ausente.
 Precisión, bandas/OOD y GPU pendientes, no beneficios ML/VRAM demostrados.

@@ -5,7 +5,8 @@ Estado inicial: evidencia preliminar de datos y convenciones. La inspección
 siguiente es histórica; no certifica todos los snapshots del conjunto.
 
 Actualización 2026-10-09: diseño/plan aprobados e implementación opcional CPU
-realizada; revisión final/gate posterior en curso. Registro EDM explícito,
+realizada; revisión final y gate posterior completos (2477 passed / 2 skipped).
+Goal acotado CPU cerrado, no los experimentos. Registro EDM explícito,
 preparación/collate, pérdidas, gradientes, stages y checkpoints ya implementados.
 Nueve casos reales soportados pasan; H-energy/hBN rechaza soporte DM desconocido.
 Los datos permanecen intactos. No se han ejecutado experimentos de precisión,

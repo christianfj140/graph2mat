@@ -1,8 +1,9 @@
 # Objetivos físicos 4.4–4.5: implementación y evidencia CPU
 
-2026-10-09, rama `g2m-v2`, mismo checkout. **Cierre final en curso**: están
-implementados y probados los términos; suite final/revisión independiente aún
-deben terminar. No se declara cerrada toda 4.4, 4.5 experimental ni Ola 4.
+2026-10-09, rama `g2m-v2`, mismo checkout. **Goal acotado de implementación CPU
+cerrado**: términos opcionales implementados, revisión independiente con su
+hallazgo corregido, suite final 2477 passed / 2 skipped, exit0. No se declara
+cerrada toda 4.4, 4.5 experimental ni Ola 4.
 
 ## Implementado y límites científicos
 
@@ -108,6 +109,8 @@ incluyendo setup/logging/optimizer/preflight preparado. No equivale a un paso
 steady-state de entrenamiento grande. `loss+backward` aislado ≈4.2–4.9×
 una base diminuta; incremento absoluto ≈0.4–0.7 ms. Carga/preparación/certificación:
 grafeno ≈21–28 ms frente a ≈7–8 ms, hBN ≈82–105 ms frente a ≈19–20 ms.
+`loss+backward` usa predicciones hoja clonadas: mide el criterio, no el backward
+del backbone. `Trainer.fit` sí ejecuta el modelo y su optimización reales.
 
 [JSON completo](resultados_objetivos_fisicos_cpu.json) incluye cada muestra
 cruda, mediana/MAD, primera invocación, cached-access, collate, hashes de
@@ -139,6 +142,12 @@ Python CPU existente 3.12.3/Torch2.11 y piso 3.9.25/Torch2.4.1; sin instalar.
   y **226 en 3.9** (26.44 s),
   incluyendo herramientas CPU; exit0 ambos. Ruff `src tests` y ambos scripts,
   mypy existente (23 archivos) y compileall3.9 pasan, exit0.
+- Instalación mínima Python 3.9: **27 pasan**, 44 warnings, 18.05 s, exit0;
+  incluye preparación/pérdida física NumPy con imports Torch bloqueados.
+- Suite completa final posterior a `371f5a2`: **2477 pasan, 2 omitidos,
+  30182 warnings, 748.84 s, exit0**, checkout `2759800`. Mismo comando completo
+  `python -m pytest src/graph2mat tests -q --tb=short`; solo documentación
+  modificada después. No se reclasificaron fallos como skips.
 - Smokes de ambos datasets y ambos benchmarks: exit0. Autoverificación literal
   7/300 y 1/800; 5 tests de contratos de scripts pasan. Fallos RED y correcciones
   registrados: máscaras gauge in-place, certificado, epoch denominators,
@@ -183,4 +192,66 @@ Revisor declinó juzgar precisión/bandas/OOD/convergencia, GPU/VRAM, elegibilid
 de todos los snapshots, recuperación de soporte DM hBN/geometría independiente
 de TSDE y trabajo fuera de alcance. Se mantienen respectivamente como experimentos
 pendientes, recursos ausentes o exclusiones explícitas; no como beneficios probados.
-Menores aplazados: ninguno. Gate final de la corrección todavía en curso.
+Menores aplazados: ninguno. Gate completo posterior a la corrección pasa:
+2477 passed / 2 skipped, exit0. No se solicitó una segunda revisión; la única
+pasada correctora tiene regresiones RED→GREEN y suite final verde.
+
+## Decisiones de ejecución y coste si fueran incorrectas
+
+Registro exhaustivo de las decisiones del ledger, en orden:
+
+1. Mantener checkout y entornos existentes por autorización explícita: sin
+   aislamiento adicional; preservar cambios ajenos y staging exacto.
+2. Fixture de base incompatible mediante sustitución pública del átomo, no
+   mutación `_R`/deepcopy: riesgo de test positivo por causa incidental, mitigado
+   comprobando primero la copia compatible.
+3. Certificar Hermiticidad numérica con cota `1e-8*max(1,max_abs)` y partners
+   opuestos reales, sin modificar datos: se acepta esa asimetría acotada;
+   residual energético `1e-6` y piso relativo S `1e-12` no se relajan.
+4. Guardar partners reverse auxiliares: coste adicional de memoria/transferencia,
+   necesario para extremos distintos cuando la referencia no es simétrica exacta.
+5. Preparar RED de Task2 durante suite Task1, sin editar producto: cualquier
+   fallo Task1 tenía prioridad; no completar Task2 antes del gate.
+6. Preparar RED de Task3 durante suite Task2 con igual congelación: cualquier
+   fallo Task2 tenía prioridad.
+7. Preparar RED de Task4 durante suite Task3 con igual congelación: cualquier
+   fallo Task3 tenía prioridad.
+8. Rechazar kwargs físicos activos en métricas no soportadas o stages sin loss
+   explícita: configuraciones antes ignoradas pasan a error explícito; defaults
+   cero permanecen iguales.
+9. Sanitizar checkpoints sin metadatos DataModule mediante lookup opcional:
+   se permite ese checkpoint legítimo; cargar el procesador sigue necesitando
+   dichos metadatos, sin inventarlos.
+10. Usar `_data_source` de Lightning antes de iteradores y fallar cerrado:
+    futuras versiones podrían necesitar un adaptador; datos lazy pagan un
+    recorrido CPU completo por rank, sin consumir streams/sampler.
+11. Scripts de Task5 durante suite Task4, producto congelado: cualquier fallo
+    Task4 tenía prioridad; sin editar fuentes científicas ni entornos.
+12. Revisión independiente única antes del task-done de Task5, conforme 5.5:
+    sin segunda revisión; regresiones y suite completa verifican la corrección.
+13. Clasificar y corregir el hueco preflight como Important: custom models
+    físicos deben declarar componentes; targets/spin incompatibles fallan antes
+    del forward. Defaults apagados no adquieren restricciones nuevas.
+14. Precisión/bandas/OOD/convergencia declinadas por el revisor quedan pendientes:
+    no recomendar mejoras sin el protocolo pareado de tres semillas.
+15. GPU/VRAM declinadas quedan sin medir por alcance CPU: ratios CPU no predicen
+    beneficio GPU ni VRAM pico.
+16. Elegibilidad de todos los snapshots declinada queda para preflight de datos:
+    solo muestras indicadas certificadas; otras podrían rechazarse y reducir
+    el conjunto elegible.
+17. Soporte DM hBN ausente/geometría independiente TSDE declinados quedan como
+    límites: menos targets aplicables; geometría suministrada por FDF/TSHS,
+    no certificada independientemente desde TSDE.
+18. Fonones, 7.4, autorun y trabajo ajeno declinados siguen fuera de alcance:
+    esas tareas permanecen pendientes, no implícitamente completadas.
+19. Conservar `g2m-v2` en este checkout, sin menú de merge/push: elección previa
+    y prohibición explícita del goal; commits locales hasta nueva autorización.
+
+Menores aplazados: ninguno.
+
+Logs completos, ledger y paquetes de revisión auxiliares conservados de forma
+recuperable en `/tmp/g2m-physical-evidence.zDoC4L/2026-10-09-physical-losses-4-4-4-5/`.
+Se retira únicamente el workspace temporal de este plan, no el checkout ni
+workspaces de otros planes. `/tmp` no es almacenamiento permanente; evidencia
+resumida, decisiones y resultados numéricos quedan versionados en este informe
+y JSON, y código/tests/protocolo en los commits locales de `g2m-v2`.

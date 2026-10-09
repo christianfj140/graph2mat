@@ -1016,7 +1016,7 @@ VRAM desde RSS. Si cache reutiliza validación, medir también first-load versus
 cached-access; coste on-demand no se oculta. Self-check `summarize_seconds([1,2,3])`
 da mediana2/MAD1 y número exacto de llamadas warmup+rounds de cada función.
 
-- [ ] **5.3 Gates enfocados y completos, con evidencia nueva.**
+- [x] **5.3 Gates enfocados y completos, con evidencia nueva.**
 
 ```bash
 "$G2M_PHYS_PY" -m pytest src/graph2mat/core/data/tests/test_physical_references.py src/graph2mat/core/data/tests/test_physical_losses.py src/graph2mat/bindings/torch/data/tests/test_physical_dataset.py src/graph2mat/tools/lightning/tests/test_physical_training.py -q
@@ -1044,7 +1044,7 @@ No recomendar un término si empeora OOD aunque baje su propio residuo. McWeeny
 queda no aplicable como identidad exacta para ocupaciones fraccionarias; no
 habilitarlo en este plan. El experimento largo/GPU sigue aplazado.
 
-- [ ] **5.5 Revisión final y cierre honesto.** Leer diff completo conectado con código existente, revisar cinco Review Focus y cobertura de spec. Si el usuario eligió Native, solicitar una revisión independiente final según la skill de review; si eligió subagentes, además conservar revisiones por tarea. No cambiar modelo del revisor salvo instrucción aplicable. Corregir hallazgos importantes y repetir evidencia afectada.
+- [x] **5.5 Revisión final y cierre honesto.** Leer diff completo conectado con código existente, revisar cinco Review Focus y cobertura de spec. Si el usuario eligió Native, solicitar una revisión independiente final según la skill de review; si eligió subagentes, además conservar revisiones por tarea. No cambiar modelo del revisor salvo instrucción aplicable. Corregir hallazgos importantes y repetir evidencia afectada.
 
 Actualizar ambos roadmaps separando `implementado/verificado CPU`,
 `no aplicable`, `bloqueado por recurso concreto` y `experimental pendiente`.
@@ -1053,7 +1053,7 @@ resto del roadmap conservan sus estados. Informe incluye comandos/exit codes,
 resultados, commits propios, masks/colas, coste y límites. Este plan aprobado
 por sí solo no satisface el goal de implementación.
 
-- [ ] **5.6 Commit explícito de evidencia propia.**
+- [x] **5.6 Commit explícito de evidencia propia.**
 
 ```bash
 git add auditorias_mejoras/smoke_objetivos_fisicos.py auditorias_mejoras/bench_objetivos_fisicos.py auditorias_mejoras/resultados_objetivos_fisicos_cpu.json auditorias_mejoras/informe_objetivos_fisicos_cpu.md auditorias_mejoras/protocolo_precision_4_4_4_5.md auditorias_mejoras/inventario_objetivos_fisicos.md auditorias_mejoras/roadmap.md auditorias_mejoras/roadmap_precision_rendimiento.md docs/superpowers/plans/2026-10-09-physical-losses-4-4-4-5.md
@@ -1101,12 +1101,15 @@ pendientes hasta los experimentos expresamente aplazados.
 
 ## Evidencia de ejecución Native (2026-10-09)
 
-Tasks 1–4 completas según ledger y commits propios; Task 5 cierre en curso.
+Tasks 1–5 completas según ledger, commits propios y gates terminales.
 Suite Task4: 2466 passed/2 skipped, 710.02 s, exit0. Una revisión independiente
 identificó un hueco Important de preflight, corregido con tres regresiones RED→GREEN
 en `371f5a2`; ningún Critical/Minor. Gate físico posterior: 226 passed en
 Python 3.12 y 3.9, exit0; Ruff/mypy/compileall pasan. Ambos smokes y benchmarks
 repetidos sobre el fix: nueve casos válidos, H-energy/hBN bloqueado sin ceros
-inventados, hashes científicos intactos. Suite completa posterior pendiente.
+inventados, hashes científicos intactos. Suite completa posterior sobre `2759800`:
+2477 passed / 2 skipped / 30182 warnings, 748.84 s, exit0.
+Única pasada correctora terminada; no Critical/Important abiertos ni menores aplazados.
+Goal acotado CPU cerrado, no evaluación experimental ni el resto del roadmap.
 Informe, costes, límites y protocolo: [informe CPU](../../../auditorias_mejoras/informe_objetivos_fisicos_cpu.md).
 No se declaran mejoras de precisión, bandas, OOD ni GPU/VRAM.

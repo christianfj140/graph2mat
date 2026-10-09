@@ -562,9 +562,10 @@ exigido por su manifiesto. Evidencia y límites en
 **Actualización de implementación (2026-10-09):** diseño y plan aprobados,
 ejecución Native en `g2m-v2`. N_e/Mulliken para DM y consistencia H–DM–EDM
 opcionales implementados, incluidos gradientes, colas periódicas, máscaras,
-stages y checkpoints. Suite de integración: 2466 passed / 2 skipped; nueve
-smokes reales soportados pasan. Revisión independiente y gate posterior a su
-corrección aún en curso. No se ha medido mejora de precisión ni ahorro VRAM.
+stages y checkpoints. Suite final: 2477 passed / 2 skipped; nueve smokes reales
+soportados pasan. Revisión independiente terminada; su hallazgo Important de
+preflight corregido con RED→GREEN y gate completo posterior. Goal acotado CPU
+cerrado; no se ha medido mejora de precisión ni ahorro VRAM.
 H-energy en hBN está bloqueado por soporte DM desconocido donde H puede variar;
 la bicapa sigue sin informe SCF. McWeeny no aplica como identidad exacta a estas
 ocupaciones fraccionarias. Coste CPU medido positivo, no aceleración:
