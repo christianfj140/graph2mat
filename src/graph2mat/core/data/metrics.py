@@ -1700,7 +1700,8 @@ def block_type_mapestdmix(
 
 @OrbitalMatrixMetric.from_metric_func
 def elementwise_mse(
-    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, edge_weight: float = 1.0, **kwargs
+    nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, edge_weight: float = 1.0,
+    electron_weight: float = 0.0, mulliken_weight: float = 0.0, energy_weight: float = 0.0, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     """MSE over all matrix elements.
 
@@ -1708,6 +1709,9 @@ def elementwise_mse(
     each stored edge block also stands for its transpose, so ``edge_weight=2`` gives
     the MSE over the full matrix.
     """
+    from .physical import physical_loss_terms, validate_physical_weights
+
+    weights = validate_physical_weights(electron_weight, mulliken_weight, energy_weight)
     node_error, edge_error = get_predictions_error(
         nodes_pred, nodes_ref, edges_pred, edges_ref
     )
@@ -1737,6 +1741,12 @@ def elementwise_mse(
             }
         )
 
+    if any(weights):
+        physical, physical_stats = physical_loss_terms(nodes_pred, edges_pred,
+            batch=kwargs.get("batch"), basis_table=kwargs.get("basis_table"),
+            electron_weight=weights[0], mulliken_weight=weights[1], energy_weight=weights[2])
+        loss = loss + physical
+        stats.update(physical_stats)
     return loss, stats
 
 
@@ -1861,7 +1871,8 @@ def pair_difference_mse(
 def gauge_invariant_mse(
     nodes_pred, nodes_ref, edges_pred, edges_ref, batch=None, basis_table=None,
     edge_weight: float = 1.0, overlap_weight: float = 1.0, spectral_weight: float = 0.0,
-    log_verbose=False, **kwargs,
+    log_verbose=False, electron_weight: float = 0.0, mulliken_weight: float = 0.0,
+    energy_weight: float = 0.0, **kwargs,
 ) -> Tuple[float, Dict[str, float]]:
     """Elementwise MSE of H that ignores a per-structure energy shift H -> H + c S.
 
@@ -1878,6 +1889,10 @@ def gauge_invariant_mse(
     ``spectral_weight`` > 0 adds the Gamma-point window loss of ``_spectral_window_loss``
     (one H component; needs finite ``batch.spectral_C`` and complete H/S labels).
     """
+    from .physical import physical_loss_terms, validate_physical_weights
+
+    weights = validate_physical_weights(electron_weight, mulliken_weight, energy_weight)
+    physical_nodes_pred, physical_edges_pred = nodes_pred, edges_pred
     node_struct, edge_struct, n_structures = _per_element_structure_ids(
         nodes_ref, edges_ref, batch, basis_table
     )
@@ -1933,6 +1948,17 @@ def gauge_invariant_mse(
         stats["spectral_rmse"] = spectral.detach() ** 0.5
         stats["spectral_elements"] = count.detach()
         loss = loss + spectral_weight * spectral
+    if any(weights):
+        aligned_nodes_full = aligned_nodes.new_zeros((physical_nodes_pred.shape[0], n_h)).index_copy(
+            0, valid_nodes.nonzero(as_tuple=True)[0], aligned_nodes)
+        aligned_edges_full = aligned_edges.new_zeros((physical_edges_pred.shape[0], n_h)).index_copy(
+            0, valid_edges.nonzero(as_tuple=True)[0], aligned_edges)
+        physical, physical_stats = physical_loss_terms(physical_nodes_pred, physical_edges_pred,
+            batch=batch, basis_table=basis_table, electron_weight=weights[0],
+            mulliken_weight=weights[1], energy_weight=weights[2],
+            aligned_nodes=aligned_nodes_full, aligned_edges=aligned_edges_full)
+        loss = loss + physical
+        stats.update(physical_stats)
     return loss, stats
 
 

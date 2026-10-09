@@ -375,3 +375,240 @@ def physical_layout(batch, basis_table):
         physical_edge_source=np.repeat(sources, rows), physical_edge_target=np.repeat(targets, rows),
         physical_atom_structure=atom_structure, physical_atoms_per_structure=atoms_per_structure,
         physical_symmetric=bool(not labelled.all()))
+
+
+def _physical_array(value, like, dtype=None):
+    from .metrics import _is_torch_tensor
+
+    if _is_torch_tensor(value):
+        if value.is_complex():
+            raise ValueError("physical arrays must be real")
+    elif np.iscomplexobj(value):
+        raise ValueError("physical arrays must be real")
+    if _is_torch_tensor(like):
+        import torch
+        return torch.as_tensor(value, device=like.device,
+            dtype=getattr(torch, dtype) if dtype else like.dtype)
+    if _is_torch_tensor(value):
+        value = value.detach().cpu().numpy()
+    return np.asarray(value, dtype=dtype or like.dtype)
+
+
+def _sum_by_structure(values, owners, count):
+    from .metrics import _is_torch_tensor
+
+    if _is_torch_tensor(values):
+        return values.new_zeros(count).index_add(0, owners, values)
+    result = np.zeros(count, dtype=values.dtype)
+    np.add.at(result, owners, values)
+    return result
+
+
+def physical_contractions(nodes, edges, partner_nodes, partner_edges, *, layout,
+                          reverse_partner_edges=None):
+    """Atomic real-space traces; half edges contribute to both endpoints.
+
+    The reverse partner retains the opposite archived orientation. NaN values
+    are excluded only at exactly zero fixed partners, before multiplication.
+    """
+    from .metrics import _is_torch_tensor
+
+    is_torch = _is_torch_tensor(nodes)
+    if is_torch != _is_torch_tensor(edges) or nodes.dtype != edges.dtype:
+        raise ValueError("physical node/edge predictions need the same backend and dtype")
+    if nodes.ndim != 2 or edges.ndim != 2 or nodes.shape[1] != edges.shape[1]:
+        raise ValueError("physical contractions require (rows, spin) shapes")
+    if is_torch:
+        import torch
+        if not nodes.is_floating_point() or nodes.device != edges.device:
+            raise ValueError("physical predictions must be floating point on the same device")
+        finite, where = torch.isfinite, torch.where
+    else:
+        if nodes.dtype.kind != "f":
+            raise ValueError("physical predictions must be real floating point")
+        finite, where = np.isfinite, np.where
+    atoms = len(layout["physical_atom_structure"])
+
+    def owner(name, rows):
+        result = _physical_array(layout[name], nodes, "int64")
+        if result.shape != (rows,) or bool(((result < 0) | (result >= atoms)).any()):
+            raise ValueError(f"physical layout {name} has incompatible shape/owners")
+        return result
+
+    def contract(values, fixed):
+        fixed = _physical_array(fixed, values)
+        if (fixed.ndim != 2 or fixed.shape[0] != values.shape[0]
+                or fixed.shape[1] not in (1, values.shape[1])):
+            raise ValueError("physical partner shape must be (rows, 1 or spin)")
+        if not bool(finite(fixed).all()):
+            raise ValueError("physical fixed partners must be finite and observed")
+        selected = where(fixed != 0, values, 0.)
+        if not bool(finite(selected).all()):
+            raise ValueError("unknown/nonfinite coefficient with nonzero physical partner")
+        return (selected * fixed).sum(axis=-1)
+
+    result = _sum_by_structure(contract(nodes, partner_nodes), owner("physical_node_owner", len(nodes)), atoms)
+    result = result + _sum_by_structure(contract(edges, partner_edges), owner("physical_edge_source", len(edges)), atoms)
+    if layout["physical_symmetric"]:
+        reverse = partner_edges if reverse_partner_edges is None else reverse_partner_edges
+        result = result + _sum_by_structure(contract(edges, reverse), owner("physical_edge_target", len(edges)), atoms)
+    return result
+
+
+def physical_loss_terms(nodes_pred, edges_pred, *, batch, basis_table,
+                        electron_weight=0., mulliken_weight=0., energy_weight=0.,
+                        aligned_nodes=None, aligned_edges=None):
+    """Optional structure-mean charge/Mulliken and energy perturbation objectives.
+
+    Charge compares the represented matrix to full reference populations. Energy
+    continues the reference outside the graph, not the writer's truncated matrix.
+    Fixed arrays are validated; the prediction path stays sparse and differentiable.
+    """
+    from .metrics import _batch_field, _is_torch_tensor
+    from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
+
+    electron_weight, mulliken_weight, energy_weight = validate_physical_weights(
+        electron_weight, mulliken_weight, energy_weight)
+    is_torch = _is_torch_tensor(nodes_pred)
+    if is_torch:
+        import torch
+        finite, where = torch.isfinite, torch.where
+        zero = nodes_pred.new_zeros(())
+    else:
+        finite, where = np.isfinite, np.where
+        zero = np.asarray(0., dtype=nodes_pred.dtype)
+    if not any((electron_weight, mulliken_weight, energy_weight)):
+        return zero, {}
+    if batch is None or basis_table is None or _batch_field(batch, "physical_version") is None:
+        raise ValueError("physical objectives require prepared references and a basis table")
+    layout = _batch_field(batch, LAYOUT_ATTR) or {}
+    if "physical_atom_structure" not in layout:
+        layout = physical_layout(batch, basis_table)
+    layout = {name: _physical_array(value, nodes_pred, "int64")
+        if name != "physical_symmetric" else value
+        for name, value in layout.items() if name.startswith("physical_")}
+    structure = layout["physical_atom_structure"]
+    atoms_per_structure = layout["physical_atoms_per_structure"]
+    structures, atoms = len(atoms_per_structure), len(structure)
+    if structures == 0 or bool((atoms_per_structure <= 0).any()):
+        raise ValueError("physical objectives require nonempty structures")
+
+    def meta(name, allowed):
+        raw = _batch_field(batch, name)
+        if raw is None:
+            raise ValueError(f"missing physical reference field {name}")
+        raw = raw.detach().cpu().numpy() if _is_torch_tensor(raw) else np.asarray(raw)
+        if raw.shape != (structures,) or raw.dtype.kind not in "iu" or not np.isin(raw, allowed).all():
+            raise ValueError(f"invalid physical reference {name} shape/value")
+        return raw
+
+    meta("physical_version", (1,))
+    kinds, spins = meta("physical_kind", (0, 1, 2)), meta("physical_spin", (1, 2))
+    if not (np.all(kinds == kinds[0]) and np.all(spins == spins[0])):
+        raise ValueError("physical prediction kind/spin must agree within a batch")
+    kind, spin = int(kinds[0]), int(spins[0])
+    required = int(bool(electron_weight or mulliken_weight)) + 2*int(bool(energy_weight))
+    capabilities = meta("physical_capabilities", (1, 2, 3))
+    if np.any(capabilities & required != required):
+        raise ValueError("physical charge/energy reference capability is absent")
+    if (electron_weight or mulliken_weight) and kind != 1:
+        raise ValueError("charge objectives require a density/DM prediction")
+
+    nodes = nodes_pred[:, None] if nodes_pred.ndim == 1 else nodes_pred
+    edges = edges_pred[:, None] if edges_pred.ndim == 1 else edges_pred
+    expected_components = (spin, spin+1) if kind == 0 else (spin,)
+    if (nodes.ndim != 2 or edges.ndim != 2 or nodes.shape[1] not in expected_components
+            or nodes.shape[1] != edges.shape[1]):
+        raise ValueError("physical prediction shape does not match its spin contract")
+    nodes, edges = nodes[:, :spin], edges[:, :spin]
+
+    def field(name, shape, *, mask=False, allow_unknown=False):
+        raw = _batch_field(batch, name)
+        if raw is None:
+            raise ValueError(f"missing physical reference field {name}")
+        if mask:
+            bool_dtype = str(raw.dtype) == "torch.bool" if _is_torch_tensor(raw) else np.asarray(raw).dtype == bool
+            if not bool_dtype:
+                raise ValueError(f"physical reference mask {name} must be boolean")
+        array = _physical_array(raw, nodes, "bool" if mask else None)
+        if array.shape != shape:
+            raise ValueError(f"physical reference {name} shape {tuple(array.shape)} != {shape}")
+        if not mask and not allow_unknown and not bool(finite(array).all()):
+            raise ValueError(f"physical reference {name} must be finite")
+        return array
+
+    rn = field("physical_reference_nodes", tuple(nodes.shape), allow_unknown=True)
+    re = field("physical_reference_edges", tuple(edges.shape), allow_unknown=True)
+    kn = field("physical_reference_known_nodes", tuple(nodes.shape), mask=True)
+    ke = field("physical_reference_known_edges", tuple(edges.shape), mask=True)
+    if bool((kn & ~finite(rn)).any()) or bool((ke & ~finite(re)).any()):
+        raise ValueError("physical observed reference coefficients must be finite")
+    baseline = field("physical_baseline_nodes", tuple(nodes.shape)) if kind == 1 else 0.
+    nodes = nodes + baseline
+    stats = {"physical_structures": structures}
+    loss = zero
+
+    def detached(value):
+        return value.detach() if _is_torch_tensor(value) else value
+
+    def clean(values, known, partner, reverse=None):
+        nonzero = partner != 0
+        if reverse is not None and layout["physical_symmetric"]:
+            nonzero = nonzero | (reverse != 0)
+        if bool((~known & nonzero).any()):
+            raise ValueError("unknown/unobserved reference with nonzero physical partner")
+        if bool((known & ~finite(values)).any()):
+            raise ValueError("physical predictions must be finite on observed reference coefficients")
+        return where(known, values, 0.)
+
+    if electron_weight or mulliken_weight:
+        sn = field("physical_overlap_nodes", (len(nodes), 1))
+        se = field("physical_overlap_edges", (len(edges), 1))
+        sr = field("physical_overlap_reverse_edges", (len(edges), 1))
+        population = physical_contractions(clean(nodes, kn, sn), clean(edges, ke, se, sr),
+            sn, se, layout=layout, reverse_partner_edges=sr)
+        delta = population - field("physical_population_reference", (atoms,))
+        delta_n = _sum_by_structure(delta, structure, structures)
+        electron = ((delta_n/atoms_per_structure)**2).mean()
+        mulliken = (_sum_by_structure(delta**2, structure, structures)/atoms_per_structure).mean()
+        loss = loss + electron_weight*electron + mulliken_weight*mulliken
+        if electron_weight:
+            stats["physical_electron_mse"] = detached(electron)
+        if mulliken_weight:
+            stats["physical_mulliken_mse"] = detached(mulliken)
+        stats.update(physical_delta_n_mean=detached(delta_n.mean()),
+            physical_delta_n_rmse=detached((delta_n**2).mean()**.5))
+    if energy_weight:
+        channels = 1 if kind == 2 else spin
+        pn = field("physical_partner_nodes", (len(nodes), channels))
+        pe = field("physical_partner_edges", (len(edges), channels))
+        pr = field("physical_partner_reverse_edges", (len(edges), channels))
+        for name, shape in (("physical_partner_known_nodes", tuple(pn.shape)),
+                            ("physical_partner_known_edges", tuple(pe.shape)),
+                            ("physical_partner_known_reverse_edges", tuple(pr.shape))):
+            if not bool(field(name, shape, mask=True).all()):
+                raise ValueError("physical fixed partner must be observed, never an invented zero")
+        if (aligned_nodes is None) != (aligned_edges is None):
+            raise ValueError("physical aligned node/edge deltas must be supplied together")
+        if aligned_nodes is not None:
+            if kind != 0 or aligned_nodes.shape != nodes.shape or aligned_edges.shape != edges.shape:
+                raise ValueError("physical gauge-aligned deltas require the H prediction shape")
+            masks = []
+            for name, known in (("point_labels", kn), ("edge_labels", ke)):
+                labels = _physical_array(_batch_field(batch, name), nodes)
+                valid = finite(labels).all(axis=-1) if labels.ndim == 2 else finite(labels)
+                masks.append(known & valid[:, None])
+            kn, ke = masks
+            dn, de = aligned_nodes, aligned_edges
+        else:
+            dn, de = nodes-rn, edges-re
+        perturbation = physical_contractions(clean(dn, kn, pn), clean(de, ke, pe, pr),
+            pn, pe, layout=layout, reverse_partner_edges=pr)
+        reference = field("physical_energy_reference_residual", (atoms,))
+        if bool((abs(reference) > 1e-6).any()):
+            raise ValueError("physical energy reference residual exceeds its certified bound")
+        residual = reference + (-1. if kind == 2 else 1.)*perturbation
+        energy = (_sum_by_structure(residual**2, structure, structures)/atoms_per_structure).mean()
+        loss = loss + energy_weight*energy
+        stats["physical_energy_mse"] = detached(energy)
+    return loss, stats

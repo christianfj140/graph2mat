@@ -125,6 +125,28 @@ loss, _ = elementwise_mse(
     edges_pred=data.edge_labels+1, edges_ref=data.edge_labels,
 )
 assert np.isclose(loss, 1)
+import sisl
+from scipy.sparse import csr_array
+from graph2mat.core.data.physical import prepare_physical_data, physical_loss_terms
+
+atom = sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=1., q0=1.)])
+geometry = sisl.Geometry([[0., 0., 0.]], atoms=atom, lattice=[10., 10., 10.])
+geometry.set_nsc([1, 1, 1])
+scalar = csr_array([[1.]])
+overlap = sisl.Overlap.fromsp(geometry, scalar)
+density = sisl.DensityMatrix.fromsp(geometry, scalar, S=scalar)
+atomic_table = g.AtomicTableWithEdges(geometry.atoms.atom)
+physical_processor = g.MatrixDataProcessor(basis_table=atomic_table,
+    out_matrix="density_matrix", sub_point_matrix=False, node_attr_getters=[])
+physical_data = prepare_physical_data(physical_processor, overlap=overlap,
+    density=density, kpoints=np.zeros((1, 3)), kweights=np.ones(1), requested=("charge",))
+physical_loss, physical_stats = physical_loss_terms(physical_data.point_labels + .1,
+    physical_data.edge_labels, batch=physical_data, basis_table=atomic_table,
+    electron_weight=1., mulliken_weight=1.)
+assert np.isclose(physical_loss, .02)
+assert np.isclose(physical_stats["physical_delta_n_mean"], .1)
+if mode == "base":
+    assert "torch" not in sys.modules
 loss, _ = block_type_mape(
     nodes_pred=np.array([0., 1.]), nodes_ref=np.array([0., 1.]),
     edges_pred=np.ones(1), edges_ref=np.ones(1),
