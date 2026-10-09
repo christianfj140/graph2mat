@@ -84,6 +84,8 @@ componentes/direcciones, workers0/2 spawn/fork y cleanup de tmp propio.
 - Benchmark corregido: cache-tensor-benchmark-16/72-certified.json, exit0 ambos;
   stderr vacíos. Ruff directo/compile39 repetidos después del cambio, verdes.
 - Logs `/tmp/g2m-precision-goal.A2Pbgk/cache-tensor-*`. Sin ownGPU/entornos ajenos.
-- 6.1 implementación a cerrar tras commit/task-done; beneficio CPU lazy medido,
+- Producto bc54e91. Task-done real **57pasan,51warnings,5.02s,exit0**, rango
+  beb0098..bc54e91, coreAtomic+cache+resources+stages; salida y ledger leídos.
+- 6.1 implementación CPU cerrada; beneficio CPU lazy medido,
   coste cache regresivo documentado. GPU/VRAM aún sin recurso; goal sigue abierto.
   Siguiente: perfil sparse6.2 y después sampler6.4, no fonones.

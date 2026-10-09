@@ -618,3 +618,5 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   Carga host no aislada, sin wheel/GPU/VRAM/precisión nuevos: evaluación6.1/goal
   no cerrada como mejora GPU. Siguiente6.2 perfil propio confirma bucles CPU en
   coords/CSR; borde público C2fill0 entero trunca decimales, H nativo usa0.0.
+- Producto bc54e91; task-done real57pasan/51warnings/5.02s,exit0, rango
+  beb0098..bc54e91. Subplan completo; evaluación GPU/VRAM sigue pendiente.

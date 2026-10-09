@@ -114,7 +114,7 @@ Produce el mismo tipo de muestra con storage independiente; no API nueva.
   frente al acceso cache legacy. Métrica primaria lazy access, no regresión
   de elementos exactos, tolerancia temporal 10% para esa ruta. Expected: datos
   reales medidos; sintético no prueba paso GPU/VRAM ni física/precisión.
-- [ ] Step 6: floor3.9/Torch2.4.1, full source CPU final, Ruff/mypy/compile39/diff;
+- [x] Step 6: floor3.9/Torch2.4.1, full source CPU final, Ruff/mypy/compile39/diff;
   docs snapshot/invalidation/RAM, commit explícito y task-done con nuevos tests
   cache+dataset_resources+datamodule_stages. Expected: exit0 leído, 6.1 evaluación
   GPU queda recurso ausente si sigue ocupada; siguiente bloque 6.2 perfilado.
