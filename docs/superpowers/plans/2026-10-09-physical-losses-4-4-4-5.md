@@ -140,7 +140,7 @@ git status --short --branch
 git log -3 --oneline
 ```
 
-- [ ] Fijar entornos existentes y confirmar que importan este checkout. Si desaparecieron, informar el recurso; no instalar paquetes ni sustituir silenciosamente versiones.
+- [x] Fijar entornos existentes y confirmar que importan este checkout. Si desaparecieron, informar el recurso; no instalar paquetes ni sustituir silenciosamente versiones.
 
 ```bash
 export G2M_PHYS_PY=/tmp/g2m-python312-full.LHyni1/venv/bin/python
@@ -153,13 +153,31 @@ export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2
 "$G2M_PHYS_PY" -c 'import sys,graph2mat,sisl,torch,pytorch_lightning; print(sys.version,graph2mat.__file__,sisl.__version__,torch.__version__,pytorch_lightning.__version__); assert graph2mat.__file__.startswith("/home/christian/repositorios/graph2mat/src/"); assert not torch.cuda.is_available()'
 ```
 
-- [ ] Registrar baseline enfocada, salida completa y exit code; ningún test nuevo debe contar como RED por un fallo previo de entorno.
+- [x] Registrar baseline enfocada, salida completa y exit code; ningún test nuevo debe contar como RED por un fallo previo de entorno.
 
 ```bash
 "$G2M_PHYS_PY" -m pytest src/graph2mat/core/data/tests/test_periodic_hermiticity_oracles.py src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py src/graph2mat/tools/lightning/tests/test_training_stages.py src/graph2mat/tools/lightning/tests/test_datamodule_stages.py src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py -q
 ```
 
 La suite histórica 2251/2 no es evidencia nueva de este bloque.
+
+### Verificación preparatoria ejecutada (2026-10-09)
+
+- Estado comprobado: HEAD `1e09715`, rama `g2m-v2`, producto sin cambios;
+  untracked ajenos conservados. Aprobación del plan/método aún pendiente.
+- Python 3.12.3, sisl 0.16.4, Torch 2.11.0+cpu, Lightning 2.6.1; importación
+  desde `/home/christian/repositorios/graph2mat/src/graph2mat/__init__.py`,
+  CUDA no disponible con la variable de entorno vacía.
+- Comando de baseline de cinco módulos arriba, con PYTHONPATH absoluto y
+  OMP/OPENBLAS/MKL=2: **138 passed, 4992 warnings, 70.74 s, exit code 0**.
+  Sesión de ejecución propia `7149`, terminada; no hay un test activo que esperar.
+  Los warnings incluyen deprecaciones de dependencias, avisos de fixtures y
+  configuración de Lightning; no se ocultaron ni se consideran fallos nuevos.
+- Python 3.9.25/Torch 2.4.1+cpu: importación de este checkout y ausencia de CUDA
+  confirmadas, exit code 0. Esto **no** es todavía el gate de tests Python 3.9.
+- No se implementó producto, no se escribió ninguna referencia externa y no
+  se validaron las pérdidas nuevas. Este resultado prueba la línea base
+  existente, no el cierre 4.4–4.5 ni una mejora de precisión/rendimiento.
 
 ### Task 1: Referencias físicas completas y oráculos independientes
 
