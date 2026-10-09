@@ -45,3 +45,27 @@ def periodic_matrices():
         kpoints=np.column_stack((np.arange(8)/8, np.zeros(8), np.zeros(8))),
         kweights=np.full(8, 1/8),
     )
+
+
+def prepared_sample(target="density_matrix", spin=1, baseline=False, symmetric=True,
+                    requested=("charge", "energy"), data_cls=None, fractional=False, gauge=False):
+    from graph2mat import AtomicTableWithEdges, BasisMatrixData, MatrixDataProcessor
+    from graph2mat.core.data import physical
+
+    data_cls = BasisMatrixData if data_cls is None else data_cls
+    matrices = analytic_matrices(spin=spin, fractional=fractional)
+    table = AtomicTableWithEdges(matrices["density"].geometry.atoms.atom)
+    processor = MatrixDataProcessor(basis_table=table, out_matrix=target,
+        symmetric_matrix=symmetric, sub_point_matrix=baseline,
+        n_matrix_components=spin+int(gauge),
+        matrix_component_policy="h_and_overlap" if gauge else "h_only")
+    if data_cls is BasisMatrixData:
+        return physical.prepare_physical_data(processor, **matrices, requested=requested, data_cls=data_cls), table
+    import torch
+    previous = torch.get_default_dtype()
+    try:
+        torch.set_default_dtype(torch.float64)
+        data = physical.prepare_physical_data(processor, **matrices, requested=requested, data_cls=data_cls)
+    finally:
+        torch.set_default_dtype(previous)
+    return data, table

@@ -1,9 +1,16 @@
 """Optional reference-based physical objectives; NumPy preparation is Torch-free."""
 
+from dataclasses import replace
+from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 
 import numpy as np
 import sisl
+
+from .configuration import BasisConfiguration
+from .matrices import OrbitalMatrix, get_matrix_cls
+from .processing import BasisMatrixData
+from .sparse import csr_to_block_dict
 
 _HERMITICITY_RTOL = 1e-8
 
@@ -183,3 +190,188 @@ def physical_reference_targets(
         if np.max(np.abs(targets["energy_residual"])) > 1e-6:
             raise ValueError("physical energy reference residual exceeds 1e-6 eV/atom; check its energy gauge")
     return targets
+
+
+def prepare_physical_data(
+    processor, *, overlap, density, hamiltonian=None, energy_density=None,
+    kpoints, kweights, requested, data_cls=BasisMatrixData,
+):
+    """Prepare validated physical references on exactly the prediction graph.
+
+    Auxiliary matrices never enter model features. Missing DM/EDM coefficients
+    remain unknown, including where S or H happens to vanish.
+    """
+    requested = normalize_physical_labels(requested)
+    targets = physical_reference_targets(overlap, density, hamiltonian=hamiltonian,
+        energy_density=energy_density, kpoints=kpoints, kweights=kweights, requested=requested)
+    kinds = {"hamiltonian": (0, hamiltonian), "density_matrix": (1, density),
+             "energy_density_matrix": (2, energy_density)}
+    if processor.out_matrix not in kinds:
+        raise ValueError("physical objectives require an H, DM or EDM prediction target")
+    kind, target = kinds[processor.out_matrix]
+    if target is None:
+        raise ValueError("requested physical prediction target is absent")
+    spin = int(targets["spin_components"][0])
+    if kind == 1 and spin == 2 and processor.sub_point_matrix:
+        raise ValueError("collinear density baseline is not certified")
+    _validate_geometry(overlap.geometry, target, "prediction target")
+    if _physical_channels(target, "prediction target") != spin:
+        raise ValueError("physical prediction target spin does not match references")
+
+    def blocks(matrix, channels, fill_value):
+        return csr_to_block_dict(matrix._csr, matrix.atoms, nsc=matrix.nsc,
+            matrix_cls=OrbitalMatrix if isinstance(matrix, sisl.Overlap) else get_matrix_cls(type(matrix)),
+            fill_value=fill_value,
+            component_indices=range(channels))
+
+    config = BasisConfiguration.new(target)
+    physical_blocks = blocks(target, spin, np.nan if kind in (1, 2) else 0.)
+    # Only Hamiltonian gauge labels retain S; the physical reference never does.
+    if kind == 0:
+        config = BasisConfiguration.new(target, matrix_component_policy=processor.matrix_component_policy)
+    else:
+        config = replace(config, matrix=physical_blocks)
+    data = data_cls.from_config(config, processor)
+    arrays = data.numpy_arrays()
+    edge_index = arrays.edge_index[:, ::2] if processor.symmetric_matrix else arrays.edge_index
+    images = arrays.neigh_isc[::2] if processor.symmetric_matrix else arrays.neigh_isc
+
+    def flatten(matrix, channels, fill_value):
+        values = blocks(matrix, channels, fill_value).to_flat_nodes_and_edges(
+            edge_index=edge_index, edge_sc_shifts=images)
+        return tuple(value.reshape(-1, channels) for value in values)
+
+    ref_n, ref_e = flatten(target, spin, np.nan if kind in (1, 2) else 0.)
+    overlap_n, overlap_e = flatten(overlap.transpose(), 1, 0.)
+    _, overlap_reverse_e = flatten(overlap, 1, 0.)
+    auxiliary = {
+        "physical_version": np.array([1], dtype=np.int64),
+        "physical_kind": np.array([kind], dtype=np.int64),
+        "physical_spin": targets["spin_components"],
+        "physical_capabilities": targets["capabilities"],
+        "physical_reference_nodes": ref_n, "physical_reference_edges": ref_e,
+        "physical_reference_known_nodes": np.isfinite(ref_n),
+        "physical_reference_known_edges": np.isfinite(ref_e),
+        "physical_overlap_nodes": overlap_n, "physical_overlap_edges": overlap_e,
+        "physical_overlap_reverse_edges": overlap_reverse_e,
+    }
+    if kind == 1:
+        baseline = np.zeros_like(ref_n)
+        if processor.sub_point_matrix:
+            baseline[:, 0] = np.concatenate([
+                processor.basis_table.atomic_DM[point_type].reshape(-1)
+                for point_type in arrays.point_types
+                if processor.basis_table.basis_size[point_type] > 0])
+        auxiliary["physical_baseline_nodes"] = baseline
+    if "charge" in requested:
+        auxiliary["physical_population_reference"] = targets["population"]
+        if kind == 1 and (np.any(~np.isfinite(ref_n) & (overlap_n != 0))
+                or np.any(~np.isfinite(ref_e) & ((overlap_e != 0) | (overlap_reverse_e != 0)))):
+            raise ValueError("unknown DM reference with nonzero charge partner on the graph")
+    if "energy" in requested:
+        partner = (density, hamiltonian, overlap)[kind]
+        channels = 1 if kind == 2 else spin
+        unknown_partner = kind == 0
+        pn, pe = flatten(partner.transpose(), channels, np.nan if unknown_partner else 0.)
+        _, reverse_pe = flatten(partner, channels, np.nan if unknown_partner else 0.)
+        if unknown_partner:
+            if not (np.isfinite(pn).all() and np.isfinite(pe).all() and np.isfinite(reverse_pe).all()):
+                raise ValueError("unknown/unobserved density partner where predicted H can vary")
+        elif (np.any(~np.isfinite(ref_n) & (pn != 0))
+                or np.any(~np.isfinite(ref_e) & ((pe != 0) | (reverse_pe != 0)))):
+            raise ValueError("unknown target reference with nonzero energy partner on the graph")
+        auxiliary.update(physical_partner_nodes=pn, physical_partner_edges=pe,
+            physical_partner_reverse_edges=reverse_pe,
+            physical_partner_known_nodes=np.isfinite(pn), physical_partner_known_edges=np.isfinite(pe),
+            physical_partner_known_reverse_edges=np.isfinite(reverse_pe),
+            physical_energy_reference_residual=targets["energy_residual"])
+    for name, array in auxiliary.items():
+        value = data.process_input_array(name, np.ascontiguousarray(array))
+        setattr(data, name, value)
+        data._data[name] = value
+    physical_layout(data, processor.basis_table)
+    return data
+
+
+def load_physical_data(path, processor, *, requested, data_cls=BasisMatrixData):
+    """Load local FDF/TSHS/TSDE with an explicit diagonal, zero-offset MP grid.
+
+    TSDE supplies no independent geometry or overlap. Its physical channels are
+    read without overlap injection, preserving the original observation support.
+    """
+    requested = normalize_physical_labels(requested)
+    try:
+        path = Path(path)
+    except TypeError as error:
+        raise ValueError("physical labels require local FDF or explicitly prepared data") from error
+    if path.suffix.lower() != ".fdf":
+        raise ValueError("physical labels require a local FDF or explicitly prepared data")
+    fdf = sisl.get_sile(path)
+    try:
+        grid = np.asarray([line.split() for line in fdf.get("kgrid_Monkhorst_Pack", default=[])], dtype=float)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{path}: missing or unsupported explicit kpoint grid") from error
+    if (grid.shape != (3, 4) or not np.isfinite(grid).all()
+            or np.any(grid[:, 3] != 0) or np.any(grid[:, :3] != np.diag(np.diag(grid[:, :3])))
+            or np.any(np.diag(grid[:, :3]) <= 0) or np.any(grid[:, :3] != np.round(grid[:, :3]))):
+        raise ValueError(f"{path}: physical labels require a positive diagonal zero-offset kpoint grid")
+    if not requested or ("energy" not in requested and processor.out_matrix != "density_matrix"):
+        raise ValueError(f"{path}: charge-only preparation requires a DM prediction target")
+    label = fdf.get("SystemLabel", default="siesta")
+    sources = {name: Path(fdf.dir_file(label + suffix)) for name, suffix in (
+        ("overlap", ".TSHS"), ("density", ".TSDE"))}
+    for name, source in sources.items():
+        if not source.is_file():
+            raise ValueError(f"{path}: physical reference {name} is absent: {source}")
+    try:
+        overlap = fdf.read_overlap(order=["TSHS"])
+        reader = sisl.get_sile(sources["density"])
+
+        def physical_channels(matrix, name):
+            channels = _physical_channels(matrix, name)
+            return type(matrix).fromsp(matrix.geometry, [matrix.tocsr(c) for c in range(channels)])
+
+        density = physical_channels(reader.read_density_matrix(geometry=overlap.geometry.copy()), "density")
+        hamiltonian = energy_density = None
+        if "energy" in requested:
+            tshs_fermi = sisl.get_sile(sources["overlap"]).read_fermi_level()
+            tsde_fermi = reader.read_fermi_level()
+            if not (np.isfinite(tshs_fermi) and np.isfinite(tsde_fermi)
+                    and np.isclose(tshs_fermi, tsde_fermi, rtol=0, atol=1e-8)):
+                raise ValueError("TSHS/TSDE Fermi levels do not certify a common energy gauge")
+            hamiltonian = fdf.read_hamiltonian(order=["TSHS"], geometry=overlap.geometry.copy())
+            energy_density = physical_channels(reader.read_energy_density_matrix(
+                geometry=overlap.geometry.copy()), "energy_density")
+        mesh = sisl.MonkhorstPack(overlap.geometry, np.diag(grid[:, :3]).astype(int), centered=True, trs=False)
+        data = prepare_physical_data(processor, overlap=overlap, density=density,
+            hamiltonian=hamiltonian, energy_density=energy_density, kpoints=mesh.k,
+            kweights=mesh.weight, requested=requested, data_cls=data_cls)
+    except (OSError, ValueError, AttributeError) as error:
+        raise ValueError(f"{path}: physical reference loading failed: {error}") from error
+    data.metadata["physical_reference"] = {"fdf": str(path),
+        **{name: str(source) for name, source in sources.items()},
+        "kpoints": mesh.k.copy(), "kweights": mesh.weight.copy()}
+    return data
+
+
+def physical_layout(batch, basis_table):
+    """CPU ownership of flattened label rows, retaining orbital-less atoms."""
+    from .metrics import _as_numpy_int, _batch_field, _label_edge_mask, _node_graph, _num_structures
+
+    point_types = _as_numpy_int(_batch_field(batch, "point_types"))
+    edge_types = _as_numpy_int(_batch_field(batch, "edge_types"))
+    edge_index = _as_numpy_int(_batch_field(batch, "edge_index"))
+    sizes = basis_table.basis_size[point_types]
+    atom_structure = _node_graph(batch)
+    count = _num_structures(batch, atom_structure)
+    atoms_per_structure = np.bincount(atom_structure, minlength=count)
+    orbital_counts = np.bincount(atom_structure, weights=sizes, minlength=count)
+    if np.any(atoms_per_structure == 0) or np.any(orbital_counts == 0):
+        raise ValueError("physical objectives require nonempty structures and bases")
+    labelled = _label_edge_mask(_batch_field(batch, "edge_labels"), edge_types, edge_index, point_types, basis_table)
+    sources, targets = edge_index[:, labelled]
+    rows = sizes[sources] * sizes[targets]
+    return dict(physical_node_owner=np.repeat(np.arange(len(point_types)), sizes * sizes),
+        physical_edge_source=np.repeat(sources, rows), physical_edge_target=np.repeat(targets, rows),
+        physical_atom_structure=atom_structure, physical_atoms_per_structure=atoms_per_structure,
+        physical_symmetric=bool(not labelled.all()))

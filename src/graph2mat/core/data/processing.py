@@ -1625,7 +1625,13 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         kwargs["metadata"] = self._data["metadata"]
         kwargs["data_processor"] = kwargs["metadata"].get("data_processor")
 
-        return cls(**kwargs, already_basis=True)
+        copied = cls(**kwargs, already_basis=True)
+        for name in self._data:
+            if name.startswith("physical_"):
+                value = copied.process_input_array(name, np_arrays[name])
+                setattr(copied, name, value)
+                copied._data[name] = value
+        return copied
 
     def __init_subclass__(cls):
         # Register the python class as an alias for its format (which should be indicated

@@ -8,7 +8,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import List, Optional, Type, Union
+from typing import List, Optional, Sequence, Type, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -27,6 +27,7 @@ from graph2mat.bindings.torch.modules.graph2mat import torch_type_layout
 from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 from graph2mat.core.data.configuration import MatrixComponentPolicy, PhysicsMatrixType
 from graph2mat.core.data.node_feats import NodeFeature
+from graph2mat.core.data.physical import normalize_physical_labels, physical_layout
 
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
 
@@ -131,6 +132,11 @@ class TypeLayoutCollate:
 
     def __call__(self, data_list):
         batch = self.collate(data_list)
+        physical = {}
+        if getattr(batch, "physical_version", None) is not None:
+            physical = {name: torch.from_numpy(np.ascontiguousarray(value, dtype=np.int64))
+                if isinstance(value, np.ndarray) else value
+                for name, value in physical_layout(batch, self.basis_table).items()}
         if self.coefficient_projector is not None:
             try:
                 targets = self.coefficient_projector(batch, batch.point_labels, batch.edge_labels)
@@ -138,8 +144,11 @@ class TypeLayoutCollate:
                 targets = str(error)
             object.__setattr__(batch, COEFFICIENT_TARGETS_ATTR, targets)
         if not self.symmetric:
+            if physical:
+                object.__setattr__(batch, LAYOUT_ATTR, physical)
             return batch
         layout = torch_type_layout(batch.point_types.numpy(), batch.edge_types.numpy(), self.basis_table)
+        layout.update(physical)
         if getattr(batch, "point_labels", None) is not None:
             # Structure of every label element, for the per-structure losses
             # (gauge_invariant_mse): on the GPU it would cost a device -> host copy per step.
@@ -292,6 +301,7 @@ class MatrixDataModule(pl.LightningDataModule):
         split_seed: int = 32,
         val_fraction: float = 0.1,
         max_batch_cost: Optional[int] = None,
+        physical_labels: Optional[Sequence[str]] = None,
     ):
         """
 
@@ -341,6 +351,10 @@ class MatrixDataModule(pl.LightningDataModule):
                 ``gauge_invariant_mse`` (``spectral_weight``, roadmap 4.4). A string reads
                 that file instead, with any S-orthonormal columns (e.g. the near-null
                 directions of S, roadmap 4.7).
+            physical_labels: sequence of str or None
+                Opt-in charge/energy references from local FDF or explicitly prepared
+                samples. Requires compatible real matrix labels; no auxiliary reads
+                for unlabelled prediction. Default None preserves legacy loading.
             predict_labels: bool
                 Also load the labels of the structures to predict: a model with
                 ``long_range`` needs their overlap S (geometry only, as in H0).
@@ -402,6 +416,7 @@ class MatrixDataModule(pl.LightningDataModule):
         self.store_in_memory = store_in_memory
         self.rotating_pool_size = rotating_pool_size
         self.spectral_window = spectral_window
+        self.physical_labels = normalize_physical_labels(physical_labels)
         self.predict_labels = predict_labels
         self.split_seed = split_seed
         self.val_fraction = val_fraction
@@ -553,6 +568,7 @@ class MatrixDataModule(pl.LightningDataModule):
                     data_cls=TorchBasisMatrixData,
                     load_labels=split != "predict" or self.predict_labels,
                     spectral_window=self.spectral_window if split != "predict" else False,
+                    physical_labels=self.physical_labels,
                 )
 
                 setattr(self, "%s_dataset" % split, dataset)
@@ -690,7 +706,7 @@ class MatrixDataModule(pl.LightningDataModule):
         """Training and validation batches carry their type layout (symmetric matrices,
         the only case Graph2Mat's fast path covers)."""
         symmetric = self.data_processor.symmetric_matrix
-        if symmetric or coefficient_projector is not None:
+        if symmetric or coefficient_projector is not None or self.physical_labels:
             loader.collate_fn = TypeLayoutCollate(loader.collate_fn, self.data_processor.basis_table,
                                                  coefficient_projector=coefficient_projector, symmetric=symmetric)
         return loader

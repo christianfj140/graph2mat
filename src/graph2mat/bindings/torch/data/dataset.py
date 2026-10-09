@@ -14,7 +14,8 @@ import sisl
 import torch.utils.data
 from torch import multiprocessing
 
-from graph2mat import BasisConfiguration, MatrixDataProcessor
+from graph2mat import BasisConfiguration, BasisMatrixDataBase, MatrixDataProcessor
+from graph2mat.core.data.physical import normalize_physical_labels
 
 from .data import TorchBasisMatrixData
 
@@ -49,6 +50,9 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         or not for the configurations.
     load_labels :
         Whether to load the matrix labels or not.
+    physical_labels :
+        Optional charge/energy references from local FDF or prepared samples.
+        Disabled by default and never loaded when load_labels is False.
 
     See Also
     --------
@@ -90,12 +94,14 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         data_cls: Type[TorchBasisMatrixData] = TorchBasisMatrixData,
         load_labels: bool = True,
         spectral_window: Union[bool, str] = False,
+        physical_labels: Optional[Sequence[str]] = None,
     ):
         self.input_data = input_data
         self.data_processor = data_processor
         self.data_cls = data_cls
         self.load_labels = load_labels
         self.spectral_window = spectral_window
+        self.physical_labels = normalize_physical_labels(physical_labels)
 
         self._root_pid = os.getpid()
         self._worker_pid = None
@@ -109,9 +115,23 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
 
         item = self._fix_multiprocessing_zipfile(item)
 
-        data = self.data_cls.new(
-            item, data_processor=self.data_processor, labels=self.load_labels
-        )
+        if self.physical_labels and self.load_labels:
+            if isinstance(item, zipfile.Path):
+                raise ValueError("physical labels from ZIP are unsupported; use local FDF references")
+            if isinstance(item, BasisMatrixDataBase) and getattr(item, "physical_version", None) is not None:
+                required = int("charge" in self.physical_labels) + 2*int("energy" in self.physical_labels)
+                capabilities = item.ensure_numpy(item.physical_capabilities)
+                if capabilities.shape != (1,) or int(capabilities[0]) & required != required:
+                    raise ValueError("prepared physical data lack requested charge/energy references")
+                data = deepcopy(item if isinstance(item, self.data_cls) else item.copy(cls=self.data_cls))
+            else:
+                from graph2mat.core.data import physical
+                data = physical.load_physical_data(item, self.data_processor,
+                    requested=self.physical_labels, data_cls=self.data_cls)
+        else:
+            data = self.data_cls.new(
+                item, data_processor=self.data_processor, labels=self.load_labels
+            )
         if isinstance(item, (str, os.PathLike, zipfile.Path)) and str(item).endswith(".fdf"):
             # Total charge of the structure (SIESTA NetCharge, 0 by default), for models whose
             # charges depend on it (long_range="qeq", roadmap 8.4).
