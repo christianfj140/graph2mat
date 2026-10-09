@@ -859,6 +859,15 @@ class LitBasisMatrixModel(pl.LightningModule):
         objectives = [(name, fn) for name, fn in objectives if any(self._physical_weights(fn))]
         if not objectives:
             return
+        readouts = getattr(self.model, "matrix_readouts", self.model)
+        readouts = list(readouts) if isinstance(readouts, torch.nn.ModuleList) else [readouts]
+        components = [getattr(readout, "n_matrix_components",
+            self.model_kwargs.get("n_matrix_components")) for readout in readouts]
+        if (not components or any(not isinstance(n, int) or isinstance(n, bool) or n < 1
+                for n in components) or len(set(components)) != 1):
+            raise ValueError("physical preflight requires a declared, consistent model n_matrix_components")
+        n_components = components[0]
+        convention = None
 
         def loaders(value):
             if isinstance(value, DataLoader):
@@ -895,11 +904,21 @@ class LitBasisMatrixModel(pl.LightningModule):
                     name = "all physical objectives"
                     try:
                         batch = loader.collate_fn([dataset[index]])
+                        # Validate the actual declared output shape, not labels against themselves.
+                        out = {pred: batch[ref].new_zeros((len(batch[ref]),)
+                            if n_components == 1 else (len(batch[ref]), n_components))
+                            for pred, ref in (("node_labels", "point_labels"), ("edge_labels", "edge_labels"))}
                         for name, loss_fn in objectives:
+                            self._validate_pred_ref_shapes(out, batch,
+                                getattr(loss_fn, "overlap_prediction_optional", False))
                             with torch.no_grad():
-                                loss_fn(nodes_pred=batch["point_labels"], nodes_ref=batch["point_labels"],
-                                    edges_pred=batch["edge_labels"], edges_ref=batch["edge_labels"],
+                                loss_fn(nodes_pred=out["node_labels"], nodes_ref=batch["point_labels"],
+                                    edges_pred=out["edge_labels"], edges_ref=batch["edge_labels"],
                                     batch=batch, basis_table=self.basis_table)
+                        current = (int(batch["physical_kind"].item()), int(batch["physical_spin"].item()))
+                        if convention is not None and current != convention:
+                            raise ValueError("physical target/spin must agree across train/validation samples")
+                        convention = current
                     except (ValueError, TypeError, KeyError, AttributeError) as error:
                         raise ValueError(f"physical preflight {split} sample {index}, stage {name}: {error}") from error
 

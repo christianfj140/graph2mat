@@ -38,12 +38,12 @@ def double_precision():
         torch.set_default_dtype(previous)
 
 
-def physical_model(table, loss_kwargs, *, stages=None):
+def physical_model(table, loss_kwargs, *, stages=None, loss=elementwise_mse, n_components=1):
     return LitMACEMatrixModel(basis_table=table, symmetric_matrix=True,
         hidden_irreps="2x0e+2x1o", edge_hidden_irreps="2x0e+2x1o",
         num_bessel=2, max_ell=1, num_interactions=2, correlation=1,
-        n_matrix_components=1, coefficient_training=True,
-        loss=elementwise_mse, loss_kwargs=loss_kwargs, training_stages=stages).double()
+        n_matrix_components=n_components, coefficient_training=True,
+        loss=loss, loss_kwargs=loss_kwargs, training_stages=stages).double()
 
 
 def physical_loader(samples, table, batch_size=2):
@@ -132,7 +132,7 @@ def test_datamodule_two_steps_preserve_default_and_physical_contract(physics, tm
     module.teardown(None)
 
 
-@pytest.mark.parametrize("invalid", ["future_energy", "missing", "version", "spin", "target", "validation", "later_sample"])
+@pytest.mark.parametrize("invalid", ["future_energy", "missing", "version", "spin", "target", "validation", "later_sample", "later_spin", "later_kind", "model_components"])
 def test_preflight_fails_before_any_optimizer_step(invalid, tmp_path, monkeypatch):
     data, table = prepared_sample(requested=("charge",) if invalid in ("future_energy", "validation")
         else ("charge", "energy"), data_cls=TorchBasisMatrixData)
@@ -161,6 +161,16 @@ def test_preflight_fails_before_any_optimizer_step(invalid, tmp_path, monkeypatc
         bad = deepcopy(data)
         del bad.physical_version
         samples = [data, deepcopy(data), bad]
+    elif invalid in ("later_spin", "later_kind"):
+        bad, _ = prepared_sample(spin=2 if invalid == "later_spin" else 1,
+            target="hamiltonian" if invalid == "later_kind" else "density_matrix",
+            data_cls=TorchBasisMatrixData)
+        samples = [data, bad]
+        if invalid == "later_kind":
+            kwargs = {"energy_weight": 1.}
+    elif invalid == "model_components":
+        data, _ = prepared_sample(spin=2, data_cls=TorchBasisMatrixData)
+        samples = [data]
     model = physical_model(table, kwargs, stages=stages)
     assert isinstance(model.configure_optimizers(), torch.optim.Adam)
     before = {k: v.clone() for k, v in model.state_dict().items()}
@@ -170,10 +180,39 @@ def test_preflight_fails_before_any_optimizer_step(invalid, tmp_path, monkeypatc
         raise AssertionError("model forward ran before physical preflight")
     monkeypatch.setattr(torch.optim.Adam, "step", forbidden_step)
     monkeypatch.setattr(model.model, "forward", forbidden_forward)
+    if invalid in ("later_spin", "later_kind", "model_components"):
+        # Separate valid samples must still reject before the first batch updates.
+        monkeypatch.setattr(sys.modules[__name__], "physical_loader",
+            lambda samples, table: DataLoader(samples, batch_size=1,
+                collate_fn=TypeLayoutCollate(Batch.from_data_list, table, symmetric=True)))
     with pytest.raises(ValueError, match="physical|reference|energy|spin|density"):
         fit_physical(model, samples, table, tmp_path, max_epochs=2, val_samples=val_samples)
     for key, value in model.state_dict().items():
         torch.testing.assert_close(value, before[key], rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("gauge", [False, True])
+def test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs(gauge, tmp_path):
+    data, table = prepared_sample(target="hamiltonian" if gauge else "density_matrix",
+        spin=1 if gauge else 2, gauge=gauge, data_cls=TorchBasisMatrixData)
+    model = physical_model(table, {"energy_weight": .3},
+        loss=gauge_invariant_mse if gauge else elementwise_mse,
+        n_components=1 if gauge else 2)
+    trainer = fit_physical(model, [data], table, tmp_path)
+    assert trainer.global_step == 1
+
+
+def test_preflight_rejects_undeclared_custom_output_before_forward(tmp_path, monkeypatch):
+    samples, table = epoch_samples()
+    model = LitBasisMatrixModel(model_cls=_PredictionModel, basis_table=table,
+        loss=elementwise_mse, loss_kwargs={"energy_weight": 1.})
+    model.init_model()
+    monkeypatch.setattr(model, "configure_optimizers", lambda: torch.optim.Adam(model.parameters()))
+    def forbidden(*args, **kwargs):
+        raise AssertionError("custom forward ran before output contract validation")
+    monkeypatch.setattr(model.model, "forward", forbidden)
+    with pytest.raises(ValueError, match="physical preflight.*declared.*n_matrix_components"):
+        fit_physical(model, samples, table, tmp_path)
 
 
 def test_physical_iterable_rejected_without_consuming_it(tmp_path):
@@ -323,6 +362,7 @@ def test_stage_switches_reset_physical_epoch_weights(tmp_path):
     model = TrainPrediction(model_cls=_PredictionModel, basis_table=table,
         loss=elementwise_mse, training_stages=stages)
     model.init_model()
+    model.model.n_matrix_components = 1
     recorder = Recorder()
     trainer = pl.Trainer(accelerator="cpu", max_epochs=3, num_sanity_val_steps=0,
         logger=False, enable_checkpointing=False, enable_progress_bar=False,
@@ -420,6 +460,7 @@ def _ddp_physical(output, devices):
     model = Probe(model_cls=_PredictionModel, basis_table=table, loss=elementwise_mse,
         loss_kwargs={"electron_weight": 2., "mulliken_weight": 3., "energy_weight": 4.})
     model.init_model()
+    model.model.n_matrix_components = 1
     strategy = DDPStrategy(process_group_backend="gloo", start_method="popen") if devices == 2 else "auto"
     trainer = pl.Trainer(accelerator="cpu", devices=devices, strategy=strategy,
         max_epochs=1, num_sanity_val_steps=0, logger=False, enable_checkpointing=False,
