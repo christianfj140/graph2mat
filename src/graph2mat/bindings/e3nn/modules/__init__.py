@@ -14,5 +14,6 @@ from .hamiltonian_readout import *
 from .matrixblock import *
 from .dense_readout import *
 from .edge_operations import *
+from .slater_koster import *
 from .node_operations import *
 from .preprocessing import *

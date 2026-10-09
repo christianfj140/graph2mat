@@ -3,6 +3,11 @@
 import torch
 from e3nn import o3
 
+from .edge_operations import E3nnLowRankEdgeBlock, _ordered_inputs
+from .hamiltonian_readout import _extract_scalars, _scalar_dim
+
+__all__ = ["E3nnSlaterKosterEdgeBlock"]
+
 
 def _shells(point):
     offset = 0
@@ -92,3 +97,102 @@ def _sk_couplings(i_basis, j_basis, single_irreps_out, change_of_basis):
     if len(assigned) != len(instances):
         raise ValueError("Q has unassigned shell-pair coefficients.")
     return groups
+
+
+class E3nnSlaterKosterEdgeBlock(torch.nn.Module):
+    """Experimental neural two-center SK prior plus the existing 7.1 residual.
+
+    Predicts sigma/pi/delta/phi integrals per radial shell pair and real matrix
+    component. Angular dependence uses global spherical harmonics, not an
+    arbitrary transverse frame. Anisotropic environment corrections remain in
+    the low-rank equivariant residual. This is not a general SO(2) convolution
+    or an equivalent replacement of the full-width default readout.
+
+    Requires directed periodic ``edge_vectors`` in the feature/orbital basis
+    and enveloped 0e ``edge_feats``. Both branches vanish at radial zero. Only
+    real C1/C2, natural-parity s/p/d/f and offsite ``ij`` are supported.
+    """
+
+    _data_get_edge_args = ("edge_feats", "edge_vectors")
+    requires_zero_edge_shift = True
+
+    def __init__(self, irreps_in, irreps_out, edge_feats_irreps,
+                 i_basis, j_basis, single_irreps_out, change_of_basis,
+                 symmetry="ij", n_matrix_components=1, rank=4):
+        super().__init__()
+        if (symmetry != "ij" or isinstance(n_matrix_components, bool)
+                or not isinstance(n_matrix_components, int) or n_matrix_components not in (1, 2)):
+            raise ValueError("SK supports only offsite ij and real C1/C2 (not SOC).")
+        self.single_irreps_out = o3.Irreps(single_irreps_out)
+        self.irreps_out = o3.Irreps(irreps_out)
+        self.n_matrix_components = n_matrix_components
+        if self.irreps_out != self.single_irreps_out * n_matrix_components:
+            raise ValueError("SK output irreps disagree with component layout.")
+        groups = _sk_couplings(i_basis, j_basis, self.single_irreps_out, change_of_basis)
+        self._sk_groups = []
+        offset = 0
+        for index, (segments, transform) in enumerate(groups):
+            self.register_buffer(f"sk_transform_{index}", transform.clone())
+            end = offset + transform.shape[1]
+            self._sk_groups.append((segments, offset, end))
+            offset = end
+        self.n_integrals = offset
+        self.sk_irreps = tuple({o3.Irrep(L, (-1)**L)
+                                for segments, _, _ in self._sk_groups for _, _, L in segments})
+        self.residual = E3nnLowRankEdgeBlock(irreps_in, irreps_out, edge_feats_irreps, rank=rank)
+        self.input_irreps = self.residual.input_irreps
+        condition_dim = self.residual.edge_feats_irreps.dim + 2 * sum(
+            _scalar_dim(source) for source in self.input_irreps)
+        self.sk_net = torch.nn.Sequential(
+            torch.nn.Linear(condition_dim, 32), torch.nn.SiLU(),
+            torch.nn.Linear(32, n_matrix_components * self.n_integrals),
+        )
+
+    def _sk_coefficients(self, integrals, vectors):
+        # Scale before taking the norm: tiny nonzero vectors must retain direction.
+        scaled = vectors / vectors.abs().amax(dim=-1, keepdim=True)
+        unit = scaled / torch.linalg.vector_norm(scaled, dim=-1, keepdim=True)
+        n, C = integrals.shape[:2]
+        out = integrals.new_zeros((n, C, self.single_irreps_out.dim))
+        harmonics = {}
+        for index, (segments, begin, end) in enumerate(self._sk_groups):
+            amplitudes = integrals[:, :, begin:end] @ getattr(self, f"sk_transform_{index}").T
+            for k, (start, stop, L) in enumerate(segments):
+                if L not in harmonics:
+                    harmonics[L] = o3.spherical_harmonics(L, unit, False, normalization="component")
+                out[:, :, start:stop] = amplitudes[:, :, k:k+1] * harmonics[L][:, None, :]
+        return out.reshape(n, C * self.single_irreps_out.dim)
+
+    def forward(self, edge_feats=None, edge_vectors=None, **tuple_kwargs):
+        if (set(tuple_kwargs) - {"node_feats", "edge_messages"}
+                or len(tuple_kwargs) != len(self.input_irreps)):
+            raise ValueError("SK sources must match declared node_feats/edge_messages irreps.")
+        pairs = _ordered_inputs(tuple_kwargs)
+        if (not isinstance(pairs[0], tuple) or len(pairs[0]) != 2
+                or not isinstance(pairs[0][0], torch.Tensor) or pairs[0][0].ndim != 2):
+            raise ValueError("SK sources must be pairs of 2D tensors.")
+        n = pairs[0][0].shape[0]
+        reference = self.sk_net[0].weight
+        def validate(name, pair, dim):
+            self.residual._validate_pair(name, pair, (n, dim))
+            if any(v.dtype != reference.dtype or v.device != reference.device
+                   or not torch.isfinite(v).all() for v in pair):
+                raise ValueError(f"SK {name} must be finite real tensors matching model dtype/device.")
+        validate("edge_feats", edge_feats, self.residual.edge_feats_irreps.dim)
+        validate("edge_vectors", edge_vectors, 3)
+        for source, pair in zip(self.input_irreps, pairs):
+            validate("source", pair, source.dim)
+        v, reverse = edge_vectors
+        if torch.any(v.abs().amax(-1) == 0):
+            raise ValueError("SK edge_vectors must have nonzero length.")
+        if not torch.allclose(reverse, -v, rtol=32*torch.finfo(v.dtype).eps, atol=0):
+            raise ValueError("SK directed edge_vectors must be opposite paired directions.")
+        radial = (edge_feats[0] + edge_feats[1]) * 0.5
+        condition = [radial]
+        for source, pair in zip(self.input_irreps, pairs):
+            for value in pair:
+                condition.extend(_extract_scalars(value, source))
+        gate = torch.tanh(radial.square().sum(-1, keepdim=True))
+        integrals = (self.sk_net(torch.cat(condition, -1)) * gate).reshape(
+            n, self.n_matrix_components, self.n_integrals)
+        return self._sk_coefficients(integrals, v) + self.residual(edge_feats=edge_feats, **tuple_kwargs)

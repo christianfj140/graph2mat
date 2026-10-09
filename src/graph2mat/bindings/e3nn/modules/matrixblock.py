@@ -50,6 +50,9 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
 
         self.i_irreps = i_irreps
         self.j_irreps = j_irreps
+        self.i_basis = i_basis
+        self.j_basis = j_basis
+        self.symmetry = symmetry
 
         self.n_matrix_components = n_matrix_components
         self.symm_transpose = symm_transpose
@@ -76,6 +79,9 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
             if ir is not None
         ]
         missing = unreachable_irreps(irreps_in, self._irreps_out) if irreps_in else None
+        if missing is not None:
+            angular = getattr(self.operation, "sk_irreps", ())
+            missing = o3.Irreps([(mul, ir) for mul, ir in missing if ir not in angular])
         if missing is not None and missing.dim > 0:
             warnings.warn(
                 f"Block ({i_irreps}) x ({j_irreps}): output irreps {missing.simplify()} "
@@ -116,6 +122,9 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
     def _compute_coefficients(self, *args, **kwargs):
         coefficients = self.operation(*args, **kwargs)
         if self.output_scaleshift:
+            if (getattr(self.operation, "requires_zero_edge_shift", False)
+                    and torch.any(self.output_shift != 0)):
+                raise ValueError("SK output shift must remain zero to preserve the cutoff.")
             coefficients = coefficients * self.output_scale + self.output_shift
         return coefficients
 
@@ -140,6 +149,8 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         kept, floored at ``rel_floor`` times the largest one so that almost-empty
         channels are not amplified.
         """
+        if shift_scalars and getattr(self.operation, "requires_zero_edge_shift", False):
+            raise ValueError("SK edge shift must be disabled to preserve the cutoff.")
         ids, scalar = self._irrep_instances()
         ids, scalar = ids.to(coefficients.device), scalar.to(coefficients.device)
         shift = coefficients.mean(0) * scalar if shift_scalars else torch.zeros_like(coefficients[0])
@@ -244,6 +255,10 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
             if irrep is not None
         ]
         irreps["irreps_out"] = self._irreps_out
+        irreps.update(i_basis=self.i_basis, j_basis=self.j_basis,
+                      single_irreps_out=self._single_irreps_out,
+                      change_of_basis=self.change_of_basis,
+                      symmetry=self.symmetry, n_matrix_components=self.n_matrix_components)
 
         for k in op_sig.parameters:
             if k in irreps:
