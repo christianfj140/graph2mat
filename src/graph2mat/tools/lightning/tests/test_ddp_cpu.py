@@ -105,6 +105,138 @@ def _run_training_script(output_dir, layout):
     return json.loads((output_dir / "result.json").read_text())
 
 
+def _fit_cost_epoch_metrics(output_dir, variant):
+    import numpy as np
+    import pytorch_lightning as pl
+    import torch
+    from pytorch_lightning.strategies import DDPStrategy
+    from graph2mat import BasisConfiguration, BasisTableWithEdges, MatrixDataProcessor, PointBasis
+    from graph2mat.bindings.torch import TorchBasisMatrixData
+    from graph2mat.core.data.metrics import elementwise_mse
+    from graph2mat.tools.lightning import MatrixDataModule
+    from graph2mat.tools.lightning.data import _CostBatchSampler
+    from graph2mat.tools.lightning.model import LitBasisMatrixModel
+    from graph2mat.tools.lightning.tests.test_epoch_metrics import _PredictionModel
+
+    components, order = variant.split(":")
+    components = int(components)
+    pl.seed_everything(0 if order == "workers" else 1 if order in ("variable", "single") else 12, workers=True)
+    table = BasisTableWithEdges([PointBasis("A", R=1, basis=[1])])
+    processor = MatrixDataProcessor(basis_table=table, symmetric_matrix=True, sub_point_matrix=False)
+    samples = []
+    counts = [3, 1, 3, 1, 3, 1, 1 if order in ("variable", "single") else 3]
+    if order == "workers":
+        counts = [3, 1, 1, 1, 1]
+    for index, count in enumerate(counts):
+        config = BasisConfiguration(point_types=["A"] * count,
+            positions=np.array([[j * .7, 0., 0.] for j in range(count)]), basis=table,
+            cell=np.eye(3) * 20, pbc=(False, False, False), matrix=np.zeros((count, count)),
+            metadata={"id": index})
+        sample = TorchBasisMatrixData.from_config(config, processor)
+        if components == 2:
+            sample.point_labels = sample.point_labels[:, None].expand(-1, 2).clone()
+            sample.edge_labels = sample.edge_labels[:, None].expand(-1, 2).clone()
+        sample.node_prediction = torch.zeros_like(sample.point_labels) + index + 1
+        sample.edge_prediction = torch.zeros_like(sample.edge_labels) + index + .5
+        if components == 2:
+            sample.node_prediction[:, 1] *= 2
+            sample.edge_prediction[:, 1] *= 2
+        samples.append(sample)
+
+    class CostData(MatrixDataModule):
+        def train_dataloader(self):
+            loader = super().train_dataloader()
+            if order == "ordered":
+                from torch_geometric.loader import DataLoader
+                sampler = _CostBatchSampler(torch.utils.data.SequentialSampler(self.train_dataset),
+                    self.batch_size, False, loader.batch_sampler.costs, self.max_batch_cost,
+                    epoch=self.trainer.current_epoch)
+                loader = self._with_type_layout(DataLoader(self.train_dataset,
+                    batch_sampler=sampler, **self._loader_kwargs()))
+            return loader
+
+    class TrainModel(LitBasisMatrixModel):
+        def configure_optimizers(self):
+            return torch.optim.SGD(self.parameters(), lr=0)
+
+    class Recorder(pl.Callback):
+        def __init__(self):
+            self.epochs, self.batches = [], []
+        def on_train_start(self, trainer, pl_module):
+            sampler = trainer.train_dataloader.batch_sampler
+            assert isinstance(sampler, _CostBatchSampler), "DDP silently used fixed batching"
+            if order not in ("single", "workers"):
+                assert type(sampler.sampler) is torch.utils.data.DistributedSampler
+        def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+            ids = batch.metadata["id"].tolist()
+            proxy = sum(counts[index] ** 2 * components for index in ids)
+            assert proxy <= 9 * components, "budget violated by fixed batching"
+            self.batches.append(ids)
+        def on_train_epoch_end(self, trainer, pl_module):
+            self.epochs.append(dict(batches=self.batches,
+                padding=trainer.train_dataloader.batch_sampler.padding_batches,
+                metrics={name: float(trainer.callback_metrics["train_" + name + "_epoch"])
+                         for name in ("loss", "node_rmse", "edge_rmse")}))
+            self.batches = []
+
+    module = CostData(basis_table=table, train_runs=samples, val_runs=[], n_matrix_components=components,
+        symmetric_matrix=True, sub_point_matrix=False, batch_size=5,
+        loader_threads=2 if order == "workers" else 0,
+        max_batch_cost=9 * components)
+    model = TrainModel(model_cls=_PredictionModel, basis_table=table, loss=elementwise_mse)
+    model.init_model()
+    recorder = Recorder()
+    trainer = pl.Trainer(accelerator="cpu", devices=1 if order in ("single", "workers") else 2, max_epochs=2,
+        overfit_batches=1.0 if order == "ordered" else 0.0,
+        strategy="auto" if order in ("single", "workers") else DDPStrategy(process_group_backend="gloo", start_method="popen"),
+        logger=False, enable_checkpointing=False, enable_progress_bar=False,
+        enable_model_summary=False, default_root_dir=output_dir, callbacks=[recorder], num_sanity_val_steps=0)
+    trainer.fit(model, datamodule=module)
+    result = dict(world_size=trainer.world_size, global_step=trainer.global_step, epochs=recorder.epochs)
+    (Path(output_dir) / f"rank{trainer.global_rank}.json").write_text(json.dumps(result))
+    if trainer.is_global_zero:
+        (Path(output_dir) / "result.json").write_text(json.dumps(result))
+    module.teardown(None)
+
+
+@pytest.mark.parametrize("components,order", [(1, "ordered"), (2, "shuffled"), (1, "variable"), (1, "single"), (1, "workers")])
+def test_two_cpu_ranks_cost_batches_keep_coverage_padding_and_epoch_metrics(tmp_path, components, order):
+    _run_training_script(tmp_path, f"cost_batching:{components}:{order}")
+    results = [json.loads((tmp_path / f"rank{rank}.json").read_text())
+               for rank in range(1 if order in ("single", "workers") else 2)]
+    counts = [3, 1, 3, 1, 3, 1, 1 if order in ("variable", "single") else 3]
+    if order == "workers":
+        counts = [3, 1, 1, 1, 1]
+    for epoch in range(2):
+        batches = [rank["epochs"][epoch]["batches"] for rank in results]
+        assert len({len(rank) for rank in batches}) == 1
+        indices = [index for rank in batches for batch in rank for index in batch]
+        assert set(indices) == set(range(len(counts)))
+        node_sse = sum(counts[index] * (index + 1) ** 2 for index in indices)
+        node_count = sum(counts[index] for index in indices)
+        edge_sse = sum(3 * (index + .5) ** 2 for index in indices if counts[index] == 3)
+        edge_count = sum(3 for index in indices if counts[index] == 3)
+        factor = 1. if components == 1 else 2.5
+        expected = dict(loss=factor * (node_sse + edge_sse) / (node_count + edge_count),
+                        node_rmse=(factor * node_sse / node_count) ** .5,
+                        edge_rmse=(factor * edge_sse / edge_count) ** .5)
+        for rank in results:
+            assert rank["epochs"][epoch]["metrics"] == pytest.approx(expected)
+    if order == "ordered":
+        assert results[0]["epochs"][0]["batches"] == [[0], [2], [4], [6]]
+        assert results[1]["epochs"][0]["batches"] == [[1, 3, 5], [0], [1, 3, 5], [0]]
+        assert [rank["epochs"][0]["padding"] for rank in results] == [0, 2]
+    elif order in ("shuffled", "variable"):
+        assert results[0]["epochs"][0]["batches"] != results[0]["epochs"][1]["batches"]
+    if order == "variable":
+        assert [len(epoch["batches"]) for epoch in results[0]["epochs"]] == [3, 4]
+    if order in ("single", "workers"):
+        for epoch in results[0]["epochs"]:
+            assert sorted(index for batch in epoch["batches"] for index in batch) == list(range(len(counts)))
+    if order == "workers":
+        assert [len(epoch["batches"]) for epoch in results[0]["epochs"]] == [3, 2]
+
+
 def _fit_pair_epoch_metrics(output_dir, variant):
     import pytorch_lightning as pl
     import torch
@@ -488,7 +620,9 @@ def test_two_cpu_ranks_reduce_density_electron_denominators_and_counters(tmp_pat
 
 
 if __name__ == "__main__":
-    if sys.argv[2].startswith("epoch_density:"):
+    if sys.argv[2].startswith("cost_batching:"):
+        _fit_cost_epoch_metrics(sys.argv[1], sys.argv[2].split(":", 1)[1])
+    elif sys.argv[2].startswith("epoch_density:"):
         _evaluate_epoch_metrics(sys.argv[1], False, density=sys.argv[2].split(":", 1)[1])
     elif sys.argv[2].startswith("epoch_relative:"):
         _evaluate_epoch_metrics(sys.argv[1], False, relative=sys.argv[2].split(":", 1)[1])
@@ -504,3 +638,7 @@ if __name__ == "__main__":
         _evaluate_epoch_metrics(sys.argv[1], sys.argv[2].endswith("spin"), "huber" in sys.argv[2], "physical" in sys.argv[2])
     else:
         _fit(sys.argv[1], sys.argv[2])
+    import torch.distributed as distributed
+
+    if distributed.is_initialized():
+        distributed.destroy_process_group()

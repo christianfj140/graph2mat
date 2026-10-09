@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL `superpowers:executing-plans`.
 > Ejecución directa/TDD, mismo checkout, sin agentes por tarea; revisión final
-> independiente solo al cerrar el goal completo. **Aún no implementado.**
+> independiente solo al cerrar el goal completo. **Verificado CPU; commit/task-done por registrar.**
 
 **Goal:** Opt-in para limitar un proxy explícito de coste por batch sin perder
 muestras, romper métricas/lifecycle o producir diferente número de pasos DDP.
@@ -24,8 +24,8 @@ Validation/test/predict conservan loaders actuales; no opciones extra.
 **Tech Stack:** Python>=3.9, Torch/PyG/Lightning/NumPy existentes.
 
 **Spec:** roadmap_precision_rendimiento.md Task2/6.4 y docs/data_loading.rst.
-Preparado mientras source/tests6.2 están congelados. No iniciar Task1 hasta que
-6.2 tenga fullCPU/commit/task-done cerrados.
+Preparado mientras source/tests6.2 estaban congelados. Task1 iniciado después
+del cierre fullCPU/commit/task-done de6.2, BASE903a132.
 
 ## Global Constraints
 
@@ -36,6 +36,9 @@ Preparado mientras source/tests6.2 están congelados. No iniciar Task1 hasta que
   optimización. Comparaciones posteriores con presupuesto de updates pareado.
 - No silently_drop/pad: registrar DDP padding y contar realmente lo evaluado.
 - No nuevas dependencias, sampler de pares ni generalización a custom samplers.
+- Ruling tras RED real: opt-in activa con warning el ajuste público de Lightning
+  reload_dataloaders_every_n_epochs=1 y captura época antes de len/reinyección;
+  sin ello Lightning trunca épocas posteriores más largas. Datasets/costes reutilizados.
 
 ## Review Focus
 
@@ -74,7 +77,9 @@ padding de samples del sampler nativo, añade padding explícito de batches.
 No copiar internals de Torch. Custom distributed samplers no certificables:
 error explícito en opt-in, default intacto. Cache plan por epoch; __len__ y
 __iter__ usan mismo plan. Single RandomSampler con generator privado sembrado
-desde torch.initial_seed; plan invalidado al terminar iterator, no por len.
+desde torch.initial_seed+epoch. Trainer retiene el plan durante toda la época,
+incluso si prefetch agota el sampler; siguiente loader/epoch lo reemplaza.
+Standalone sin Trainer invalida al terminar iterator, no por len.
 Probar reinyección real Lightning, no solo sampler aislado.
 
 ### Task 1: sampler, integración train y verificación distribuida
@@ -88,28 +93,33 @@ docs/data_loading.rst, benchmark/informe en auditorias_mejoras y roadmaps.
 **Interfaces:** Consume dataset train/Subset/sampler/BasisTable existentes;
 produce batches normales PyG/TypeLayoutCollate. No export público nuevo.
 
-- [ ] Step 1: task-start/brief/BASE; releer callers/stages/DDP/pair_loss y validar
+- [x] Step 1: task-start/brief/BASE; releer callers/stages/DDP/pair_loss y validar
   diseño mínimo con APIs locales de ambos entornos antes de editar producto.
-- [ ] Step 2: RED greedy budget/límite batch_size/cobertura/último/oversize/ghost,
+- [x] Step 2: RED greedy budget/límite batch_size/cobertura/último/oversize/ghost,
   enteros positivos (rechazar bool/float/no finitos) antes de I/O, len estable,
   reproducibilidad misma semilla/época y variación entre épocas; dataset intacto.
-- [ ] Step 3: parche mínimo sampler interno, cache plan y prepasscosts train;
+- [x] Step 3: parche mínimo sampler interno, cache plan y prepasscosts train;
   RED/verde default loader igual, flag opcional guardado, Subset y collation
   matrix/coeficientes, workers0/2 spawn/fork, ZIP/stages/resource ownership.
-- [ ] Step 4: DDP real2ranks, costes muy desiguales y número impar de muestras;
+- [x] Step 4: DDP real2ranks, costes muy desiguales y número impar de muestras;
   misma longitud por rank/epoch sin hang, reinyección/set_epoch reales, muestras
   originales cubiertas, padding declarado y métricas SSE/count igual al literal
   de todos los batches efectivamente procesados. Control negativo debe detectar
   el camino viejo/fijo si el entrenamiento no usa cost sampler. Retirarlo.
-- [ ] Step 5: paired_loss/reemplazo loss por etapas incompatible falla antes
+- [x] Step 5: paired_loss/reemplazo loss por etapas incompatible falla antes
   del backbone, no parejas separadas silenciosamente; rotatingpool y custom
   samplers no certificados fallan con explicación sin cambiar default.
-- [ ] Step 6: benchmark mismo conjunto congelado, layout/dtype/model y total
+- [x] Step 6: benchmark mismo conjunto congelado, layout/dtype/model y total
   trabajo, medir prepass/inicialización/RAM/collate y dispersión de costes;
   GPU solo libre, allocated/reserved/paso/throughput y oversize documentados.
   Primaria reducción de pico del proxy sin pérdida de muestras; no regresión
   numérica de predicciones para batch partitions (float64 tolerancia1e-10),
   métricas epoch por elementos. No concluir precisión con smoke ni equivalencia.
+  CPU: pico proxy313152→178944, cobertura exacta; collate1.307→2.557ms,
+  inicialización.153→17.625ms. Equivalencia MACE real C1/C2 simétrico/dirigido.
+  GPU con cómputo ajeno: recurso ausente; no beneficio VRAM/velocidad GPU demostrado.
 - [ ] Step 7: focused/floor3.9/fullCPU final source/tests congelados;
   Ruff/mypy-core/compile39/diff, docs/roadmaps, commit explícito y task-done real.
   Luego7.1; medidas GPU/precisión siguen abiertas si faltan recursos/datos.
+  FinalCPU2209pasan/2omitidos/26518warnings/634.88s,exit0; focused40 y floor40
+  verdes. Source/tests congelados; benchmark repetido con hash finaled975e57.

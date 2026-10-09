@@ -153,17 +153,19 @@ el camino certificado. Precisión mayor no es un requisito intrínseco de 5.3.
 `TypeLayoutCollate`, conversiones sparse y dataloaders existentes. Produce
 caché CPU reutilizable, conversiones equivalentes y batching de coste explícito.
 
-- [ ] Perfilar cada tramo antes de optimizarlo y escribir su plan acotado.
+- [x] Perfilar cada tramo antes de optimizarlo y escribir su plan acotado.
 - [x] Caché de tensores opt-in: delimitar ownership/invalidez y comprobar que
   mutar una muestra no altera accesos futuros; registrar RAM y coste inicial.
 - [x] Vectorizar los tramos medidos de CSR/bloques y reconstrucción, sin
   densificar la matriz global; contrastar elementos y gradientes donde aplique.
 - [x] Probar imágenes periódicas, bloques ausentes, multi-componente y orden.
-- [ ] Introducir lotes por coste de aristas/orbitales con presupuesto declarado;
+- [x] Introducir lotes por coste de aristas/orbitales con presupuesto declarado;
   estructura sobredimensionada produce singleton o error explícito documentado.
-- [ ] Probar determinismo, cobertura de muestras, último lote, métricas y DDP;
+- [x] Probar determinismo, cobertura de muestras, último lote, métricas y DDP;
   documentar que agrupar distinto puede cambiar la trayectoria de optimización.
 - [ ] Ejecutar lifecycle/ZIP/stages previos y medir carga, paso, pico y RAM.
+  CPU/cobertura/DDP y fullCPU final2209pasan/2omitidos verificados. Medida del
+  paso/pico GPU pendiente de hardware libre, no completada como beneficio VRAM.
 
 Expected: mismas conversiones; caché segura; sampler sin pérdida accidental de
 muestras. No asumir que caching reduce VRAM ni que batching siempre usa menos memoria.
@@ -652,3 +654,44 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   readonly de proxy/bytes en fixture desigual, no evidencia de sampler/GPU.
 - Producto22029ca; task-done real222pasan/68warnings/5.91s,exit0, rango
   cc334f0..22029ca. Subplan completo CPU; siguiente ejecutar6.4 desde su plan.
+
+### Task2.c — batching por coste6.4 (2026-10-09)
+
+- Subplan plan_batching_coste.md, BASE903a132; mismo checkout, sin agentes por
+  tarea ni nuevas dependencias. Único flag max_batch_cost=None conserva defaults.
+- Proxy C*(sum n_i² + sum_directed_edges n_i*n_j), greedy + límite batch_size,
+  oversize singleton avisado, sin pérdida/último drop. Cache enteros por dataset
+  train efectivo/Subset, replacement/finalteardown invalidan. RotatingPool y
+  custom samplers incompatibles; pairloss guard antes del backbone y tras etapas.
+- DDP nativo reinyectado, máximo de batches sobre shards simulado con fábrica
+  Torch/seed/epoch; repite batches locales para igualar pasos, logging explícito
+  y métricas de todos los elementos procesados, incluidos repeats/padding nativo.
+- Hallazgo RED: Lightning cacheaba primera longitud y truncaba épocas3→4;
+  single perdía muestras1,2. Opt-in habilita reload_dataloaders_every_n_epochs=1
+  con warning; ctor privado captura época antes de len/reinyección. Sin API
+  interna Trainer; datasets/costcache reutilizados. None no toca ese ajuste.
+- Finalfocused40pasan/659warnings/32.75s y floor3.9 40pasan/328warnings/29.03s,
+  exit0 ambos: workers0/2 spawn/fork, ZIP/Subset/ghost/defaults, coeffcollate,
+  MACE float64 C1/C2 symmetric/directed rtol/atol1e-10; cinco fits reales
+  ordered/padding,shuffledC2,DDP3→4,single,workers2. Control negativo camino fijo falló
+  en ambos ranks al assert de ruta; restaurado antes de gates finales.
+- Benchmark CPU sintético,12muestras4/16/72/128,C2dirigido,3warmups/12rondas
+  alternadas: pico proxy313152→178944 y tensorbytes1309384→748104 (≈−43%).
+  Oversize128 solo, no cota VRAM. Collate1.307→2.557ms (+96%); lazy+collate
+  17.834→19.412ms (+8.8%). Prepassloader.153→17.625ms,RSSdelta16→3144KiB,
+  cacheenteros472bytes. No ganancia velocidadCPU ni evaluación científica.
+- Ruff explícito/all-files, mypy-core y compile39 verdes. Source/tests congelados,
+  fullCPU final2209pasan/2omitidos/26518warnings/634.88s,exit0. GPU al comprobar
+  5671MiB/100% con cómputo ajeno: sin lanzamiento propio.
+  informe_batching_coste.md y bench_batching_coste.py. Implementación verificada
+  enfocada; beneficio proxy favorable, GPU/VRAM/precisión recurso ausente/no medidos.
+  Goal general abierto; siguiente diseño/perfil7.1.
+- Primerfull2207pasan/2skip + SIGABRT al salir de antigua prueba DDP, métricas
+  correctas; limpieza explícita Gloo en __main__ del script propio, sin retries.
+  Después75pasan en3.12/3.9 y full2208/2skip,653.69s,exit0. Esta full es histórica
+  antes del último fix: revisión final REDprefetch workers2 perdía ids1,2,3 al
+  invalidar plan antes del len posterior de Lightning. Retener plan durante
+  toda época Trainer lo corrige; standalone conserva RNG entre iteraciones.
+  Final40enfocados verdes en ambos perfiles; full final2209/2skip exit0.
+  Hashdata.py ed975e57... coincide con benchmark final. Commit/task-done por
+  registrar; evaluación GPU pendiente y goal general abierto.

@@ -390,6 +390,11 @@ class LitBasisMatrixModel(pl.LightningModule):
         return True
 
     def training_step(self, batch, batch_idx):
+        datamodule = getattr(self._trainer, "datamodule", None)
+        if (getattr(datamodule, "max_batch_cost", None) is not None
+                and isinstance(self.loss_fn, metrics_module.pair_difference_mse)):
+            raise ValueError("max_batch_cost is incompatible with pair_difference_mse: "
+                             "partners must remain in the same batch.")
         coefficient_only = self._can_train_coefficients(batch)
         matrix_stats = None
         if coefficient_only:

@@ -31,6 +31,79 @@ from graph2mat.core.data.node_feats import NodeFeature
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
 
 
+class _CostBatchSampler(torch.utils.data.BatchSampler):
+    """Greedy matrix-element proxy budget; oversize samples remain singletons.
+
+    DDP repeats local batches to equalize steps, in addition to native sample
+    padding. Neither budget nor padding is a bound on VRAM.
+    """
+
+    def __init__(self, sampler, batch_size, drop_last, costs, max_batch_cost, epoch=None):
+        super().__init__(sampler, batch_size, drop_last)
+        if type(sampler) not in (torch.utils.data.SequentialSampler, torch.utils.data.RandomSampler,
+                                 torch.utils.data.DistributedSampler):
+            raise ValueError("Cost batching requires a standard sequential/random/distributed sampler.")
+        if drop_last:
+            raise ValueError("Cost batching requires drop_last=False to preserve coverage.")
+        if epoch is not None and type(sampler) is torch.utils.data.DistributedSampler:
+            sampler.set_epoch(epoch)
+        self.costs = tuple(costs)
+        self.max_batch_cost = max_batch_cost
+        self.padding_batches = 0
+        self._plan = None
+        self._epoch = None
+        self._retain_plan = epoch is not None
+        oversize = sum(cost > max_batch_cost for cost in self.costs)
+        if oversize:
+            logging.warning("Cost batching: %s samples exceed max_batch_cost=%s; emitted as singletons, not an OOM guarantee.", oversize, max_batch_cost)
+
+    def _pack(self, indices):
+        batches, batch, total = [], [], 0
+        for index in indices:
+            cost = self.costs[index]
+            if batch and (total + cost > self.max_batch_cost or len(batch) >= self.batch_size):
+                batches.append(batch)
+                batch, total = [], 0
+            batch.append(index)
+            total += cost
+        if batch:
+            batches.append(batch)
+        return batches
+
+    def _batches(self):
+        epoch = getattr(self.sampler, "epoch", None)
+        if self._plan is not None and self._epoch == epoch:
+            return self._plan
+        batches = self._pack(self.sampler)
+        self.padding_batches = 0
+        if type(self.sampler) is torch.utils.data.DistributedSampler:
+            source = self.sampler
+            maximum = len(batches)
+            for rank in range(source.num_replicas):
+                other = torch.utils.data.DistributedSampler(source.dataset, num_replicas=source.num_replicas,
+                    rank=rank, shuffle=source.shuffle, seed=source.seed, drop_last=source.drop_last)
+                other.set_epoch(source.epoch)
+                maximum = max(maximum, len(self._pack(other)))
+            self.padding_batches = maximum - len(batches)
+            if self.padding_batches:
+                logging.warning("Cost batching rank %s epoch %s: repeating %s batches to equalize DDP steps; metrics include repeats.", source.rank, source.epoch, self.padding_batches)
+                original = list(batches)
+                batches.extend(original[index % len(original)] for index in range(self.padding_batches))
+        self._plan, self._epoch = batches, epoch
+        return batches
+
+    def __iter__(self):
+        try:
+            yield from self._batches()
+        finally:
+            # Workers may exhaust prefetch before Lightning measures the epoch length.
+            if not self._retain_plan:
+                self._plan = None
+
+    def __len__(self):
+        return len(self._batches())
+
+
 def _cleanup_temporary_root(directory, root, owner_pid):
     """Never remove another process's temporary data after fork."""
     if os.getpid() != owner_pid:
@@ -218,6 +291,7 @@ class MatrixDataModule(pl.LightningDataModule):
         predict_labels: bool = False,
         split_seed: int = 32,
         val_fraction: float = 0.1,
+        max_batch_cost: Optional[int] = None,
     ):
         """
 
@@ -275,6 +349,11 @@ class MatrixDataModule(pl.LightningDataModule):
             val_fraction: float
                 Fraction drawn for validation if no explicit validation data is given.
                 Must be in [0, 1); at least one training sample is retained.
+            max_batch_cost: int, optional
+                Training-only matrix-element proxy budget. Oversize samples are
+                singletons; batch_size remains a structure-count limit. DDP may
+                repeat batches to equalize steps. Not a VRAM/OOM guarantee.
+                Enables Lightning loader reload each epoch to refresh its length.
 
         """
         super().__init__()
@@ -282,6 +361,13 @@ class MatrixDataModule(pl.LightningDataModule):
             raise ValueError("split_seed must be an integer in [0, 2**32)")
         if not 0 <= val_fraction < 1:
             raise ValueError("val_fraction must be in [0, 1)")
+        if max_batch_cost is not None:
+            if (isinstance(max_batch_cost, (bool, np.bool_)) or not isinstance(max_batch_cost, (int, np.integer))
+                    or max_batch_cost <= 0):
+                raise ValueError("max_batch_cost must be a positive integer or None.")
+            if rotating_pool_size:
+                raise ValueError("max_batch_cost is incompatible with rotating_pool_size (dynamic samples).")
+            max_batch_cost = int(max_batch_cost)
         self.save_hyperparameters()
 
         self.root_dir = maybe_zip_path(root_dir)
@@ -324,6 +410,8 @@ class MatrixDataModule(pl.LightningDataModule):
         self._tmp_root = None
         self._tmp_pid = None
         self._coefficient_mse_projector = None
+        self.max_batch_cost = max_batch_cost
+        self._batch_cost_cache = None
 
     def set_coefficient_mse_projector(self, projector):
         """Set the CPU snapshot for subsequent training loaders; ``None`` clears it.
@@ -373,6 +461,7 @@ class MatrixDataModule(pl.LightningDataModule):
         # Lightning tears down every fit/test/predict call. Lazy datasets must remain
         # readable for the next call; None (or process exit) performs final cleanup.
         if stage is None:
+            self._batch_cost_cache = None
             for split in ("train", "val", "test", "predict"):
                 dataset = getattr(self, "%s_dataset" % split)
                 while isinstance(dataset, torch.utils.data.Subset):
@@ -561,6 +650,31 @@ class MatrixDataModule(pl.LightningDataModule):
             data_handle = self.train_dataset.get_data_pool()
         else:
             data_handle = self.train_dataset
+        if self.max_batch_cost is not None:
+            if isinstance(data_handle, RotatingPoolData):
+                raise ValueError("max_batch_cost is incompatible with rotating_pool_size.")
+            trainer = self.trainer
+            epoch = trainer.current_epoch if trainer is not None else None
+            if trainer is not None and trainer.reload_dataloaders_every_n_epochs != 1:
+                # Lightning caches the first length; a later longer epoch would lose samples.
+                logging.warning("Cost batching enables reload_dataloaders_every_n_epochs=1 to preserve variable-length epochs.")
+                trainer.reload_dataloaders_every_n_epochs = 1
+            if self._batch_cost_cache is None or self._batch_cost_cache[0] is not data_handle:
+                basis_sizes = self.data_processor.basis_table.basis_size.astype(np.int64)
+                costs = []
+                for index in range(len(data_handle)):
+                    sample = data_handle[index]
+                    orbitals = basis_sizes[sample.point_types.numpy()]
+                    edges = sample.edge_index.numpy()
+                    costs.append(int(self.data_processor.n_matrix_components * (
+                        np.square(orbitals).sum() + (orbitals[edges[0]] * orbitals[edges[1]]).sum())))
+                self._batch_cost_cache = (data_handle, tuple(costs))
+            sampler = torch.utils.data.RandomSampler(data_handle,
+                generator=torch.Generator().manual_seed((torch.initial_seed() + (epoch or 0)) % (2 ** 64)))
+            batch_sampler = _CostBatchSampler(sampler, self.batch_size, False,
+                costs=self._batch_cost_cache[1], max_batch_cost=self.max_batch_cost, epoch=epoch)
+            return self._with_type_layout(DataLoader(data_handle, batch_sampler=batch_sampler,
+                **self._loader_kwargs()), coefficient_projector=self._coefficient_mse_projector)
         return self._with_type_layout(
             DataLoader(
                 data_handle,

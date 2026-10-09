@@ -1,5 +1,5 @@
 Data loading and resource ownership
-==================================
+===================================
 
 ``MatrixDataModule.setup`` loads only the splits needed by the stage:
 ``fit`` uses train/val, ``validate`` uses val, ``test`` uses test, and
@@ -31,6 +31,66 @@ an explicit empty list disables validation. The automatic split keeps at least
 one training sample when data are available. For correlated trajectories, use
 explicit validation runs from separate trajectories rather than a random split
 of adjacent frames.
+
+Optional training batches by declared cost
+--------------------------------------------
+
+Set ``max_batch_cost: 100656`` under ``data:`` in the Lightning CLI YAML (or
+``MatrixDataModule(max_batch_cost=100656, ...)``) enables greedy training-only
+batching. The default ``None`` retains the fixed-size loaders. The positive
+integer budget counts ``C * (sum_i n_i**2 + sum_directed_edges n_i*n_j)``, where
+``n_i`` is the number of basis orbitals and ``C`` is the component count. It
+does not inspect label values. ``batch_size`` remains an additional limit on
+the number of structures. Validation, test and prediction retain fixed-size
+batching. No sample is dropped; one that exceeds the budget is emitted alone
+with a warning. Ghost-only samples can have zero cost.
+
+This proxy is **not a VRAM cap or an OOM guarantee**: it excludes backbone
+activations, gradients and allocator overhead. An oversized singleton may still
+fail. Smaller batches can increase CPU overhead and optimizer steps. Changing
+grouping changes the optimization trajectory, so accuracy comparisons need
+paired update budgets and seeds; equivalent predictions do not prove better
+accuracy.
+
+The first training loader reads the effective dataset once after the validation
+split, retaining only integer costs, not another sample cache. This adds initial
+I/O/conversion time. Costs are reused while the dataset object is unchanged,
+rebuilt on replacement and cleared by ``teardown(None)``. Treat its contents,
+geometry, basis and component count as immutable; rebuild the DataModule after
+changing them. Dynamic ``rotating_pool_size`` and nonstandard samplers are
+rejected for this option. ``pair_difference_mse`` is also rejected before the
+training forward, including stage changes: this sampler cannot guarantee that
+partners remain together. Custom losses requiring co-batched samples are the
+caller's responsibility.
+
+In Lightning, enabling cost batching also enables
+``reload_dataloaders_every_n_epochs=1`` with a warning. This public setting is
+needed to refresh the length when a later epoch packs differently; otherwise
+Lightning can silently truncate it. Train/validation loaders are recreated,
+but their datasets and integer costs are reused. Single-process sampling uses a
+private generator seeded by the initial Torch seed plus the current epoch;
+standard DDP sampling retains Lightning's seed and epoch handling.
+The epoch plan remains reserved even if workers exhaust the sampler during
+prefetch, so later length queries cannot reshuffle or truncate the active epoch.
+Use ``Trainer.fit(model, datamodule=module)`` for this integration. Prebuilt
+loaders passed separately to a Trainer do not receive the DataModule's epoch
+reload handling or Lightning's constructor capture for sampler reinjection.
+
+With standard ``DistributedSampler``, each rank packs its native shard. The
+sampler computes the maximum batch count over all shards using the same Torch
+sampler/seed/epoch, without collectives inside ``len``. Shorter ranks repeat
+their local batches cyclically until all ranks take the same number of steps.
+These extra batch repeats are logged by rank/epoch, in addition to the native
+sampler's sample padding. Epoch metrics count **all actually processed
+elements, including repeats**, not each original structure exactly once.
+Use single-device evaluation when exact once-only coverage is required.
+
+The paired synthetic CPU probe in
+``auditorias_mejoras/bench_batching_coste.py`` measures proxy peaks, tensor bytes,
+initial prepass/RAM and collate overhead. It is not an end-to-end GPU benchmark.
+
+Dataset and worker resource ownership
+-------------------------------------
 
 With ``copy_root_to_tmp=True``, each process owns a unique temporary directory.
 A ZIP root is copied as an archive, preserving any internal root subdirectory.
@@ -105,7 +165,7 @@ The optional dependency and its public API were verified against DScribe 2.1.2;
 see `DScribe SOAP documentation <https://singroup.github.io/dscribe/latest/tutorials/descriptors/soap.html>`_.
 
 Reproducibility and checkpoint provenance
-----------------------------------------
+--------------------------------------------
 
 Use ``seed_everything: 0`` in the Lightning CLI YAML (or
 ``pytorch_lightning.seed_everything(0, workers=True)`` in Python) to seed the
