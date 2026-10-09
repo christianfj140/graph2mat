@@ -20,6 +20,8 @@ class CoefficientMSEUnsupported(ValueError):
 
 
 def _local_factors(operation, mask):
+    if operation.change_of_basis.requires_grad:
+        raise CoefficientMSEUnsupported("Coefficient-only matrix MSE requires fixed Q, not a trainable change of basis.")
     groups = getattr(operation, "_coefficient_groups", None)
     if groups is None:
         raise CoefficientMSEUnsupported("Matrix MSE requires certified local RTP coefficient groups.")
@@ -38,6 +40,17 @@ def _local_factors(operation, mask):
     factors = []
     for group in groups:
         columns = torch.tensor(group, dtype=torch.long)
+        if getattr(operation, "symm_transpose", False):
+            index = getattr(operation, "_coefficient_transpose_index", None)
+            sign = getattr(operation, "_coefficient_transpose_sign", None)
+            if index is None or sign is None:
+                raise CoefficientMSEUnsupported("Coefficient-only MSE requires a certified transpose map.")
+            index, sign = index.detach().cpu(), sign.detach().cpu().double()
+            shaped = q.reshape(*operation.change_of_basis.shape)
+            if not torch.allclose(shaped[columns].transpose(1, 2),
+                                  shaped[index[columns]] * sign[columns, None, None], rtol=0,
+                                  atol=64 * torch.finfo(operation.change_of_basis.dtype).eps):
+                raise CoefficientMSEUnsupported("The transpose map does not match the effective Q.")
         local = q[columns]
         support = (local != 0).any(0)
         if (owner & support).any():
@@ -75,7 +88,18 @@ class CoefficientMatrixMSEProjector:
                 pairs = list(zip(first.self_interactions, other.self_interactions))
                 pairs.extend((operation, other.interactions[key]) for key, operation in first.interactions.items())
                 for operation, peer in pairs:
-                    if operation is not None and not torch.equal(
+                    if operation is None:
+                        continue
+                    if peer.change_of_basis.requires_grad:
+                        raise CoefficientMSEUnsupported("Coefficient-only matrix MSE requires fixed Q in every readout.")
+                    if getattr(peer, "symm_transpose", False):
+                        for name in ("_coefficient_transpose_index", "_coefficient_transpose_sign"):
+                            expected, actual = getattr(operation, name, None), getattr(peer, name, None)
+                            if expected is None or actual is None or not torch.equal(
+                                expected.detach().cpu(), actual.detach().cpu(),
+                            ):
+                                raise CoefficientMSEUnsupported("Every readout requires the same certified transpose map.")
+                    if not torch.equal(
                         operation.change_of_basis.detach().cpu(), peer.change_of_basis.detach().cpu(),
                     ):
                         raise ValueError("Readout coefficient coordinates require identical change of basis.")

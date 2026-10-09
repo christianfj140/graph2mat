@@ -123,21 +123,23 @@ Tests: `test_diagnostic_dense_readout.py`, `test_coefficient_epoch_metrics.py`,
 que usa targets proyectados y evita reconstrucciones innecesarias; las rutas
 actuales de validación/inferencia y checkpoints siguen funcionando.
 
-- [ ] Diseñar el subproyecto leyendo todos los callers y las limitaciones reales.
-- [ ] Reproducir incompatibilidades: H+S, `ModuleList` de readouts por interacción,
+- [x] Diseñar el subproyecto leyendo todos los callers y las limitaciones reales.
+- [x] Reproducir incompatibilidades: H+S, `ModuleList` de readouts por interacción,
   agrupación/orientación y bases heterogéneas; resolver solo dependencias necesarias.
-- [ ] Escribir regresiones RED antes del parche; usar readouts e3nn reales.
-- [ ] Probar ida/vuelta, s/p/d/f, vacíos, NaN por bloque y simetría periódica.
-- [ ] Proyectar targets fuera del hot path cuando la base/layout no cambian.
-- [ ] Evitar reconstrucción de predicciones durante el paso de entrenamiento
+- [x] Escribir regresiones RED antes del parche; usar readouts e3nn reales.
+- [x] Probar ida/vuelta, s/p/d/f, vacíos, NaN por bloque y simetría periódica.
+- [x] Proyectar targets fuera del hot path cuando la base/layout no cambian.
+- [x] Evitar reconstrucción de predicciones durante el paso de entrenamiento
   cuando la pérdida y callbacks no la necesitan; reconstruir para diagnóstico/inferencia.
-- [ ] Demostrar equivalencia de pérdida MSE y gradientes con pesos explícitos.
+- [x] Demostrar equivalencia de pérdida MSE y gradientes con pesos explícitos.
   No confundir media por operación de `coefficient_space_mse` con MSE por elemento.
-- [ ] No prometer equivalencia MAE/Huber/gauge por ortogonalidad de Q:
+- [x] No prometer equivalencia MAE/Huber/gauge por ortogonalidad de Q:
   reconstrucción/fallback explícito para objetivos no equivalentes.
   Gauge-MSE puede admitir una ruta con S proyectado, pero requiere demostrar
   por separado su producto interno, pesos, máscaras y shift por estructura.
 - [ ] Verificar flag apagado, checkpoints, tests amplios y medir GPU disponible.
+  CPU/defaults/restauración/DDP y suite completa final verificados en Task1.g.
+  La medida GPU sigue pendiente de hardware libre, no completada.
 
 Expected: pruebas de contrato verdes y ninguna reconstrucción innecesaria en
 el camino certificado. Precisión mayor no es un requisito intrínseco de 5.3.
@@ -548,3 +550,43 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   siguiente subplan `plan_training_irreps_lightning.md`. 5.3/goal no cerrados.
 - Producto **5999120**. Task-done real **29 pasan**, 150 warnings,
   **37.03 s**, exit0, rango6b40f2c..5999120.
+
+### Task 1.g — entrenamiento irreps Lightning (implementación CPU verificada)
+
+- Subplan `plan_training_irreps_lightning.md`, BASE274d7b0. Flag
+  `coefficient_training=False`; CPU snapshot tras restore normal/scaleshift,
+  training_step decide antes del backbone, solo loss sin matrices en ruta rápida.
+  Epoch SSE/count físicos pasan por update envuelto de TorchMetrics, con cache,
+  reset y DDP preservados. Validación/test/predict mantienen matrices.
+- Fallback con un solo forward y aviso por razón: MAE/Huber/gauge, verbose,
+  GC/long_range, callbacks train que leen labels, hooks de transferencia/batch,
+  logging custom, estrategia restore-after-setup, precisión/pesos no certificados
+  y batches sin targets o NaN parcial. El objetivo por etapas se reevalúa cada batch.
+- Projector exige Q fijo y mapas de transpose compatibles con Q efectivo en
+  todos los readouts; no pérdida de gradientes de Q trainable ni peers incorrectos.
+- RED inicial27fallos/0.99s; GREEN27/33.06s. Fallback fixtures primer intento
+  6fallos/8pasan/17.68s; corregidos sin modificar productos/tolerancias salvo
+  límite basal AMP explícito. FitRED5/7.15s y GREENintegrado46/56.43s.
+- Restore/stages5/10.13s; boundaryRED4/4.09s (Q trainable/peso no certificado),
+  vacíos/stages5/5.87s; ModuleListRED3/0.73s (peerQ y mapas).
+- Dos ranks Gloo reales: 3casos pareados all_types/missing_types/missing_labels,
+  pesos actualizados y métricas físicas iguales, todas gradientes conectadas.
+  Control negativo temporal (forzar matriz) dio fallo en ambos ranks
+  "DDP silently used matrix fallback"; RETIRADO antes de gates finales.
+- Focused final **64 pasan, 33 no seleccionados**, 4864 warnings,
+  **108.77s**, exit0. Floor source Python3.9.25/Torch2.4.1cpu **152 pasan**,
+  2359 warnings, **92.04s**, exit0. Logs training-irreps-*-final en
+  `/tmp/g2m-precision-goal.A2Pbgk/`. Ruff explícito/all-files, mypy-core,
+  compileall39 y diff verdes. Suite source CPU completa final **2067 pasan,
+  2 omitidos**, 25998 warnings, **612.41s**, exit0;
+  `training-irreps-full-cpu-final.log`, sin cambios de source/tests durante el gate.
+  Commit/task-done de este lote se registran a continuación al ejecutarlos.
+- AMP CPU end-to-end NO certificado: backbone basal MACE falla dtype f32/bf16
+  antes del readout, tanto con readout_fp32 False como True. Guard de elegibilidad
+  y MSE outerAMP se comprueban por separado; integración CUDA AMP sigue pendiente.
+- GPU ajena17050MiB/69%, sin lanzamientos propios; sin nueva wheel ni campaña
+  de precisión. **5.3 y el goal no cerrados**: equivalencia CPU no es beneficio.
+- Siguiente bloque independiente CPU: `plan_cache_tensores_cpu.md` (6.1),
+  reutilizar InMemoryData, snapshot/acceso aislados y retirar repr lazy medido.
+  Perfil previo propio periódico s/p/d/f,C2; cache legacy mutable y representación
+  FDF innecesaria confirmados. No nueva caché/flag/dependencia.

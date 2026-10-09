@@ -2,6 +2,7 @@
 
 import importlib
 import importlib.metadata
+import math
 import platform
 import subprocess
 import warnings
@@ -16,7 +17,9 @@ from torchmetrics import Metric
 
 from graph2mat import AtomicTableWithEdges, BasisTableWithEdges, __version__
 from graph2mat.bindings.torch.load import sanitize_checkpoint
-from graph2mat.bindings.torch.data.coefficient_targets import COEFFICIENT_TARGETS_ATTR
+from graph2mat.bindings.torch.data.coefficient_targets import (
+    COEFFICIENT_TARGETS_ATTR, CoefficientMatrixMSEProjector, CoefficientMSEUnsupported, coefficient_matrix_mse,
+)
 from graph2mat.bindings.torch.modules.graph2mat import layout_to
 from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 
@@ -131,11 +134,15 @@ class _EpochMatrixLoss(Metric):
             self.add_state(name, torch.zeros(len(coefficient_keys), dtype=torch.float64), dist_reduce_fx="sum")
 
     def update(self, node_error, edge_error, power, joint, node_weight, edge_weight,
-               coefficient_errors=None, coefficient_power=2, coefficient_weight=0.):
+               coefficient_errors=None, coefficient_power=2, coefficient_weight=0., matrix_stats=None):
         self.joint, self.weights = joint, (node_weight, edge_weight)
-        errors = (node_error.detach().double(), edge_error.detach().double())
-        self.totals += torch.stack([error.abs().pow(power).sum() for error in errors])
-        self.counts += self.counts.new_tensor([error.numel() for error in errors])
+        if matrix_stats is None:
+            errors = (node_error.detach().double(), edge_error.detach().double())
+            self.totals += torch.stack([error.abs().pow(power).sum() for error in errors])
+            self.counts += self.counts.new_tensor([error.numel() for error in errors])
+        else:
+            self.totals += torch.stack([matrix_stats[f"{kind}_sse"].detach().to(self.totals) for kind in ("node", "edge")])
+            self.counts += self.counts.new_tensor([matrix_stats[f"{kind}_count"] for kind in ("node", "edge")])
         self.coefficient_weight = coefficient_weight
         if coefficient_errors is not None:
             for i, key in enumerate(self.coefficient_keys):
@@ -219,6 +226,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         loss_kwargs: Optional[dict[str, Any]] = None,
         initial_node_feats: str = "OneHotZ",
         training_stages: Optional[list[dict[str, Any]]] = None,
+        coefficient_training: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -254,6 +262,9 @@ class LitBasisMatrixModel(pl.LightningModule):
         self._epoch_rmse = torch.nn.ModuleDict()
         self._epoch_errors = torch.nn.ModuleDict()
         self._epoch_losses = torch.nn.ModuleDict()
+        self.coefficient_training = coefficient_training
+        self._coefficient_training_unavailable = None
+        self._coefficient_fallback_reasons = set()
 
         self.model_cls = model_cls
         self.model = None  # Subclasses are responsible for initializing the model by calling init_model.
@@ -315,22 +326,98 @@ class LitBasisMatrixModel(pl.LightningModule):
                     "Ensure data.n_matrix_components equals model.n_matrix_components."
                 )
 
-    def training_step(self, batch, batch_idx):
-        out = self.model(batch)
-        self._validate_pred_ref_shapes(
-            out, batch, getattr(self.loss_fn, "overlap_prediction_optional", False)
-        )
+    def _warn_coefficient_fallback(self, reason):
+        if reason not in self._coefficient_fallback_reasons:
+            warnings.warn(f"coefficient_training uses matrix fallback: {reason}", stacklevel=2)
+            self._coefficient_fallback_reasons.add(reason)
 
-        loss, stats = self.loss_fn(
-            nodes_pred=out["node_labels"],
-            nodes_ref=batch["point_labels"],
-            edges_pred=out["edge_labels"],
-            edges_ref=batch["edge_labels"],
-            batch=batch,
-            basis_table=self.basis_table,
-            out=out,
-            model=self.model,
-        )
+    def _coefficient_training_reason(self, batch=None):
+        from graph2mat.models.mace import MatrixMACE
+        from .callbacks import MatrixWriter, SamplewiseMetricsLogger
+
+        if self._coefficient_training_unavailable is not None:
+            return self._coefficient_training_unavailable
+        if not isinstance(self.model, MatrixMACE):
+            return "only MatrixMACE is certified"
+        if type(self.loss_fn) is not metrics_module.elementwise_mse:
+            return "the objective requires matrix predictions"
+        if self.loss_fn.metric_kwargs.get("log_verbose", False):
+            return "verbose matrix statistics are requested"
+        edge_weight = self.loss_fn.metric_kwargs.get("edge_weight", 1.)
+        if not math.isfinite(edge_weight) or edge_weight < 0:
+            return "the certificate requires finite nonnegative edge_weight"
+        if self.model.gradient_checkpointing or self.model.charge_readout is not None:
+            return "gradient_checkpointing/long_range require matrix predictions"
+        dtype = next(self.model.parameters()).dtype
+        if dtype not in (torch.float32, torch.float64):
+            return "only real float32/float64 training is certified"
+        if torch.is_autocast_enabled(self.device.type) and not self.model.readout_fp32:
+            return "autocast requires readout_fp32 for the certified objective"
+        trainer = self._trainer
+        for owner, parent in ((self, LitBasisMatrixModel),
+                              (getattr(trainer, "datamodule", None), pl.LightningDataModule)):
+            if owner is not None:
+                for hook in ("on_before_batch_transfer", "on_after_batch_transfer", "transfer_batch_to_device"):
+                    if getattr(type(owner), hook) is not getattr(parent, hook):
+                        return f"custom {hook} can invalidate prepared targets"
+        for hook in ("on_train_batch_start", "on_train_batch_end"):
+            if getattr(type(self), hook) is not getattr(pl.LightningModule, hook):
+                return f"custom {hook} requires the matrix contract"
+        for hook in ("_log_loss", "_log_stats"):
+            if getattr(type(self), hook) is not getattr(LitBasisMatrixModel, hook):
+                return f"custom {hook} requires the matrix logging contract"
+        for callback in getattr(trainer, "callbacks", ()):
+            if type(callback) in (MatrixWriter, SamplewiseMetricsLogger):
+                if "train" in callback.splits:
+                    return "a training callback requires matrix predictions"
+            elif not type(callback).__module__.startswith("pytorch_lightning.callbacks."):
+                for hook in ("on_train_batch_start", "on_train_batch_end"):
+                    if getattr(type(callback), hook) is not getattr(pl.Callback, hook):
+                        return f"custom callback {hook} requires the matrix contract"
+        if batch is not None:
+            targets = getattr(batch, COEFFICIENT_TARGETS_ATTR, None)
+            if not isinstance(targets, dict):
+                return targets if isinstance(targets, str) else "CPU-prepared targets are unavailable"
+        return None
+
+    def _can_train_coefficients(self, batch):
+        if not self.coefficient_training:
+            return False
+        reason = self._coefficient_training_reason(batch)
+        if reason is not None:
+            self._warn_coefficient_fallback(reason)
+            return False
+        return True
+
+    def training_step(self, batch, batch_idx):
+        coefficient_only = self._can_train_coefficients(batch)
+        matrix_stats = None
+        if coefficient_only:
+            out = self.model(batch, coefficients_only=True)
+            loss, matrix_stats = coefficient_matrix_mse(
+                {"node": out["node_coefficients"], "edge": out["edge_coefficients"]},
+                getattr(batch, COEFFICIENT_TARGETS_ATTR), self.loss_fn.metric_kwargs.get("edge_weight", 1.),
+            )
+            loss = loss.to(self.device)
+            if not loss.requires_grad:
+                loss = loss + next(p for p in self.model.parameters() if p.requires_grad).reshape(-1)[:0].sum()
+            stats = {key: matrix_stats[key].to(self.device) for key in ("node_rmse", "edge_rmse")}
+        else:
+            out = self.model(batch)
+            self._validate_pred_ref_shapes(
+                out, batch, getattr(self.loss_fn, "overlap_prediction_optional", False)
+            )
+
+            loss, stats = self.loss_fn(
+                nodes_pred=out["node_labels"],
+                nodes_ref=batch["point_labels"],
+                edges_pred=out["edge_labels"],
+                edges_ref=batch["edge_labels"],
+                batch=batch,
+                basis_table=self.basis_table,
+                out=out,
+                model=self.model,
+            )
 
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             # A rank can lack species/pairs; MACE energy heads are not in the loss.
@@ -340,12 +427,13 @@ class LitBasisMatrixModel(pl.LightningModule):
             loss = loss + sum(parameter.reshape(-1)[:1].sum() * 0
                               for parameter in self.model.parameters() if parameter.requires_grad)
 
-        self._log_loss("train", loss, out, batch, stats)
-        self._log_stats("train", stats, batch, out)
+        logging_kwargs = {"matrix_stats": matrix_stats} if coefficient_only else {}
+        self._log_loss("train", loss, out, batch, stats, **logging_kwargs)
+        self._log_stats("train", stats, batch, out, **logging_kwargs)
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
-        return {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"]}
+        return {"loss": loss} if coefficient_only else {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"]}
 
     def _rmse_count(self, name, batch, stats=None):
         """Number of terms used by the standard matrix RMSE statistics."""
@@ -375,7 +463,7 @@ class LitBasisMatrixModel(pl.LightningModule):
             return count
         return None
 
-    def _log_loss(self, split, loss, out, batch, stats=None):
+    def _log_loss(self, split, loss, out, batch, stats=None, matrix_stats=None):
         policies = {
             metrics_module.block_type_mse: (2, False, 1., 1.),
             metrics_module.elementwise_mse: (2, True, 1., self.loss_fn.metric_kwargs.get("edge_weight", 1.)),
@@ -471,7 +559,9 @@ class LitBasisMatrixModel(pl.LightningModule):
             value(means, counts, (1., kwargs.get("overlap_weight", 1.), kwargs.get("spectral_weight", 0.)))
             attribute = f"_epoch_losses.{key}"
         elif policy is not None:
-            if domain:
+            if matrix_stats is not None:
+                errors = (loss.new_empty(0), loss.new_empty(0))
+            elif domain:
                 loss_s, _ = metrics_module._per_structure_losses(
                     out["node_labels"], batch.point_labels, out["edge_labels"], batch.edge_labels,
                     batch, self.basis_table, kwargs.get("node_weight", 1.), kwargs.get("edge_weight", 1.),
@@ -501,7 +591,7 @@ class LitBasisMatrixModel(pl.LightningModule):
                         self._epoch_losses[key].normalize_weights) != (coefficient_keys, statistic, normalize_weights)):
                 self._epoch_losses[key] = _EpochMatrixLoss(coefficient_keys, statistic, normalize_weights).to(self.device)
             value = self._epoch_losses[key]
-            value(*errors, *policy, coefficient_errors, coefficient_power, coefficient_weight)
+            value(*errors, *policy, coefficient_errors, coefficient_power, coefficient_weight, matrix_stats=matrix_stats)
             attribute = f"_epoch_losses.{key}"
         self.log(key, value, on_step=split == "train", on_epoch=True,
                  prog_bar=True, logger=True, batch_size=batch.num_graphs,
@@ -547,7 +637,7 @@ class LitBasisMatrixModel(pl.LightningModule):
         )
         return keys, errors
 
-    def _log_stats(self, split, stats, batch, out):
+    def _log_stats(self, split, stats, batch, out, matrix_stats=None):
         errors = None
         physical_huber = isinstance(self.loss_fn, (metrics_module.block_normalized_huber,
                                                    metrics_module.hamiltonian_composite_loss))
@@ -575,7 +665,8 @@ class LitBasisMatrixModel(pl.LightningModule):
         for name, value in stats.items():
             huber_mean = (type(self.loss_fn) in (metrics_module.block_type_huber, metrics_module.block_type_smooth_l1)
                           and name in ("node_smooth_l1", "edge_smooth_l1"))
-            count = self._rmse_count(name, batch, stats)
+            count = (matrix_stats[f"{name.split('_')[0]}_count"] if matrix_stats is not None
+                     else self._rmse_count(name, batch, stats))
             key = f"{split}_{name}"
             attribute = None
             if coefficient_errors is not None and name.endswith(("_coeff_rmse", "_coeff_mae")):
@@ -684,6 +775,46 @@ class LitBasisMatrixModel(pl.LightningModule):
     def on_fit_start(self) -> None:
         self._apply_training_stage_for_epoch(getattr(self, "current_epoch", 0))
         self._fit_output_scaleshift()
+        self._configure_coefficient_training()
+
+    def _configure_coefficient_training(self):
+        """Snapshot after normal restore/device setup, before train worker iterators."""
+        from graph2mat.models.mace import MatrixMACE
+        from .data import MatrixDataModule
+
+        module = self.trainer.datamodule
+        if isinstance(module, MatrixDataModule):
+            module.set_coefficient_mse_projector(None)
+        self._coefficient_training_unavailable = None
+        if not self.coefficient_training:
+            return
+        if self.trainer.strategy.restore_checkpoint_after_setup:
+            reason = "restore_checkpoint_after_setup cannot snapshot the restored Q before workers"
+        elif not isinstance(self.model, MatrixMACE):
+            reason = "only MatrixMACE is certified"
+        elif not isinstance(module, MatrixDataModule):
+            reason = "MatrixDataModule is required to prepare CPU targets"
+        else:
+            try:
+                projector = CoefficientMatrixMSEProjector(self.model.matrix_readouts)
+            except CoefficientMSEUnsupported as error:
+                reason = str(error)
+            else:
+                if (projector.n_components != module.n_matrix_components
+                        or projector.symmetric != module.data_processor.symmetric_matrix
+                        or list(projector.basis_table.basis) != list(module.basis_table.basis)):
+                    reason = "model/data physical basis, components or symmetry differ"
+                else:
+                    module.set_coefficient_mse_projector(projector)
+                    return
+        self._coefficient_training_unavailable = reason
+        self._warn_coefficient_fallback(reason)
+
+    def on_fit_end(self) -> None:
+        from .data import MatrixDataModule
+
+        if isinstance(self.trainer.datamodule, MatrixDataModule):
+            self.trainer.datamodule.set_coefficient_mse_projector(None)
 
     def _fit_output_scaleshift(self) -> None:
         """Fits the readout output scale/shift from the training labels, once."""

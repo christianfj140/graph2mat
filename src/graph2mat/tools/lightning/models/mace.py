@@ -82,6 +82,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         readout_per_interaction: bool = False,
         readout_interaction_aggregation: Literal["sum", "mean"] = "sum",
         return_coefficients: bool = False,
+        coefficient_training: bool = False,
         hamiltonian_local_context: bool = False,
         hamiltonian_local_context_kwargs: Optional[dict] = None,
         readout_fp32: bool = False,
@@ -133,6 +134,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             loss=loss,
             loss_kwargs=loss_kwargs,
             training_stages=training_stages,
+            coefficient_training=coefficient_training,
             initial_node_feats=initial_node_feats,
             model_cls=model_cls,
         )

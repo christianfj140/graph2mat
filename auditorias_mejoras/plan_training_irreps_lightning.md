@@ -53,7 +53,7 @@ Produce flag de training único, losses/stats físicos consumidos por logging.
 Extiende `_EpochMatrixLoss.update(..., matrix_stats=None)` y `_log_loss` /
 `_log_stats(..., matrix_stats=None)` sin alterar llamadas/defaults anteriores.
 
-- [ ] Step 1: RED training_step realMACE, graph periódico heterogéneo s/p/d/f,
+- [x] Step 1: RED training_step realMACE, graph periódico heterogéneo s/p/d/f,
   C1/2, group3, single/sum/mean, dtypef32/64. Referencia matrices reales antes
   de prohibir coefficients_to_block durante el paso nuevo. No usar targets
   antiguos reproyectados. Código central:
@@ -66,7 +66,7 @@ Extiende `_EpochMatrixLoss.update(..., matrix_stats=None)` y `_log_loss` /
   torch.testing.assert_close(result['loss'], expected, rtol=tol, atol=tol)
   ```
   Expected: constructor rechaza nuevo flag o training aún reconstruye.
-- [ ] Step 2: flag explícito/base guarda hparams, LitMACE propaga sin kwargs
+- [x] Step 2: flag explícito/base guarda hparams, LitMACE propaga sin kwargs
   arquitectónicos. Eligibilidad antes de model: exact elementwise_mse/float32–64,
   no GC/LR, diccionario CPU certificado transferido, no callback matricial/
   transform custom; AMP requiere readout_fp32. Aviso una vez por razón.
@@ -77,27 +77,27 @@ Extiende `_EpochMatrixLoss.update(..., matrix_stats=None)` y `_log_loss` /
   stats = {key:physical[key] for key in ('node_rmse','edge_rmse')}
   ```
   Expected: GREEN loss/grad, salida nueva solo loss, defaults con labels.
-- [ ] Step 3: RED fallback MAE/Huber/gauge/NaN parcial/no targets/GC/LR/
+- [x] Step 3: RED fallback MAE/Huber/gauge/NaN parcial/no targets/GC/LR/
   callback train y custom, AMP con/sin readout_fp32. Un spy sobre forward real
   mide una llamada, no hace mock de predicciones. Certificar mapas simetrizados
   contra Q efectivo; mapas ausentes/incompatibles solicitan fallback sin bloques.
   Expected: una sola llamada correcta, matrices en fallback, nuevas pruebas verdes.
-- [ ] Step 4: RED métricas precomputadas con SSE literals [3,8],counts[3,2],
+- [x] Step 4: RED métricas precomputadas con SSE literals [3,8],counts[3,2],
   siguiente batch [9,48],counts[1,3],edge_weight2 => loss124/14, node_rmse√3,
   edge_rmse√(56/5). Compute antes y después de update y reset, cache no vieja.
   Extender update y logging existentes sin materializar errores dense.
   Expected: misma agregación y esquema de entrenamiento sin SSE internos expuestos.
-- [ ] Step 5: RED fit real MatrixDataModule, workers0/2, 2epochs, validación
+- [x] Step 5: RED fit real MatrixDataModule, workers0/2, 2epochs, validación
   matricial y callbacks val; entrenamiento sin reconst probado dentro training_step.
   Snapshot after checkpoint probado restaurando Q fp32→fp64 distinto de init;
   estrategia restore-after-setup fallback, default checkpoint antiguo False.
   Epochs reset y loss por etapas vuelven a matriz cuando cambia el objetivo.
   Expected: optimizer avanza, callbacks conservados y losses iguales referencia.
-- [ ] Step 6: RED/ GREEN dos ranks Gloo reales, incluidas especies ausentes y
+- [x] Step 6: RED/ GREEN dos ranks Gloo reales, incluidas especies ausentes y
   NaN por bloque; sin find_unused_parameters, todas las gradientes DDP conectadas.
   Contrastar pesos/pérdidas base vs candidato con semillas/datos idénticos,
   epoch global SSE/counts y reinicio. Expected: procesos exit0, no GPU.
-- [ ] Step 7: focused, floorPython3.9/Torch2.4.1, suite source CPU completa,
+- [x] Step 7: focused, floorPython3.9/Torch2.4.1, suite source CPU completa,
   Ruff/mypy/compile39/diff. Expected: exit0, leer outputs; fallos no ocultos.
 - [ ] Step 8: docs/registro, commit explícito y task-done con fichero nuevo y
   `test_ddp_cpu.py -k 'coefficient_matrix_training or irreps_training'`.

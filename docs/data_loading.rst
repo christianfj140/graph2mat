@@ -166,9 +166,39 @@ unchanged; Lightning transfers the nested tensors separately. Directed batches
 do not receive the symmetric type layout. Uncertified batches carry a fallback
 reason instead of invented targets; invalid shapes still raise. The real-MSE
 certificate rejects complex Q/labels before any cast that would lose imaginary
-parts. The route is not yet connected to Lightning's training/epoch logging,
-and does not change any default loss.
+parts. The projector also requires fixed Q and a certified transpose map in
+every per-interaction readout; trainable Q or incompatible maps request fallback.
 Factors in prepared targets share the CPU snapshot and must be consumed read-only.
+
+``LitMACEMatrixModel(coefficient_training=True, loss="elementwise_mse")``
+opts into this route during training. In the Lightning CLI YAML, set
+``model.coefficient_training: true``. The default is false; old checkpoints
+without this flag retain matrix training. Normal ``MatrixDataModule`` fits
+create the CPU snapshot after checkpoint restoration and output scaling, before
+train worker iterators, and clear it after fit. Validation, test and prediction
+keep matrix outputs. A manually supplied train DataLoader without this DataModule
+uses matrix fallback rather than projecting labels on the accelerator.
+
+Certified train steps return only ``loss``, not matrix labels. Global epoch loss
+and node/edge RMSE use the physical SSE and element counts through the existing
+TorchMetrics update/reset/DDP path. The objective remains element-weighted MSE,
+not the equally weighted operation means of ``coefficient_space_mse``. Eligibility
+is checked before each forward, including when training stages change the loss.
+
+MAE/Huber/gauge, verbose matrix statistics, gradient checkpointing, long-range
+corrections, training callbacks needing labels, custom batch-transfer or train
+batch hooks and custom logging overrides use one ordinary matrix forward with
+a warning once per reason. Validation/test-only MatrixWriter and samplewise
+logging remain compatible. Real float32/float64 and finite nonnegative edge
+weights are certified; external autocast additionally requires ``readout_fp32``.
+Strategies restoring weights after setup fall back because the CPU snapshot
+would otherwise precede the restored Q. Changing Q or labels after preparation
+is outside this fixed-snapshot contract.
+
+CPU fits and two-rank Gloo comparisons establish loss/gradient/epoch equivalence,
+not a GPU speed, VRAM or accuracy improvement. End-to-end CUDA AMP remains
+unverified; the basal MACE backbone itself fails under CPU BF16 autocast before
+the readout, so its eligibility guard is not an end-to-end AMP certificate.
 
 Gauge H and optional predicted S use independent valid-element means, with the
 configured edge weight. Alignment ignores any H/S reference row with a NaN

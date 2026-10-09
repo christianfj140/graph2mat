@@ -20,6 +20,24 @@ def _fit(output_dir, layout):
     from graph2mat.tools.lightning import MatrixDataModule
     from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
 
+    coefficient_training = layout.startswith("irreps_training:")
+    if coefficient_training:
+        layout = layout.split(":", 1)[1]
+
+    class RouteProbe(LitMACEMatrixModel):
+        def training_step(self, batch, batch_idx):
+            result = super().training_step(batch, batch_idx)
+            if self.coefficient_training:
+                assert set(result) == {"loss"}, "DDP silently used matrix fallback"
+            return result
+
+    class EpochRecorder(pl.Callback):
+        def __init__(self):
+            self.values = []
+        def on_train_epoch_end(self, trainer, pl_module):
+            self.values.append({key: float(trainer.callback_metrics[f"train_{key}_epoch"])
+                                for key in ("loss", "node_rmse", "edge_rmse")})
+
     class GradientCoverage(pl.Callback):
         def on_after_backward(self, trainer, pl_module):
             missing = [name for name, parameter in pl_module.named_parameters()
@@ -34,33 +52,36 @@ def _fit(output_dir, layout):
         configurations.append(BasisConfiguration(
             point_types=kinds, positions=np.array([[i * 0.7, 0., 0.] for i in range(len(kinds))]),
             basis=table, cell=np.eye(3) * 10, pbc=(False, False, False),
-            matrix=np.full((len(kinds), len(kinds)), 0.5),
+            matrix=np.full((len(kinds), len(kinds)), np.nan if layout == "missing_labels" and index % 2 == 0 else 0.5),
         ))
     module = MatrixDataModule(
         basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
         train_runs=configurations, val_runs=[], loader_threads=0, batch_size=1,
     )
-    model = LitMACEMatrixModel(
+    model = RouteProbe(
         basis_table=table, symmetric_matrix=True, hidden_irreps="2x0e+2x1o",
         edge_hidden_irreps="2x0e+2x1o", num_bessel=2, max_ell=1,
+        coefficient_training=coefficient_training,
     )
     before = {key: parameter.detach().clone() for key, parameter in model.named_parameters()}
     devices = 1 if layout == "reference" else 2
     strategy = (DDPStrategy(process_group_backend="gloo", start_method="popen", find_unused_parameters=False)
                 if devices == 2 else "auto")
+    recorder = EpochRecorder()
     trainer = pl.Trainer(
         accelerator="cpu", devices=devices, strategy=strategy,
         max_epochs=2, limit_train_batches=1, num_sanity_val_steps=0,
         logger=False, enable_checkpointing=False, enable_progress_bar=False,
         enable_model_summary=False, default_root_dir=output_dir,
-        callbacks=[GradientCoverage()] if devices == 2 else [],
+        callbacks=[recorder, GradientCoverage()] if devices == 2 else [recorder],
     )
     trainer.fit(model, datamodule=module)
     if trainer.is_global_zero:
         changed = any(not torch.equal(parameter.detach(), before[key])
                       for key, parameter in model.named_parameters())
         result = {"world_size": trainer.world_size, "global_step": trainer.global_step,
-                  "loss": float(trainer.callback_metrics["train_loss_epoch"]), "weights_changed": changed}
+                  "loss": float(trainer.callback_metrics["train_loss_epoch"]), "weights_changed": changed,
+                  "epochs": recorder.values}
         (Path(output_dir) / "result.json").write_text(json.dumps(result))
         torch.save(model.state_dict(), Path(output_dir) / "weights.pt")
     module.teardown(None)
@@ -309,6 +330,25 @@ def test_two_cpu_ranks_reduce_global_epoch_statistics(tmp_path, spin, huber):
                              "val_edge_smooth_l1": 4.75 if spin else 3.})
         for key, value in expected.items():
             assert metrics[key] == pytest.approx(value), f"Rank {rank}, {key}"
+
+
+@pytest.mark.parametrize("layout", ["all_types", "missing_types", "missing_labels"])
+def test_two_cpu_ranks_irreps_training_preserves_dense_updates_and_epoch_metrics(tmp_path, layout):
+    import torch
+
+    baseline = tmp_path / "baseline"
+    baseline.mkdir()
+    expected = _run_training_script(baseline, layout)
+    actual = _run_training_script(tmp_path, "irreps_training:" + layout)
+    assert actual["world_size"] == 2 and actual["global_step"] == 2
+    assert actual["weights_changed"]
+    for measured, reference in zip(actual["epochs"], expected["epochs"]):
+        assert measured == pytest.approx(reference, rel=5e-6, abs=5e-6)
+    weights = torch.load(tmp_path / "weights.pt", weights_only=True)
+    reference = torch.load(baseline / "weights.pt", weights_only=True)
+    assert weights.keys() == reference.keys()
+    for key in weights:
+        torch.testing.assert_close(weights[key], reference[key], rtol=5e-6, atol=5e-6, msg=key)
 
 
 def test_two_cpu_ranks_reduce_physical_huber_with_disjoint_types(tmp_path):
