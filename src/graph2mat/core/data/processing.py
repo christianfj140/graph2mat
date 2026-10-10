@@ -25,7 +25,7 @@ import dataclasses
 import warnings
 import zipfile
 from copy import copy
-from functools import cached_property
+from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import (
     Any,
@@ -82,6 +82,16 @@ from .node_feats import OneHotZ
 from .table import AtomicTableWithEdges, BasisTableWithEdges
 
 __all__ = ["MatrixDataProcessor", "BasisMatrixData"]
+
+
+@lru_cache(maxsize=None)
+def _block_rtp(formula: str, i: str, j: str, dtype):
+    """RTP of a matrix block (roadmap 3.7). graph2mat's per-irrep decomposition gives
+    e3nn's change of basis tens of times faster; ``dtype`` (the default dtype it is built
+    with) is part of the key because float32 coefficients cannot be promoted exactly."""
+    from graph2mat.bindings.e3nn.irreps_tools import ReducedTensorProducts
+
+    return ReducedTensorProducts(formula, i=i, j=j)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -655,25 +665,23 @@ class MatrixDataProcessor:
         return new_geometry
 
     def get_point_block_rtps(self):
-        from e3nn import o3
+        import torch
 
         basis = self.basis_table.basis
 
         symmetry = "ij=ji" if self.symmetric_matrix else "ij"
         return tuple(
-            o3.ReducedTensorProducts(symmetry, i=pb.e3nn_irreps, j=pb.e3nn_irreps)
+            _block_rtp(symmetry, str(pb.e3nn_irreps), str(pb.e3nn_irreps), torch.get_default_dtype())
             for pb in basis
         )
 
     def get_edge_block_rtps(self):
-        from e3nn import o3
+        import torch
 
         basis = self.basis_table.basis
 
         return tuple(
-            o3.ReducedTensorProducts(
-                "ij", i=basis[i].e3nn_irreps, j=basis[j].e3nn_irreps
-            )
+            _block_rtp("ij", str(basis[i].e3nn_irreps), str(basis[j].e3nn_irreps), torch.get_default_dtype())
             for i, j in self.basis_table.edge_type_to_point_types
         )
 
