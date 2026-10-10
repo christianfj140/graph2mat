@@ -23,7 +23,14 @@ def get_neighborhood(
     if pbc is None:
         pbc = (False, False, False)
 
-    if cell is None or cell.any() == np.zeros((3, 3)).any():
+    if cell is not None and any(pbc):
+        # A 1 Angstrom stand-in cell would create absurd periodic images (PHYS_H-17).
+        missing = [d for d in range(3) if pbc[d] and not np.any(cell[d])]
+        if missing:
+            raise ValueError(f"Directions {missing} are periodic but their lattice vectors are zero.")
+    if cell is None or not cell.any():
+        if any(pbc):
+            raise ValueError("A periodic neighborhood needs a cell; got none or a zero cell.")
         cell = np.identity(3, dtype=float)
 
     assert len(pbc) == 3 and all(isinstance(i, (bool, np.bool_)) for i in pbc)
