@@ -197,3 +197,23 @@ def test_zip_snapshot_keeps_charge_spectral_columns_without_reader_ownership(tmp
     np.testing.assert_array_equal(sample.spectral_C.numpy(), columns)
     sample.spectral_C.add_(2)
     np.testing.assert_array_equal(restored[0].spectral_C.numpy(), columns)
+
+
+def test_cache_shares_read_only_processor_and_geometry():
+    """Copying the processor and the sisl geometry (orbitals with radial splines) on every
+    access dominated data loading; they are shared read-only references. Other metadata and
+    tensors stay independent (tests above)."""
+    import sisl
+
+    atom = sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=1.4)])
+    table = AtomicTableWithEdges([atom])
+    processor = MatrixDataProcessor(basis_table=table, sub_point_matrix=False)
+    geometry = sisl.Geometry(np.zeros((1, 3)), atoms=atom, lattice=[10, 10, 10])
+    config = BasisConfiguration(point_types=table.types, positions=np.zeros((1, 3)), basis=table,
+        cell=np.eye(3) * 10, pbc=(False, False, False), metadata={"geometry": geometry, "custom": [1]})
+    cache = InMemoryData(TorchBasisMatrixDataset([config], processor))
+    first, second = cache[0], cache[0]
+    assert first.metadata["data_processor"] is second.metadata["data_processor"]
+    assert first.metadata["geometry"] is second.metadata["geometry"]
+    first.metadata["custom"].append(2)
+    assert cache[0].metadata["custom"] == [1]

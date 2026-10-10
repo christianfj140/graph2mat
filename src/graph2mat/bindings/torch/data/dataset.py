@@ -180,7 +180,8 @@ class InMemoryData(torch.utils.data.Dataset):
     """CPU snapshots with independent tensor/metadata ownership on each access.
 
     Rebuild after changing source data or preprocessing. Returned samples may
-    be mutated or transferred without changing the stored snapshots.
+    be mutated or transferred without changing the stored snapshots, except
+    ``metadata["data_processor"]`` and ``metadata["geometry"]``: shared, read-only.
 
     Parameters
     ----------
@@ -203,7 +204,16 @@ class InMemoryData(torch.utils.data.Dataset):
         return len(self.data_objects)
 
     def __getitem__(self, index: int) -> TorchBasisMatrixData:
-        return deepcopy(self.data_objects[index])
+        sample = self.data_objects[index]
+        # metadata's processor and sisl geometry are shared read-only references: copying
+        # them (sisl rebuilds every orbital's radial spline) on every access made loading
+        # ~60x slower. Tensors and any other metadata stay independent copies.
+        metadata = getattr(sample, "metadata", None)
+        memo = {}
+        if isinstance(metadata, dict):
+            shared = (metadata.get("data_processor"), metadata.get("geometry"))
+            memo = {id(obj): obj for obj in shared if obj is not None}
+        return deepcopy(sample, memo)
 
 
 class SimpleCounter:
