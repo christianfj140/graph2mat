@@ -4,7 +4,8 @@
 Recipe: 6x6 Sobol N8, gauge loss, fp32, linear edge readout, 16k steps, the historical
 non-Delta recipe ``..._gaugeh_kl`` (Delta samples carry no TSDE, which the term needs).
 Arms: energy_weight 0 (control) and the WEIGHTS below; seeds 0-2 with paired backbone and
-on-site initialization (ComparisonCallback). The last checkpoint is evaluated in every arm,
+on-site initialization (ComparisonCallback). Up to three trainings run at once under autorun's
+guard rails (stock ``main fit`` processes it can pause; OOM requeues the job). The last checkpoint is evaluated in every arm,
 because val_loss contains the term being tested. Evaluation (CPU) as in the readout
 campaign, without H0: validation, test, registry, AB-MD, moire.
 
@@ -58,46 +59,86 @@ def prepare(root, weights):
                                        "evaluation": campaign["evaluation"]["6x6"]})
 
 
-def train(root, job):
-    done = root / "completed" / f"train-{job['arm']}-seed{job['seed']}.json"
-    if done.exists():
-        return json.loads(done.read_text())
+PARALLEL, VRAM_PER_TRAINING_MIB = 3, 7000
+
+
+def _parallel(root):
+    """PARALLEL minus one per CUDA OOM recorded in this experiment (3 -> 2 -> 1): autorun requeues
+    an OOM job, and the retry must not repeat the same load."""
+    path = root / "oom_count"
+    return max(1, PARALLEL - (int(path.read_text()) if path.exists() else 0))
+
+
+def _room(n_running, parallel=PARALLEL):
+    """autorun's guard rails for starting a training (CPU launch limit, GPU away from its pause
+    temperature, 20 % of the VRAM + margin free after this one)."""
+    sys.path.insert(0, str(rc.SCRIPTS))
+    import g2m_autorun as autorun
+
+    if n_running >= parallel:
+        return False
+    gpu_temp, used, total = autorun.gpu()
+    return (autorun.cpu_temp() < autorun.LIMIT_C and gpu_temp < autorun.GPU_PAUSE_C - 5
+            and total - used - VRAM_PER_TRAINING_MIB - autorun.VRAM_MARGIN_MIB >= autorun.MIN_FREE_VRAM_FRAC * total)
+
+
+def start(root, job):
+    """Launch one training with the stock CLI (``... main fit``): autorun counts and can pause it
+    (SIGSTOP) like any training. Not exclusive: other GPU work may share the card."""
     parent = root / "attempts" / f"{job['arm']}-seed{job['seed']}"
-    while True:
-        parent.mkdir(parents=True, exist_ok=True)
-        run = parent / f"attempt-{len(list(parent.iterdir())) + 1:03d}"
-        # As the campaign's execute(): re-target the job's config (paths, logger, telemetry) to this attempt.
-        cfg = rc.recipe(job["config"], "baseline", run, root / "shared" / f"seed{job['seed']}.pt")
-        rc.materialize(job, run, cfg)
-        print("START", run, flush=True)
-        if child(run):
-            break
-        print("YIELD", run, flush=True)
-    checkpoints = sorted(run.rglob("last*.ckpt"))
-    if len(checkpoints) != 1:
-        raise ValueError("expected one last checkpoint in " + str(run))
-    proof = {"run": str(run), "checkpoint": str(checkpoints[0])}
-    rc.write_json(done, proof)
-    return proof
-
-
-def child(run):
-    rc.idle_gpu()
+    parent.mkdir(parents=True, exist_ok=True)
+    run = parent / f"attempt-{len(list(parent.iterdir())) + 1:03d}"
+    # As the campaign's execute(): re-target the job's config (paths, logger, telemetry) to this attempt.
+    rc.materialize(job, run, rc.recipe(job["config"], "baseline", run, root / "shared" / f"seed{job['seed']}.pt"))
     env = {**os.environ, "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2", "MKL_NUM_THREADS": "2",
            "PYTHONPATH": os.pathsep.join(map(str, (HERE / "probe_site", sp.SOURCES["cpu"], HERE)))}
     env.pop("CUDA_VISIBLE_DEVICES", None)
-    with (run / "train.log").open("w") as log:
-        proc = subprocess.Popen([sys.executable, str(HERE / "run_readout_comparison.py"), "fit", "--root", str(run)],
-                                cwd=run, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-        while proc.poll() is None:
-            time.sleep(2)
-            if proc.poll() is None and rc.gpu_processes(rc.process_tree(proc.pid)):
-                os.killpg(proc.pid, signal.SIGTERM)
-                proc.wait()
-                return False
-    if proc.returncode:
-        raise RuntimeError(f"training exit {proc.returncode}; see {run / 'train.log'}")
-    return True
+    log = (run / "train.log").open("w")
+    proc = subprocess.Popen([str(Path(sys.executable).parent / "graph2mat"), "models", "mace", "main", "fit",
+                             "-c", "config.yaml"], cwd=run, env=env, stdout=log, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    print("START", run, flush=True)
+    return proc, run
+
+
+def train_all(root, jobs):
+    """Up to PARALLEL trainings at once, each started only when _room() allows it. A failure
+    (e.g. CUDA OOM) stops the others and exits with the train.log path, so autorun requeues
+    the job on OOM; completed trainings are kept."""
+    done_marker = lambda job: root / "completed" / f"train-{job['arm']}-seed{job['seed']}.json"
+    # Arm-major order: two arms of one seed never start together before its shared init exists.
+    pending = sorted((j for j in jobs if not done_marker(j).exists()), key=lambda j: (j["arm"] != "control", j["arm"], j["seed"]))
+    running, parallel = {}, _parallel(root)
+    print("PARALLEL", parallel, flush=True)
+    while pending or running:
+        busy_seeds = {job["seed"] for job, _ in running.values()}
+        startable = next((j for j in pending if j["seed"] not in busy_seeds
+                          or (root / "shared" / f"seed{j['seed']}.pt").exists()), None)
+        if startable is not None and (not running or _room(len(running), parallel)):
+            pending.remove(startable)
+            proc, run = start(root, startable)
+            running[proc.pid] = (startable, (proc, run))
+            time.sleep(60)  # let it allocate before judging free VRAM again
+            continue
+        for pid, (job, (proc, run)) in list(running.items()):
+            if proc.poll() is None:
+                continue
+            del running[pid]
+            if proc.returncode:
+                for _, (other, _) in running.values():
+                    os.killpg(other.pid, signal.SIGTERM)
+                if (proc.returncode in (-9, 137)  # kernel OOM killer, as autorun counts it
+                        or "out of memory" in (run / "train.log").read_text(errors="ignore").lower()):
+                    count = root / "oom_count"
+                    count.write_text(str((int(count.read_text()) if count.exists() else 0) + 1))
+                raise RuntimeError(f"training exit {proc.returncode}; see {run / 'train.log'}")
+            checkpoints = sorted(run.rglob("last*.ckpt"))
+            if len(checkpoints) != 1:
+                raise ValueError("expected one last checkpoint in " + str(run))
+            rc.write_json(done_marker(job), {"run": str(run), "checkpoint": str(checkpoints[0])})
+            print("DONE", run, flush=True)
+        time.sleep(10)
+    return {(j["arm"], j["seed"]): json.loads(done_marker(j).read_text()) for j in jobs}
 
 
 def evaluate(root, job, checkpoint, evaluation):
@@ -130,9 +171,9 @@ def run(root):
         print("WAIT speed probe", flush=True)
         time.sleep(60)
     plan = json.loads((root / "plan.json").read_text())
-    proofs = [(job, train(root, job)) for job in plan["jobs"]]
-    for job, proof in proofs:
-        evaluate(root, job, proof["checkpoint"], plan["evaluation"])
+    proofs = train_all(root, plan["jobs"])
+    for job in plan["jobs"]:
+        evaluate(root, job, proofs[job["arm"], job["seed"]]["checkpoint"], plan["evaluation"])
     summarize(root)
 
 
