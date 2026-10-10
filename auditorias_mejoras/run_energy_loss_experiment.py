@@ -122,6 +122,13 @@ def evaluate(root, job, checkpoint, evaluation):
 
 
 def run(root):
+    # Both jobs wait only for the campaign; started together, each would yield to the other's
+    # GPU processes forever. Run after the speed probe has finished (done or failed).
+    state = rc.PREVIOUS / "g2m_improvements/autorun/state.json"
+    probe = "speedprobe:experimentos_speed_probe_20261010_v1"
+    while not any(probe in json.loads(state.read_text()).get(key, []) for key in ("done", "failed")):
+        print("WAIT speed probe", flush=True)
+        time.sleep(60)
     plan = json.loads((root / "plan.json").read_text())
     proofs = [(job, train(root, job)) for job in plan["jobs"]]
     for job, proof in proofs:
