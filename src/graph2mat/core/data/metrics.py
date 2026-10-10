@@ -92,11 +92,23 @@ def _sigmoid_threshold(abs_errors, threshold, sigmoid_factor):
     return abs_errors * (torch.sigmoid(x) if _is_torch_tensor(x) else expit(x))
 
 
+def _labels_complete(batch, nodes_ref, edges_ref) -> bool:
+    """True when the collate proved (on the CPU) that these are the batch's own labels
+    and none is NaN (roadmap 2.6): the NaN row mask is then skipped, since on the GPU each
+    boolean index is a device -> host sync."""
+    from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
+
+    layout = batch.get(LAYOUT_ATTR) if isinstance(batch, dict) else getattr(batch, LAYOUT_ATTR, None)
+    return (layout is not None and layout.get("labels_complete") is True
+            and nodes_ref is _batch_field(batch, "point_labels")
+            and edges_ref is _batch_field(batch, "edge_labels"))
+
+
 def get_predictions_error(
-    nodes_pred, nodes_ref, edges_pred, edges_ref, remove_nan=True
+    nodes_pred, nodes_ref, edges_pred, edges_ref, remove_nan=True, batch=None
 ):
     """Returns errors (pred - ref) for both nodes and edges, removing NaN values."""
-    if remove_nan:
+    if remove_nan and not _labels_complete(batch, nodes_ref, edges_ref):
         nodes = _valid_label_rows(nodes_ref)
         edges = _valid_label_rows(edges_ref)
         return nodes_pred[nodes] - nodes_ref[nodes], edges_pred[edges] - edges_ref[edges]
@@ -851,7 +863,7 @@ def block_type_mse(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_loss = _mean(node_error**2)
@@ -1059,9 +1071,10 @@ def _per_structure_losses(
     # "indices should be either on cpu or on the same device".
     node_struct = node_struct.to(nodes_pred.device)
     edge_struct = edge_struct.to(edges_pred.device)
-    node_error, edge_error = get_predictions_error(nodes_pred, nodes_ref, edges_pred, edges_ref)
-    node_struct = node_struct[torch.as_tensor(_valid_label_rows(nodes_ref), device=node_struct.device)]
-    edge_struct = edge_struct[torch.as_tensor(_valid_label_rows(edges_ref), device=edge_struct.device)]
+    node_error, edge_error = get_predictions_error(nodes_pred, nodes_ref, edges_pred, edges_ref, batch=batch)
+    if not _labels_complete(batch, nodes_ref, edges_ref):
+        node_struct = node_struct[torch.as_tensor(_valid_label_rows(nodes_ref), device=node_struct.device)]
+        edge_struct = edge_struct[torch.as_tensor(_valid_label_rows(edges_ref), device=edge_struct.device)]
     node_loss_s, node_present = _structure_mean_sq(node_error, node_struct, n_structures)
     edge_loss_s, edge_present = _structure_mean_sq(edge_error, edge_struct, n_structures)
     loss_s = node_weight * node_loss_s + edge_weight * edge_loss_s
@@ -1178,7 +1191,7 @@ def block_type_mae(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_loss = _mean(abs(node_error))
@@ -1228,7 +1241,7 @@ class block_type_huber(OrbitalMatrixMetric):
         self, nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
     ) -> Tuple[float, Dict[str, float]]:
         node_error, edge_error = get_predictions_error(
-            nodes_pred, nodes_ref, edges_pred, edges_ref
+            nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
         )
 
         node_loss = _mean(_smooth_l1(node_error, self.beta))
@@ -1313,7 +1326,7 @@ class block_normalized_huber(OrbitalMatrixMetric):
             "block_normalized_huber",
         )
         node_error, edge_error = get_predictions_error(
-            nodes_pred, nodes_ref, edges_pred, edges_ref
+            nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
         )
         node_pointers, edge_pointers = _node_edge_block_pointers(
             batch=kwargs.get("batch"),
@@ -1454,7 +1467,7 @@ class hamiltonian_composite_loss(OrbitalMatrixMetric):
         **kwargs,
     ) -> Tuple[float, Dict[str, float]]:
         node_error, edge_error = get_predictions_error(
-            nodes_pred, nodes_ref, edges_pred, edges_ref
+            nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
         )
         label_loss, node_loss, edge_loss = _weighted_label_huber(
             node_error,
@@ -1564,7 +1577,7 @@ def block_type_mape(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_loss = _mean(_relative_error(node_error, nodes_ref))
@@ -1598,7 +1611,7 @@ def block_type_mapemaemix(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_mape = _relative_error(node_error, nodes_ref)
@@ -1635,7 +1648,7 @@ def block_type_mapemsemix(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_mape = _relative_error(node_error, nodes_ref)
@@ -1672,7 +1685,7 @@ def block_type_mapestdmix(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_mape = _relative_error(node_error, nodes_ref)
@@ -1719,7 +1732,7 @@ def elementwise_mse(
 
     weights = validate_physical_weights(electron_weight, mulliken_weight, energy_weight)
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_loss = _mean(node_error**2)
@@ -1904,12 +1917,14 @@ def gauge_invariant_mse(
     )
     node_struct = node_struct.to(nodes_pred.device)
     edge_struct = edge_struct.to(edges_pred.device)
-    valid_nodes, valid_edges = _valid_label_rows(nodes_ref), _valid_label_rows(edges_ref)
-    if spectral_weight and (not valid_nodes.all() or not valid_edges.all()):
-        raise ValueError("spectral_weight requires complete H/S reference labels.")
-    node_struct, edge_struct = node_struct[valid_nodes], edge_struct[valid_edges]
-    nodes_pred, nodes_ref = nodes_pred[valid_nodes], nodes_ref[valid_nodes]
-    edges_pred, edges_ref = edges_pred[valid_edges], edges_ref[valid_edges]
+    complete = _labels_complete(batch, nodes_ref, edges_ref)
+    if not complete:
+        valid_nodes, valid_edges = _valid_label_rows(nodes_ref), _valid_label_rows(edges_ref)
+        if spectral_weight and (not valid_nodes.all() or not valid_edges.all()):
+            raise ValueError("spectral_weight requires complete H/S reference labels.")
+        node_struct, edge_struct = node_struct[valid_nodes], edge_struct[valid_edges]
+        nodes_pred, nodes_ref = nodes_pred[valid_nodes], nodes_ref[valid_nodes]
+        edges_pred, edges_ref = edges_pred[valid_edges], edges_ref[valid_edges]
     n_h = nodes_ref.shape[1] - 1
     if nodes_pred.ndim == 1:  # a single predicted component: H only
         nodes_pred, edges_pred = nodes_pred[:, None], edges_pred[:, None]
@@ -1955,10 +1970,12 @@ def gauge_invariant_mse(
         stats["spectral_elements"] = count.detach()
         loss = loss + spectral_weight * spectral
     if any(weights):
-        aligned_nodes_full = aligned_nodes.new_zeros((physical_nodes_pred.shape[0], n_h)).index_copy(
-            0, valid_nodes.nonzero(as_tuple=True)[0], aligned_nodes)
-        aligned_edges_full = aligned_edges.new_zeros((physical_edges_pred.shape[0], n_h)).index_copy(
-            0, valid_edges.nonzero(as_tuple=True)[0], aligned_edges)
+        aligned_nodes_full, aligned_edges_full = aligned_nodes, aligned_edges
+        if not complete:
+            aligned_nodes_full = aligned_nodes.new_zeros((physical_nodes_pred.shape[0], n_h)).index_copy(
+                0, valid_nodes.nonzero(as_tuple=True)[0], aligned_nodes)
+            aligned_edges_full = aligned_edges.new_zeros((physical_edges_pred.shape[0], n_h)).index_copy(
+                0, valid_edges.nonzero(as_tuple=True)[0], aligned_edges)
         physical, physical_stats = physical_loss_terms(physical_nodes_pred, physical_edges_pred,
             batch=batch, basis_table=basis_table, electron_weight=weights[0],
             mulliken_weight=weights[1], energy_weight=weights[2],
@@ -1979,7 +1996,7 @@ def elementwise_mae(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     abs_node_error = abs(node_error)
@@ -2017,7 +2034,7 @@ def node_mse(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_loss = _mean(node_error**2)
@@ -2048,7 +2065,7 @@ def edge_mse(
     nodes_pred, nodes_ref, edges_pred, edges_ref, log_verbose=False, **kwargs
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     node_loss = _mean(node_error**2)
@@ -2085,7 +2102,7 @@ def block_type_mse_threshold(
     **kwargs,
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     n_node_els = _numel(node_error)
@@ -2138,7 +2155,7 @@ def block_type_mse_sigmoid_thresh(
     **kwargs,
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     n_node_els = _numel(node_error)
@@ -2194,7 +2211,7 @@ def block_type_mae_sigmoid_thresh(
     **kwargs,
 ) -> Tuple[float, Dict[str, float]]:
     node_error, edge_error = get_predictions_error(
-        nodes_pred, nodes_ref, edges_pred, edges_ref
+        nodes_pred, nodes_ref, edges_pred, edges_ref, batch=kwargs.get("batch")
     )
 
     n_node_els = _numel(node_error)
@@ -2276,7 +2293,7 @@ def normalized_density_error(
     import sisl
     from graph2mat import BasisMatrixDataBase
 
-    observed_errors = get_predictions_error(nodes_pred, nodes_ref, edges_pred, edges_ref)
+    observed_errors = get_predictions_error(nodes_pred, nodes_ref, edges_pred, edges_ref, batch=batch)
     errors = []
     for pred, ref, values in zip((nodes_pred, edges_pred), (nodes_ref, edges_ref), observed_errors):
         finite = torch.isfinite(values).all() if _is_torch_tensor(values) else np.isfinite(values).all()

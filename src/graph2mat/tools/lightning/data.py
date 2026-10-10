@@ -158,6 +158,9 @@ class TypeLayoutCollate:
                 batch.point_labels, batch.edge_labels, batch, self.basis_table
             )
             layout.update(node_struct=node_struct, edge_struct=edge_struct, n_structures=n_structures)
+            # Roadmap 2.6: known here on the CPU, so the losses skip the NaN mask (a GPU sync).
+            layout["labels_complete"] = not (bool(torch.isnan(batch.point_labels).any())
+                                             or bool(torch.isnan(batch.edge_labels).any()))
             if getattr(batch, "spectral_C", None) is not None:
                 from graph2mat.core.data.metrics import spectral_window_layout
 
