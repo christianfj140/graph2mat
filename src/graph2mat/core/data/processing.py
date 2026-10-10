@@ -1766,6 +1766,19 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         indices = data_processor.get_point_types(config)
         node_attrs = data_processor.get_node_attrs(config)
 
+        # Types come from Z (roadmap 8.3): a species with the same Z and another basis would
+        # get the table's block size and misplace every label after it.
+        if config.matrix is not None:
+            counts = np.asarray(config.matrix.basis_count)
+            expected = data_processor.basis_table.basis_size[indices]
+            wrong = np.flatnonzero((counts > 0) & (counts != expected))
+            if wrong.size:
+                raise ValueError(
+                    f"Points {wrong[:5].tolist()} have {counts[wrong[:5]].tolist()} basis functions in the "
+                    f"matrix but the basis table gives {expected[wrong[:5]].tolist()} for their type: "
+                    "species with the same Z and different basis are not supported."
+                )
+
         # Search for the neighbors. We use the max radius of each atom as cutoff for looking over neighbors.
         # This means that two atoms ij are neighbors if they have some overlap between their orbitals. That is
         # if distance_ij <= maxR_i + maxR_j. We subtract 0.0001 from the radius to avoid numerical problems that
