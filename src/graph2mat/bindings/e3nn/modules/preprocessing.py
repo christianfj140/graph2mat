@@ -15,7 +15,9 @@ __all__ = [
 class E3nnInteraction(torch.nn.Module):
     """Basically MACE's RealAgnosticResidualInteractionBlock, without reshapes.
 
-    This function takes a graph and returns new states for the nodes.
+    This function takes a graph and returns new states for the nodes. It returns only
+    the neighbours' message, without MACE's residual/skip connection (audit ARCH-26):
+    used as node preprocessing, the atom's own features are dropped.
 
     This function can be used for the preprocessing step of both nodes and edges.
     """

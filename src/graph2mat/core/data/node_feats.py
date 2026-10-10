@@ -52,17 +52,9 @@ class WaterDipole(NodeFeature):
 
     @staticmethod
     def get_feature(config, data_processor):
-        n_atoms = len(config.positions)
-
-        z_dipole = np.array([0.0, 0.0, 0.0])
-        for position, point_type in zip(config.positions, config.point_types):
-            if point_type == 8 or point_type == 1:
-                z_dipole[2] += position[2] * (-2 if point_type == 8 else 1)
-
-        z_dipole = data_processor.cartesian_to_basis(z_dipole) / 30
-        z_dipole = np.tile(z_dipole, n_atoms).reshape(n_atoms, 3)
-
-        return z_dipole
+        # The whole vector (it used only z, which is not a 1o irrep: MATH_EQUIV-22).
+        dipole = data_processor.cartesian_to_basis(_water_dipole(config)) / 30
+        return np.tile(dipole, (len(config.positions), 1))
 
 
 class WaterDipoleInv(NodeFeature):
@@ -74,16 +66,15 @@ class WaterDipoleInv(NodeFeature):
 
     @staticmethod
     def get_feature(config, data_processor):
-        n_atoms = len(config.positions)
+        # The norm (its z component was not invariant under rotations: MATH_EQUIV-22).
+        dipole = np.linalg.norm(_water_dipole(config)) / 30
+        return np.full((len(config.positions), 1), dipole)
 
-        z_dipole = np.array([0.0])
-        for position, point_type in zip(config.positions, config.point_types):
-            if point_type == 8 or point_type == 1:
-                z_dipole[0] += position[2] * (-2 if point_type == 8 else 1)
 
-        z_dipole = np.tile(z_dipole, n_atoms).reshape(n_atoms, 1)
-
-        return z_dipole / 30
+def _water_dipole(config) -> np.ndarray:
+    """Point-charge dipole with O = -2 and H = +1."""
+    charges = np.select([np.asarray(config.point_types) == 8, np.asarray(config.point_types) == 1], [-2.0, 1.0], 0.0)
+    return charges @ np.asarray(config.positions, dtype=float)
 
 
 class Nothing(NodeFeature):
