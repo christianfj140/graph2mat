@@ -210,6 +210,15 @@ class PointBasis:
 
         object.__setattr__(self, "basis", basis)
 
+        # A convention is a rotation of axes; QE interleaves m (0, +1, -1, ...), which a
+        # rotation reproduces only for s and p. Higher shells would silently mix orbitals.
+        if self.basis_convention == "qe_spherical" and any(l >= 2 for _, l, _ in basis):
+            raise ValueError(
+                f"basis_convention='qe_spherical' only supports l <= 1 shells; {self.type!r} "
+                f"has {basis}. Reorder d/f orbitals to SIESTA's m = -l..l order and use "
+                "'siesta_spherical'."
+            )
+
         assert isinstance(self.R, Number) or (
             isinstance(self.R, np.ndarray) and len(self.R) == self.basis_size
         ), f"R must be a float or an array of length {self.basis_size} (the number of functions)."
