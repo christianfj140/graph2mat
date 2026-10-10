@@ -121,7 +121,7 @@ def _memory_worker(variant, points, rank, connection):
         connection.close()
 
 
-def host_memory(points, rank, shared):
+def host_memory(points, rank):
     ctx = multiprocessing.get_context("spawn")
     result = {}
     for variant in VARIANTS:
@@ -136,12 +136,13 @@ def host_memory(points, rank, shared):
             process.join()
         if process.exitcode != 0 or "error" in record:
             raise RuntimeError(f"RSS worker {variant}: exit {process.exitcode}: {record}")
-        assert record["result"]["shared_initial_hashes"] == shared
         result[variant] = record["result"]
     return result
 
 
 def probe(points, rank, rounds, warmup):
+    # Linux preserves pre-exec RSS high-water: spawn before allocating three models.
+    memory = host_memory(points, rank)
     dataset = dataset_for(points)
     batch = Batch.from_data_list([dataset[0]])
     batch_hash = digest_tensors(batch.items())
@@ -157,6 +158,7 @@ def probe(points, rank, rounds, warmup):
         assert out["edge_labels"].shape == batch.edge_labels.shape
     shared = common_hashes(baseline)
     assert all(common_hashes(model) == shared for model in models.values())
+    assert all(record["shared_initial_hashes"] == shared for record in memory.values())
     initial = {name: digest_tensors(model.state_dict().items()) for name, model in models.items()}
     count = {name: {"total": parameters(model),
         "edge_operations": sum(parameters(block.operation) for block in model.model.matrix_readouts.interactions.values()),
@@ -202,7 +204,7 @@ def probe(points, rank, rounds, warmup):
         "input_hashes_unchanged": True, "branches_effective": True,
         "parameters": count, "operation_parameters": {name: parameters(op) for name, op in ops.items()},
         "measure": {"full_model": full_times, "operation": op_times},
-        "host_memory": host_memory(points, rank, shared)}
+        "host_memory": memory}
 
 
 def main():

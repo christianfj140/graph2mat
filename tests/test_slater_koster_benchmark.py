@@ -1,12 +1,30 @@
 """Real subprocess smoke; timings are evidence, never performance thresholds."""
 
 import json
+import importlib
 import math
 import os
 from pathlib import Path
 import statistics
 import subprocess
 import sys
+
+import pytest
+
+
+def test_rss_workers_start_before_parent_allocates_timing_models(monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    monkeypatch.syspath_prepend(str(root / "auditorias_mejoras"))
+    bench = importlib.import_module("bench_slater_koster_cpu")
+    calls = []
+    monkeypatch.setattr(bench, "host_memory", lambda *args: calls.append("memory") or {})
+    def stop(*args):
+        calls.append("model")
+        raise RuntimeError("stop before model allocation")
+    monkeypatch.setattr(bench, "model_for", stop)
+    with pytest.raises(RuntimeError, match="stop before"):
+        bench.probe(4, 1, 1, 1)
+    assert calls == ["memory", "model"]
 
 
 def test_three_variant_cpu_benchmark_contract():
