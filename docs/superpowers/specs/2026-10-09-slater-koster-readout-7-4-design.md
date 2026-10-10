@@ -224,11 +224,16 @@ de ejecutar; no se cambian defaults por ganar un microbenchmark.
 - [x] Inspeccionar puntos de extensión y comparar dos alternativas.
 - [x] Escribir propuesta y revisar alcance/contradicciones sin producto.
 - [x] Aprobación explícita del usuario de este diseño escrito (2026-10-09).
-- [ ] Plan escrito aprobado y ejecución Native.
-- [ ] Implementación, tests, benchmark y gates CPU con evidencia nueva.
-- [ ] Informe, resultados crudos, protocolo GPU/precisión y roadmap actualizado.
+- [x] Plan escrito aprobado y ejecución Native.
+- [x] Implementación, tests, benchmark y gates CPU con evidencia nueva.
+- [x] Informe, resultados crudos, protocolo GPU/precisión y roadmap actualizado.
 
-El goal de implementación CPU no se cierra por esta propuesta. 7.4 global
+Cierre CPU 2026-10-10: full2597 passed / 2 skipped existentes; focused120 en
+Python3.9 y3.12; gates estáticos verdes y revisión independiente sin hallazgos.
+Código/tests verificado `8a5cc7c`. Comandos, límites y evidencia en el
+[informe CPU](../../../auditorias_mejoras/informe_slater_koster_cpu.md).
+
+El goal de implementación CPU se cierra por esa evidencia, no por esta propuesta. 7.4 global
 seguirá pendiente de evaluaciones GPU/precisión aunque el código CPU se cierre.
 Ante inviabilidad del mapa, fallo científico persistente o necesidad de ampliar
 alcance, informar evidencia y pedir dirección; no cambiar a SO(2) por sorpresa.

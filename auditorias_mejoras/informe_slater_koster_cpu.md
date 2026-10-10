@@ -1,13 +1,16 @@
 # 7.4 — Slater–Koster neuronal + residual: evidencia CPU
 
-Estado: implementación opt-in y benchmark CPU ejecutados; gates finales y
-revisión independiente en curso. No declarar cierre todavía. GPU/VRAM y
-precisión científica **no evaluadas**. No cambiar defaults.
+Estado 2026-10-10: **goal acotado de implementación y verificación CPU cerrado**.
+Implementación opt-in, benchmark, gates y revisión independiente terminados.
+GPU/VRAM y precisión científica **no evaluadas**: 7.4 global sigue abierto.
+Defaults intactos.
 
 ## Alcance y selección
 
 Base de producto `8c8dc3e`, diseño `8d49845`, plan `3981be9`. Implementación
 `92e1ad3`, `80f3cf5`, `9c50ee5`; benchmark `f72a96a`, corrección RSS `f0acdad`.
+HEAD de código/tests verificado: `8a5cc7c`; los commits posteriores solo
+consolidan documentación y evidencia, no cambian el producto medido.
 Mismo checkout `g2m-v2`; sin dependencias nuevas, GPU, fonones, autorun, colas,
 otros repositorios, push/merge ni cambios ajenos.
 
@@ -131,9 +134,63 @@ No son matrices/etiquetas científicas ni validación de MAE de materiales.
 
 ## Gates finales y revisión
 
-Pendientes al redactar este registro: focused3.12/3.9 posteriores, suite CPU
-completa, gates estáticos guardados y revisión independiente final. Se
-reemplazará este estado por conteos/exit reales, no por el histórico2477/2.
+Posteriores al último cambio de producto, CUDA desactivada y PYTHONPATH absoluto:
+
+- Python3.12/Torch2.11cpu: **120 passed**, 6462 warnings, 142.22s, exit0.
+- Python3.9/Torch2.4.1: **120 passed**, 3023 warnings, 171.40s, exit0.
+- Ruff src/tests y script de benchmark explícito: exit0. Mypy-core: 23 archivos,
+  exit0 (no equivale a typecheck de todo MACE/e3nn). CompileallPython3.9 y
+  git diff --check: exit0. Pip check: sin dependencias rotas.
+- Revisión independiente única, fresh-context gpt-6-astra, rango
+  `8c8dc3e..8a5cc7c`: **0 Critical / 0 Important / 0 Minor**; regraduada por
+  efecto real, sin fixes ni menores diferidos. Todos los hashes y18resúmenes
+  del benchmark concuerdan con sus muestras. Comprobaciones independientes
+  adicionales: capas repetidas+C2+rotación impropia (error máximo3.77e-15),
+  reload estricto float64→float32, pérdidas dirigidas en3grupos y ajuste real
+  de escalado C2: exit0.
+- Suite completa CPU: **2597 passed / 2 skipped**, 36532 warnings,
+  **850.43s (14m10s)**, exit0. Omisiones existentes: ejemplo HSX local ausente
+  y prueba torch.compile/inductor que exige GPU. Ningún test nuevo omitido.
+
+Fallos abiertos: **ninguno** en el alcance CPU. Los fallos RED y el primer
+RSS contaminado se corrigieron; no cuentan como resultados finales válidos.
+
+Los 120 tests nuevos/enfocados se corresponden con
+`bindings/e3nn/modules/tests/test_slater_koster_readout.py` (71),
+`tools/lightning/tests/test_slater_koster_model.py` (47) y
+`tests/test_slater_koster_benchmark.py` (2). Ninguno omitido. Comando común:
+
+```bash
+python -m pytest \
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py \
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py \
+tests/test_slater_koster_benchmark.py -q --tb=short
+```
+
+Se usaron los dos intérpretes existentes arriba/Python3.9; env CUDA/PYTHONPATH/
+hilos idéntico al benchmark. Para el gate agregado: `python -m pytest
+src/graph2mat tests -q --tb=short`. El histórico2477/2 no sustituye este gate.
+
+## Decisiones y límites, incluidos los apartados por el revisor
+
+| Decisión | Motivo / coste si no cubre otro uso |
+| --- | --- |
+| Mismo checkout, sin worktree ni instalaciones | Preferencia/restricción explícita; no aislamiento de rollback, commits propios conservan recuperación |
+| Parser CLI real de test_cli.py, no ubicación errónea del plan | Reutilizar API existente; posible diferencia de comando completo, cubierta por regresión CLI vecina |
+| Digest portable de claves legacy; captura de pesos/salidas en gate local | No añadir skip dependiente de scratch; CI no repite la captura histórica exacta |
+| Ruff --config include en vez de flag --include inexistente | Misma regla/archivo explícito; descubrimiento de otros archivos podría diferir |
+| RSS antes de modelos de timing | Evita suelo del padre con3modelos; imports/construcción aún pueden ocultar diferencias pequeñas |
+| No juzgar precisión/bandas/gap/OOD/promoción | Fixtures sintéticas no bastan; prior opcional podría empeorar materiales, defaults intactos |
+| No certificar GPU/VRAM/AMP/compile/checkpointing nuevos | Alcance CPU y restricciones conservadas; modos no probados podrían fallar o regresar |
+| No extrapolar rendimiento | Solo fixture/host medidos; otros datos/hardware pueden cambiar resultados |
+| No certificar corrupción manual Q/mapas o overrides inconsistentes de metadatos generados | Construcción normal, conversión dtype y checkpoints propios estrictos sí probados; estados manipulados pueden invalidar mapas científicos |
+| Gates agregados a cargo del ejecutor, no del veredicto del revisor | No cierre por opinión; una conclusión prematura ocultaría regresiones |
+| Conservar scratch propio y archivar evidencia en vez de borrarlo | El plan prohíbe borrados; scratch ignorado podría perderse con git clean, por eso existe copia versionada |
+
+Revisión completa, comandos/diagnósticos, ledger, captura legacy y logs:
+[evidencia_slater_koster_cpu.tar.gz](evidencia_slater_koster_cpu.tar.gz).
+Scratch propio conservado en `.superpowers/sdd/2026-10-09-slater-koster-readout-7-4/`
+según la restricción de no borrar. No se ha solicitado una segunda revisión.
 
 ## Pendiente y siguiente paso
 

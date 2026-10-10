@@ -217,10 +217,12 @@ variante de readout local SO(2) **o** Slater–Koster neuronal con residuo.
   con factores y convención comprobados contra una referencia independiente.
 - [x] Datos H-only no justifican inventar DM/EDM ni convertir sus objetivos en ceros.
 - [ ] Evaluar las pérdidas por separado; mantener apagados los términos perjudiciales.
-- [ ] Diseñar una primera variante 7.4 con plan separado, bases soportadas
+- [x] Diseñar una primera variante 7.4 con plan separado, bases soportadas
   explícitas y fallback/error para las demás; no dos arquitecturas a la vez.
-- [ ] Probar rotaciones, inversión/intercambio, cortes, continuidad del marco
-  local, periodicidad y gradientes; entrenar y medir con protocolo pareado.
+- [x] Verificar CPU: rotaciones, inversión/intercambio, cortes, libertad de marco,
+  periodicidad, gradientes, dos pasos de entrenamiento/checkpoint y benchmark
+  emparejado de baseline/7.1/SK+residual. No demuestra precisión de materiales.
+- [ ] Entrenar y medir precisión/bandas/OOD y GPU/VRAM con protocolo pareado.
 
 Expected: código físico bajo sus hipótesis, variantes opcionales y evidencia
 experimental real. Si faltan etiquetas imprescindibles, registrar el recurso
@@ -236,6 +238,16 @@ Precisión, bandas/OOD y GPU pendientes, no beneficios ML/VRAM demostrados.
 Coste y comandos: [informe CPU](informe_objetivos_fisicos_cpu.md).
 Experimento preparado, no ejecutado: [protocolo](protocolo_precision_4_4_4_5.md).
 Task 4 global y 7.4 siguen abiertos; esta ejecución no implementa 7.4.
+
+Estado 2026-10-10: goal acotado 7.4 CPU cerrado, variante SK neuronal + residual
+7.1 opcional. Full CPU **2597 passed / 2 skipped** existentes, focused **120**
+en Python3.9 y3.12, gates estáticos y revisión independiente sin hallazgos.
+Benchmark sintético CPU72p: paso −51.35% vs baseline, **+3.12% vs7.1**;
+RSS de proceso incluye imports/construcción, no VRAM. Defaults preservados.
+[Informe, resultados y evidencia](informe_slater_koster_cpu.md);
+[protocolo GPU/precisión preparado, no ejecutado](protocolo_gpu_precision_7_4.md).
+Faltan material/dataset y manifests de splits para ese experimento. Las pérdidas
+físicas siguen sin evaluación comparativa; **Task4 global y7.4 experimental abiertos**.
 
 ## Fuera de esta prioridad
 
