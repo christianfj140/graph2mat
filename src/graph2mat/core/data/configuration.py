@@ -499,6 +499,13 @@ def _sisl_to_orbital_configuration(
             else 0.0,
             component_indices=component_indices,
         )
+        # Block keys index images in the matrix's own sc_off order, but the graph uses a
+        # default-ordered Lattice (roadmap 3.11, CRIT-04): remap or images get swapped silently.
+        canonical = sisl.Lattice(matrix.lattice.cell, nsc=matrix.nsc)
+        if not np.array_equal(matrix.lattice.sc_off, canonical.sc_off):
+            to_canonical = canonical.sc_index(matrix.lattice.sc_off)
+            matrix_block.block_dict = {(i, j, int(to_canonical[isc])): block
+                                       for (i, j, isc), block in matrix_block.block_dict.items()}
 
         kwargs["matrix"] = matrix_block
 
