@@ -10,6 +10,10 @@ build/
 # pytest
 .pytest_cache/
 
+# Local, reproducible readout campaign data and checkpoints.
+auditorias_mejoras/experimentos_readout_w90_6x6_20261010/
+auditorias_mejoras/experimentos_readout_w90_6x6_20261010_v1/
+
 # mypy
 .mypy_cache/
 

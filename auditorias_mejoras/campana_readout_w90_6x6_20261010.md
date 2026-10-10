@@ -1,0 +1,127 @@
+# Comparación baseline / 7.1 / 7.4 — 2026-10-10
+
+Alcance aprobado por el usuario: reutilizar experimentos históricos de grafeno
+w90 y 6x6 y encolar la comparación cuando la GPU esté disponible. No cambia
+defaults, pérdidas físicas ni `g2m_autorun.py`; no ejecuta trabajo de fonones.
+
+## Campaña
+
+Directorio local (artefactos grandes excluidos de Git):
+`auditorias_mejoras/experimentos_readout_w90_6x6_20261010_v1`.
+ID de cola previsto: `readout:experimentos_readout_w90_6x6_20261010_v1`.
+Estado: preparada; comprobar la entrada de cola antes de interpretar como encolada.
+
+18 entrenamientos: 2 sistemas × 3 readouts × semillas 0/1/2.
+
+| Sistema | N train | Batch | Épocas | Actualizaciones |
+| --- | ---: | ---: | ---: | ---: |
+| w90 | 64 | 32 | 4000 | 8000 |
+| 6x6 | 8 | 16 | 16000 | 16000 |
+
+Readouts: `E3nnLinearEdgeBlock`, `E3nnLowRankEdgeBlock(rank=4)` y
+`E3nnSlaterKosterEdgeBlock(rank=4)`. Todos FP32, compile/checkpointing desactivados.
+Mismos backbone, onsite, etiquetas H/S, pérdida gauge, H0, optimizador, scheduler,
+splits y selección del mejor checkpoint por validación de las recetas históricas.
+Las variantes tienen distinta capacidad; no se afirma equivalencia matemática.
+
+`manifest.json` conserva configs, rutas resueltas de splits, versiones y SHA256
+de fuentes, bases, matrices, H0 y sidecars estructurales, incluidos XV. Rechaza
+fugas de geometrías entre train/validation/test de cada sistema. No crea H0 ni
+ejecuta SIESTA. Datos históricos y código de evaluación externos solo se leen.
+Un cambio en archivos congelados invalida el lanzamiento/resultados: no se
+actualizan hashes automáticamente para aceptar cambios.
+
+## Orden y mediciones
+
+1. Seis smokes GPU (2 pasos, semilla 0).
+2. 72 procesos frescos de medición: 2 sistemas × 3 variantes × 12 rondas,
+   rotando las seis permutaciones. Lote fijo real; 10 pasos de calentamiento
+   y 30 medidos. Backbone/onsite cargados estrictamente del mismo estado y
+   orden de muestras con generador independiente del constructor del readout.
+3. Los 18 entrenamientos completos, secuenciales.
+4. Evaluación CPU de validation/test y OOD registry, AB-MD y moiré. Los H0
+   están precalculados; no se modifica su caché.
+
+Telemetría cruda: forward con pérdida, backward y paso con Adam; sincronización
+CUDA en los límites. Excluye collate/H2D y comprobaciones de gradientes.
+Picos allocated/reserved separados, reseteados tras warmup. Guarda dtype, GPU,
+versión Torch y configuración TF32. `probe_summary.json` aparece antes de los
+entrenamientos largos: mediana/MAD de paso y razones pareadas de fases/VRAM.
+Verifica igualdad de hashes de lote y estados comunes antes de comparar.
+
+Primaria científica: H-MAE alineada al gauge en test, definición histórica en Γ.
+`precision_summary.json`: razones pareadas de 3 semillas, media geométrica e
+IC95 por bootstrap pareado (10000 remuestreos; semilla 20261010). Promoción exige
+razón e IC superior <1 y ningún empeoramiento OOD pareado >5% en H alineada o
+bandas alineadas. Tres semillas dan potencia limitada. Conserva resultados
+por estructura/semilla y comparación SK/low-rank. No cambia defaults automáticamente.
+
+## Ejecución desatendida
+
+La cola existente recibe una sola entrada idempotente, sin dependencias de
+trabajos ajenos fallidos. Reserva declarada 22000 MiB más los márgenes existentes
+del autorun. El adaptador espera a que no haya procesos compute GPU ajenos.
+Si aparece uno durante un entrenamiento, termina únicamente su propio grupo
+de procesos y reintenta en otro directorio; conserva el intento interrumpido.
+Esto no es aislamiento exclusivo de hardware: existe la latencia del sondeo
+de 2 segundos. No puede impedir que otro usuario lance trabajo entre sondeos.
+
+Reanudar tras un fallo requiere investigar su log y ejecutar de nuevo la misma
+campaña; etapas con marcador completado no se repiten. No se promete recuperación
+automática de errores científicos, entradas cambiadas o caída del daemon.
+El equipo debe permanecer encendido y sin suspensión. El chat no necesita seguir
+abierto una vez confirmada la entrada y el daemon.
+
+Comprobar resultados locales:
+
+```bash
+cd /home/christian/repositorios/graph2mat
+ls auditorias_mejoras/experimentos_readout_w90_6x6_20261010_v1/completed/
+```
+
+El log del autorun está bajo el directorio histórico
+`Comparison/results/dataset_design_curves_v1/g2m_improvements/autorun/`;
+usar el ID de esta campaña, sustituyendo `:` por `__`.
+Cada intento guarda además su propio `train.log`, config, CSV y telemetría.
+
+## Verificación previa
+
+- Tests específicos del adaptador, incluyendo cola append-only/idempotente,
+  deriva de fuentes durante espera GPU, rutas por intento, emparejamiento de
+  pesos/orden de datos y veto científico.
+- Cuatro fits reales CPU de dos pasos: w90 baseline/low-rank/SK y 6x6 SK,
+  checkpoints y hashes comunes w90 idénticos.
+- Recarga + predicción real CPU + restauración H0 + métricas de una estructura
+  para las tres variantes w90.
+- Probe real CPU SK w90: 40 pasos, 30 muestras medidas y hash fijo de lote.
+- Política real de checkpoint completo: un `best-epoch0-step1.ckpt` por `val_loss`
+  en fit CPU reducido, conservando la configuración del entrenamiento largo.
+- Tests específicos: 14 passed en Python 3.12 y 14 passed en Python 3.9;
+  Ruff y `git diff --check` sin errores.
+- Evidencia de integración: `/tmp/g2m-campaign-cpu-m_0hosdg/`.
+- Revisión independiente: sin hallazgos críticos; corregida congelación de
+  helpers del predictor y geometrías XV antes del manifiesto final.
+
+La primera suite completa usó por error `PYTHONPATH=src`: diez pruebas DDP
+cargaban la instalación antigua al cambiar su cwd. Se interrumpió esa ejecución
+(1757 passed, 10 failed, 2 skipped); log `/tmp/g2m-campaign-full-suite.log`.
+La prueba DDP aislada pasa al usar la ruta absoluta. Se relanzó toda la suite con
+`PYTHONPATH=/home/christian/repositorios/graph2mat/src`; resultado aún pendiente
+en `/tmp/g2m-campaign-full-suite-absolute.log`.
+
+Pruebas afectadas por ese comando incorrecto, todas de `test_ddp_cpu.py`:
+
+- `test_two_cpu_ranks_cost_batches_keep_coverage_padding_and_epoch_metrics`
+  [1-ordered, 2-shuffled, 1-variable, 1-single, 1-workers].
+- `test_two_cpu_ranks_train_real_mace_for_multiple_steps` [all_types, missing_types].
+- `test_two_cpu_ranks_irreps_training_preserves_dense_updates_and_epoch_metrics`
+  [all_types, missing_types, missing_labels].
+
+## Límites
+
+Los smokes CPU no son resultados científicos ni mediciones GPU. Precisión,
+velocidad GPU y VRAM siguen sin resultado hasta ejecutar la campaña.
+No se mide máximo batch admisible ni AMP/compile; no se declara mejora de gaps
+ni error por distancia/especie no calculado por el evaluador heredado.
+No hay plazo garantizado: la espera de GPU y la diagonalización CPU OOD pueden
+dominar el tiempo total. Las predicciones se conservan y consumen disco.
