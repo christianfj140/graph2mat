@@ -8,8 +8,12 @@ defaults, pérdidas físicas ni `g2m_autorun.py`; no ejecuta trabajo de fonones.
 
 Directorio local (artefactos grandes excluidos de Git):
 `auditorias_mejoras/experimentos_readout_w90_6x6_20261010_v1`.
-ID de cola previsto: `readout:experimentos_readout_w90_6x6_20261010_v1`.
-Estado: preparada; comprobar la entrada de cola antes de interpretar como encolada.
+ID de cola: `readout:experimentos_readout_w90_6x6_20261010_v1`.
+Estado: **encolada, pendiente**. Confirmadas una única entrada, conservación
+exacta de los bytes previos de la cola y daemon PID 1756952 activo. Recibo:
+`experimentos_readout_w90_6x6_20261010_v1/queue_receipt.json`.
+En ese instante había 105 entradas listas por delante y la GPU estaba ocupada.
+No se promete inicio ni finalización durante esta noche.
 
 18 entrenamientos: 2 sistemas × 3 readouts × semillas 0/1/2.
 
@@ -30,6 +34,7 @@ fugas de geometrías entre train/validation/test de cada sistema. No crea H0 ni
 ejecuta SIESTA. Datos históricos y código de evaluación externos solo se leen.
 Un cambio en archivos congelados invalida el lanzamiento/resultados: no se
 actualizan hashes automáticamente para aceptar cambios.
+Manifiesto final comprobado: 7548 archivos congelados, incluidos 309 XV.
 
 ## Orden y mediciones
 
@@ -65,6 +70,9 @@ Si aparece uno durante un entrenamiento, termina únicamente su propio grupo
 de procesos y reintenta en otro directorio; conserva el intento interrumpido.
 Esto no es aislamiento exclusivo de hardware: existe la latencia del sondeo
 de 2 segundos. No puede impedir que otro usuario lance trabajo entre sondeos.
+Un proceso Python ajeno mantiene un contexto CUDA desde hace días: esta política
+estricta espera también a que ese contexto se libere, aunque su utilización sea
+cero. No se excluye ni termina automáticamente ese proceso.
 
 Reanudar tras un fallo requiere investigar su log y ejecutar de nuevo la misma
 campaña; etapas con marcador completado no se repiten. No se promete recuperación
@@ -99,6 +107,8 @@ Cada intento guarda además su propio `train.log`, config, CSV y telemetría.
 - Tests específicos: 14 passed en Python 3.12 y 14 passed en Python 3.9;
   Ruff y `git diff --check` sin errores.
 - Evidencia de integración: `/tmp/g2m-campaign-cpu-m_0hosdg/`.
+  Copia duradera en el directorio de campaña `preflight_cpu/`; logs de pruebas
+  y ciclos RED/GREEN en `verification/`.
 - Revisión independiente: sin hallazgos críticos; corregida congelación de
   helpers del predictor y geometrías XV antes del manifiesto final.
 
@@ -106,8 +116,9 @@ La primera suite completa usó por error `PYTHONPATH=src`: diez pruebas DDP
 cargaban la instalación antigua al cambiar su cwd. Se interrumpió esa ejecución
 (1757 passed, 10 failed, 2 skipped); log `/tmp/g2m-campaign-full-suite.log`.
 La prueba DDP aislada pasa al usar la ruta absoluta. Se relanzó toda la suite con
-`PYTHONPATH=/home/christian/repositorios/graph2mat/src`; resultado aún pendiente
-en `/tmp/g2m-campaign-full-suite-absolute.log`.
+`PYTHONPATH=/home/christian/repositorios/graph2mat/src`: **2610 passed, 2 skipped,
+36534 warnings, 862.35 s**, ningún fallo. Log completo conservado en
+`verification/g2m-campaign-full-suite-absolute.log` dentro de la campaña.
 
 Pruebas afectadas por ese comando incorrecto, todas de `test_ddp_cpu.py`:
 

@@ -19,6 +19,12 @@ el servicio figura `usageLimited` y el usuario ha autorizado continuar localment
 Este cambio de prioridad no marca esos puntos como completados ni reabre los
 cinco frentes de ingeniería ya cerrados.
 
+Actualización 2026-10-10: comparación científica/GPU **baseline vs 7.1 vs 7.4
+encolada**, reutilizando recetas y splits históricos de grafeno w90/6x6.
+18 entrenamientos, tres semillas, entradas congeladas y preflight real CPU;
+ver [registro y límites](campana_readout_w90_6x6_20261010.md). Sin resultados
+de precisión/GPU/VRAM todavía; no cierra 7.4 global ni cambia defaults.
+
 ## Resumen de resultados (27–28 de septiembre)
 
 Todas las cifras son H-MAE en meV, con 3 semillas salvo indicación.

@@ -1,13 +1,19 @@
 # Protocolo posterior 7.4: precisión y GPU — NO EJECUTADO
 
+Actualización 2026-10-10: el usuario autorizó reutilizar las recetas históricas de
+grafeno w90/6x6 y encolar la comparación. Preparados splits/configs/entradas
+congelados y preflights reales CPU; campaña de 18 entrenamientos **encolada**.
+Ver [registro de campaña](campana_readout_w90_6x6_20261010.md). No hay todavía
+resultados de precisión/GPU/VRAM. El experimento autorizado cubre batch fijo;
+máximo batch y AMP siguen fuera de esta ejecución.
+
 El goal actual solo implementa y verifica CPU. Ninguna cifra CPU demuestra
 mejora de precisión, velocidad GPU ni VRAM. Mantener readout default sin cambios.
 
 ## Preflight bloqueante antes de autorizar el experimento
 
-Todavía **no listo**: faltan dataset/material concreto y manifests de splits
-congelados para esta comparación. No reutilizar nombres de datasets como si
-fueran manifests comprobados. Preparar y aprobar:
+Requisitos originales del preflight; la campaña enlazada aporta sus rutas y
+manifiestos comprobados. No basta reutilizar nombres de datasets. Verificar:
 
 - Rutas y SHA256 de configuraciones, H y base orbital; S/referencias de bandas
   necesarias para el evaluador. Spin C1/C2, unidades, H0 y gauge explícitos.
@@ -80,6 +86,6 @@ en la comparación a batch fijo.
 ## Estado de esta entrega
 
 Preparado: este protocolo. Ejecutado: únicamente pruebas/benchmark CPU
-sintéticos descritos en `informe_slater_koster_cpu.md`. Pendiente: dataset/splits
-experimentales, precisión científica, bandas/gap, OOD y GPU/VRAM. Ni 7.4 global
+sintéticos descritos en `informe_slater_koster_cpu.md`, junto al preflight CPU de
+la campaña. Pendiente: precisión científica, bandas/gap, OOD y GPU/VRAM. Ni 7.4 global
 ni Task 4 completo se cierran con el cierre del goal CPU.
