@@ -104,6 +104,15 @@ def csr_to_block_dict(
     """
     orbitals = atoms.orbitals
     data = spmat.data
+    ptr, cols = spmat.ptr, spmat.col
+    ncol = getattr(spmat, "ncol", None)
+    if ncol is not None:
+        # Only the first ncol entries of a row are values (DATA_PIPE-28); keep them, compacted.
+        ncol = np.asarray(ncol)
+        starts = np.concatenate([[0], np.cumsum(ncol)])
+        keep = np.repeat(ptr[:-1] - starts[:-1], ncol) + np.arange(starts[-1])
+        ptr = starts.astype(ptr.dtype)
+        cols, data = cols[keep], data[keep]
 
     if component_indices is not None:
         selected_components = np.asarray(component_indices, dtype=np.int64)
@@ -121,8 +130,8 @@ def csr_to_block_dict(
     if data.shape[1] == 1:
         block_dict = _csr_to_block_dict(
             data=data[:, 0],
-            ptr=spmat.ptr,
-            cols=spmat.col,
+            ptr=ptr,
+            cols=cols,
             atom_first_orb=atoms.firsto,
             orbitals=orbitals,
             n_atoms=len(atoms.species),
@@ -131,8 +140,8 @@ def csr_to_block_dict(
     else:
         block_dict = _csr_to_block_dict_components(
             data=data,
-            ptr=spmat.ptr,
-            cols=spmat.col,
+            ptr=ptr,
+            cols=cols,
             atom_first_orb=atoms.firsto,
             orbitals=orbitals,
             n_atoms=len(atoms.species),
