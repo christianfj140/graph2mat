@@ -202,6 +202,33 @@ def test_controlled_branch_ablation_retains_nonaxial_environment_residual():
     torch.testing.assert_close(sk_only(**data) + residual_only(**data), op(**data))
 
 
+def test_two_sources_route_by_name_and_only_displaced_0e_condition_sk():
+    torch.manual_seed(41)
+    point = basis(1)
+    node, edge = o3.Irreps("1x1o+1x0o+2x0e"), o3.Irreps("1x2e+1x0e")
+    block = E3nnIrrepsMatrixBlock(point, point, "ij", binding.E3nnSlaterKosterEdgeBlock,
+        irreps={"node_feats_irreps": node, "edge_messages_irreps": edge,
+                "edge_feats_irreps": o3.Irreps("2x0e")}, rank=1)
+    op = block.operation
+    with torch.no_grad():
+        for p in op.residual.parameters():
+            p.zero_()
+    vectors = torch.tensor([[.3, -.5, .7]])
+    radial = torch.ones(1, 2)
+    data = {"node_feats": tuple(torch.randn(1, node.dim) for _ in range(2)),
+            "edge_messages": tuple(torch.randn(1, edge.dim) for _ in range(2)),
+            "edge_feats": (radial, radial), "edge_vectors": (vectors, -vectors)}
+    original = op(**data)
+    torch.testing.assert_close(op(**dict(reversed(list(data.items())))), original, atol=0, rtol=0)
+    changed = {k: tuple(x.clone() for x in pair) for k, pair in data.items()}
+    for pair, stop in ((changed["node_feats"], 4), (changed["edge_messages"], 5)):
+        for value in pair:
+            value[:, :stop] += 3
+    torch.testing.assert_close(op(**changed), original, atol=0, rtol=0)
+    changed["node_feats"][0][:, 4:] += 2
+    assert not torch.allclose(op(**changed), original)
+
+
 @pytest.mark.parametrize("case", ["zero", "nan", "inf", "same", "shape", "complex", "dtype", "source_nan"])
 def test_bad_geometry_and_inputs_fail_explicitly(case):
     block = sk_block()
