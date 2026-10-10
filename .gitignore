@@ -35,3 +35,5 @@ docs/api/conversions.rst
 
 # Precomputed reduced tensor products
 #src/graph2mat/bindings/e3nn/_stored_rtps/_stored_rtps.py
+auditorias_mejoras/experimentos_speed_probe_*/
+auditorias_mejoras/experimentos_energy_loss_*/
