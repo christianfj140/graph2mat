@@ -554,6 +554,7 @@ class MatrixMACE(torch.nn.Module):
 
         data_for_readout["edge_attrs"] = edge_attrs
         data_for_readout["edge_feats"] = edge_feats
+        data_for_readout["edge_vectors"] = vectors
 
         # data._edge_attrs_keys = (*data._edge_attrs_keys, "edge_attrs", "edge_feats")
 

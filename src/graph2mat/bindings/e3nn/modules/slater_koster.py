@@ -12,6 +12,8 @@ __all__ = ["E3nnSlaterKosterEdgeBlock"]
 def _shells(point):
     offset = 0
     for mul, ir in point.e3nn_irreps:
+        if mul == 0:
+            continue
         if ir.l > 3 or ir.p != (-1) ** ir.l:
             raise ValueError("SK requires natural-parity complete s/p/d/f shells.")
         for _ in range(mul):

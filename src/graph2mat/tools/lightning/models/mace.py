@@ -37,7 +37,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
 
     ``edge_block_readout`` selects the edge operation; the optional
     ``edge_block_readout_kwargs`` forwards its constructor arguments (e.g.
-    ``{"rank": 4}`` for ``E3nnLowRankEdgeBlock``). The default stays unchanged.
+    ``{"rank": 4}`` for ``E3nnLowRankEdgeBlock`` or the experimental
+    ``E3nnSlaterKosterEdgeBlock``). The default stays unchanged.
     """
 
     model: MACE

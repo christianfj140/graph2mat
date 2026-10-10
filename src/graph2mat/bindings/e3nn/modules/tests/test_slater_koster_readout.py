@@ -180,6 +180,28 @@ def test_both_branches_are_effective_and_radial_zero_kills_node_tail():
     assert op(**{**data, "edge_feats": (tiny, tiny)}).abs().max() < 1e-7
 
 
+def test_controlled_branch_ablation_retains_nonaxial_environment_residual():
+    from copy import deepcopy
+    torch.manual_seed(17)
+    block = sk_block()
+    data = inputs_for(block, 1)
+    op = block.operation
+    residual = op.residual(node_feats=data["node_feats"], edge_feats=data["edge_feats"])
+    unit = torch.eye(op.n_integrals).reshape(op.n_integrals, 1, op.n_integrals)
+    angular = op._sk_coefficients(unit, data["edge_vectors"][0].expand(op.n_integrals, -1)).T
+    projection = angular @ torch.linalg.lstsq(angular, residual.T).solution
+    assert (residual.T-projection).norm() > 1e-5
+    sk_only, residual_only = deepcopy(op), deepcopy(op)
+    with torch.no_grad():
+        for p in sk_only.residual.parameters():
+            p.zero_()
+        for p in residual_only.sk_net.parameters():
+            p.zero_()
+    torch.testing.assert_close(residual_only(**data), residual, atol=0, rtol=0)
+    assert sk_only(**data).norm() > 1e-5
+    torch.testing.assert_close(sk_only(**data) + residual_only(**data), op(**data))
+
+
 @pytest.mark.parametrize("case", ["zero", "nan", "inf", "same", "shape", "complex", "dtype", "source_nan"])
 def test_bad_geometry_and_inputs_fail_explicitly(case):
     block = sk_block()
