@@ -151,6 +151,9 @@ Posteriores al último cambio de producto, CUDA desactivada y PYTHONPATH absolut
 - Suite completa CPU: **2597 passed / 2 skipped**, 36532 warnings,
   **850.43s (14m10s)**, exit0. Omisiones existentes: ejemplo HSX local ausente
   y prueba torch.compile/inductor que exige GPU. Ningún test nuevo omitido.
+- Repetición final enfocada al registrar Task5 tras documentación: **120 passed**,
+  6462 warnings, 134.99s, exit0. Razones de las dos omisiones confirmadas con
+  `-rs` en `skip-reasons.log`. No cambios de producto entre gates.
 
 Fallos abiertos: **ninguno** en el alcance CPU. Los fallos RED y el primer
 RSS contaminado se corrigieron; no cuentan como resultados finales válidos.
@@ -178,13 +181,13 @@ src/graph2mat tests -q --tb=short`. El histórico2477/2 no sustituye este gate.
 | Mismo checkout, sin worktree ni instalaciones | Preferencia/restricción explícita; no aislamiento de rollback, commits propios conservan recuperación |
 | Parser CLI real de test_cli.py, no ubicación errónea del plan | Reutilizar API existente; posible diferencia de comando completo, cubierta por regresión CLI vecina |
 | Digest portable de claves legacy; captura de pesos/salidas en gate local | No añadir skip dependiente de scratch; CI no repite la captura histórica exacta |
-| Ruff --config include en vez de flag --include inexistente | Misma regla/archivo explícito; descubrimiento de otros archivos podría diferir |
 | RSS antes de modelos de timing | Evita suelo del padre con3modelos; imports/construcción aún pueden ocultar diferencias pequeñas |
 | No juzgar precisión/bandas/gap/OOD/promoción | Fixtures sintéticas no bastan; prior opcional podría empeorar materiales, defaults intactos |
 | No certificar GPU/VRAM/AMP/compile/checkpointing nuevos | Alcance CPU y restricciones conservadas; modos no probados podrían fallar o regresar |
 | No extrapolar rendimiento | Solo fixture/host medidos; otros datos/hardware pueden cambiar resultados |
 | No certificar corrupción manual Q/mapas o overrides inconsistentes de metadatos generados | Construcción normal, conversión dtype y checkpoints propios estrictos sí probados; estados manipulados pueden invalidar mapas científicos |
 | Gates agregados a cargo del ejecutor, no del veredicto del revisor | No cierre por opinión; una conclusión prematura ocultaría regresiones |
+| Ruff --config include en vez de flag --include inexistente | Misma regla/archivo explícito; descubrimiento de otros archivos podría diferir |
 | Conservar scratch propio y archivar evidencia en vez de borrarlo | El plan prohíbe borrados; scratch ignorado podría perderse con git clean, por eso existe copia versionada |
 
 Revisión completa, comandos/diagnósticos, ledger, captura legacy y logs:
