@@ -136,3 +136,16 @@ No se mide máximo batch admisible ni AMP/compile; no se declara mejora de gaps
 ni error por distancia/especie no calculado por el evaluador heredado.
 No hay plazo garantizado: la espera de GPU y la diagonalización CPU OOD pueden
 dominar el tiempo total. Las predicciones se conservan y consumen disco.
+
+## Resultado (2026-10-11)
+
+Campaña completa (6 smokes, 72 sondas, 18 entrenamientos, evaluación CPU). `precision_summary.json`,
+`probe_summary.json`. Razón frente a baseline, media geométrica pareada de 3 semillas:
+
+| | w90 test H (IC95) | 6x6 test H (IC95) | bandas OOD w90 | bandas OOD 6x6 | paso w90 / 6x6 |
+|---|---|---|---|---|---|
+| 7.1 rango bajo | 0,83 (0,72–1,07) | 0,94 (0,80–1,08) | ×1,11–1,31 | ×1,37–1,64 | +13 % / +1 % |
+| 7.4 Slater–Koster | **0,73 (0,60–0,93)** | 0,91 (0,84–1,01) | ×1,14–1,34 | ×1,51–1,57 | +6 % / +3 % |
+
+H fuera de distribución apenas cambia (0,92–1,08); las bandas alineadas en registry, AB-MD y moiré empeoran
+en todos los casos. Ninguno cumple la regla de promoción; defaults sin cambios, ambos siguen opt-in.
