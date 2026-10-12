@@ -900,6 +900,7 @@ prueba), la carga total como entrada y 4.7; sus resultados posteriores están de
   Las seis ejecuciones completas (referencia/Δ, semillas 0–2) quedan en cola, condicionadas al éxito de ambos smokes,
   encadenadas una a una y con estimación conservadora de 18.000 MiB por job hasta medir el pico de SiO2.
   **v5 (2026-10-11):** v4 se quedó en 5 de 6 vidrios de entrenamiento tras 96 intentos, y el vidrio de prueba de 216 átomos solo tenía 4 (P≈19 % con ~5 % de aceptación). Rangos disjuntos sin tocar la puerta: entrenamiento 100..299, prueba 216 átomos 300..347, validación 1000..1095; la caché `mq_v1` reutiliza los 96 temples ya hechos. Cadena v5 completa encolada al final de la cola.
+  **v6 (2026-10-12):** v5 aceptó los vidrios de entrenamiento y validación, pero los 48 temples de 216 átomos (20 ps) tenían coordinación perfecta y tetraedros con arista compartida (Si-Si 2,24–2,77 Å < 2,8). El vidrio grande se enfría ahora 5× más lento (100 ps, caché aparte `_q100ps`), 24 intentos; misma puerta. Encolado al final.
 - **8.2, control del suelo espectral (2026-10-07):** `g2m_bench_kb_control.py` pone a cero únicamente los elementos
   de H entre átomos a distancia ≥ R_i + R_j en una copia de la etiqueta; conserva S y todos los ficheros originales.
   Una estructura de entrenamiento y todas las pruebas congeladas por material; mismo camino k, ventana
