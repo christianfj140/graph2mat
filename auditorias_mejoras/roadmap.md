@@ -21,6 +21,11 @@ cinco frentes de ingeniería ya cerrados.
 
 Resultado 2026-10-11: 7.1 y 7.4 mejoran el H de test (7.4 en w90 −27 %, IC95 0,60–0,93) pero empeoran las bandas
 fuera de distribución un 11–64 %; ninguno se promueve. Sonda: 2.6 −1–2 % de tiempo; 2.2 y 2.8 dependen del sistema.
+Diagnóstico 2026-10-12 (CPU, `MD_vs_AtomicDisplacement/.../ood_band_attribution/README.md`): el error de bandas fuera
+de distribución de los modelos de monocapa es sobre todo acoplamiento intercapa (6x6: 83–100 %); con los elementos
+intercapa exactos bajaría de 9–14 a 3–5 meV. 7.1/7.4 empeoran además el on-site en el entorno bicapa (8–27 %).
+Las opciones de capacidad deben juzgarse con entrenamiento bicapa (intercapa dentro de distribución).
+
 
 Actualización 2026-10-10: comparación científica/GPU **baseline vs 7.1 vs 7.4
 encolada**, reutilizando recetas y splits históricos de grafeno w90/6x6.
