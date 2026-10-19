@@ -48,36 +48,42 @@ def _channels_and_residuals(values):
     return channels, residuals
 
 
+def _relative_residual(channels, residuals):
+    """``max|residuals| / max|channels|``; ``nan`` if any value is not finite."""
+    if residuals.size == 0:
+        return 0.0
+    if not (np.isfinite(channels).all() and np.isfinite(residuals).all()):
+        return float("nan")
+    tiny = np.finfo(np.float64).tiny
+    return float(np.abs(residuals).max() / max(np.abs(channels).max(), tiny))
+
+
 def soc_trs_residual(values: np.ndarray) -> float:
     """Relative time-reversal residual of SIESTA spin-orbit values ``(..., 8)``.
 
-    Returns ``max|residuals| / max(max|channels|, tiny)``. The residuals are
-    ``Im h0``, ``Re hx``, ``Re hy`` and ``Re hz``, which vanish under TRS.
+    Returns ``max|residuals| / max(max|channels|, tiny)``, or ``nan`` if any
+    value is not finite. The residuals are ``Im h0``, ``Re hx``, ``Re hy`` and
+    ``Re hz``, which vanish under TRS.
     """
-    channels, residuals = _channels_and_residuals(_check_last_dim(values, 8, "values"))
-    if residuals.size == 0:
-        return 0.0
-    tiny = np.finfo(np.float64).tiny
-    return float(np.abs(residuals).max() / max(np.abs(channels).max(), tiny))
+    return _relative_residual(*_channels_and_residuals(_check_last_dim(values, 8, "values")))
 
 
 def siesta_to_soc_channels(values: np.ndarray) -> np.ndarray:
     """Convert SIESTA values ``(..., 8)`` into TRS channels ``(..., 4)``.
 
-    Channels are ``[h0, gx, gy, gz]``. Raises ``ValueError`` if the relative
-    TRS residual exceeds ``SOC_TRS_RTOL``; the residual is never symmetrized
-    away silently.
+    Channels are ``[h0, gx, gy, gz]``. Raises ``ValueError`` if the values are
+    not finite or if the relative TRS residual exceeds ``SOC_TRS_RTOL``; the
+    residual is never symmetrized away silently.
     """
-    values = _check_last_dim(values, 8, "values")
-    channels, residuals = _channels_and_residuals(values)
-    if residuals.size:
-        tiny = np.finfo(np.float64).tiny
-        rel = np.abs(residuals).max() / max(np.abs(channels).max(), tiny)
-        if rel > SOC_TRS_RTOL:
-            raise ValueError(
-                f"Spin-orbit values violate time-reversal symmetry: relative residual "
-                f"{rel:.3e} > {SOC_TRS_RTOL:.0e}. Magnetic spin-orbit is not supported."
-            )
+    channels, residuals = _channels_and_residuals(_check_last_dim(values, 8, "values"))
+    rel = _relative_residual(channels, residuals)
+    if np.isnan(rel):
+        raise ValueError("Spin-orbit values must be finite (found nan or inf).")
+    if rel > SOC_TRS_RTOL:
+        raise ValueError(
+            f"Spin-orbit values violate time-reversal symmetry: relative residual "
+            f"{rel:.3e} > {SOC_TRS_RTOL:.0e}. Magnetic spin-orbit is not supported."
+        )
     return channels
 
 

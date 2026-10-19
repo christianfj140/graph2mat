@@ -75,6 +75,7 @@ def csr_to_block_dict(
     matrix_cls: Type[BasisMatrix] = OrbitalMatrix,
     fill_value: float = 0,
     component_indices: Optional[Sequence[int]] = None,
+    component_transform: Optional[Callable[[np.ndarray], np.ndarray]] = None,
 ) -> BasisMatrix:
     """Creates a BasisMatrix object from a SparseCSR matrix
 
@@ -101,6 +102,11 @@ def csr_to_block_dict(
         Optional component indices to preserve from ``spmat.data`` before building
         matrix blocks. If one component is selected, blocks use the regular 2D
         representation and labels flatten to 1D.
+    component_transform
+        Optional function mapping the compacted, component-selected data
+        ``(nnz, n_components)`` to ``(nnz, n_new_components)``. It is applied after
+        the ``ncol`` compaction and the component selection, so it only sees stored
+        values.
     """
     orbitals = atoms.orbitals
     data = spmat.data
@@ -126,6 +132,9 @@ def csr_to_block_dict(
                 f"indices={selected_components.tolist()}, n_components={data.shape[1]}."
             )
         data = data[:, selected_components]
+
+    if component_transform is not None:
+        data = component_transform(data)
 
     if data.shape[1] == 1:
         block_dict = _csr_to_block_dict(

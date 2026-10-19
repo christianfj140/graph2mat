@@ -154,11 +154,22 @@ class MatrixDataProcessor:
             "spin_h_only",
             "h_and_overlap",
             "raw_components",
+            "spin_orbit",
         ):
             raise ValueError(
                 "matrix_component_policy must be one of 'h_only', "
-                "'spin_h_only', 'h_and_overlap', or 'raw_components'."
+                "'spin_h_only', 'h_and_overlap', 'raw_components', or 'spin_orbit'."
             )
+        if self.matrix_component_policy == "spin_orbit":
+            if self.out_matrix != "hamiltonian":
+                raise ValueError(
+                    "matrix_component_policy='spin_orbit' requires out_matrix='hamiltonian'."
+                )
+            if self.n_matrix_components not in (1, 4):
+                raise ValueError(
+                    "matrix_component_policy='spin_orbit' stores 4 TRS channels; "
+                    f"n_matrix_components must be 1 or 4, got {self.n_matrix_components}."
+                )
 
         if self.sub_point_matrix and self.out_matrix not in (None, "density_matrix"):
             warnings.warn(
