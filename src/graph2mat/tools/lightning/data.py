@@ -30,6 +30,7 @@ from graph2mat.core.data.node_feats import NodeFeature
 from graph2mat.core.data.physical import normalize_physical_labels, physical_layout
 
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
+from .split_guardrail import SplitGuardrail
 
 
 class _CostBatchSampler(torch.utils.data.BatchSampler):
@@ -410,6 +411,8 @@ class MatrixDataModule(pl.LightningDataModule):
         self.val_dataset = None
         self.test_dataset = None
         self.predict_dataset = None
+        self.split_guardrail_report = None
+        self._split_guardrail = SplitGuardrail()
         self.sub_point_matrix = sub_point_matrix
         self.n_matrix_components = n_matrix_components
         self.matrix_component_policy = matrix_component_policy
@@ -480,6 +483,8 @@ class MatrixDataModule(pl.LightningDataModule):
         # readable for the next call; None (or process exit) performs final cleanup.
         if stage is None:
             self._batch_cost_cache = None
+            self.split_guardrail_report = None
+            self._split_guardrail = SplitGuardrail()
             for split in ("train", "val", "test", "predict"):
                 dataset = getattr(self, "%s_dataset" % split)
                 while isinstance(dataset, torch.utils.data.Subset):
@@ -603,6 +608,13 @@ class MatrixDataModule(pl.LightningDataModule):
                 self.train_dataset, train_indices
             )
 
+        if stage != "predict":
+            self.split_guardrail_report = self._split_guardrail.inspect(
+                {name: getattr(self, name + "_dataset") for name in ("train", "val", "test")},
+                root, runs_dict.get("split_metadata"),
+                original_root=self.root_dir,
+            )
+
         if self.store_in_memory:
             for split in requested_splits:
                 dataset = getattr(self, "%s_dataset" % split)
@@ -626,6 +638,11 @@ class MatrixDataModule(pl.LightningDataModule):
         ):
             self.train_dataset = RotatingPoolData(
                 self.train_dataset, self.rotating_pool_size
+            )
+
+        if stage != "predict":
+            self._split_guardrail.remember(
+                {name: getattr(self, name + "_dataset") for name in ("train", "val", "test")}
             )
 
     def _infer_dataset_matrix_components(self, splits=("train", "val", "test")) -> Optional[int]:
