@@ -629,8 +629,14 @@ def _csr_to_block_dict_components(
 
     atoms = np.repeat(np.arange(len(orbitals)), orbitals)
     keys = np.column_stack((atoms[rows], atoms[columns % no], columns // no))
-    unique, first, inverse, counts = np.unique(keys, axis=0, return_index=True, return_inverse=True, return_counts=True)
-    groups = np.split(np.argsort(inverse, kind="stable"), np.cumsum(counts)[:-1])
+    unique, first, inverse = np.unique(keys, axis=0, return_index=True, return_inverse=True)
+    # Stable sorting keeps the last original entry of every repeated coordinate.
+    order = np.lexsort((columns, rows, inverse))
+    keep = np.r_[(rows[order[1:]] != rows[order[:-1]]) |
+                 (columns[order[1:]] != columns[order[:-1]]), True]
+    order = order[keep]
+    counts = np.bincount(inverse[order], minlength=len(unique))
+    groups = np.split(order, np.cumsum(counts)[:-1])
     dtype = np.result_type(data.dtype, np.float64)
     for group in np.argsort(first):
         atom_i, atom_j, image = unique[group]
@@ -638,9 +644,7 @@ def _csr_to_block_dict_components(
         local_rows = rows[indices] - atom_first_orb[atom_i]
         local_cols = columns[indices] % no - atom_first_orb[atom_j]
         positions = local_rows * orbitals[atom_j] + local_cols
-        # Explicit last-write-wins, independent of repeated advanced-index assignment.
-        last = len(indices) - 1 - np.unique(positions[::-1], return_index=True)[1]
         block = np.full((orbitals[atom_i], orbitals[atom_j], n_components), float(fill_value), dtype=dtype)
-        block.reshape(-1, n_components)[positions[last]] = data[entries[indices[last]]]
+        block.reshape(-1, n_components)[positions] = data[entries[indices]]
         block_dict[atom_i, atom_j, image] = block
     return block_dict

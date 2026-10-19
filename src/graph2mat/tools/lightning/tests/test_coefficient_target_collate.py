@@ -22,6 +22,35 @@ from graph2mat.tools.lightning.tests.test_epoch_metrics import _PredictionModel
 TARGETS_ATTR = "_graph2mat_coefficient_mse_targets"
 
 
+@pytest.mark.parametrize("components", [1, 2])
+@pytest.mark.parametrize("symmetric", [False, True])
+def test_projector_validates_labels_once_per_kind_not_once_per_block(monkeypatch, components, symmetric):
+    from graph2mat.bindings.torch.data import coefficient_targets as target_module
+
+    readout = grouped_readout(["1x0e+1x1o", "1x1o+1x2e"], "max", symmetric, components)
+    samples = samples_for(readout)
+    loader = DataLoader([samples[2], samples[0], samples[1]], batch_size=2)
+    calls = []
+    original = target_module._valid_label_rows
+    def counted(values):
+        calls.append(len(values))
+        return original(values)
+    monkeypatch.setattr(target_module, "_valid_label_rows", counted)
+    projector = CoefficientMatrixMSEProjector(readout)
+    for batch in loader:
+        calls.clear()
+        targets = projector(batch, batch.point_labels, batch.edge_labels)
+        assert calls == [len(batch.point_labels), len(batch.edge_labels)]
+        features = torch.randn(batch.num_nodes, FEATURES.dim, dtype=torch.float64, requires_grad=True)
+        nodes, edges = readout(batch, node_feats=features)
+        expected, _ = metrics.elementwise_mse()(nodes_pred=nodes, nodes_ref=batch.point_labels,
+            edges_pred=edges, edges_ref=batch.edge_labels, edge_weight=2.)
+        actual, _ = coefficient_matrix_mse(readout(batch, node_feats=features, coefficients_only=True), targets, 2.)
+        torch.testing.assert_close(actual, expected, rtol=1e-12, atol=1e-12)
+        torch.testing.assert_close(torch.autograd.grad(actual, features)[0],
+            torch.autograd.grad(expected, features)[0], rtol=1e-12, atol=1e-12)
+
+
 def samples_for(readout):
     table = readout.basis_table
     processor = MatrixDataProcessor(basis_table=table, symmetric_matrix=readout.symmetric, sub_point_matrix=False)

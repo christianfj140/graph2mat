@@ -83,6 +83,33 @@ def literal_component_blocks(data, ptr, cols, atom_first_orb, orbitals, n_atoms,
     return blocks
 
 
+@pytest.mark.parametrize("dtype", [np.int32, np.float64, np.complex128])
+@pytest.mark.parametrize("components", [2, 8])
+def test_component_duplicates_are_resolved_globally_not_unique_per_block(monkeypatch, dtype, components):
+    orbitals = np.array([2, 1], dtype=np.int32)
+    first = np.array([0, 2, 3], dtype=np.int32)
+    ptr = np.array([0, 5, 8, 11], dtype=np.int32)
+    cols = np.array([4, 0, 4, 2, -1, 1, 2, 1, 0, 5, 5], dtype=np.int32)
+    data = np.arange(len(cols)*components).reshape(-1, components).astype(dtype)
+    if np.issubdtype(dtype, np.complexfloating):
+        data += 1j * data[::-1]
+    kwargs = dict(data=data, ptr=ptr, cols=cols, atom_first_orb=first,
+                  orbitals=orbitals, n_atoms=2, fill_value=np.nan)
+    expected = literal_component_blocks(**kwargs)
+    unique = np.unique
+    calls = []
+    def counted(*args, **options):
+        calls.append(None)
+        return unique(*args, **options)
+    monkeypatch.setattr(np, "unique", counted)
+    actual = _csr_to_block_dict_components(**kwargs)
+    assert len(calls) == 1, "per-block unique repeats sorting and allocation"
+    assert list(actual) == list(expected)
+    for key in expected:
+        np.testing.assert_array_equal(actual[key], expected[key])
+        assert actual[key].dtype == expected[key].dtype
+
+
 @pytest.mark.parametrize("fill", [0., np.nan])
 @pytest.mark.parametrize("components", [2, 3, 8])
 def test_component_grouping_preserves_capacity_break_duplicates_and_dict_order(fill, components):

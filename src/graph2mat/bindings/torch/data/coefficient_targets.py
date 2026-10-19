@@ -169,6 +169,8 @@ class CoefficientMatrixMSEProjector:
             lengths = np.prod(shapes[:, np.abs(types)], axis=0)
             if int(lengths.sum()) != len(reference):
                 raise ValueError(f"{kind} label length does not match physical block rows.")
+            # Count missing rows once; per-block Tensor reductions dominate CPU collate.
+            missing = np.concatenate(([0], np.cumsum((~_valid_label_rows(reference)).numpy())))
             buckets, offsets = {}, {}
             start = 0
             for physical_type, length in zip(types, lengths):
@@ -181,26 +183,29 @@ class CoefficientMatrixMSEProjector:
                     shape = tuple(shapes[:, abs(physical_type)])
                     if kind == "edge" and physical_type < 0:
                         shape = shape[::-1]
-                    block = reference[start:end].reshape(*shape, self.n_components)
                     if spec["transpose"]:
-                        block = block.transpose(0, 1)
+                        block = reference[start:end].reshape(*shape, self.n_components).transpose(0, 1)
+                    else:
+                        block = reference[start:end]
                     block = block.reshape(-1, self.n_components)
-                    valid = _valid_label_rows(block)
-                    if valid.any() and not valid.all():
+                    n_missing = int(missing[end] - missing[start])
+                    if 0 < n_missing < length:
                         raise CoefficientMSEUnsupported("partial NaN blocks require the matrix loss.")
-                    entry = result[kind].setdefault(key, {"shape": None, "terms": [], "count": 0,
-                                                         "residual": torch.zeros((), dtype=torch.float64)})
+                    if key not in result[kind]:
+                        result[kind][key] = {"shape": None, "terms": [], "count": 0,
+                                            "residual": torch.zeros((), dtype=torch.float64)}
+                    entry = result[kind][key]
                     entry["shape"] = (offset + 1, self.n_components * spec["size"])
-                    if valid.any():
+                    if n_missing == 0 and length:
                         indices, blocks = buckets.setdefault(int(physical_type), ([], []))
                         indices.append(offset)
-                        blocks.append(block.double())
+                        blocks.append(block)
                         entry["count"] += block.numel()
                 start = end
             for physical_type, (rows, blocks) in buckets.items():
                 spec = specs[physical_type]
                 entry = result[kind][spec["key"]]
-                target = torch.stack(blocks).transpose(1, 2)
+                target = torch.stack(blocks).double().transpose(1, 2)
                 rows = torch.tensor(rows, dtype=torch.long)
                 for local in spec["factors"]:
                     observed = target[:, :, local["elements"]]
