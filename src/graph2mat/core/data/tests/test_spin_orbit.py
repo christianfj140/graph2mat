@@ -207,12 +207,17 @@ def test_spin_orbit_labels_exclude_overlap(symmetric):
     # Point labels are exactly the on-site channel blocks, flattened, atom by atom.
     onsite = np.concatenate([expected[(i, i, 0)].reshape(-1, 4) for i in range(H.geometry.na)])
     np.testing.assert_allclose(data.point_labels, onsite, atol=1e-12, rtol=0)
-    if not symmetric:
-        # Edge labels are the full (i, j, isc) channel blocks in edge order.
-        edges = np.concatenate(
-            [expected[(i, j, isc)].reshape(-1, 4) for (i, j), isc in zip(data.edge_index.T.tolist(), data.neigh_isc)]
-        )
-        np.testing.assert_allclose(data.edge_labels, edges, atol=1e-12, rtol=0)
+    # Edge labels are the (i, j, isc) channel blocks; symmetric storage keeps one
+    # representative per pair of reversed edges (every other edge).
+    step = 2 if symmetric else 1
+    edges = np.concatenate(
+        [
+            expected[(i, j, isc)].reshape(-1, 4)
+            for (i, j), isc in zip(data.edge_index.T.tolist()[::step], data.neigh_isc[::step])
+        ]
+    )
+    assert data.edge_labels.shape == edges.shape
+    np.testing.assert_allclose(data.edge_labels, edges, atol=1e-12, rtol=0)
 
 
 def test_spin_orbit_orthogonal_has_same_labels():
