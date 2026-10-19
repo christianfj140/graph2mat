@@ -145,6 +145,115 @@ or truncated to make a spectrum pass; preservation of a predicted S does not
 guarantee that S is positive definite, accurate, or well conditioned.
 For file formats, gauge and explicit-reference rules, see :doc:`server`.
 
+Spin-orbit Hamiltonians
+-----------------------
+
+``matrix_component_policy="spin_orbit"`` (opt-in, roadmap 8.1) loads SIESTA's
+non-collinear spin-orbit Hamiltonian (sisl ``Spin("spin-orbit")``, 8 real
+components per element, in sisl's order ``[Re uu, Re dd, Re ud, Im ud, Im uu,
+Im dd, Re du, Im du]``) as 4 real time-reversal (TRS) channels
+``[h0, gx, gy, gz]``. With TRS each spin block is
+``h0 * s0 + i * (gx * sx + gy * sy + gz * sz)``: ``h0`` is an ordinary matrix
+block and ``g`` an axial vector (``(l_i x l_j) x 1e``) stored in Cartesian
+axes. The channels are ``h0 = (c0 + c1)/2``, ``gx = (c3 + c7)/2``,
+``gy = (c2 - c6)/2`` and ``gz = (c4 - c5)/2``. ``g`` changes sign under
+transposition, so the symmetric path applies ``SOC_TRANSPOSE_SIGN =
+[1, -1, -1, -1]`` to the transposed partner; ``g`` is antisymmetric on-site.
+The channels are fixed by the policy: ``n_matrix_components`` must be 1 or 4,
+and the model and the command line interface set it to 4.
+
+Loading checks that the data really have TRS. The four residuals ``Im h0``,
+``Re hx``, ``Re hy`` and ``Re hz`` must be below ``SOC_TRS_RTOL = 1e-5`` of the
+largest channel (SCF noise in Bi2Se3 is about 1e-6). Above that (a magnetic
+Hamiltonian, for example) loading raises a ``ValueError`` that mentions
+time-reversal symmetry; the residual is never dropped silently. Non-finite
+values are rejected. Labels do not carry the overlap: for a non-orthogonal
+(nine-component) Hamiltonian, S is left out and the eight Hamiltonian
+components are selected through sisl's overlap index (``S_idx``), never by
+position.
+
+Reconstruction goes only to sisl formats (``out_format="sisl_H"``; other
+formats raise because only the sisl path applies the sign of the transposed
+copy). The result is an orthogonal ``spin-orbit`` Hamiltonian. Add the
+reference overlap explicitly with ``attach_overlap``:
+
+.. code-block:: python
+
+    import sisl
+    from graph2mat import AtomicTableWithEdges, BasisMatrixData, MatrixDataProcessor
+    from graph2mat.core.data.spin_orbit import attach_overlap
+    from graph2mat.tools.lightning import MatrixDataModule
+    from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+
+    geometry = sisl.get_sile("RUN.fdf").read_geometry()
+    H = sisl.get_sile("bi2se3.TSHS").read_hamiltonian(geometry=geometry)
+    S = sisl.Overlap.fromsp(H.geometry, H.tocsr(H.S_idx))   # reference S
+    table = AtomicTableWithEdges(H.geometry.atoms.atom)
+
+    processor = MatrixDataProcessor(
+        basis_table=table, out_matrix="hamiltonian", sub_point_matrix=False,
+        symmetric_matrix=True, matrix_component_policy="spin_orbit",
+        n_matrix_components=4,
+    )
+    data = BasisMatrixData.new(H, processor)                # 4 TRS channels
+    H_orth = processor.matrix_from_data(data, out_format="sisl_H", threshold=None)
+    H_so = attach_overlap(H_orth, S)                        # non-orthogonal
+    levels = H_so.eigh(k=[0, 0, 0])                         # H c = E S c
+
+    # Training: the model flag must agree with the data policy.
+    both_parities = "8x0e+8x0o+8x1o+8x1e+8x2e+8x2o+8x3o+8x3e"
+    model = LitMACEMatrixModel(
+        basis_table=table, symmetric_matrix=True, spin_orbit=True,
+        hidden_irreps=both_parities, edge_hidden_irreps=both_parities, max_ell=3,
+    )
+    datamodule = MatrixDataModule(
+        basis_table=table, out_matrix="hamiltonian", sub_point_matrix=False,
+        symmetric_matrix=True, matrix_component_policy="spin_orbit",
+        n_matrix_components=4, train_runs="train/*/RUN.fdf", val_runs="val/*/RUN.fdf",
+    )
+
+``attach_overlap`` requires an orthogonal spin-orbit ``sisl.Hamiltonian`` and
+a single-component S carrier (such as ``sisl.Overlap``) with the same geometry
+and ``nsc``; a Hamiltonian is rejected because its component 0 is not S.
+With the command line interface the model flag is derived from the data
+policy; ``on_fit_start`` raises if a model and a datamodule disagree, because a
+plain model would fit ``[h0, gx, gy, gz]`` as four unrelated scalars.
+
+``spin_orbit=True`` swaps the readout for ``E3nnSpinOrbitMatrixBlock``: ``h0``
+as in the standard block plus ``g`` from a ``(l_i x l_j) x 1e`` product
+(antisymmetric on-site), so the prediction is equivariant under rotations,
+including spin rotations, and obeys TRS and Hermiticity by construction. The
+losses are limited to ``elementwise_mse``, ``elementwise_mae``,
+``block_type_mse`` and ``block_type_mae``, without physical weights. There is
+no per-channel loss weighting yet. Rejected with spin-orbit, before any
+training: magnetic spin-orbit, density and energy-density matrices,
+``matrix_targets``, ``physical_labels``, ``spectral_window``,
+``coefficient_training``, ``return_coefficients``, ``output_scaleshift``,
+``long_range``, ``hamiltonian_local_context``, ``fuse_homonuclear``,
+``basis_grouping`` other than ``"point_type"``, SK and low-rank readouts and
+``n_output_components``. ``MatrixWriter`` and the HTTP server are not supported
+yet and raise; ``PlotMatrixError`` works (it plots the channels as plain
+components).
+
+Known limits, measured on a real Bi2Se3 SIESTA Hamiltonian
+(``auditorias_mejoras/soc_roundtrip_check.py``). The code is tested on CPU and
+has not been scientifically validated by training on a SOC dataset.
+
+- **Graph support.** The graph keeps blocks of atom pairs closer than the sum
+  of their orbital radii. About 14k of the 72.5k nonzeros per component lie
+  beyond it (Kleinman-Bylander projector tails, up to 1.8e-2 eV); truncating
+  to the support shifts the eigenvalues by up to 12 eV at Gamma and 1.7 to
+  3.4 eV at random k relative to the stored H. This is not a reconstruction
+  error: a direct (non-delta) recipe needs longer readout edges (roadmap 8.2)
+  or another treatment of the tails, whereas the delta recipe recovers them
+  from H0. The roundtrip is exact only against the stored matrix cut to the
+  support and projected onto TRS.
+- **Reachable irreps.** MACE hidden irreps of natural parity only, for
+  example ``8x0e+8x1o+8x2e+8x3o``, cannot reach the ``0o`` part of ``g``
+  (about 1.2 % of the ``g`` coefficients for a Bi-like 2s2p2d basis: 8 of 630
+  on-site and 16 of 1296 per edge). Include both parities, as above, in
+  campaigns.
+
 Optional training batches by declared cost
 --------------------------------------------
 
