@@ -1,0 +1,101 @@
+........................................................................ [  2%]
+.......................................................................s [  5%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+......................sssssssss......................................... [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+.sssssssss.............................................................. [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+.....................................................................sss [ 96%]
+sssssssss.......................F.F.F.F................................. [ 99%]
+........................                                                 [100%]
+=================================== FAILURES ===================================
+_ test_real_extrapolation_with_missing_onsite_and_edge_blocks[False-1-HistorySOAPs] _
+src/graph2mat/tools/server/extrapolation.py:174: in get_descriptors
+    from dscribe.descriptors import SOAP
+E   ModuleNotFoundError: No module named 'dscribe'
+
+The above exception was the direct cause of the following exception:
+src/graph2mat/tools/server/tests/test_extrapolation.py:369: in test_real_extrapolation_with_missing_onsite_and_edge_blocks
+    actual = extrapolate_from_series(series, descriptor_manager=manager, descriptor_order=1)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/graph2mat/tools/server/extrapolation.py:565: in extrapolate_from_series
+    descriptors, descriptors_irreps = descriptor_manager.get_descriptors(
+src/graph2mat/tools/server/extrapolation.py:178: in get_descriptors
+    raise ModuleNotFoundError(
+E   ModuleNotFoundError: SOAP descriptors require graph2mat[extrapolation].
+_ test_real_extrapolation_with_missing_onsite_and_edge_blocks[False-2-HistorySOAPs] _
+src/graph2mat/tools/server/extrapolation.py:174: in get_descriptors
+    from dscribe.descriptors import SOAP
+E   ModuleNotFoundError: No module named 'dscribe'
+
+The above exception was the direct cause of the following exception:
+src/graph2mat/tools/server/tests/test_extrapolation.py:369: in test_real_extrapolation_with_missing_onsite_and_edge_blocks
+    actual = extrapolate_from_series(series, descriptor_manager=manager, descriptor_order=1)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/graph2mat/tools/server/extrapolation.py:565: in extrapolate_from_series
+    descriptors, descriptors_irreps = descriptor_manager.get_descriptors(
+src/graph2mat/tools/server/extrapolation.py:178: in get_descriptors
+    raise ModuleNotFoundError(
+E   ModuleNotFoundError: SOAP descriptors require graph2mat[extrapolation].
+_ test_real_extrapolation_with_missing_onsite_and_edge_blocks[True-1-HistorySOAPs] _
+src/graph2mat/tools/server/extrapolation.py:174: in get_descriptors
+    from dscribe.descriptors import SOAP
+E   ModuleNotFoundError: No module named 'dscribe'
+
+The above exception was the direct cause of the following exception:
+src/graph2mat/tools/server/tests/test_extrapolation.py:369: in test_real_extrapolation_with_missing_onsite_and_edge_blocks
+    actual = extrapolate_from_series(series, descriptor_manager=manager, descriptor_order=1)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/graph2mat/tools/server/extrapolation.py:565: in extrapolate_from_series
+    descriptors, descriptors_irreps = descriptor_manager.get_descriptors(
+src/graph2mat/tools/server/extrapolation.py:178: in get_descriptors
+    raise ModuleNotFoundError(
+E   ModuleNotFoundError: SOAP descriptors require graph2mat[extrapolation].
+_ test_real_extrapolation_with_missing_onsite_and_edge_blocks[True-2-HistorySOAPs] _
+src/graph2mat/tools/server/extrapolation.py:174: in get_descriptors
+    from dscribe.descriptors import SOAP
+E   ModuleNotFoundError: No module named 'dscribe'
+
+The above exception was the direct cause of the following exception:
+src/graph2mat/tools/server/tests/test_extrapolation.py:369: in test_real_extrapolation_with_missing_onsite_and_edge_blocks
+    actual = extrapolate_from_series(series, descriptor_manager=manager, descriptor_order=1)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/graph2mat/tools/server/extrapolation.py:565: in extrapolate_from_series
+    descriptors, descriptors_irreps = descriptor_manager.get_descriptors(
+src/graph2mat/tools/server/extrapolation.py:178: in get_descriptors
+    raise ModuleNotFoundError(
+E   ModuleNotFoundError: SOAP descriptors require graph2mat[extrapolation].
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/server/tests/test_extrapolation.py::test_real_extrapolation_with_missing_onsite_and_edge_blocks[False-1-HistorySOAPs]
+FAILED src/graph2mat/tools/server/tests/test_extrapolation.py::test_real_extrapolation_with_missing_onsite_and_edge_blocks[False-2-HistorySOAPs]
+FAILED src/graph2mat/tools/server/tests/test_extrapolation.py::test_real_extrapolation_with_missing_onsite_and_edge_blocks[True-1-HistorySOAPs]
+FAILED src/graph2mat/tools/server/tests/test_extrapolation.py::test_real_extrapolation_with_missing_onsite_and_edge_blocks[True-2-HistorySOAPs]
+4 failed, 2653 passed, 34 skipped, 40653 warnings in 878.07s (0:14:38)
