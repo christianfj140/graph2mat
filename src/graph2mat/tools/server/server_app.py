@@ -98,6 +98,10 @@ def create_server_app(
         If True, the server allows the user to ask for changes in the local file system.
     """
 
+    for name, model in models.items():
+        if getattr(model.get("data_processor"), "matrix_targets", None) is not None:
+            raise ValueError(f"{name}: multitarget matrix_targets are not supported by HTTP endpoints; split a target explicitly")
+
     app = FastAPI(
         title="E3nn_matrix server",
     )
@@ -187,7 +191,9 @@ def create_server_app(
         model = models[model_name.value]
 
         processor = model["data_processor"]
-        info = {field.name: getattr(processor, field.name) for field in dataclasses.fields(processor)}
+        info = {field.name: getattr(processor, field.name) for field in dataclasses.fields(processor)
+                if field.name not in ("matrix_targets", "matrix_target_spin")
+                or getattr(processor, field.name) is not None}
         info["basis_table"] = {"basis": processor.basis_table.basis}
         info["node_attr_getters"] = [
             f"{getattr(getter, '__module__', type(getter).__module__)}."

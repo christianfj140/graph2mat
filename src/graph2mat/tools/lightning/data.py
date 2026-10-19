@@ -132,9 +132,15 @@ class TypeLayoutCollate:
         self.symmetric = symmetric
 
     def __call__(self, data_list):
+        signatures = [getattr(data, "matrix_target_signature", None) for data in data_list]
+        if any(signature is not None for signature in signatures):
+            if (any(signature is None for signature in signatures)
+                    or any(not torch.equal(signature, signatures[0]) for signature in signatures)):
+                raise ValueError("batch contains incompatible multitarget semantic layouts")
         batch = self.collate(data_list)
         physical = {}
-        if getattr(batch, "physical_version", None) is not None:
+        if (getattr(batch, "physical_version", None) is not None
+                or any(key.startswith("physical_") and key.endswith("__physical_version") for key in batch.keys())):
             physical = {name: torch.from_numpy(np.ascontiguousarray(value, dtype=np.int64))
                 if isinstance(value, np.ndarray) else value
                 for name, value in physical_layout(batch, self.basis_table).items()}
@@ -305,7 +311,9 @@ class MatrixDataModule(pl.LightningDataModule):
         split_seed: int = 32,
         val_fraction: float = 0.1,
         max_batch_cost: Optional[int] = None,
-        physical_labels: Optional[Sequence[str]] = None,
+        physical_labels: Optional[Union[Sequence[str], dict]] = None,
+        matrix_targets: Optional[List[str]] = None,
+        matrix_target_spin: Optional[int] = None,
     ):
         """
 
@@ -422,7 +430,25 @@ class MatrixDataModule(pl.LightningDataModule):
         self.store_in_memory = store_in_memory
         self.rotating_pool_size = rotating_pool_size
         self.spectral_window = spectral_window
-        self.physical_labels = normalize_physical_labels(physical_labels)
+        if matrix_targets is not None:
+            from graph2mat.core.data.multitarget import normalize_multitarget_physical_labels
+
+            self.physical_labels = normalize_multitarget_physical_labels(physical_labels, matrix_targets)
+        else:
+            self.physical_labels = normalize_physical_labels(physical_labels)
+        self.matrix_targets = matrix_targets
+        self.matrix_target_spin = matrix_target_spin
+        if matrix_targets is not None:
+            from graph2mat.core.data.multitarget import MatrixTargetLayout
+
+            if sub_point_matrix:
+                raise ValueError("multitarget requires sub_point_matrix=False; no baseline")
+            if matrix_target_spin is not None:
+                layout = MatrixTargetLayout(tuple(matrix_targets), matrix_target_spin)
+                if n_matrix_components not in (1, layout.n_components):
+                    raise ValueError("n_matrix_components disagrees with multitarget layout")
+                self.n_matrix_components = layout.n_components
+                self.hparams["n_matrix_components"] = layout.n_components
         self.predict_labels = predict_labels
         self.split_seed = split_seed
         self.val_fraction = val_fraction
@@ -536,6 +562,19 @@ class MatrixDataModule(pl.LightningDataModule):
             runs_dict = {}
 
         if getattr(self, "data_processor", None) is None:
+            if self.matrix_targets is not None and self.matrix_target_spin is None:
+                from graph2mat.core.data.multitarget import MatrixTargetLayout
+
+                spin = infer_n_matrix_components_from_data_inputs(
+                    root_dir=str(root), basis_table=self.basis_table, out_matrix="hamiltonian",
+                    matrix_component_policy="h_only", sub_point_matrix=False,
+                    train_runs=self.train_runs, val_runs=self.val_runs, test_runs=self.test_runs,
+                    runs_json=self.runs_json, stage=stage)
+                if spin is None:
+                    raise ValueError("matrix_target_spin is required without labeled references")
+                self.matrix_target_spin = spin
+                self.n_matrix_components = MatrixTargetLayout(tuple(self.matrix_targets), spin).n_components
+                self.hparams.update(matrix_target_spin=spin, n_matrix_components=self.n_matrix_components)
             self.data_processor = MatrixDataProcessor(
                 basis_table=self.basis_table,
                 out_matrix=self.out_matrix,
@@ -544,6 +583,8 @@ class MatrixDataModule(pl.LightningDataModule):
                 sub_point_matrix=self.sub_point_matrix,
                 n_matrix_components=self.n_matrix_components,
                 node_attr_getters=self.initial_node_feats,
+                matrix_targets=self.matrix_targets,
+                matrix_target_spin=self.matrix_target_spin,
             )
 
         needed_splits = list(requested_splits)
@@ -726,7 +767,7 @@ class MatrixDataModule(pl.LightningDataModule):
         """Training and validation batches carry their type layout (symmetric matrices,
         the only case Graph2Mat's fast path covers)."""
         symmetric = self.data_processor.symmetric_matrix
-        if symmetric or coefficient_projector is not None or self.physical_labels:
+        if symmetric or coefficient_projector is not None or self.physical_labels or self.matrix_targets is not None:
             loader.collate_fn = TypeLayoutCollate(loader.collate_fn, self.data_processor.basis_table,
                                                  coefficient_projector=coefficient_projector, symmetric=symmetric)
         return loader

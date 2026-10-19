@@ -279,6 +279,7 @@ class E3nnGraph2Mat(TorchGraph2Mat):
 
         Node blocks get a shift on their 0e coefficients (the data-driven on-site
         reference); edge blocks only get scales, so that they still decay to zero.
+        Requires fully observed labels; partial targets need a masked matrix loss.
         """
         from graph2mat.core.data.metrics import target_coefficients_from_labels
 
@@ -289,6 +290,11 @@ class E3nnGraph2Mat(TorchGraph2Mat):
             if self.n_matrix_components == 1 and nodes.ndim == 2:
                 # (H, S) labels with an H-only model (gauge loss, S as a label only): fit on H.
                 nodes, edges = nodes[:, 0], edges[:, 0]
+            masks = [getattr(batch, f"matrix_known_{side}", None) for side in ("nodes", "edges")]
+            if (any(mask is not None and not bool(mask.all()) for mask in masks)
+                    or not torch.isfinite(nodes).all() or not torch.isfinite(edges).all()):
+                raise ValueError("output_scaleshift requires fully observed finite labels; "
+                                 "disable output_scaleshift for partial targets")
             coefficients = target_coefficients_from_labels(self, batch, basis_table, nodes, edges)
             for kind in collected:
                 for key, value in coefficients[kind].items():

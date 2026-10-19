@@ -1,0 +1,29 @@
+# Minimal CPU prediction config; supply a trusted matching checkpoint.
+# Unit-dependent weights illustrate syntax, not a recommended scientific recipe.
+trainer:
+  accelerator: cpu
+  devices: 1
+  logger: false
+  enable_checkpointing: false
+  enable_progress_bar: false
+  enable_model_summary: false
+  callbacks: []
+data:
+  root_dir: .
+  out_matrix: hamiltonian
+  sub_point_matrix: false
+  matrix_targets: [hamiltonian, overlap, density_matrix, energy_density_matrix]
+  matrix_target_spin: 2
+  predict_structs: geometry.xyz
+  loader_threads: 0
+model:
+  matrix_target_weights:
+    hamiltonian: 1.0
+    overlap: 1.0
+    density_matrix: 1.0
+    energy_density_matrix: 1.0
+  matrix_target_losses:
+    hamiltonian: {name: elementwise_mse}
+    overlap: {name: elementwise_mse}
+    density_matrix: {name: elementwise_mse}
+    energy_density_matrix: {name: elementwise_mse}

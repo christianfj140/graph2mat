@@ -137,8 +137,18 @@ class MatrixDataProcessor:
     n_matrix_components: int = 1
     matrix_component_policy: MatrixComponentPolicy = "h_only"
     node_attr_getters: List[Any] = dataclasses.field(default_factory=list)
+    matrix_targets: Optional[List[str]] = None
+    matrix_target_spin: Optional[int] = None
 
     def __post_init__(self):
+        if self.matrix_targets is not None:
+            layout = self.matrix_target_layout
+            if self.sub_point_matrix:
+                raise ValueError("multitarget direct matrices require sub_point_matrix=False; no baseline")
+            if self.n_matrix_components not in (1, layout.n_components):
+                raise ValueError("n_matrix_components disagrees with multitarget components")
+            object.__setattr__(self, "n_matrix_components", layout.n_components)
+            object.__setattr__(self, "matrix_targets", list(layout.targets))
         if self.matrix_component_policy not in (
             "h_only",
             "spin_h_only",
@@ -159,6 +169,14 @@ class MatrixDataProcessor:
 
         if self.n_matrix_components < 1:
             raise ValueError("n_matrix_components must be >= 1")
+
+    @property
+    def matrix_target_layout(self):
+        if self.matrix_targets is None:
+            return None
+        from .multitarget import MatrixTargetLayout
+
+        return MatrixTargetLayout(tuple(self.matrix_targets), self.matrix_target_spin)
 
     def copy(self, **kwargs):
         """Create a copy of the object with the given attributes replaced."""
@@ -185,10 +203,13 @@ class MatrixDataProcessor:
         else:
             return {}
 
-    def torch_predict(self, torch_model, geometry: sisl.Geometry):
+    def torch_predict(self, torch_model, geometry: sisl.Geometry, *, matrix_target: Optional[str] = None):
         import torch
 
         from graph2mat.bindings.torch import TorchBasisMatrixData
+
+        if self.matrix_target_layout is not None and matrix_target not in self.matrix_target_layout.targets:
+            raise ValueError("select matrix_target before multitarget inference/reconstruction")
 
         with torch.no_grad():
             # USE THE MODEL
@@ -196,6 +217,10 @@ class MatrixDataProcessor:
             input_data = TorchBasisMatrixData.new(
                 geometry, data_processor=self, labels=False
             )
+            if self.matrix_target_layout is not None:
+                from .multitarget import _set_array
+
+                _set_array(input_data, "matrix_target_signature", self.matrix_target_layout.signature)
 
             input_data["ptr"] = torch.tensor([0, len(input_data["point_types"])])
             # One graph: every node belongs to batch 0.
@@ -205,7 +230,7 @@ class MatrixDataProcessor:
             out = torch_model(input_data)
 
             # And finally, we convert the output to a matrix.
-            matrix = self.matrix_from_data(input_data, predictions=out)
+            matrix = self.matrix_from_data(input_data, predictions=out, matrix_target=matrix_target)
 
         return matrix
 
@@ -216,6 +241,7 @@ class MatrixDataProcessor:
         threshold: Optional[float] = None,
         is_batch: Optional[bool] = None,
         out_format: Optional[str] = None,
+        *, matrix_target: Optional[str] = None,
     ):
         """Converts a BasisMatrixData object into a matrix.
 
@@ -260,10 +286,13 @@ class MatrixDataProcessor:
 
         if is_batch is None:
             is_batch = isinstance(data, Batch)
+        if self.matrix_target_layout is not None and matrix_target not in self.matrix_target_layout.targets:
+            raise ValueError("select matrix_target before physical multitarget reconstruction")
         if is_batch:
             return tuple(
                 self.yield_from_batch(
-                    data, predictions, threshold, as_matrix=True, out_format=out_format
+                    data, predictions, threshold, as_matrix=True, out_format=out_format,
+                    matrix_target=matrix_target,
                 )
             )
 
@@ -278,6 +307,10 @@ class MatrixDataProcessor:
                     "edge_labels": data.edge_labels,
                 }
 
+        if self.matrix_target_layout is not None:
+            from .multitarget import reconstruct_target
+
+            return reconstruct_target(self, data, matrix_target, threshold=threshold, out_format=out_format)
         if out_format is None:
             out_format = self.default_out_format
 
@@ -290,6 +323,7 @@ class MatrixDataProcessor:
         threshold: Optional[float] = 1e-8,
         as_matrix: bool = False,
         out_format: Optional[str] = None,
+        *, matrix_target: Optional[str] = None,
     ) -> Generator:
         """Yields matrices from a batch.
 
@@ -316,6 +350,18 @@ class MatrixDataProcessor:
         matrix_from_data: The method used to convert data to matrices, which can
             also be called with a batch.
         """
+        if self.matrix_target_layout is not None and (as_matrix or matrix_target is not None):
+            if matrix_target not in self.matrix_target_layout.targets:
+                raise ValueError("select matrix_target before physical multitarget reconstruction")
+            from .multitarget import target_data_view
+
+            for example in self.yield_from_batch(data, predictions, threshold, as_matrix=False):
+                if as_matrix:
+                    yield self.matrix_from_data(example, threshold=threshold, out_format=out_format,
+                                                matrix_target=matrix_target)
+                else:
+                    yield target_data_view(example, self.matrix_target_layout, matrix_target)
+            return
         if predictions is None:
             for i in range(data.num_graphs):
                 example = data.get_example(i)
@@ -1163,6 +1209,11 @@ class MatrixDataProcessor:
         coords_cartesian: bool = False,
         **kwargs,
     ):
+        if self.matrix_target_layout is not None:
+            from .multitarget import reconstruct_target
+
+            return reconstruct_target(self, data, kwargs.pop("matrix_target", None),
+                                      threshold=threshold, out_format=out_format)
         data_format = getattr(data.__class__, "_data_format", Formats.NODESEDGES)
         if not conversions.has_converter(data_format, out_format):
             converter = conversions.get_converter(getattr(data.__class__, "_format"), out_format)
@@ -1635,7 +1686,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
 
         copied = cls(**kwargs, already_basis=True)
         for name in self._data:
-            if name.startswith("physical_"):
+            if name.startswith(("physical_", "matrix_")):
                 value = copied.process_input_array(name, np_arrays[name])
                 setattr(copied, name, value)
                 copied._data[name] = value

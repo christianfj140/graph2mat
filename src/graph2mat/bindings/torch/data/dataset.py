@@ -94,14 +94,20 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         data_cls: Type[TorchBasisMatrixData] = TorchBasisMatrixData,
         load_labels: bool = True,
         spectral_window: Union[bool, str] = False,
-        physical_labels: Optional[Sequence[str]] = None,
+        physical_labels: Optional[Union[Sequence[str], dict]] = None,
     ):
         self.input_data = input_data
         self.data_processor = data_processor
         self.data_cls = data_cls
         self.load_labels = load_labels
         self.spectral_window = spectral_window
-        self.physical_labels = normalize_physical_labels(physical_labels)
+        if getattr(data_processor, "matrix_target_layout", None) is not None:
+            from graph2mat.core.data.multitarget import normalize_multitarget_physical_labels
+
+            self.physical_labels = normalize_multitarget_physical_labels(
+                physical_labels, data_processor.matrix_target_layout.targets)
+        else:
+            self.physical_labels = normalize_physical_labels(physical_labels)
 
         self._root_pid = os.getpid()
         self._worker_pid = None
@@ -115,7 +121,40 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
 
         item = self._fix_multiprocessing_zipfile(item)
 
-        if self.physical_labels and self.load_labels:
+        layout = getattr(self.data_processor, "matrix_target_layout", None)
+        if layout is not None:
+            from graph2mat.core.data import multitarget
+
+            if isinstance(item, zipfile.Path):
+                raise ValueError("multitarget labels from ZIP are unsupported; use local FDF references")
+            if not self.load_labels:
+                geometry = item["overlap"].geometry if isinstance(item, dict) else item
+                data = self.data_cls.new(geometry, data_processor=self.data_processor, labels=False)
+                data.metadata["matrix_target_descriptor"] = layout.to_dict()
+                multitarget._set_array(data, "matrix_target_signature", layout.signature)
+            elif isinstance(item, BasisMatrixDataBase):
+                signature = item.ensure_numpy(getattr(item, "matrix_target_signature", None))
+                if not np.array_equal(signature, layout.signature):
+                    raise ValueError("prepared sample multitarget layout/semantic descriptor mismatch")
+                descriptor = multitarget.MatrixTargetLayout.from_dict(item.metadata["matrix_target_descriptor"])
+                if descriptor != layout:
+                    raise ValueError("prepared sample multitarget descriptor mismatch")
+                for target, requested in self.physical_labels.items():
+                    raw = getattr(item, f"physical_{target}__physical_capabilities", None)
+                    if raw is None:
+                        raise ValueError(f"{target}: prepared sample lacks physical references")
+                    capabilities = item.ensure_numpy(raw)
+                    required = int("charge" in requested) + 2 * int("energy" in requested)
+                    if capabilities.shape != (1,) or int(capabilities[0]) & required != required:
+                        raise ValueError(f"{target}: prepared physical capability missing")
+                data = deepcopy(item if isinstance(item, self.data_cls) else item.copy(cls=self.data_cls))
+            elif isinstance(item, dict):
+                data = multitarget.prepare_multitarget_data(self.data_processor, **item,
+                    physical_labels=self.physical_labels, data_cls=self.data_cls)
+            else:
+                data = multitarget.load_multitarget_data(item, self.data_processor,
+                    physical_labels=self.physical_labels, data_cls=self.data_cls)
+        elif self.physical_labels and self.load_labels:
             if isinstance(item, zipfile.Path):
                 raise ValueError("physical labels from ZIP are unsupported; use local FDF references")
             if isinstance(item, BasisMatrixDataBase) and getattr(item, "physical_version", None) is not None:

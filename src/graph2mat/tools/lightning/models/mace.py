@@ -116,7 +116,30 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         initial_node_feats: str = "OneHotZ",
         version: str = "new",
         edge_block_readout_kwargs: Optional[dict] = None,
+        matrix_targets: Optional[list[str]] = None,
+        matrix_target_spin: Optional[int] = None,
+        matrix_target_weights: Optional[dict] = None,
+        matrix_target_losses: Optional[dict] = None,
     ):
+        if matrix_targets is not None:
+            from graph2mat.core.data.multitarget import MatrixTargetLayout
+
+            layout = MatrixTargetLayout(tuple(matrix_targets), matrix_target_spin)
+            if n_matrix_components not in (1, layout.n_components):
+                raise ValueError("n_matrix_components disagrees with multitarget layout")
+            if n_output_components not in (None, layout.n_components):
+                raise ValueError("n_output_components cannot omit multitarget components")
+            n_matrix_components = layout.n_components
+            matrix_targets = list(layout.targets)
+            if long_range or hamiltonian_local_context or coefficient_training:
+                raise ValueError("multitarget matrix_targets reject long_range, hamiltonian_local_context and coefficient_training")
+            if any(isinstance(stage, dict) and ("loss" in stage or stage.get("loss_kwargs"))
+                   for stage in (training_stages or [])):
+                raise ValueError("multitarget matrix_targets reject single-target training stage losses")
+            if loss is not elementwise_mse or loss_kwargs:
+                raise ValueError("multitarget requires per-target matrix_target_losses, not global loss/loss_kwargs")
+        elif matrix_target_weights is not None or matrix_target_losses is not None:
+            raise ValueError("matrix target weights/losses require matrix_targets")
         if version != "new":
             # The old OrbitalMatrixMACE path is gone; the argument stays for saved checkpoints.
             raise ValueError(f"LitMACEMatrixModel only supports version='new', got {version!r}.")
@@ -146,6 +169,13 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             model_cls=model_cls,
         )
         self.save_hyperparameters()
+        self.matrix_target_layout = layout if matrix_targets is not None else None
+        if self.matrix_target_layout is not None:
+            from graph2mat.bindings.torch.multitarget import MultitargetMatrixLoss
+
+            self.default_loss_fn = MultitargetMatrixLoss(layout, weights=matrix_target_weights,
+                                                        losses=matrix_target_losses)
+            self.loss_fn = self.default_loss_fn
 
         if isinstance(hidden_irreps, str):
             hidden_irreps = o3.Irreps(hidden_irreps)
@@ -195,6 +225,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
 
             self.init_model(
                 mace=mace,
+                **({"matrix_targets": matrix_targets, "matrix_target_spin": matrix_target_spin}
+                   if matrix_targets is not None else {}),
                 readout_per_interaction=readout_per_interaction,
                 readout_interaction_aggregation=readout_interaction_aggregation,
                 return_coefficients=return_coefficients,

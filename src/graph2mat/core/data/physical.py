@@ -194,7 +194,7 @@ def physical_reference_targets(
 
 def prepare_physical_data(
     processor, *, overlap, density, hamiltonian=None, energy_density=None,
-    kpoints, kweights, requested, data_cls=BasisMatrixData,
+    kpoints, kweights, requested, data_cls=BasisMatrixData, _data=None,
 ):
     """Prepare validated physical references on exactly the prediction graph.
 
@@ -231,7 +231,8 @@ def prepare_physical_data(
         config = BasisConfiguration.new(target, matrix_component_policy=processor.matrix_component_policy)
     else:
         config = replace(config, matrix=physical_blocks)
-    data = data_cls.from_config(config, processor)
+    # Joint targets reuse their canonical graph; single-target callers build it as before.
+    data = data_cls.from_config(config, processor) if _data is None else _data
     arrays = data.numpy_arrays()
     edge_index = arrays.edge_index[:, ::2] if processor.symmetric_matrix else arrays.edge_index
     images = arrays.neigh_isc[::2] if processor.symmetric_matrix else arrays.neigh_isc
@@ -293,13 +294,9 @@ def prepare_physical_data(
     return data
 
 
-def load_physical_data(path, processor, *, requested, data_cls=BasisMatrixData):
-    """Load local FDF/TSHS/TSDE with an explicit diagonal, zero-offset MP grid.
-
-    TSDE supplies no independent geometry or overlap. Its physical channels are
-    read without overlap injection, preserving the original observation support.
-    """
-    requested = normalize_physical_labels(requested)
+def _read_reference_bundle(path, *, need_density, need_hamiltonian,
+                           need_energy_density, require_mesh, processor=None):
+    """Read coincident references; never use TSDE's placeholder overlap."""
     try:
         path = Path(path)
     except TypeError as error:
@@ -307,50 +304,72 @@ def load_physical_data(path, processor, *, requested, data_cls=BasisMatrixData):
     if path.suffix.lower() != ".fdf":
         raise ValueError("physical labels require a local FDF or explicitly prepared data")
     fdf = sisl.get_sile(path)
-    try:
-        grid = np.asarray([line.split() for line in fdf.get("kgrid_Monkhorst_Pack", default=[])], dtype=float)
-    except (TypeError, ValueError) as error:
-        raise ValueError(f"{path}: missing or unsupported explicit kpoint grid") from error
-    if (grid.shape != (3, 4) or not np.isfinite(grid).all()
-            or np.any(grid[:, 3] != 0) or np.any(grid[:, :3] != np.diag(np.diag(grid[:, :3])))
-            or np.any(np.diag(grid[:, :3]) <= 0) or np.any(grid[:, :3] != np.round(grid[:, :3]))):
-        raise ValueError(f"{path}: physical labels require a positive diagonal zero-offset kpoint grid")
-    if not requested or ("energy" not in requested and processor.out_matrix != "density_matrix"):
-        raise ValueError(f"{path}: charge-only preparation requires a DM prediction target")
+    if require_mesh:
+        try:
+            grid = np.asarray([line.split() for line in fdf.get("kgrid_Monkhorst_Pack", default=[])], dtype=float)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"{path}: missing or unsupported explicit kpoint grid") from error
+        if (grid.shape != (3, 4) or not np.isfinite(grid).all()
+                or np.any(grid[:, 3] != 0) or np.any(grid[:, :3] != np.diag(np.diag(grid[:, :3])))
+                or np.any(np.diag(grid[:, :3]) <= 0) or np.any(grid[:, :3] != np.round(grid[:, :3]))):
+            raise ValueError(f"{path}: physical labels require a positive diagonal zero-offset kpoint grid")
     label = fdf.get("SystemLabel", default="siesta")
-    sources = {name: Path(fdf.dir_file(label + suffix)) for name, suffix in (
-        ("overlap", ".TSHS"), ("density", ".TSDE"))}
+    sources = {"overlap": Path(fdf.dir_file(label + ".TSHS"))}
+    if need_density or need_energy_density:
+        sources["density"] = Path(fdf.dir_file(label + ".TSDE"))
     for name, source in sources.items():
         if not source.is_file():
             raise ValueError(f"{path}: physical reference {name} is absent: {source}")
     try:
-        overlap = fdf.read_overlap(order=["TSHS"])
-        reader = sisl.get_sile(sources["density"])
+        geometry_kwargs = {}
+        if processor is not None:
+            geometry = processor.add_basis_to_geometry(fdf.read_geometry(output=False))
+            geometry_kwargs["geometry"] = geometry
+        overlap = fdf.read_overlap(order=["TSHS"], **geometry_kwargs)
+        reader = sisl.get_sile(sources["density"]) if "density" in sources else None
 
         def physical_channels(matrix, name):
             channels = _physical_channels(matrix, name)
             return type(matrix).fromsp(matrix.geometry, [matrix.tocsr(c) for c in range(channels)])
 
-        density = physical_channels(reader.read_density_matrix(geometry=overlap.geometry.copy()), "density")
-        hamiltonian = energy_density = None
-        if "energy" in requested:
+        density = (physical_channels(reader.read_density_matrix(geometry=overlap.geometry.copy()), "density")
+                   if need_density else None)
+        hamiltonian = (fdf.read_hamiltonian(order=["TSHS"], geometry=overlap.geometry.copy())
+                       if need_hamiltonian else None)
+        energy_density = None
+        if need_energy_density:
             tshs_fermi = sisl.get_sile(sources["overlap"]).read_fermi_level()
             tsde_fermi = reader.read_fermi_level()
             if not (np.isfinite(tshs_fermi) and np.isfinite(tsde_fermi)
                     and np.isclose(tshs_fermi, tsde_fermi, rtol=0, atol=1e-8)):
                 raise ValueError("TSHS/TSDE Fermi levels do not certify a common energy gauge")
-            hamiltonian = fdf.read_hamiltonian(order=["TSHS"], geometry=overlap.geometry.copy())
             energy_density = physical_channels(reader.read_energy_density_matrix(
                 geometry=overlap.geometry.copy()), "energy_density")
-        mesh = sisl.MonkhorstPack(overlap.geometry, np.diag(grid[:, :3]).astype(int), centered=True, trs=False)
-        data = prepare_physical_data(processor, overlap=overlap, density=density,
-            hamiltonian=hamiltonian, energy_density=energy_density, kpoints=mesh.k,
-            kweights=mesh.weight, requested=requested, data_cls=data_cls)
+        mesh = (sisl.MonkhorstPack(overlap.geometry, np.diag(grid[:, :3]).astype(int), centered=True, trs=False)
+                if require_mesh else None)
     except (OSError, ValueError, AttributeError) as error:
         raise ValueError(f"{path}: physical reference loading failed: {error}") from error
-    data.metadata["physical_reference"] = {"fdf": str(path),
+    metadata = {"fdf": str(path),
         **{name: str(source) for name, source in sources.items()},
-        "kpoints": mesh.k.copy(), "kweights": mesh.weight.copy()}
+        **({"kpoints": mesh.k.copy(), "kweights": mesh.weight.copy()} if mesh is not None else {})}
+    return dict(overlap=overlap, density=density, hamiltonian=hamiltonian,
+                energy_density=energy_density, kpoints=None if mesh is None else mesh.k,
+                kweights=None if mesh is None else mesh.weight), metadata
+
+
+def load_physical_data(path, processor, *, requested, data_cls=BasisMatrixData):
+    """Load local FDF/TSHS/TSDE and validated physical reference objectives."""
+    requested = normalize_physical_labels(requested)
+    if not requested or ("energy" not in requested and processor.out_matrix != "density_matrix"):
+        raise ValueError(f"{path}: charge-only preparation requires a DM prediction target")
+    bundle, metadata = _read_reference_bundle(path, need_density=True,
+        need_hamiltonian="energy" in requested, need_energy_density="energy" in requested,
+        require_mesh=True)
+    try:
+        data = prepare_physical_data(processor, **bundle, requested=requested, data_cls=data_cls)
+    except (OSError, ValueError, AttributeError) as error:
+        raise ValueError(f"{path}: physical reference loading failed: {error}") from error
+    data.metadata["physical_reference"] = metadata
     return data
 
 

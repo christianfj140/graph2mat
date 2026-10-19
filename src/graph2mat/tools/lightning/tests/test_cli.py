@@ -16,6 +16,47 @@ class _CheckpointObject:
     pass
 
 
+@pytest.mark.parametrize("spin", [1, 2])
+def test_cli_multitarget_fit_resolves_layout(tmp_path, spin):
+    from jsonargparse import Namespace
+    from graph2mat.core.data.tests.physical_fixtures import analytic_matrices
+    from graph2mat.core.data.tests.test_multitarget import TARGETS, write_fdf_bundle
+    from graph2mat.tools.lightning.cli import _autoconfigure_n_matrix_components
+
+    matrices = analytic_matrices(spin=spin)
+    path = write_fdf_bundle(tmp_path, matrices)
+    config = Namespace(data=Namespace(matrix_targets=list(TARGETS), matrix_target_spin=None,
+        n_matrix_components=1, root_dir=str(tmp_path), train_runs=[str(path)],
+        basis_table=AtomicTableWithEdges(matrices["overlap"].atoms.atom),
+        out_matrix="hamiltonian", sub_point_matrix=False),
+        model=Namespace(matrix_targets=None, matrix_target_spin=None, n_matrix_components=1))
+    _autoconfigure_n_matrix_components(config, stage="fit")
+    assert config.data.matrix_target_spin == spin
+    assert config.model.matrix_target_spin == spin
+    assert config.model.matrix_targets == list(TARGETS)
+    assert config.data.n_matrix_components == config.model.n_matrix_components == (4 if spin == 1 else 7)
+
+
+def test_cli_rejects_mismatched_descriptor_and_unlabeled_inference():
+    from jsonargparse import Namespace
+    from graph2mat.tools.lightning.cli import _autoconfigure_n_matrix_components
+
+    config = Namespace(data=Namespace(matrix_targets=["hamiltonian", "overlap", "density_matrix"],
+        matrix_target_spin=1, n_matrix_components=1, sub_point_matrix=False),
+        model=Namespace(matrix_targets=["hamiltonian", "overlap", "energy_density_matrix"],
+                        matrix_target_spin=1, n_matrix_components=1))
+    with pytest.raises(ValueError, match="semantic|descriptor|targets"):
+        _autoconfigure_n_matrix_components(config, stage="predict")
+    config.model.matrix_targets = None
+    config.data.matrix_target_spin = None
+    config.model.matrix_target_spin = None
+    with pytest.raises(ValueError, match="spin"):
+        _autoconfigure_n_matrix_components(config, stage="predict")
+    config.data.matrix_target_spin = 2
+    _autoconfigure_n_matrix_components(config, stage="predict")
+    assert config.model.n_matrix_components == 5
+
+
 @pytest.mark.parametrize("callback", ["MatrixWriter", "SamplewiseMetricsLogger"])
 @pytest.mark.parametrize("splits", ["test", ["test"]])
 def test_cli_parses_callback_split_string_or_sequence(tmp_path, callback, splits):

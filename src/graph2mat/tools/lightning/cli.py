@@ -29,11 +29,7 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None
     if data_cfg is None or model_cfg is None:
         return
 
-    configured = getattr(data_cfg, "n_matrix_components", None)
-    if configured != 1:
-        return
-
-    inferred = infer_n_matrix_components_from_data_inputs(
+    options = dict(
         root_dir=getattr(data_cfg, "root_dir", "."),
         basis_files=getattr(data_cfg, "basis_files", None),
         no_basis=getattr(data_cfg, "no_basis", None),
@@ -52,6 +48,42 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None
         runs_json=getattr(data_cfg, "runs_json", None),
         stage=stage,
     )
+    targets = getattr(data_cfg, "matrix_targets", None)
+    if targets is not None:
+        from graph2mat.core.data.multitarget import MatrixTargetLayout
+
+        if getattr(data_cfg, "sub_point_matrix", True):
+            raise ValueError("multitarget requires sub_point_matrix=False; no baseline")
+        spin = getattr(data_cfg, "matrix_target_spin", None)
+        if spin is None:
+            if stage == "predict":
+                raise ValueError("matrix_target_spin must come from config/checkpoint for unlabeled inference")
+            options.update(out_matrix="hamiltonian", matrix_component_policy="h_only")
+            spin = infer_n_matrix_components_from_data_inputs(**options)
+            if spin is None:
+                raise ValueError("cannot infer matrix_target_spin from labeled references")
+        layout = MatrixTargetLayout(tuple(targets), spin)
+        model_targets = getattr(model_cfg, "matrix_targets", None)
+        model_spin = getattr(model_cfg, "matrix_target_spin", None)
+        if model_targets is not None and MatrixTargetLayout(tuple(model_targets), model_spin or spin) != layout:
+            raise ValueError("data/model multitarget semantic descriptors disagree")
+        if model_spin is not None and model_spin != spin:
+            raise ValueError("data/model multitarget spin disagrees")
+        for config in (data_cfg, model_cfg):
+            if getattr(config, "n_matrix_components", 1) not in (1, layout.n_components):
+                raise ValueError("n_matrix_components disagrees with multitarget descriptor")
+            config.matrix_targets = list(layout.targets)
+            config.matrix_target_spin = spin
+            config.n_matrix_components = layout.n_components
+        if getattr(model_cfg, "n_output_components", None) not in (None, layout.n_components):
+            raise ValueError("n_output_components cannot omit multitarget components")
+        return
+    if getattr(model_cfg, "matrix_targets", None) is not None:
+        raise ValueError("model matrix_targets require matching data matrix_targets")
+    configured = getattr(data_cfg, "n_matrix_components", None)
+    if configured != 1:
+        return
+    inferred = infer_n_matrix_components_from_data_inputs(**options)
     if inferred is None or inferred == configured:
         return
 
@@ -85,6 +117,8 @@ class OrbitalMatrixCLI(LightningCLI):
         parser.link_arguments(
             "data.n_matrix_components", "model.n_matrix_components"
         )
+        parser.link_arguments("data.matrix_targets", "model.matrix_targets")
+        parser.link_arguments("data.matrix_target_spin", "model.matrix_target_spin")
         parser.link_arguments("data.initial_node_feats", "model.initial_node_feats")
 
         defaults = {}

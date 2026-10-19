@@ -79,6 +79,8 @@ def load_from_lit_ckpt(
         ),
         basis_table=ckpt["basis_table"],
         node_attr_getters=model.initial_node_feats,
+        matrix_targets=ckpt["datamodule_hyper_parameters"].get("matrix_targets"),
+        matrix_target_spin=ckpt["datamodule_hyper_parameters"].get("matrix_target_spin"),
     )
 
     if as_torch:

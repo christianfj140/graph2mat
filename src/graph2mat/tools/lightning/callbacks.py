@@ -13,7 +13,7 @@ import io
 import json
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Literal, Sequence, Type, Union
+from typing import Any, Dict, Literal, Optional, Sequence, Type, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -35,6 +35,7 @@ class MatrixWriter(Callback):
         splits: Union[str, Sequence[str]] = [
             "predict",
         ],
+        matrix_target: Optional[str] = None,
     ):
         """Callback to write produced matrices to disk.
 
@@ -62,6 +63,7 @@ class MatrixWriter(Callback):
 
         self.splits = splits
         self.output_file = output_file
+        self.matrix_target = matrix_target
         self.out_is_absolute = Path(output_file).is_absolute()
         self.out_has_suffix = Path(output_file).suffix != ""
 
@@ -81,7 +83,9 @@ class MatrixWriter(Callback):
         if self.out_has_suffix:
             return out_file
 
-        suffix = self._matrix_suffix(getattr(trainer.datamodule, "out_matrix", None))
+        processor = getattr(trainer.datamodule, "data_processor", None)
+        suffix = (".nc" if getattr(processor, "matrix_target_layout", None) is not None
+                  else self._matrix_suffix(getattr(trainer.datamodule, "out_matrix", None)))
         file_stem = path.parent.name or "matrix"
         return out_file / f"{file_stem}{suffix}"
 
@@ -97,6 +101,9 @@ class MatrixWriter(Callback):
     ):
         # Get the data processor that the datamodule uses.
         data_processor: MatrixDataProcessor = trainer.datamodule.data_processor
+        if getattr(data_processor, "matrix_target_layout", None) is not None:
+            self._write_multitarget(data_processor, trainer, prediction, batch)
+            return
 
         # Fully consume the batch before writing. ``yield_from_batch`` performs
         # its strongest edge-label accounting check after yielding the examples,
@@ -138,6 +145,38 @@ class MatrixWriter(Callback):
                 data_processor=data_processor,
                 trainer=trainer,
             )
+
+    def _write_multitarget(self, processor, trainer, prediction, batch):
+        layout = processor.matrix_target_layout
+        if self.matrix_target not in layout.targets:
+            raise ValueError("MatrixWriter requires an explicit selected matrix_target")
+        items = list(processor.yield_from_batch(batch, predictions=prediction))
+        prepared, paths = [], set()
+        for data in items:
+            path = self._get_out_file(data, trainer)
+            if path.suffix.lower() != ".nc":
+                raise ValueError("multitarget writer currently supports explicit .nc format only")
+            resolved = path.resolve()
+            if resolved in paths:
+                raise ValueError("multitarget writer output path collision within the batch")
+            paths.add(resolved)
+            matrix = processor.matrix_from_data(data, matrix_target=self.matrix_target)
+            prepared.append((matrix, path))
+        for matrix, path in prepared:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if self.matrix_target == "overlap":
+                # sisl Overlap is internally "orthogonal"; its nc writer would emit I.
+                carrier = sisl.SparseOrbitalBZ.fromsp(matrix.geometry, matrix.tocsr(0), S=matrix.tocsr(0))
+                with sisl.get_sile(path, "w") as writer:
+                    writer.write_overlap(carrier)
+            elif self.matrix_target in ("hamiltonian", "energy_density_matrix"):
+                matrix.write(path, Ef=0.)
+            else:
+                matrix.write(path)
+            metadata = {"matrix_target": self.matrix_target, "matrix_target_descriptor": layout.to_dict(),
+                        "unit": layout.to_dict()["units"][self.matrix_target],
+                        "overlap_source": "predicted", "energy_gauge": "model gauge; serialized Ef=0"}
+            path.with_suffix(path.suffix + ".metadata.json").write_text(json.dumps(metadata, indent=2, sort_keys=True))
 
     def _write_metadata(
         self,
@@ -233,6 +272,7 @@ class SamplewiseMetricsLogger(Callback):
             "test",
         ],
         output_file: Union[str, Path] = "sample_metrics.csv",
+        matrix_target: Optional[str] = None,
     ):
         super().__init__()
 
@@ -254,10 +294,11 @@ class SamplewiseMetricsLogger(Callback):
         self.splits = splits
         self.metrics = [metric() for metric in metrics]
         self.output_file = output_file
+        self.matrix_target = matrix_target
         self._handles = {}
         self._warned_metric_failures = set()
 
-        self._init_file()
+        self._file_initialized = False
 
     def on_train_epoch_end(self, trainer, pl_module):
         self.close_file_handle("train")
@@ -298,6 +339,15 @@ class SamplewiseMetricsLogger(Callback):
         # Sanity-check batches are not an epoch; with several processes, rank 0 writes.
         if trainer.sanity_checking or not trainer.is_global_zero:
             return
+        processor = getattr(trainer.datamodule, "data_processor", None)
+        if getattr(processor, "matrix_target_layout", None) is not None:
+            self._on_multitarget_batch_end(split, trainer, outputs, batch, batch_idx, processor)
+            return
+        if self.matrix_target is not None:
+            raise ValueError("matrix_target selection requires a multitarget processor")
+        if not self._file_initialized:
+            self._init_file()
+            self._file_initialized = True
         # Get the atomic table, which some metrics might need.
         basis_table: AtomicTableWithEdges = trainer.datamodule.basis_table
 
@@ -357,12 +407,46 @@ class SamplewiseMetricsLogger(Callback):
         # Write the data
         self._writer(split).writerows(iterator)
 
+    def _on_multitarget_batch_end(self, split, trainer, outputs, batch, batch_idx, processor):
+        from graph2mat.bindings.torch.multitarget import MultitargetMatrixLoss
+        from graph2mat.core.data.metrics import elementwise_mse, gauge_invariant_mse
+
+        layout = processor.matrix_target_layout
+        if self.matrix_target not in layout.targets:
+            raise ValueError("SamplewiseMetricsLogger requires an explicit matrix_target")
+        for metric in self.metrics:
+            if type(metric) not in (elementwise_mse, gauge_invariant_mse):
+                raise ValueError("multitarget sample metrics support explicit elementwise_mse or H gauge_invariant_mse only")
+            if isinstance(metric, gauge_invariant_mse) and self.matrix_target != "hamiltonian":
+                raise ValueError("gauge_invariant_mse requires selecting hamiltonian")
+        references = list(processor.yield_from_batch(batch))
+        predictions = list(processor.yield_from_batch(batch, predictions=outputs))
+        raw_unit = layout.to_dict()["units"][self.matrix_target]
+        unit = raw_unit if raw_unit == "dimensionless" else raw_unit + "^2"
+        rows = []
+        for index, (reference, prediction) in enumerate(zip(references, predictions)):
+            values = []
+            for metric in self.metrics:
+                losses = {target: {"name": "elementwise_mse"} for target in layout.targets}
+                losses[self.matrix_target] = {"name": type(metric).__name__, "kwargs": metric.metric_kwargs}
+                loss = MultitargetMatrixLoss(layout, weights={t: float(t == self.matrix_target) for t in layout.targets},
+                                             losses=losses)
+                value, _ = loss(nodes_pred=prediction.point_labels, nodes_ref=reference.point_labels,
+                    edges_pred=prediction.edge_labels, edges_ref=reference.edge_labels,
+                    batch=reference, basis_table=processor.basis_table)
+                values.append(float(value.detach()))
+            path = reference.metadata.get("path")
+            name = Path(path).parent.name if path else f"batch{batch_idx}_{index}"
+            rows.append([name, self.matrix_target, unit, *values, split, trainer.current_epoch])
+        self._writer(split).writerows(rows)
+
     def _init_file(self):
         # Open the file
         with open(self.output_file, "w", newline="") as csv_file:
             # And write the headers, i.e. column names
             metric_names = [metric.__class__.__name__ for metric in self.metrics]
-            fieldnames = ["sample_name", *metric_names, "split", "epoch"]
+            fieldnames = ["sample_name", *(["matrix_target", "unit"] if self.matrix_target is not None else []),
+                          *metric_names, "split", "epoch"]
 
             csv_writer = csv.writer(csv_file)
 
@@ -371,6 +455,9 @@ class SamplewiseMetricsLogger(Callback):
     def _writer(self, split):
         # One handle per split, opened on first use: a validation run in the middle of
         # a training epoch must not close (or leak) the training handle.
+        if not self._file_initialized:
+            self._init_file()
+            self._file_initialized = True
         if split not in self._handles:
             fd = open(self.output_file, "a", newline="")
             self._handles[split] = (fd, csv.writer(fd))
@@ -414,11 +501,13 @@ class PlotMatrixError(Callback):
         split: Literal[None, "val", "test"] = None,
         show: bool = False,
         store_in_logger: bool = True,
+        matrix_target: Optional[str] = None,
     ):
         super().__init__()
         self.split = split
         self.show = show
         self.store_in_logger = store_in_logger
+        self.matrix_target = matrix_target
 
     def _setup(self):
         self._matrix_data = None
@@ -432,9 +521,12 @@ class PlotMatrixError(Callback):
         self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
     ):
         processor = trainer.datamodule.data_processor
-        references = processor.yield_from_batch(batch, as_matrix=False)
+        if processor.matrix_target_layout is not None and self.matrix_target not in processor.matrix_target_layout.targets:
+            raise ValueError("PlotMatrixError requires an explicit matrix_target")
+        selection = {"matrix_target": self.matrix_target} if processor.matrix_target_layout is not None else {}
+        references = processor.yield_from_batch(batch, as_matrix=False, **selection)
         predictions = processor.yield_from_batch(
-            batch, predictions=outputs, as_matrix=False
+            batch, predictions=outputs, as_matrix=False, **selection
         )
         for reference, prediction in zip(references, predictions):
             arrays = reference.numpy_arrays()
@@ -467,8 +559,9 @@ class PlotMatrixError(Callback):
                     raise ValueError(
                         f"PlotMatrixError prediction/reference shapes differ for {key}."
                     )
-                valid = _valid_label_rows(target)
-                if target.ndim == 2:
+                valid = (arrays["matrix_known_nodes" if branch == "node" else "matrix_known_edges"] & np.isfinite(target)
+                         if selection else _valid_label_rows(target))
+                if target.ndim == 2 and not selection:
                     valid = valid[:, None]
                 error = np.where(valid, values.astype(np.float64) - target, 0.)
                 if not np.isfinite(error).all():
@@ -492,6 +585,9 @@ class PlotMatrixError(Callback):
         # Errors are not physical matrices: do not restore an atomic reference or
         # serialize spin/overlap channels as a single Hamiltonian or density matrix.
         processor = trainer.datamodule.data_processor.copy(sub_point_matrix=False)
+        if processor.matrix_target_layout is not None:
+            processor = processor.copy(matrix_targets=None, matrix_target_spin=None,
+                n_matrix_components=self._matrix_data.point_labels.shape[1])
         unique_atoms = processor.basis_table.get_sisl_atoms()
         geometry = sisl.Geometry(
             processor.basis_to_cartesian(self.positions),
@@ -518,6 +614,8 @@ class PlotMatrixError(Callback):
             components = ne.shape[1] if ne.ndim == 2 else 1
             for component in range(components):
                 title = label if components == 1 else f"{label}_component{component}"
+                if self.matrix_target is not None:
+                    title = f"{self.matrix_target}_{title}"
                 matrix = processor.labels_to(
                     "scipy_csr",
                     data={

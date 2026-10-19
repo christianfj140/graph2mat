@@ -69,6 +69,18 @@ def _request(client, geometry_path, output, local, **params):
     })
 
 
+def test_server_rejects_multitarget_registration(tmp_path):
+    from graph2mat.core.data.tests.physical_fixtures import analytic_matrices
+    from graph2mat.core.data.tests.test_multitarget import processor_for
+
+    processor = processor_for(analytic_matrices())
+    def forbidden(data):
+        raise AssertionError("unsupported multitarget HTTP model invoked")
+    with pytest.raises(ValueError, match="multitarget|matrix_targets"):
+        create_server_app({"joint": {"data_processor": processor,
+            "prediction_function": forbidden, "files": {}, "test_metrics_summary": ""}}, local=True)
+
+
 @pytest.mark.parametrize("local", [False, True])
 @pytest.mark.parametrize("spin", [False, True])
 @pytest.mark.parametrize("kind", ["hamiltonian", "density_matrix", "energy_density_matrix"])

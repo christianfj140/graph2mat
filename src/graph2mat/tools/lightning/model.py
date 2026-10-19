@@ -28,6 +28,7 @@ from graph2mat.core.data import metrics as metrics_module
 from graph2mat.core.data.metrics import OrbitalMatrixMetric, elementwise_mse
 from graph2mat.core.data.node_feats import NodeFeature
 from graph2mat.core.data.physical import validate_physical_weights
+from graph2mat.bindings.torch.multitarget import MultitargetMatrixLoss
 
 from ._helpers import glob, maybe_zip_path
 
@@ -441,7 +442,9 @@ class LitBasisMatrixModel(pl.LightningModule):
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
-        return {"loss": loss} if coefficient_only else {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"]}
+        return {"loss": loss} if coefficient_only else {
+            "loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"],
+            **({"matrix_predictions": out["matrix_predictions"]} if "matrix_predictions" in out else {})}
 
     def _rmse_count(self, name, batch, stats=None):
         """Number of terms used by the standard matrix RMSE statistics."""
@@ -472,6 +475,9 @@ class LitBasisMatrixModel(pl.LightningModule):
         return None
 
     def _log_loss(self, split, loss, out, batch, stats=None, matrix_stats=None):
+        if isinstance(self.loss_fn, MultitargetMatrixLoss):
+            self._log_multitarget_loss(split, batch, stats)
+            return
         policies = {
             metrics_module.block_type_mse: (2, False, 1., 1.),
             metrics_module.elementwise_mse: (2, True, 1., self.loss_fn.metric_kwargs.get("edge_weight", 1.)),
@@ -639,6 +645,50 @@ class LitBasisMatrixModel(pl.LightningModule):
         value(torch.stack(means), torch.stack(counts), tuple(weights))
         return value
 
+    def _log_multitarget_loss(self, split, batch, stats):
+        """Reduce each matrix/physical objective by its own global count."""
+        def record(name, means, counts, weights):
+            key = "multitarget_" + name.replace("/", "__")
+            if key not in self._epoch_losses:
+                self._epoch_losses[key] = _EpochWeightedLoss(len(means)).to(self.device)
+            metric = self._epoch_losses[key]
+            means = torch.stack([torch.as_tensor(value, device=self.device).double() for value in means])
+            counts = torch.stack([torch.as_tensor(value, device=self.device).double() for value in counts])
+            metric(means, counts, tuple(weights))
+            self.log(name, metric, on_step=split == "train", on_epoch=True,
+                     batch_size=batch.num_graphs, metric_attribute=f"_epoch_losses.{key}")
+            return metric, key
+
+        all_means, all_counts, all_weights = [], [], []
+        for target in self.loss_fn.layout.targets:
+            target_weight = self.loss_fn.weights[target]
+            if target_weight == 0:
+                continue
+            prefix = f"target/{target}/"
+            count = stats[prefix + "matrix_count"]
+            means = [stats[prefix + "matrix_sum"] / count]
+            counts, weights = [count], [1.]
+            record(f"{split}/{prefix}matrix_mse", means, counts, weights)
+            self.log(f"{split}/{prefix}matrix_count", count, on_step=False, on_epoch=True,
+                     reduce_fx="sum", batch_size=1, sync_dist=True)
+            for name, physical_weight in zip(("electron", "mulliken", "energy"),
+                                              self.loss_fn.physical_weights[target]):
+                if physical_weight:
+                    value = stats[prefix + f"physical_{name}_mse"]
+                    structures = stats[prefix + "physical_structures"]
+                    record(f"{split}/{prefix}physical_{name}_mse", [value], [structures], [1.])
+                    means.append(value)
+                    counts.append(structures)
+                    weights.append(physical_weight)
+            record(f"{split}/{prefix}loss", means, counts, weights)
+            all_means.extend(means)
+            all_counts.extend(counts)
+            all_weights.extend(target_weight * weight for weight in weights)
+        metric, key = record(f"{split}_loss", all_means, all_counts, all_weights)
+        if split == "val":
+            self.log("hp_metric", metric, batch_size=batch.num_graphs,
+                     metric_attribute=f"_epoch_losses.{key}")
+
     def _huber_epoch_terms(self, out, batch):
         """Huber elements or physical-block means, with valid block types."""
         errors = metrics_module.get_predictions_error(
@@ -677,6 +727,8 @@ class LitBasisMatrixModel(pl.LightningModule):
         return keys, errors
 
     def _log_stats(self, split, stats, batch, out, matrix_stats=None):
+        if isinstance(self.loss_fn, MultitargetMatrixLoss):
+            return  # Target metrics/counts are aggregated together in _log_multitarget_loss.
         errors = None
         physical_huber = isinstance(self.loss_fn, (metrics_module.block_normalized_huber,
                                                    metrics_module.hamiltonian_composite_loss))
@@ -856,7 +908,8 @@ class LitBasisMatrixModel(pl.LightningModule):
             loss_fn = (self._resolve_metric(stage["loss"])(**(stage.get("loss_kwargs") or {}))
                 if "loss" in stage else self.default_loss_fn)
             objectives.append((stage["name"], loss_fn))
-        objectives = [(name, fn) for name, fn in objectives if any(self._physical_weights(fn))]
+        objectives = [(name, fn) for name, fn in objectives
+                      if isinstance(fn, MultitargetMatrixLoss) or any(self._physical_weights(fn))]
         if not objectives:
             return
         readouts = getattr(self.model, "matrix_readouts", self.model)
@@ -915,7 +968,10 @@ class LitBasisMatrixModel(pl.LightningModule):
                                 loss_fn(nodes_pred=out["node_labels"], nodes_ref=batch["point_labels"],
                                     edges_pred=out["edge_labels"], edges_ref=batch["edge_labels"],
                                     batch=batch, basis_table=self.basis_table)
-                        current = (int(batch["physical_kind"].item()), int(batch["physical_spin"].item()))
+                        if isinstance(self.default_loss_fn, MultitargetMatrixLoss):
+                            current = tuple(batch.matrix_target_signature[0].tolist())
+                        else:
+                            current = (int(batch["physical_kind"].item()), int(batch["physical_spin"].item()))
                         if convention is not None and current != convention:
                             raise ValueError("physical target/spin must agree across train/validation samples")
                         convention = current
@@ -999,7 +1055,8 @@ class LitBasisMatrixModel(pl.LightningModule):
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
-        return {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"]}
+        return {"loss": loss, "node_labels": out["node_labels"], "edge_labels": out["edge_labels"],
+                **({"matrix_predictions": out["matrix_predictions"]} if "matrix_predictions" in out else {})}
 
     def test_step(self, batch, batch_idx):
         out = self.model(batch)
@@ -1031,11 +1088,28 @@ class LitBasisMatrixModel(pl.LightningModule):
         checkpoint["training_stages"] = self.training_stages_config
         checkpoint["active_training_stage"] = self._active_training_stage_name
         checkpoint["provenance"] = _training_provenance()
+        layout = getattr(self, "matrix_target_layout", None)
+        if layout is not None:
+            checkpoint["matrix_target_descriptor"] = layout.to_dict()
 
     def on_load_checkpoint(self, checkpoint) -> None:
         "Objects to retrieve from checkpoint file"
         san_checkpoint = sanitize_checkpoint(checkpoint)
         checkpoint.update(san_checkpoint)
+
+        descriptor = checkpoint.get("matrix_target_descriptor")
+        layout = getattr(self, "matrix_target_layout", None)
+        if descriptor is not None or layout is not None:
+            from graph2mat.core.data.multitarget import MatrixTargetLayout
+
+            if descriptor is None or MatrixTargetLayout.from_dict(descriptor) != layout:
+                raise ValueError("checkpoint multitarget semantic descriptor/layout mismatch")
+            data_params = checkpoint.get("datamodule_hyper_parameters", {})
+            if data_params:
+                data_layout = MatrixTargetLayout(tuple(data_params.get("matrix_targets") or ()),
+                                                 data_params.get("matrix_target_spin"))
+                if data_layout != layout:
+                    raise ValueError("checkpoint data/model multitarget descriptor mismatch")
 
         try:
             self.basis_table = checkpoint["basis_table"]

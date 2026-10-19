@@ -193,9 +193,22 @@ class MatrixMACE(torch.nn.Module):
         pair_envelope_p: int = 6,
         long_range: Union[bool, str] = False,
         long_range_smearing: float = 2.0,
+        matrix_targets: Optional[list[str]] = None,
+        matrix_target_spin: Optional[int] = None,
         **kwargs,
     ):
         super().__init__()
+
+        self.matrix_target_layout = None
+        if matrix_targets is not None:
+            from graph2mat.core.data.multitarget import MatrixTargetLayout
+
+            self.matrix_target_layout = MatrixTargetLayout(tuple(matrix_targets), matrix_target_spin)
+            if long_range or hamiltonian_local_context:
+                raise ValueError("multitarget matrix_targets do not support long_range or hamiltonian_local_context")
+            if kwargs.get("n_matrix_components", 1) not in (1, self.matrix_target_layout.n_components):
+                raise ValueError("n_matrix_components disagrees with multitarget semantic layout")
+            kwargs["n_matrix_components"] = self.matrix_target_layout.n_components
 
         self.mace = mace
         # Roadmap 7.3: the readout radial features also vanish at each pair's own range
@@ -438,6 +451,12 @@ class MatrixMACE(torch.nn.Module):
             The output of the MACE model, with the additional keys "node_labels"
             and "edge_labels" containing the output of ``Graph2Mat``.
         """
+        if self.matrix_target_layout is not None:
+            from graph2mat.bindings.torch.multitarget import validate_layout_signature
+
+            if coefficients_only:
+                raise ValueError("multitarget matrix_targets do not support coefficients_only")
+            validate_layout_signature(data, self.matrix_target_layout)
         if coefficients_only and (self.gradient_checkpointing or self.charge_readout is not None):
             raise ValueError("coefficients_only is unsupported with gradient_checkpointing or long_range; use matrix mode.")
         mp_data = self._message_passing_data(data)
@@ -446,13 +465,18 @@ class MatrixMACE(torch.nn.Module):
         else:
             mace_out = self.mace(mp_data, compute_force=compute_force, **kwargs)
         if not self.readout_fp32:
-            return self._checkpointed_readout(data, mace_out, coefficients_only)
-
-        # MACE may run in reduced precision (bf16/fp16 autocast), but matrix elements
-        # need ~1e-4 relative precision (bf16 rounds a 10 eV element in steps of ~60 meV).
-        node_feats = mace_out["node_feats"]
-        with torch.autocast(device_type=node_feats.device.type, enabled=False):
-            return self._checkpointed_readout(data, {**mace_out, "node_feats": node_feats.float()}, coefficients_only)
+            output = self._checkpointed_readout(data, mace_out, coefficients_only)
+        else:
+            # Matrix elements need more precision than bf16's ~60 meV at 10 eV.
+            node_feats = mace_out["node_feats"]
+            with torch.autocast(device_type=node_feats.device.type, enabled=False):
+                output = self._checkpointed_readout(data, {**mace_out, "node_feats": node_feats.float()}, coefficients_only)
+        if self.matrix_target_layout is not None:
+            output["matrix_predictions"] = {target: {
+                "node_labels": output["node_labels"][:, columns],
+                "edge_labels": output["edge_labels"][:, columns],
+            } for target, columns in self.matrix_target_layout.slices.items()}
+        return output
 
     def compile_submodules(self, mode: Optional[str] = None) -> None:
         """torch.compile, in place, the MACE layers and every readout operation.
