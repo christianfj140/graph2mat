@@ -102,6 +102,13 @@ def test_rejected_options():
         block.forward_with_coefficients(coefficients=torch.zeros(1, block._irreps_out.dim))
 
 
+def test_block_to_coefficients_raises():
+    # The parent projection would read h0 and g with the wrong layout, silently.
+    basis = PointBasis("A", R=3, basis="0e+1o", basis_convention="cartesian")
+    with pytest.raises(NotImplementedError, match="coefficient outputs"):
+        _block(basis).block_to_coefficients(torch.zeros(1, 4, 4, 4))
+
+
 def _model_and_data(basis, point_types, positions, symmetric):
     table = BasisTableWithEdges(basis)
     processor = MatrixDataProcessor(basis_table=table, symmetric_matrix=symmetric, sub_point_matrix=False)

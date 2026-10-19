@@ -44,6 +44,9 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None
     if data_cfg is None or model_cfg is None:
         return
 
+    spin_orbit = getattr(data_cfg, "matrix_component_policy", "h_only") == "spin_orbit"
+    if spin_orbit or hasattr(model_cfg, "spin_orbit"):
+        model_cfg.spin_orbit = spin_orbit
     options = dict(
         root_dir=getattr(data_cfg, "root_dir", "."),
         basis_files=getattr(data_cfg, "basis_files", None),
@@ -95,6 +98,13 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None
         return
     if getattr(model_cfg, "matrix_targets", None) is not None:
         raise ValueError("model matrix_targets require matching data matrix_targets")
+    if spin_orbit:
+        # [h0, gx, gy, gz] is fixed by the policy: no labels needed (also for predict).
+        for config in (data_cfg, model_cfg):
+            if getattr(config, "n_matrix_components", 1) not in (1, 4):
+                raise ValueError("spin_orbit stores 4 components; n_matrix_components must be 1 or 4")
+            config.n_matrix_components = 4
+        return
     configured = getattr(data_cfg, "n_matrix_components", None)
     if configured != 1:
         return

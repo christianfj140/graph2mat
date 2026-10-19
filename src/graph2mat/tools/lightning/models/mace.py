@@ -14,12 +14,19 @@ from graph2mat.bindings.e3nn import (
     E3nnLinearEdgeBlock,
     E3nnSimpleEdgeBlock,
     E3nnSimpleNodeBlock,
+    E3nnSpinOrbitMatrixBlock,
 )
 from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
     HamiltonianLocalContext,
 )
 
-from graph2mat.core.data.metrics import OrbitalMatrixMetric, elementwise_mse
+from graph2mat.core.data.metrics import (
+    OrbitalMatrixMetric,
+    block_type_mae,
+    block_type_mse,
+    elementwise_mae,
+    elementwise_mse,
+)
 from graph2mat.models.mace import MatrixMACE, drop_last_mace_interaction
 from graph2mat.tools.lightning import LitBasisMatrixModel
 
@@ -121,7 +128,29 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         matrix_target_weights: Optional[dict] = None,
         matrix_target_losses: Optional[dict] = None,
         selection_metric: Optional[str] = None,
+        # Roadmap 8.1: TRS spin-orbit readout [h0, gx, gy, gz] (E3nnSpinOrbitMatrixBlock).
+        # Needs data with matrix_component_policy="spin_orbit"; uncertified options fail.
+        spin_orbit: bool = False,
     ):
+        if spin_orbit:
+            rejected = {
+                "matrix_targets": matrix_targets is not None,
+                "coefficient_training": coefficient_training,
+                "return_coefficients": return_coefficients,
+                "output_scaleshift": output_scaleshift,
+                "long_range": long_range,
+                "hamiltonian_local_context": hamiltonian_local_context,
+                "basis_grouping != 'point_type'": basis_grouping != "point_type",
+                "n_output_components": n_output_components is not None,
+                "n_matrix_components not in (1, 4)": n_matrix_components not in (1, 4),
+                # ponytail: exact classes; SK, low-rank and other readouts assume h0-only blocks.
+                "node_block_readout": node_block_readout is not E3nnSimpleNodeBlock,
+                "edge_block_readout": edge_block_readout not in (E3nnSimpleEdgeBlock, E3nnLinearEdgeBlock),
+            }
+            bad = [name for name, value in rejected.items() if value]
+            if bad:
+                raise ValueError(f"spin_orbit does not support: {', '.join(bad)}.")
+            n_matrix_components = 4
         if matrix_targets is not None:
             from graph2mat.core.data.multitarget import MatrixTargetLayout
 
@@ -171,6 +200,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             selection_metric=selection_metric,
         )
         self.save_hyperparameters()
+        if spin_orbit:
+            self._check_spin_orbit_losses()
         self.matrix_target_layout = layout if matrix_targets is not None else None
         if self.matrix_target_layout is not None:
             from graph2mat.bindings.torch.multitarget import MultitargetMatrixLoss
@@ -260,9 +291,38 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                    if edge_block_readout_kwargs is not None else {}),
                 basis_grouping=basis_grouping,
                 n_matrix_components=n_output_components or n_matrix_components,
+                **({"matrix_block_cls": E3nnSpinOrbitMatrixBlock} if spin_orbit else {}),
             )
 
+    def _check_spin_orbit_losses(self) -> None:
+        # Other losses read channels as H/S (gauge) or project h0-only coefficients.
+        allowed = (elementwise_mse, elementwise_mae, block_type_mse, block_type_mae)
+        losses = [self.default_loss_fn] + [
+            self._resolve_metric(stage["loss"])(**(stage.get("loss_kwargs") or {}))
+            for stage in self.training_stages_config if isinstance(stage, dict) and "loss" in stage
+        ]
+        for loss_fn in losses:
+            if type(loss_fn) not in allowed or any(self._physical_weights(loss_fn)):
+                raise ValueError(
+                    f"spin_orbit only supports {[m.__name__ for m in allowed]} without physical "
+                    f"weights, got {type(loss_fn).__name__}."
+                )
+
     def on_fit_start(self) -> None:
+        # Data and model must agree: a plain model would fit [h0, gx, gy, gz] as four
+        # unrelated scalars. Without a datamodule only spin_orbit=True fails (unverifiable).
+        spin_orbit = self.hparams.get("spin_orbit", False)  # older checkpoints lack it
+        module = getattr(self.trainer, "datamodule", None)
+        policy = getattr(module, "matrix_component_policy", None)
+        if spin_orbit != (policy == "spin_orbit") and (module is not None or spin_orbit):
+            raise ValueError(
+                f"model spin_orbit={spin_orbit} disagrees with data matrix_component_policy={policy!r}."
+            )
+        if policy == "spin_orbit":
+            bad = [name for name in ("spectral_window", "physical_labels", "matrix_targets")
+                   if getattr(module, name, None)]
+            if bad:
+                raise ValueError(f"spin_orbit data do not support: {', '.join(bad)}.")
         super().on_fit_start()
         if self.hparams.torch_compile:
             # 6x6 step: 138 -> 70 ms and -31% peak memory; ~90 s of compilation first.
