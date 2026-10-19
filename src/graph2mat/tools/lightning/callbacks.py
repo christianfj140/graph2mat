@@ -591,6 +591,10 @@ class PlotMatrixError(Callback):
         if processor.matrix_target_layout is not None:
             processor = processor.copy(matrix_targets=None, matrix_target_spin=None,
                 n_matrix_components=self._matrix_data.point_labels.shape[1])
+        elif processor.matrix_component_policy == "spin_orbit":
+            # Error magnitudes carry no transpose sign; plot channels as plain components.
+            processor = processor.copy(matrix_component_policy="h_only",
+                n_matrix_components=self._matrix_data.point_labels.shape[1])
         unique_atoms = processor.basis_table.get_sisl_atoms()
         geometry = sisl.Geometry(
             processor.basis_to_cartesian(self.positions),

@@ -264,8 +264,28 @@ def test_writer_rejects_spin_orbit(tmp_path):
     assert not list(tmp_path.iterdir())
 
 
+def test_plot_matrix_error_runs_with_spin_orbit_data(monkeypatch):
+    from types import SimpleNamespace
+    from graph2mat.tools.lightning import callbacks
+
+    H, atoms, _, _ = make_soc_system()
+    processor = soc_processor(atoms, symmetric=True)
+    sample = TorchBasisMatrixData.new(H, data_processor=processor)
+    trainer = SimpleNamespace(datamodule=SimpleNamespace(
+        data_processor=processor, basis_table=processor.basis_table,
+        symmetric_matrix=True, out_matrix="hamiltonian"))
+    titles = []
+    monkeypatch.setattr(callbacks, "plot_basis_matrix", lambda matrix, **kw: SimpleNamespace(
+        update_layout=lambda **layout: titles.append(layout["title"])))
+    callback = callbacks.PlotMatrixError(show=False, store_in_logger=False)
+    outputs = {"node_labels": sample.point_labels + 0.5, "edge_labels": sample.edge_labels + 0.5}
+    callback.on_test_epoch_start(trainer, None)
+    callback.on_test_batch_end(trainer, None, outputs, Batch.from_data_list([sample]), 0)
+    callback.on_test_epoch_end(trainer, None)
+    assert sorted(titles) == sorted(f"{m}_component{c}" for m in ("MAE", "RMSE") for c in range(4))
+
+
 def test_server_rejects_spin_orbit_processor():
-    pytest.importorskip("fastapi")
     from graph2mat.tools.server.server_app import create_server_app
 
     _, atoms, _, _ = make_soc_system()
