@@ -37,3 +37,9 @@ docs/api/conversions.rst
 #src/graph2mat/bindings/e3nn/_stored_rtps/_stored_rtps.py
 auditorias_mejoras/experimentos_speed_probe_*/
 auditorias_mejoras/experimentos_energy_loss_*/
+auditorias_mejoras/experimentos_edge_updates_bilayer_*/
+auditorias_mejoras/experimentos_batching_h2oclu_*/
+auditorias_mejoras/experimentos_*/
+auditorias_mejoras/piloto_*_v[0-9]*/
+auditorias_mejoras/campana_*_v[0-9]*/
+auditorias_mejoras/cierre_*_v[0-9]*/
