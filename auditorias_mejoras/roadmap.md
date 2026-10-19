@@ -10,6 +10,212 @@ Sustituye a la "Fase 5" de `plan_mejoras.md`. Ese fichero queda como historial d
 
 ## Prioridad activa — precisión, velocidad y VRAM (2026-10-08)
 
+**Cierre4.7 h2oclu,2026-10-18:** campaña aprobada terminada y auditada, sin
+promoción. Tres fits2000épocas/64000muestras/8000updates,21matrices nuevas y
+21referencias verificadas; tres IDs efectivos`:bootstrap1` DONE.982archivos
+de procedencia/integridad auditados, incluidos925originales+5del relanzamiento;
+Cholesky independiente reproduce todos los niveles con diferencia≤2,29e-12eV,
+sin cortar S. OOD: gap error3,109→1,192eV (−61,66%;IC95razón0,123–0,557),
+niveles928,49→285,50meV (−69,25%), pero H5,703→6,471meV (+13,47%) y H ID+19,93%.
+Gap/niveles medios mejoran las tres seeds, pero persisten regresiones por caso
+y gap predicho0,164eV donde la referencia es5,186eV. Mejora espectral exploratoria,
+no OOD resuelto ni mejora general. VRAM allocated+≈1%, reserved+2MiB; pared/PSS
+no contemporáneos, sin afirmación causal de aceleración/ahorro.33focales pasan;
+general vigente2653/34skip/4dscribe históricos. [Auditoría, resultados y reproducción](campana_nullspace_h2oclu_20261017.md).
+Esta campaña queda cerrada; los estados de preparación/cola de abajo son historia.
+
+### Pendiente real del roadmap original — revisión2026-10-19
+
+**3.12 implementado como alarma,2026-10-19:** por autorización«Haz 3.12».
+Comprobación ligera de fuentes repetidas y sample_id/sha256/group_id declarados
+entre splits cargados. Información ausente/inválida no certifica independencia
+ni demuestra contaminación. Sin alterar particiones, leer matrices adicionales,
+bloquear entrenamiento, inventar grupos/umbrales, generar manifiestos ni cambiar
+defaults. El diseño estricto histórico sigue sin autorizar. Revisión única:
+3Important/1Minor corregidos RED→GREEN; foco89passed y suiteCPU final
+3226passed/26skip/0fallos,1226.05s, salida0. No evidencia de precisión/VRAM nueva.
+[Contrato, comprobaciones y límites](informe_guardrail_splits_20261019.md).
+
+**4.1 cerrado2026-10-18:** diseño y plan aprobados, contrato no ortogonal
+certificado mediante pruebas/documentación, sin cambios productivos ni defaults.
+H+S ya existía; no faltó un lector ni una API nueva. Oráculos periódicos de
+espacio completo, controles[1,2]/cS/Cholesky, batches H+S heterogéneos, NetCDF,
+TSHS/HSX y referencias verificados. Focal261/0skip, regresiones1323/1skip y
+suiteCPU2732/20skip/0fallos. Revisión independiente:2huecos de tests corregidos
+con mutaciones antes/después, sin menores diferidos. Certificación sobre el
+soporte representado; no SPD universal, cobertura exhaustiva de formatos/bases/k
+ni mejoraML. [Evidencia y límites](informe_reconstruccion_no_ortogonal_20261018.md).
+
+**7.6 implementado y cerrado técnicamente en CPU,2026-10-18:**
+[diseño](../docs/superpowers/specs/2026-10-18-multitarget-7-6-design.md) y
+[plan Native](../docs/superpowers/plans/2026-10-18-multitarget-7-6.md) aprobados.
+Un backbone/readout multicomponente con descriptor H/S/DM/EDM, vistas nombradas,
+pérdidas/pesos/máscaras por componente y física4.4–4.5 referenciada. Dataset,
+CLI, epochs/checkpoints, inferencia sin etiquetas y reconstrucción/NetCDF con
+S_pred explícita verificados; legacy y defaults preservados. Revisión única:
+3Important corregidos con11regresiones RED→GREEN,0Minor. Suite final posterior:
+**2892passed/20skip/0fallos**,43146warnings,845.34s. Ruff/diff/hashes correctos.
+SK mantiene C1/C2; scaleshift requiere etiquetas completas y con soporte
+parcial se usa escalaFalse (default), nunca imputación ni buffersNaN.
+[Informe, comandos y límites](informe_multitarget_7_6_cpu_20261018.md).
+
+**Preparación científica7.6,2026-10-18:** usuario autorizó lectura sola de
+w90_phase1_iid1500.1500muestras H/S/DM/EDM compatibles,13512archivos únicos
+hashados antes/después intactos,1500ciclosSCF convergidos; S positiva en400puntos k
+por estructura (600000S(k)),sin cortes. Split histórico1198/150/150 y dos
+huecos intactos. **Alarma informativa:** md_1200 de validación duplica las
+matrices de md_0/md_300 train; bloquesMD compartidos, sin prueba de independencia
+ni OOD general. No reorganizar splits automáticamente.
+[Certificación y propuesta de comparativo](certificacion_multitarget_w90_20261018.md).
+
+**Piloto de coste7.6 v2,2026-10-19: completo, no beneficio científico aún.**
+[Diseño](../docs/superpowers/specs/2026-10-18-multitarget-w90-pilot-design.md)
+y [plan Native](../docs/superpowers/plans/2026-10-19-multitarget-w90-pilot.md)
+aprobados/implementados. V1 abortó tras H-only por falso positivo de PID al
+salir; usuario«Dale» autorizó corrección mínima+UNA pareja nueva. Cinco
+regresiones RED→GREEN, gateCPU123passed/0fallos y preflight v2 real1498estructuras.
+V2 terminó ambos brazos20warmup+100medidos/val150, sin OOM/abortos/contextos
+pendientes. H-only:mediana58.915ms,allocated698.903/reserved858MiB;
+joint:104.713ms,2941.485/3384MiB. Tiempo×1.777,allocated×4.209,reserved×3.944:
+no ahorro de velocidad/VRAM respecto a H-only para esta receta w90/spin1.
+Libre mínimo86.092%,Tmax42°C. [Informe y límites](informe_piloto_multitarget_w90_20261019_v2.md).
+Seis fits definitivos (3seeds por brazo,4000updates):extrapolación36–48min,
+central39min;≈1h train/val prudente, evaluaciónCPU adicional sin medir.
+**7.6 cerrado sin promoción2026-10-19, por decisión del usuario.** Seis fits
+directos terminados4000updates/126110exposiciones cada uno,39.223min. Checkpoints
+seleccionados solo por H-validation, hashes/IDs/scheduler verificados. Evaluación
+CPU152.211s:150validation+150test×6checkpoints,1800predicciones sin labels como
+features. Test(media3seeds): raíz gauge-MSE H1.980→14.182meV(×7.165), niveles
+con S_ref en camino151k34.173→400.576meV(×11.722); peores las tres seeds.
+Gap directo13.748→130.236meV. S_pred positiva en todos los puntos evaluados,
+sin reparar/cortar (mínimo0.1542); S/DM/EDM y carga diagnosticados aparte.
+Joint×1.731tiempo fit/val y×4.221allocated, no ahorro frente a H-only.
+SuiteCPU final3205passed/26skip/0fallos; foco59passed. Auditoría1800NPZ contra
+referencias, hashes y solver Cholesky independiente verificados.
+Sin tuning con test, datos/defaults nuevos, GPU adicional, reintentos ni jobs
+pendientes. Opción preservada; no prueba que toda multitarea falle ni OOD
+independiente. [Informe final, unidades, resultados y reproducción](campana_multitarget_w90_20261019.md).
+[Protocolo/controles](../docs/superpowers/plans/2026-10-19-multitarget-w90-six.md).
+No repetir ni
+sobrescribir v1/v2. Colas DM/EDM fuera del grafo cuantificadas: no confundirlas
+con error aprendido. Un recurso OOD independiente falta si se exige esa
+conclusión; H+S intermedio sería otro brazo por aprobar. Sin mejora de precisión
+demostrada, OOD resuelto, baseline ΔH reutilizado ni defaults promovidos.
+
+Otros pendientes no equivalen a una implementación nueva prioritaria:
+
+- **1.15:** la API ya permite ModelCheckpoint personalizado; falta decidir la
+  política/monitor predeterminado independiente de loss. Sigue aplazado, sin
+  cambiar defaults ni promesa de precisión por hacerlo.
+- **3.8:** residual opcional de E3nnInteraction ausente, pero esa ruta no se usa
+  en las recetas actuales; no hay beneficio actual demostrado que la priorice.
+- **2.8:** readout_per_interaction y agregación sum/mean ya están implementados
+  en MatrixMACE; la nota vieja «pendiente» no es una carencia de código actual.
+- **6.5:** ruta dispersa no implementada; perfil previo no justifica el coste.
+- **3.12:** alarma implementada; automatización/reparto estricto sigue fuera
+  del alcance. **3.13:** multi-GPU excluido del alcance por decisión expresa
+  del usuario2026-10-19; no queda como trabajo esperando una segunda GPU.
+- **8.1/8.2/8.3:** cobertura spin/SOC, aristas largas y bases distintas con la
+  misma Z condicionadas a un caso/dataset que delimite el contrato necesario.
+  **8.1/SOC es la prioridad futura del usuario, aplazada2026-10-19:** no iniciar
+  implementación, diseño o búsqueda de datasets hasta que decida retomarla.
+
+### Historial de preparación y recuperación — estados sustituidos por el cierre
+
+**Recuperación4.7,2026-10-17,21:55CEST:** usuario«Corrige y relanza».
+Seed0 completó entrenamiento67,22min, pero falló el import del evaluadorCPU.
+Lanzador nuevo precarga extensiones existentes;925hashes/fuentes/fit/pesos0
+intactos, sin instalar ni reentrenar0. Tres entradas `:bootstrap1` añadidas,
+1412→1415/prefijo intacto, sin reescribir state/IDs anteriores. Bootstrap0 DONE,
+7matrices validadas; bootstrap1 arrancado, bootstrap2 espera.33focales pasan;
+general nueva en curso, no confundir con previa2653/34skip/4dscribe.
+Seed0 parcial: H OOD+8,8%, niveles−69,6%, gap error4,840→2,898eV; sigue grande,
+sin conclusión robusta, ajuste de peso ni promoción. Quedan dos seeds/auditoría.
+
+**Validación4.7 aprobada2026-10-17:** usuario«Lo autorizo. Hazlo» y después
+«Apruebo» al [plan Native](../docs/superpowers/plans/2026-10-17-h2oclu-nullspace-validation.md).
+Tres candidatos con spectral_weight1e-4, semillas0/1/2,2000épocas/64000muestras;
+reutilizar fixed_s0/1/2 sin repetir baselines. Wrapper/callback experimentales
+implementados,26tests y smoke CPU real de interrupción/reanudación/carga pasan;
+36muestras del overlay conservan bit a bit todos los tensores originales salvo C.
+La selección sigue siendo min-val_loss de gauge básico cada5, penalización solo
+train. Revisión única cerrada con correcciones RED→GREEN; focal150pasan/5omitidos,
+general2653pasan/34omitidos/solo4dscribe históricos, Ruff/diff limpios.
+**Tres encolados18:42CEST**, cola1409→1412/prefijo intacto; null_s0 confirmado
+en GPU con24épocas/768muestras y best protegido a18:43:19, null_s1/2 esperan.
+925hashes y recibo verificados. No repetir fits ni modificar fuentes congeladas.
+[Protocolo y evidencia](campana_nullspace_h2oclu_20261017.md).
+En ese snapshot aún no había resultados4.7 de esta receta. El cierre anterior
+actualiza ese estado; no hay promoción y OOD continúa sin resolverse en general.
+
+**Diagnóstico CPU h2oclu2026-10-17:**42matrices guardadas,627hashes intactos,
+sin entrenamientos ni cambios productivos. En18prediccionesOOD,86,57%medio de
+`||S^-1/2 R S^-1/2||F²` está en el bloqueλ(S)<0,01. Reparar solo ese residual
+con etiquetas reduce errorgap3,045→0,270eV, manteniendo las736direcciones/S y
+referencia originales: controloráculo,no mejora desplegable. Reordenación
+ocupada explica por qué HOMO/LUMO pueden tener poco peso en pequeñoS pese al
+colapso. H0 compartida cancela; no hay bloque/especie culpable universal y
+corregir onsite aisladamente puede empeorar. Siguiente candidato mínimo:
+validación comparable de **4.7 ya implementado**, no reimplementación, cutoff,
+arquitectura nueva ni promoción. Requiere autorización de protocolo/trabajos;
+el problemaOOD no está resuelto. [Informe, controles y reproducción](informe_diagnostico_h2oclu_ood_20261017.md).
+
+**Cierre2026-10-17 del Goal recuperación+validación6.4:** ambos entregables
+verificados; seis fits DONE y42matrices/espectros contrastados de forma
+independiente. Cost326283 vs fixed: allocated−15,66%,reserved−25,55%,
+PSS−10,24%,pared−3,77% de media, tres semillas/64000muestras cada uno.
+H OOD−1,14% y nivelesOOD−30,81% de media, pero dos semillas empeoran en niveles
+y todos los IC OOD incluyen1: **opción opt-in, sin promoción/defaults**.
+Gap OOD permanece≈2,98eV de error. Corte diagnóstico1e-2 altera base/referencia;
+no se adopta ni sustituye las métricas. No nuevas semillas, datasets ni fits.
+Focal cierre136pasan/5CUDAomitidos; general vigente2789pasan/39omitidos/solo4
+HistorySOAPs por dscribe, Ruff/mypy23 limpios. [Auditoría de requisitos](cierre_goal_recuperacion_batching_20261017.md),
+[resultados/recursos y límites](campana_batching_h2oclu_20261016.md).
+El resto del roadmap y la vista igualtiempo no se declaran completos por esto.
+
+**Historial del Goal (2026-10-16, sustituido por cierre anterior):** recuperación segura de entrenamientos ante
+cesión de GPU y validación científica de **6.4**. Usuario aprobó `h2oclu` con sus
+splits históricos intactos (32 train / 4 validation / 3 test OOD n32), H alineado
+y niveles electrónicos/gap moleculares. No añadir monómeros ni cambiar splits.
+Inspección inicial: runner7.2 reinicia desde cero; se conserva cerrado/intacto.
+Store, loaders, callback y supervisor nuevos implementados exclusivamente en
+auditorias. Continuidad entre procesos CPU/GPU, AMP y compilación probada;
+115tests focales pasan/5omitidos. General2744pasan/39omitidos, solo4fallos
+históricos por dscribe. Revisión independiente única y fixes RED→GREEN cerrados;
+guard adicional congela resolución/orden de enlaces de inputs.39 referencias TSHS con
+salida normal, convergencia SCF, versión homogénea y S positiva verificadas.
+Comparación científica pendiente de resultados. Usuario autorizó «Autorizo esos
+6 trabajos», después «Continua»: fixed/cost326283, seeds0/1/2,2000épocas,
+64000muestras/fit y cosine2000 explícito. **Seis encolados2026-10-16 23:40CEST**;
+manifest/recibo propios, cola1403→1409 y prefijo intacto. Tres semillas pareadas, sin defaults
+nuevos; OOD ya observado, evidencia exploratoria. Estado y límites en
+[traspaso actual](traspaso_agente_20261015.md).
+Preflight de solo lectura ampliado y documentado. Usuario aprobó enfoque y
+[diseño](../docs/superpowers/specs/2026-10-16-training-recovery-design.md), este último
+mediante «Listo, apruebo». [Plan Native aprobado](../docs/superpowers/plans/2026-10-16-training-recovery.md)
+mediante «Apruebo»; ejecución sin nuevas puertas entre tareas técnicas.
+Hallazgo: cosine del YAML histórico no se ejecutaba (checkpoint sin scheduler,
+LRconstante0,0018). Runner técnico activa cosine explícito; esta diferencia
+efectiva ya está aprobada con los seis trabajos; no usar baseline histórico.
+Pilotos de memoria y campaña científica de seis trabajos autorizados; ejecución en curso.
+Seis pilotos finalesv4 h2oclu5épocas terminados,341,32s: candidato326283 reduce allocated
+1606,35→1432,02MiB (−10,85%) en dos rondas, reserved1812→1814MiB, sin ahorro
+demostrado de reserved/libre ni precisión/velocidad. Propuesta6fits0/1/2,
+2000épocas,64000muestras,8000/8139updates,4–7h exclusivas estimadas, **pendiente
+de resultados científicos**; autorización concreta recibida. [Detalle y límites](propuesta_batching_h2oclu_20261016.md).
+[Cierre técnico, pruebas y decisiones](informe_recuperacion_entrenamiento_20261016.md).
+[Campaña científica encolada y límites](campana_batching_h2oclu_20261016.md):
+gate final2789pasan/39omitidos/solo4HistorySOAPs históricos por dscribe.
+Primer fit fixed_s0 arrancó bajo daemon existente:28épocas/896muestras
+confirmadas23:41:58CEST, best protegido; otros cinco encadenados. Resultados
+científicos pendientes, no marcar6.4/Goal completo por este lanzamiento.
+El estado `blocked` previo correspondía
+a aprobaciones ya recibidas; objetivo no completo ni campaña cancelada.
+**2026-10-17:** usuario solicita pausar agente/Goal hasta mañana; entrenamientos
+siguen en daemon, sin nuevos trabajos. Comprobación00:03:50CEST: daemon,
+supervisor fixed_s0 e hijoGPU vivos;627hashes/versions intactos y sin evaluaciones
+finales todavía. Reanudar desde recibo/estado real, no relanzar ni marcar6.4 cerrado.
+
 El usuario aprobó adelantar estos candidatos al resto de la ingeniería general.
 El alcance, orden, criterios y registro están en
 [roadmap_precision_rendimiento.md](roadmap_precision_rendimiento.md), con su
@@ -32,6 +238,126 @@ encolada**, reutilizando recetas y splits históricos de grafeno w90/6x6.
 18 entrenamientos, tres semillas, entradas congeladas y preflight real CPU;
 ver [registro y límites](campana_readout_w90_6x6_20261010.md). Sin resultados
 de precisión/GPU/VRAM todavía; no cierra 7.4 global ni cambia defaults.
+
+### Seguimiento de readouts en bicapas (2026-10-13)
+
+Se completaron los 7 trabajos restantes de `grhbn_bl` (baseline y 7.1/7.4/1.9,
+3 semillas cada variante). Resumen según `g2m_bilayer_benchmark.py --summary`:
+media aritmética entre semillas y razón de medias frente a la baseline del mismo
+material/receta. Métricas H alineadas al gauge en meV; bandas alineadas del moiré
+de 22° en meV. Las tres semillas pareadas son 0/1/2. No se calculó IC95 para
+esta campaña.
+
+| Material / variante | Validación H (media; razón) | Moiré H (media; razón) | Bandas moiré alineadas (media; razón) | Paso medio / pico máximo |
+|---|---:|---:|---:|---:|
+| `tbg` baseline | 1,266; 1,00 | 0,957; 1,00 | 1,982; 1,00 | 11,4 min / 2696 MiB |
+| `tbg` 7.1 low-rank | 1,356; 1,07 | 1,097; 1,15 | 8,203; 4,14 | 22,4 min / 2572 MiB |
+| `tbg` 7.4 SK | 1,254; 0,99 | 0,976; 1,02 | 7,687; 3,88 | 33,8 min / 3138 MiB |
+| `tbg` 1.9 nodemix | 1,277; 1,01 | 1,066; 1,11 | 9,271; 4,68 | 22,8 min / 3222 MiB |
+| `grhbn_bl` baseline | 1,728; 1,00 | 0,991; 1,00 | 16,338; 1,00 | 173,2 min / 4626 MiB |
+| `grhbn_bl` 7.1 low-rank | 1,853; 1,07 | 1,241; 1,25 | 14,363; 0,88 | 177,9 min / 4608 MiB |
+| `grhbn_bl` 7.4 SK | 1,577; 0,91 | 0,863; 0,87 | 16,606; 1,02 | 187,0 min / 4128 MiB |
+| `grhbn_bl` 1.9 nodemix | 1,443; 0,84 | 0,943; 0,95 | 14,692; 0,90 | 171,0 min / 4714 MiB |
+
+Conclusión: **la hipótesis provisional no queda confirmada como regla general**.
+En `tbg`, donde el acoplamiento intercapa ya está en el entrenamiento, ninguna
+variante mejora H de forma material y las bandas alineadas empeoran ×3,88–4,68.
+En `grhbn_bl`, 1.9 nodemix mejora las medias de validación, H de moiré y bandas
+(−16 %, −5 % y −10 %); 7.4 mejora H (−9 %/−13 %) con bandas esencialmente
+neutras (+2 %); 7.1 empeora H (+7 %/ +25 %) aunque mejora bandas (−12 %).
+Con solo tres semillas y sin IC95, son señales dependientes del material, no
+evidencia de promoción general. Mantener readouts opt-in; no cambiar defaults.
+Detalles y límites en el [informe de campaña](campana_readout_w90_6x6_20261010.md).
+
+## Cierre de pipeline y compatibilidad (2026-10-14)
+
+Plan ejecutado en `g2m-v2`, sin defaults ni cola modificados. Diagnóstico aislado
+de workers/pinning y RAM completado (32 procesos, cuatro rondas). En estos datos
+pequeños/cacheados, cero workers gana; RSS con cuatro workers duplica páginas
+compartidas, PSS permanece ~2,1–2,3GiB. No extrapolar a lazy/datasets grandes.
+
+5.3: parche equivalente elimina validaciones/temporales por bloque, sin caché
+persistente. Comparación nueva pareada de40procesos: paso de coeficientes
+**−14,1%w90/−38,6%6x6** frente al método original exacto; VRAM idéntica.
+Aún **+13,5%/+21,3%** frente a entrenamiento matricial: no promover el flag.
+3.14: TrainerCUDA fp32/fp16/bf16, validación/resume/Adam/scaler verificados en
+nueve tests; AMP requiere `readout_fp32=True`, gauge mantiene fallback.
+Wheels3.9/3.12:252 pruebas de foco instaladas pasan por perfil; sourceCPU2479
+pasan/25omitidos, con los cuatro fallos históricos HistorySOAPs por dscribe ausente.
+No nueva evidencia de precisión científica ni DDP GPU. Diseños3.12 y protocolo
+6.4 preparados para aprobación, no implementados/encolados.
+
+[Informe, medidas, gates y límites](diagnostico_pipeline_20261014.md).
+
+Seguimiento de6.2/6.5/6.7 (2026-10-14): deduplicación global estable en CSR
+multicomponente, preservando última escritura, valores y orden de bloques.
+Cuatro rondas pareadas de setup H+S: w90 **844→829ms (−2,4%)**, 6x6
+**2273→1873ms (−17,3%)**, sin ahorro de RAM demostrado; mejora de arranque,
+no de entrenamiento por paso.95tests sparse pasan en source/Python3.9 y
+wheels3.9/3.12. Perfil sintético d/f C2 simétrico,4grafos/batch,16/72puntos:
+cambio de base nodo+arista **0,267%/0,177% del tiempo GPU del forward**;
+no justifica implementar6.5 de forma anticipada. Operación de aristas
+41,34%/51,27% del forwardGPU, pero no se ha aislado la fracción homonuclear
+ahorrable de6.7 ni el backward. No extrapolar a precisión/materiales reales
+o a una ganancia determinada del paso. [Informe y evidencia](informe_setup_hs_df_20261014.md).
+
+Seguimiento de6.7 por par y backward (2026-10-14): ocho sondas d/f sintéticas,
+cuatro rondas por tamaño, con kernels contados una vez y backward enlazado al
+forward mediante flujos `fwdbwd`. Operaciones homonucleares: **24,71%/27,83%
+del forward,16,82%/17,89% del backward y19,56%/21,65% de todos los kernels**,
+para16/72puntos por grafo (batch4). Hay oportunidad para estudiar un diseño
+equivalente, pero las direcciones ya están apiladas en una llamada: no implica
+mitad de tiempo ni ahorro de VRAM. En ese perfil inicial todavía no se había
+implementado; el cierre posterior se describe a continuación. Sin cambios de defaults.
+[Método, desglose por par, límites y decisión](informe_simetria_homonuclear_20261014.md).
+
+Diseño de6.7 aprobado (2026-10-14, «Apruebo» del usuario): proyección diferenciable de los pesos
+originales de `E3nnLinearEdgeBlock`, para evaluar Nfilas en vez de2N sin cambiar
+parámetros/checkpoints ni defaults. Derivación de equivalencia y requisitos de
+certificación escritos; comprobadas identidades angulares/RTP en CPU. Primera versión conserva
+fallback con `output_scaleshift`, operaciones distintas y mapas no certificados.
+[Diseño aprobado](../docs/superpowers/specs/2026-10-14-homonuclear-weight-fusion-6-7-design.md).
+Plan aprobado mediante «Hazlo» y ejecutado Native, sin otro worktree. Cierre
+2026-10-15: implementación opt-in y revisión independiente terminadas; Important
+de broadcasting corregido RED→GREEN. Suite general final2653 pasan/34 omitidos,
+solo4 fallos históricos por `dscribe`; CUDA9 pasan, wheels3.9/3.12 cada una265
+pasan/9 omitidos. Campaña32hijos: VRAM allocated d/f−15,18%/−16,29%; pared
+primaria df72×1,004853, inconclusa, no aceleración general demostrada. Los tiempos
+son anteriores al último guard de shapes, sin cambios de kernels para inputs válidos;
+no se repitió pared después del fix. Defaults intactos.
+[Plan aprobado](../docs/superpowers/plans/2026-10-14-homonuclear-weight-fusion-6-7.md),
+[informe final y límites](informe_fusion_homonuclear_20261014.md).
+
+Campaña7.2 autorizada y encolada (2026-10-15): `edge_update_layers=1` en
+`tbg` y `grhbn_bl`, semillas0/1/2, exactamente seis trabajos secuenciales.
+Datos/splits y recetas históricas congelados; se reutilizan los seis checkpoints
+de referencia verificados y se reevalúan con el mismo código/dispositivo CPU.
+Pilotos40pasos y smoke H/bandas ID/OOD pasan en ambos materiales; ocho tests
+del wrapper pasan. Cola1396→1402entradas, bytes anteriores intactos. Sin resultados
+científicos finales todavía, sin defaults nuevos ni otros entrenamientos.
+Estimación conservadora9–12h, pendiente de duración completa del primer trabajo.
+[Contrato, límites y evidencia](campana_edge_updates_bicapas_20261015.md),
+[traspaso actual](traspaso_agente_20261015.md).
+
+Recuperación7.2 (2026-10-15): intento inicialfalló1290pasos por SIGSEGV del
+volcado periódico de diagnóstico, reproducido bajo gdb. Se retira solo ese
+timer; supervisor externo intacto, control2500pasos/340,38s pasa,39tests pasan.
+Usuario autoriza investigar/relanzar: un retry del mismo `tbg_s0`, única
+dependencia actualizada para desbloquear los cinco restantes. Recetas/datos
+sin cambios; retryconfirmado4750pasos, gateCPU2662pasan/34omitidos y solo4fallos
+históricos `dscribe`. No resultados científicos completos todavía.
+[Causa y recuperación](diagnostico_relanzamiento_72_20261015.md).
+
+Cierre7.2 bicapas (2026-10-16): **6/6 entrenamientos y evaluaciones completos**,
+tres semillas por material. Medias OOD: tbgH0,957→1,117meV (+16,8%) y
+bandas1,984→1,834 (−7,5%); grhbn_blH0,991→0,938 (−5,3%) y bandas16,338→14,783
+(−9,5%). En ambos materiales, bandasOOD mejoran solo en una semilla. BandasID
+grhbn_bl4,068→5,510 (+35,4%), peores en las tres. **Sin mejora general robusta;
+opción conservada, no promovida, defaults intactos.**35intentos por28cesiones
+a GPUajena y un fallo inicial;8,67h de fits exitosos,14,26h supervisadas contando
+interrupciones (sin esperas/evaluaciones/diagnóstico, no GPU-hours efectivos).
+Sin afirmación de velocidad/VRAM.8.306hashes intactos y seis checkpoints
+verificados. [Resultado final y variabilidad](campana_edge_updates_bicapas_20261015.md).
 
 ## Resumen de resultados (27–28 de septiembre)
 
@@ -545,9 +871,9 @@ medio (H + cS desplaza todos los autovalores exactamente c); el gap ya lo es.
 | 3.9 | Linter y tipos, tests con semilla, reproducibilidad del split, tests de pérdidas y de simetría H_ij = H_jiᵀ | C | M | bajo | ✅ **Cerrado (2026-10-08), revisión independiente aprobada.** Asserts que siempre pasaban y test M = Mᵀ (3cc3aa3). **split_seed/val_fraction configurables**, defaults históricos y val_runs explícitos preservados (15 regresiones); pool sembrado (3.6). **Provenance aditiva de checkpoints**, versiones/Python/Git del código, no del cwd ni del repo que rodea una wheel; ocho pruebas cargan MACE antiguo/nuevo con predicciones idénticas. **Fixtures deterministas/válidas** y 48 roundtrips simétricos/no simétricos nuevos. **MatrixMACE real**: 576 rotaciones float64 con orbitales hasta f, nueve casos de superceldas y dos entrenamientos DDP CPU de dos pasos (tipos presentes/ausentes), con pesos iguales al entrenamiento serial sobre muestras idénticas. Reparado dtype de caché RTP (3.7), sin relajar tolerancias. **180 casos NumPy/Torch de pérdidas básicas NaN/vacías**, 30 de Huber/bloques y regresiones de conteos/pesos por época; valores literales y gradientes finitos. **56 regresiones de bloques cero/ausentes**: H conserva cero y DM/EDM NaN, componentes y periodicidad; entrada no mutada y roundtrips H literales. Wheel actual instalada en venv base nuevo, sin Torch/Cython runtime, núcleo verificado. **Reconstrucción NumPy con predicciones corregida**, sin mutar etiquetas originales. **Gates locales Ruff semántico y mypy básico py39**, 22 fuentes del núcleo con NumPy real: 210 errores de tipos corregidos; hooks comprobados en venv limpio y CI configurada, no ejecutada remotamente. Referencias ausentes, inputs incompletos y batches/coeficientes vacíos con regresiones RED→GREEN; APIs/checkpoints y fórmulas conservados. Wheel compilada y CLI base verificadas. **CLI real --ckpt_path test/predict** reparada y verificada con MACE, overrides y MatrixWriter: pesos/predicciones idénticos; callbacks string/secuencia y radios orbitales de checkpoints conservados. Trece regresiones adicionales. **Doce oráculos independientes periódicos/spin/S/s-p/s-d-f**: componentes exactas, H(R)=H(-R)ᵀ, fases de Bloch y Hermiticidad H(k), S(k) SPD; raw no colineal no infiere writer físico. Sin errores de producto detectados ni tolerancias relajadas. **Convenio angular p/d/f independiente**: sisl AtomicOrbital.psi frente a representación SIESTA/e3nn, 64 direcciones y 24 rotaciones float64 con atol=2e-14; tres regresiones, sin fallos de producto. Suite CPU final: **1541 pasan, 2 omitidos**; nuevas wheels completas con **1512 +29 de raíz** por perfil (3.9 mínimo y 3.12 fijado/latest), incluido el oráculo angular. Base: 16 oráculos +20 CLI por Python; seis pip check, Ruff y mypy verdes. Revisor único independiente: ningún Critical/Important/Minor abierto tras C1 e I1–I8, incluidas extensiones I5/I6. Evidencia final, hashes de wheels, límites y commits por frente en goal_ingenieria.md |
 | 3.10 | Validar la convención de orbitales (l creciente, m = −l..l); `qe_spherical` incorrecta para l ≥ 2 | C | M | medio | ✅ **2026-10-10 (477de7c):** contra armónicos independientes: `siesta_spherical` idéntico a los de SIESTA (sisl) para l=1–3; `qe_spherical` exacto en p pero QE intercala m (0,+1,−1,…) y ninguna rotación lo reproduce para l≥2: ahora error explícito con d/f (antes mezclaba orbitales sin aviso). Soporte QE d/f completo solo si aparece un dataset QE |
 | 3.11 | Supercelda: `isc` mal asignado sin aviso, coherencia grafo–`isc`, `pbc` por defecto, `ncol` de sisl, fichero fuente implícito, geometría XV frente a la de la etiqueta | C | M | medio | ✅ CPU **2026-10-10:** CRIT-04 `sc_off` no estándar remapeado (928dee0); DATA_PIPE-28 lectura por `ncol` (b5e9d51); PHYS_H-17 error si hay dirección periódica sin vector de red (498d0c2); el nsc//2 ya estaba (d9075c8). CRIT-05: H protegida (sisl usa coordenadas del TSHS); DM/EDM desde `.DM` sin comprobar, sin uso actual. Default `pbc=(T,T,T)` de `from_geometry` sin cambiar (alteraría grafos) |
-| 3.12 | Splits por trayectoria de MD y provenance **(GPT Maths and Physics, Astra)** | C | S | bajo | ⏳ (sobre todo en el benchmark) |
-| 3.13 | Multi-GPU: parámetros sin gradiente, métricas no sincronizadas | C | M | medio | ⏳ no verificable con una sola GPU |
-| 3.14 | **(GPT Astra)** Incompatibilidades de las pérdidas de coeficientes | C | S | bajo | 🔶 **Parcial (2026-10-09):** componentes/readouts (bf10967), orientación signed/ghost/max (89c52ca), kernel sin bloques (41a03f4) y targets CPU/MSE físico (48a9f0f) verificados. Integración Lightning opt-in, epoch/DDP y restauración CPU verificadas: 64 pruebas nuevas/foco, floor3.9 152; suite source CPU completa2067 pasan/2 omitidos. Q fijo y transpose certificados en todos los readouts. Proyección directa anterior con padding sigue rechazada, sin targets inventados. Medida GPU/AMP integrado y wheels de estos lotes pendientes. Registro en roadmap_precision_rendimiento.md |
+| 3.12 | Splits por trayectoria de MD y provenance **(GPT Maths and Physics, Astra)** | C | S | bajo | ✅ **2026-10-19, alcance de aviso aprobado:** guardrail en setup sobre fuentes ya disponibles: rutas canónicas/alias, mismo objeto en memoria y sample_id/sha256/group_id explícitos. Ausencia/invalidez de metadata → independencia no evaluable, no contaminación ni certificado. Respeta Subset/caché/pool, ZIP/disco/memoria, symlinks y raíces temporales; no carga matrices ni otros splits. Logs deduplicados y nunca bloqueo por alarma, sin alterar particiones/semillas/defaults ni inferir trayectorias/umbrales. Automatización, manifiesto y validación estricta originales siguen fuera del alcance; no auditoría del reparto científico manual. [Contrato y evidencia](informe_guardrail_splits_20261019.md). |
+| 3.13 | Multi-GPU: parámetros sin gradiente, métricas no sincronizadas | C | M | medio | ⏸ **Fuera del alcance por decisión del usuario2026-10-19:** «la multi gpu no lo vamos a hacer». No implementar ni preparar campañas multi-GPU; no contar como pendiente activo ni como soporte real validado. Pruebas CPU existentes no equivalen a validación multi-GPU. |
+| 3.14 | **(GPT Astra)** Incompatibilidades de las pérdidas de coeficientes | C | S | bajo | ✅ **Rutas certificadas y fallback (2026-10-14):** componentes/readouts bf10967, signed/ghost/max89c52ca, kernel41a03f4 y targets/MSE físico48a9f0f; Lightning opt-in, epoch/DDP/restauración CPU verificados. Q fijo y transpose certificados; padding no certificado mantiene fallback, sin targets inventados. Ahora nueve tests CUDA fp32/fp16/bf16 con Trainerfit/validación/resume/Adam/scaler; AMP exige readout_fp32=True. Wheels3.9/3.12 instaladas:252 pruebas de foco pasan cada una. SourceCPU2479pasan/25omitidos y4fallos históricos dscribe. No certifica DDP GPU (3.13) ni todas las combinaciones de hardware/AMP. [Cierre y alcance](diagnostico_pipeline_20261014.md). |
 
 Cierre local de los cinco frentes **3.1, 3.4, 3.5, 3.6 y 3.9 (2026-10-08)**:
 **1541 tests pasan y 2 se omiten** en CPU; en cada wheel instalada (Python 3.9 mínimo,
@@ -590,12 +916,12 @@ Esto no cierra 4.1, todo 4.4, toda ola 4 ni los experimentos de 4.5.
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
-| 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | 🔶 `matrix_component_policy="h_and_overlap"` lee (H, S) y ya escribe H con S (la política no llegaba a la conversión a `sisl_H`, 72b468c); la predicción del benchmark la admite. Falta la reconstrucción no ortogonal completa |
+| 4.1 | Leer S junto a las etiquetas; reconstruir matrices no ortogonales; el servidor escribe el TSHS con S real | C P | M | medio | ✅ **2026-10-18:** contrato aprobado certificado sin cambios productivos: H+S no polarizada/colineal, soporte periódico en memoria y espectros full-space, cS/Cholesky, batch, NetCDF/TSHS Ef=0, callback HSX y referencias.261focales,1323regresiones y2732suiteCPU pasan;20skips de recursos declarados. Dos huecos de pruebas corregidos tras revisión independiente. No se garantiza SPD aprendida ni exactitud fuera del soporte; formatos×bases×k no exhaustivo. [Informe](informe_reconstruccion_no_ortogonal_20261018.md). |
 | 4.2 | Pérdida invariante de gauge (c por estructura en forma cerrada) y métrica c* | P | M | medio | ✅ **con S solo como etiqueta (`n_output_components=1`, misma VRAM): `6x6` H alineado 1,05 → 0,70 meV (−33 %, 5 de 5 semillas); bicapa → moiré bandas alineadas 14,5 → 7,3 (−50 %, 3 de 3) e intracapa −43 %; H2O H alineado 29,6 → 5,6 (−81 %), gap 986 → 80 meV (−92 %).** Monocapa → bicapa: H −15 % pero bandas peores en 3 de 5. Prediciendo también S: peor y +48 % de VRAM. `gauge_invariant_mse` (7b97b7a, 71c1afa) con `h_and_overlap`; métrica c* en `g2m_ood_eval.py`, `g2m_h2o_benchmark.py`, `g2m_error_breakdown.py` y `val_metrics` (`H_MAE_gauge_meV`) |
 | 4.3 | Métricas espectrales en validación y desglose del error por especie, par, l y distancia | — | M | bajo | ✅ `g2m_error_breakdown.py`: error de Γ sin el desplazamiento c·S, por on-site/capa de vecinos/par l, y fuera de alcance orbital. `6x6` (semilla 0, meV por elemento): lin 1,79 → 0,93 quitó el 82 % del error a ~4,3 Å; la pérdida de gauge 0,93 → 0,62 mejora todas las capas (primeros vecinos 6,1 → 3,6, terceros 2,8 → 1,4) pero el **on-site** solo 12,3 → 10,3: es ya el 23 % del error y el mayor por elemento, el siguiente objetivo |
 | 4.4 | Pérdidas físicas con S: N_e, Mulliken, autovalores de primer orden | P | M/L | medio | 🔶 **pérdida espectral de primer orden implementada** (`gauge_invariant_mse(spectral_weight=…)` + `MatrixDataModule(spectral_window=True)`): por estructura, `‖Cᵀ ΔH(Γ) C − media(diag)·I‖²` con C los autovectores S-ortonormales de la H de referencia completa en una ventana alrededor de E_F en Γ (`spectral_window.npz` junto a cada muestra, columnas de relleno a cero). La diagonal es el error de primer orden de cada autovalor y el resto el acoplamiento dentro de la ventana; CᵀSC = I, así que el desplazamiento cS se va con la media: no depende del gauge y solo necesita ΔH = predicción − etiqueta, luego vale tal cual con Δ (no hace falta H0 como componente auxiliar). El collate calcula en los workers el orbital (fila, columna) de cada elemento de etiqueta. Test: el H(Γ) ensamblado coincide con `matrix_from_data` (1e-12; homo/heteronuclear, imágenes periódicas, 2 estructuras), H + cS no cuesta nada y la diagonal reproduce el cambio exacto de los autovalores. `6x6` ±3 eV: 34 estados (±2 eV solo los 4 de Dirac); en el mejor modelo, error espectral de entrenamiento 1,5 meV RMSE frente a 2,1 de H. Solo Γ: sirve para superceldas (`6x6`, bicapa), no para `w90` (2 átomos, sin estados cerca de E_F en Γ). **Medido en `6x6` (mejor receta, 3 semillas; validación / bicapa H, bandas / MD AB H, bandas / moiré H, bandas, meV): sin el término 0,136 / 4,43, 15,1 / 5,17, 10,6 / 0,86, 9,7; peso 1: 0,134 / 5,38, 15,3 / 5,74, 11,3 / 1,11, 10,8; peso 10: 0,166 / 4,27, 20,3 / 5,04, 13,5 / 0,84, 13,2.** No mejora las bandas fuera de distribución: con peso 1 empeora el H de fuera (+20 %, sobre todo intracapa) sin cambiar las bandas; con peso 10 el H se mantiene pero las bandas empeoran un 35 % y la validación un 22 %. El entrenamiento tarda ~40 % más (62–64 min frente a 45, con la carga de la noche). La ventana en Γ de la monocapa no representa el error de bandas de la bicapa y el moiré, que viene sobre todo del acoplamiento entre capas, ausente en el entrenamiento. ⚪ en grafeno (monocapa → bicapa/moiré) en esta forma; podría servir entrenando con el sistema objetivo (bicapa) o con varios puntos k |
 | 4.5 | DM/EDM: Tr(DS) = N, McWeeny, EDM ligada a DM y H | P C | M | medio | 🔶 N_e/Mulliken y consistencia energética opcionales implementados/verificados CPU; McWeeny no aplicable como identidad exacta en estos datos fraccionarios. H-energy/hBN bloqueado por soporte DM desconocido; precisión y GPU pendientes. Véase informe CPU; no cierre experimental. **2026-10-10:** experimento de precisión encolado (`run_energy_loss_experiment.py`): receta 6x6 sin Δ (los directorios Δ no tienen TSDE), `energy_weight` 0/0,03/0,3, 3 semillas pareadas, último checkpoint, evaluación val/test/registry/AB-MD/moiré. **Resultado 2026-10-12 (6x6 sin Δ, 3 semillas):** peso 0,03 neutro dentro (test H ×0,98) y peor fuera (H ×1,14–1,18); peso 0,3 test H ×1,53, H fuera ×1,19–1,27, bandas alineadas fuera ×0,89–0,99. **No se promueve.** |
-| 4.7 | Pérdida en la métrica de S (Löwdin S^−1/2 ΔH S^−1/2) o penalización de ΔH en el espacio casi nulo de S | P | M | medio | 🔶 **implementada** como término espectral con las direcciones casi nulas de S (λ < 10⁻², columnas u/√max(λ, 10⁻³), métrica de Löwdin en ese subespacio; `spectral_window` admite el nombre del fichero, `spectral_null.npz`). **H2O en clústeres (con Δ, 3 semillas):** con peso 10⁻⁴ el gap de (H2O)32 sin ortogonalización canónica pasa de 1847 a **260 meV** de error medio (de 3/9 a 0/9 gaps cerrados) y las bandas brutas de 386 a 121 meV, igual que con la ortogonalización canónica; cuesta +17 % en validación (4,16 → 4,86 meV) y +8 % en (H2O)32. Pesos 10⁻³ y 10⁻² peores en todo; 10⁻⁵ y 3·10⁻⁵ no arreglan el espectro. En controles de una semilla, 10⁻⁴ empeora H de validación en LiF (1,76 → 5,33 meV) y ZnO (1,72 → 4,23), por lo que no se amplía a tres semillas en sólidos |
+| 4.7 | Pérdida en la métrica de S (Löwdin S^−1/2 ΔH S^−1/2) o penalización de ΔH en el espacio casi nulo de S | P | M | medio | 🔶 **implementada** como término espectral con las direcciones casi nulas de S (λ < 10⁻², columnas u/√max(λ, 10⁻³), métrica de Löwdin en ese subespacio; `spectral_window` admite el nombre del fichero, `spectral_null.npz`). **H2O en clústeres (con Δ, 3 semillas):** con peso 10⁻⁴ el gap de (H2O)32 sin ortogonalización canónica pasa de 1847 a **260 meV** de error medio (de 3/9 a 0/9 gaps cerrados) y las bandas brutas de 386 a 121 meV, igual que con la ortogonalización canónica; cuesta +17 % en validación (4,16 → 4,86 meV) y +8 % en (H2O)32. Pesos 10⁻³ y 10⁻² peores en todo; 10⁻⁵ y 3·10⁻⁵ no arreglan el espectro. En controles de una semilla, 10⁻⁴ empeora H de validación en LiF (1,76 → 5,33 meV) y ZnO (1,72 → 4,23), por lo que no se amplía a tres semillas en sólidos. **2026-10-18, validación actual cosine cerrada:** fixed frente a tres candidatos1e-4,2000épocas/64000muestras, selección gauge básica preservada. OOD gap error3,109→1,192eV (−61,66%,IC95razón0,123–0,557), niveles−69,25%,pero H+13,47%/H ID+19,93%. No promoción ni OOD resuelto.42matrices/982archivos y contraste Cholesky≤2,29e-12eV verificados, sin corteS. Las cifras históricas260meV pertenecen a otra receta y no sustituyen este comparativo. [Informe de cierre](campana_nullspace_h2oclu_20261017.md). |
 | 4.6 | Ceros estructurales y máscara orbital en vez de bloque atómico denso **(GPT CMP, Maths and Physics, ML)** | P | S/M | bajo | ⚪ (solo medido en grafeno (base SZ)) en grafeno (base SZ) el error fuera del alcance de los orbitales es ≤1 % del total y los ceros exactos ya salen a cero: no hay nada que enmascarar |
 
 ## Ola 5 — El objetivo: residuo y normalización
@@ -604,20 +930,20 @@ Esto no cierra 4.1, todo 4.4, toda ola 4 ni los experimentos de 4.5.
 |---|---|---|---|---|---|
 | 5.1 | Referencia on-site por especie → Δ-learning sobre H0 (atómico o Slater–Koster; H0 de SIESTA como versión completa) | P | M → L | medio | ✅ **la mayor mejora del roadmap.** `g2m_delta.py`: H0 = H de la densidad atómica superpuesta (SIESTA, 1 iteración de punto único; no depende del peso de mezcla; se comprueba que la geometría coincide con la de la etiqueta); el modelo aprende H − H0 y al predecir se suma H0 (ida y vuelta exacta). H − H0 en Γ: grafeno `6x6` 2,5 meV frente a 200 de H; H2O 248 frente a 3044. **H2O (`gaugeh`): H alineado 5,6 → 1,01 meV (−82 %), gap 80 → 9,6 (−88 %). `6x6` (3 semillas, H alineado / registros de bicapa H / bandas alineadas / MD AB H): `gaugeh` 0,707 / 52 / 156 / 53 → con Δ 0,140 / 6,3 / 19 / 6,8; `gaugeh_kl` 0,751 / 38 / 94 / 41 → con Δ 0,123 / 5,3 / 17 / 5,9 (−84 %, −86 %, −82 %, −86 %).** **Bicapa → moiré: registros no vistos 5,64 → 0,96 meV, bandas alineadas 7,3 → 2,0 (referencia 20,95 / 69,6).** Coste al predecir: un cálculo SIESTA de 1 iteración (~18 s en `6x6`) |
 | 5.2 | Normalización equivariante por especie, par e irrep | P | M | bajo | 🔶 ya la da `output_scaleshift` (1.5): escala por tipo de bloque (especie o par) e irrep, y desplazamiento de las 0e on-site, ajustados con las etiquetas de entrenamiento. Solo se midió en `w90` sin Δ (≈0). Con etiquetas (H, S) y modelo de solo H fallaba (métricas de coeficientes de una componente): ahora se ajusta con H. **Medido en `6x6` sobre la mejor receta (3 semillas; validación / bicapa H (intra / inter), bandas / MD AB H (intra / inter), bandas / moiré H (intra / inter), bandas, meV): sin 0,136 / 4,43 (4,79 / 4,06), 15,1 / 5,17 (6,35 / 4,00), 10,6 / 0,86 (1,04 / 0,67), 9,7; con `output_scaleshift` **0,117** (0,133/0,110/0,109, las 3 semillas mejoran) / 4,37 (5,48 / 3,25), 17,6 / 4,80 (6,43 / 3,17), 12,6 / 0,82 (1,07 / 0,56), 12,3.** Dentro de distribución −14 %, la mejor validación de `6x6` hasta ahora; fuera, H −1 a −7 % e intercapa −16 a −21 %, pero las bandas empeoran un 17–27 %. 🔶 recomendable para precisión dentro de distribución; no para extrapolar bandas |
-| 5.3 | Entrenar en el espacio de irreps (Q ortonormal: pérdida sin cambio de base) | P T V | M | medio | 🔶 **Implementación CPU verificada:** kernel41a03f4, targets/MSE físico48a9f0f, forwarded975eb, collate5999120 e integración Lightning opt-in `coefficient_training`. Equivalencia de pérdidas/gradientes, epoch/DDP real2ranks, checkpoints/defaults y fallback antes del backbone. Suite source CPU2067 pasan/2 omitidos, focused64, floor3.9 152. Sin beneficio GPU medido ni AMP CUDA end-to-end; 5.3/goal siguen abiertos. **2026-10-10:** con `gauge_invariant_mse` (todas las recetas buenas) cae al camino matricial (smoke CPU): no acelera esas recetas; solo aplica a pérdidas elementwise MSE. |
+| 5.3 | Entrenar en el espacio de irreps (Q ortonormal: pérdida sin cambio de base) | P T V | M | medio | 🔶 **Implementación y CUDA/AMP verificados, beneficio no promovido:** kernel41a03f4, targets48a9f0f, forwarded975eb, collate5999120 e integración Lightning opt-in. MSE físico/gradientes, epoch/DDP CPU/checkpoints/defaults/fallback certificados. Primera medida GPU encontró regresión+28%/+94%; [informe original](mediciones_gpu_pipeline_20261013.md). **Cierre2026-10-14, nueva comparación40procesos/4rondas:** quitar validaciones y temporales por bloque reduce paso de coeficientes85,52→72,56ms w90 y243,43→149,41ms6x6 (−14,1%/−38,6% pareado), sin cambio de VRAM. Aún+13,5%/+21,3% frente a matriz; collate20,80→9,59 y122,97→29,30ms. Nueve tests TrainerCUDA fp32/fp16/bf16, fit/validación/resume/Adam/scaler pasan; AMP requiere readout_fp32=True, gauge conserva fallback. **No recomendar como aceleración ni cambiar default.** [Parche, medidas y límites](diagnostico_pipeline_20261014.md). |
 | 5.4 | Techo de ruido de las etiquetas y tiempo hasta una precisión objetivo **(GPT Astra)** | — | S | bajo | ✅ **suelo de ruido de SIESTA en `6x6` ≈ 0,002 meV** (SCF 1e-4 frente a 1e-6: 0,0015; traslación rígida bajo la malla: 0,0011; ambas: 0,0022; 4 estructuras, `g2m_label_noise.py`). El modelo (1,94 meV) está ~1000× por encima: **6x6 no está limitado por las etiquetas**, hay margen real. **Y en parte está limitado por la optimización**: la misma receta con 16.000 pasos y sin EarlyStopping da 1,716/1,933/1,490 → **1,71 meV (−12 %, las tres semillas mejoran: −0,25/−0,08/−0,35)**. El EarlyStopping de la receta (paciencia 80 validaciones) paraba algunas semillas a 1/3 del coseno. **`noes` (8000 pasos sin EarlyStopping): 1,684/1,575/1,805 → 1,69 meV (−13 %)**: con la receta de referencia, toda la ganancia de «16.000 pasos» viene de quitar el EarlyStopping (cambio gratis). Con lin no está separado (lin bf16 8000 pasos con EarlyStopping 1,80; 16.000 sin él 1,12) |
 
 ## Ola 6 — Rendimiento en profundidad (según el perfil 2.9)
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
-| 6.1 | Caché del preprocesado en tensores (`store_in_memory` ya evita reparsear) | T | M | bajo | 🔶 **Implementación CPU verificada:** caché existente con snapshots/accesos independientes y filtro FDF sin repr; Atomic deepcopy conserva referencias/radios runtime sin cambiar checkpoints. Full CPU2100 pasan/2 omitidos, floor3.9 171, workers/ZIP/stages/RAM comprobados. Lazy sintético≈5.3×/11.5×; copias **regresan** cachecollate2≈91% (~0.31ms), seguridad no caché nueva. GPU/VRAM/end-to-end pendientes; informe_cache_tensores_cpu.md. **2026-10-10 (regresión corregida):** el aislamiento por acceso copiaba en cada `__getitem__` el `MatrixDataProcessor` y la `sisl.Geometry` de `metadata` (sisl reconstruye los splines radiales de cada orbital): carga real 60× más lenta que antes de 6.1. Ahora se comparten (solo lectura). Pasada por los datos, CPU, workers apagados (`bench_data_loading.py`, mediana de 3 rondas): w90 train f1bb647 3,8 ms / 4444ff7 236 ms / arreglado 11 ms; val 1,0 / 84 / 3,9 ms; 6x6 val 12 / 187 / 21 ms. Queda ~3× por las copias de tensores que exige el aislamiento (0,3 ms/muestra, ocultas por los workers). `setup` +0,4–0,6 s una vez por ejecución. La campaña congelada en 4444ff7 corre con la regresión (su telemetría de paso excluye la carga). |
-| 6.2 | Vectorizar CSR → bloques y la reconstrucción; lista de vecinos | T | M | bajo | 🔶 **COO y CSR C2 vectorizados:** equivalencia exacta/oráculos, periodicidad/rectángulos/ghost/capacidad/duplicates, gradientes TorchCPU. Corrige fillint C2 e imaginaria C2 (scalar previo bb01435 intacto). Benchmark pareado CPU sintético: coords≈15–26×, CSR C2≈1.9×; focused165, floor3.9 222 y fullCPU2169 pasan/2 omitidos. Sin GPU/end-to-end/wheel nuevos ni cambio de vecinos/kernel escalar Cython sin perfil. informe_sparse_vectorizado.md. |
+| 6.1 | Caché del preprocesado en tensores (`store_in_memory` ya evita reparsear) | T | M | bajo | 🔶 **Implementación CPU verificada:** caché existente con snapshots/accesos independientes y filtro FDF sin repr; Atomic deepcopy conserva referencias/radios runtime sin cambiar checkpoints. Full CPU2100 pasan/2 omitidos, floor3.9 171, workers/ZIP/stages/RAM comprobados. Lazy sintético≈5.3×/11.5×; copias **regresan** cachecollate2≈91% (~0.31ms), seguridad no caché nueva. informe_cache_tensores_cpu.md. **2026-10-10 (regresión corregida):** el aislamiento por acceso copiaba en cada `__getitem__` el `MatrixDataProcessor` y la `sisl.Geometry` de `metadata` (sisl reconstruye los splines radiales de cada orbital): carga real 60× más lenta que antes de 6.1. Ahora se comparten (solo lectura). Pasada por los datos, CPU, workers apagados (`bench_data_loading.py`, mediana de 3 rondas): w90 train f1bb647 3,8 ms / 4444ff7 236 ms / arreglado 11 ms; val 1,0 / 84 / 3,9 ms; 6x6 val 12 / 187 / 21 ms. Queda ~3× por las copias de tensores que exige el aislamiento (0,3 ms/muestra, ocultas por los workers). `setup` +0,4–0,6 s una vez por ejecución. La campaña congelada en 4444ff7 corre con la regresión (su telemetría de paso excluye la carga). **GPU fp32 2026-10-14:** acceso seguro vs histórico con 4 workers sin cambio concluyente de paso; con 0 workers/sin pinning, copias +6,1 % w90/+1,1 % 6x6. Allocated/reserved idénticos: no ahorro VRAM. Caché segura vs lazy existentes (4 workers): 134,44/171,38 frente a 183,28/431,99 ms/paso, w90/6x6; no es una caché nueva. [Informe GPU](mediciones_gpu_pipeline_20261013.md). |
+| 6.2 | Vectorizar CSR → bloques y la reconstrucción; lista de vecinos | T | M | bajo | 🔶 **COO y CSR C2 vectorizados:** equivalencia exacta/oráculos, periodicidad/rectángulos/ghost/capacidad/duplicates, gradientes TorchCPU. Corrige fillint C2 e imaginaria C2 (scalar previo bb01435 intacto). Benchmark pareado CPU sintético: coords≈15–26×, CSR C2≈1.9×; focused165, floor3.9 222 y fullCPU2169 pasan/2 omitidos. **GPU fp32 + CSR 2026-10-14, 4 rondas:** w90 39,48→30,65 ms/unidad (−22,4 % pareado); 6x6 116,04→37,73 (−67,4 %). Ganancia de reconstrucción CPU (21,35→12,54 y 84,95→7,00 ms), forward CUDA y VRAM idénticos; oráculo exacto sobre la misma predicción. Aquella medida detectó setup H+S +4,2 %/+17,3 % frente a su referencia. **Seguimiento de arranque:** deduplicación global estable elimina unique por bloque; frente al método inmediatamente anterior, cuatro rondas H+S dan w90844→829ms (−2,4%) y6x62273→1873ms (−17,3%), hashes exactos, sin ahorro de RAM demostrado. Son comparaciones diferentes: no multiplicar ni equiparar sus razones. 95pruebas sparse pasan en fuente/floor3.9 y wheels3.9/3.12 instaladas. Vecinos/kernel escalar Cython sin cambios; no aceleración adicional del paso ni VRAM atribuible a este seguimiento. informe_sparse_vectorizado.md; [informe GPU](mediciones_gpu_pipeline_20261013.md); [seguimiento H+S](informe_setup_hs_df_20261014.md). |
 | 6.3 | Aristas ordenadas por tipo en el collate y targets reordenados: sin `nonzero` ni sincronizaciones en el forward | T | M/L | medio | ✅ **implementado.** El collate (`TypeLayoutCollate`, en los workers del DataLoader) calcula en CPU el layout de cada batch: índices de nodos y aristas por tipo (las dos direcciones de cada bloque), los índices de reordenación de las etiquetas y la estructura de cada elemento de etiqueta. Va fuera del store de PyG (`get_example` lo ignora) y el modelo lo pasa a la GPU en `transfer_batch_to_device`. `Graph2Mat.forward` y las pérdidas por estructura lo usan si está: sin máscaras booleanas, `unique` ni copias GPU → CPU; si no aplica (`basis_grouping` distinto de `point_type`, matrices no simétricas), el camino anterior intacto. Test: salida idéntica (`torch.equal`) en homo/heteronuclear, imágenes periódicas, 1 y 2 componentes. **Medido (modelo y batch reales, fp32): sincronizaciones host por paso 23 → 0 (con `gauge_invariant_mse`); `6x6` 121 → 115 ms (−5 %), `w90` 52,8 → 52,1 ms (limitado por lanzamientos de kernels, no por esperas).** Habilita compilar sin cortes y CUDA graphs. **Entrenamiento completo sobre la mejor receta (fp32 + gauge + `kl` + Δ + compile, 3 semillas): validación igual (H alineado 0,137 / 0,153 / 0,128 frente a 0,136 / 0,152 / 0,121 meV); fuera de distribución dentro del ruido entre semillas (bicapa 5,1 frente a 4,4; AB MD 5,8 frente a 5,2; moiré 1,00 / 8,6 frente a 0,86 / 9,7 meV, H / bandas alineadas). El tiempo total no es comparable (54–74 min frente a 39–49): las semillas estuvieron pausadas por temperatura y compartieron la máquina con 6 entrenamientos ajenos; la medida limpia sigue siendo la del paso (−5 %).** ✅ |
-| 6.4 | Batching por coste (aristas y orbitales), no por número de estructuras | V | M | bajo | 🔶 **Implementación CPU verificada, opt-in max_batch_cost**, default intacto. Proxy declarado, oversize singleton, cache train/Subset; DDP padding explícito y SSE/count de lo procesado. Recarga pública por época y plan estable durante prefetch evitan truncamientos. Pairloss/rotatingpool/custom samplers rechazados. Focused40 y floor3.9 40 pasan, MACE C1/C2 equivalente; fullCPU2209 pasan/2 omitidos. Fixture CPU: pico proxy≈−43%, collate+96%; **sin evidencia VRAM/velocidad GPU/precisión**. informe_batching_coste.md. |
-| 6.5 | Cambio de base disperso por pares de capas | T | M | bajo | ⚪ **2026-10-10:** no implementado. Grafeno SZ (s+p): FLOPs del einsum solo 2,5× menores, y los bloques de arista pesan ~16 de 150 ms/paso en 6x6; w90 está limitado por lanzamientos y un cambio de base disperso añadiría kernels. Reevaluar para bases d/f (TMD) con perfil GPU |
+| 6.4 | Batching por coste (aristas y orbitales), no por número de estructuras | V | M | bajo | 🔶 **Implementación CPU verificada, opt-in max_batch_cost**, default intacto. Proxy declarado, oversize singleton, cache train/Subset; DDP padding explícito y SSE/count de lo procesado. Recarga pública por época y plan estable durante prefetch evitan truncamientos. Pairloss/rotatingpool/custom samplers rechazados. Focused40 y floor3.9 40 pasan, MACE C1/C2 equivalente; fullCPU2209 pasan/2 omitidos. Fixture CPU: pico proxy≈−43%, collate+96%. **GPU fp32 2026-10-14:** fixture heterogénea s/p/d/f C2, allocated 2783,28→1596,13 MiB (**−42,65 %**), reserved 3130→1754 (**−43,96 %**); época 378,65→856,88 ms (**2,26×**, razón pareada), 3→7 updates, mismas 12 muestras sin pérdidas. Grafeno uniforme w90/6x6: mismos lotes y VRAM, tiempo ≈igual. Tradeoff para controlar picos, sin nueva evidencia de precisión/trayectoria equivalente. informe_batching_coste.md; [informe GPU](mediciones_gpu_pipeline_20261013.md).  **2026-10-17 h2oclu, validación exploratoria cerrada:** seis fits fixed/cost326283×0/1/2 completos,64000muestras cada uno,8000/8139updates. Picos medios allocated1889,95→1593,99MiB(−15,66%),reserved2546,67→1896MiB(−25,55%),PSS−10,24%,pared−3,77%. H OOD−1,14%;niveles−30,81% medio pero peores2/3seeds,IC OOD cruzan1;gap error≈2,98eV. Opción opt-in,sin promoción.627hashes/42matrices y contraste Cholesky independientes pasan; focal136/5CUDAomitidos,general vigente2789/39skip/4dscribe históricos. [Campaña final](campana_batching_h2oclu_20261016.md),[cierre Goal](cierre_goal_recuperacion_batching_20261017.md). No cierra vista igualtiempo ni roadmap global. |
+| 6.5 | Cambio de base disperso por pares de capas | T | M | bajo | ⚪ **No implementado.** Grafeno SZ: poco margen y más lanzamientos. **PerfilGPU2026-10-14, d/f sintético,4rondas:** cambio de base nodo+arista solo0,267%/0,177% del tiempo GPU del forward (16/72puntos,4grafos,C2 simétrico,16canales). No justifica introducir ruta dispersa en esta fixture. No es una cota del paso entero: backward no aislado, ni materiales TMD reales/multi-zeta. Mantener condicionado a un perfil pertinente que demuestre coste. [Evidencia](informe_setup_hs_df_20261014.md). |
 | 6.6 | Menos módulos pequeños por tipo; `basis_grouping` (`basis_shape`, **GPT ML**) | T | L | medio | ⚪ **2026-10-10:** `basis_grouping` (`basis_shape`/`max`) ya existe. En grafeno hay un solo tipo de nodo y de arista: agrupar no ahorra nada. Solo relevante con muchas especies |
-| 6.7 | `symm_transpose` simetrizando los pesos: mitad de FLOPs en aristas homonucleares | T V | M | medio | ⚪ (solo medido en `6x6` (bloques s/p pequeños)) en `6x6` los bloques de arista son 16 de ~150 ms/paso: ahorraría ≤5 % |
+| 6.7 | `symm_transpose` simetrizando los pesos: mitad de FLOPs en aristas homonucleares | T V | M | medio | 🔶 **2026-10-15: cerrado opt-in, ahorro VRAM d/f; sin aceleración general demostrada.** `edge_block_readout_kwargs.fuse_homonuclear=False` por defecto; proyección diferenciable de los pesos originales, certificado TP/Linear/Q, carga/deepcopy/Adam preservados y fallback fuera del contrato. Revisión independiente terminada; Important de broadcasting corregido RED→GREEN. General2653pasan/34omitidos/4fallos históricos `dscribe`, floor3.9 204pasan/9omitidos, wheels3.9–3.12 cada una265pasan/9omitidos, CUDA/AMP/compile9pasan. **32hijos,4rondas,10warmups+30pasos:** d/f16 allocated577→490MiB (−15,18%), reserved612→512; d/f72 allocated2510→2101MiB (−16,29%), reserved2682→2210. Pared primaria d/f72 +0,49% pareado con razones mixtas: inconcluso/neutro, no recomendar como aceleración. d/f16 +0,31%,w90−0,07% mixtos;6x6−0,13% consistente pero despreciable. Timings anteriores al guard final de shapes Python; no se repitió pared después, kernels válidos intactos. VRAM s/p≈igual; sin cambios de defaults ni mejora de precisión afirmada. Historia: perfil d/f2026-10-14 atribuía24,71%/27,83% del forward y16,82%/17,89% del backward a operaciones homonucleares; fracciones de kernels, no ganancia de pared. [Implementación, medidas y límites](informe_fusion_homonuclear_20261014.md); [perfil anterior](informe_simetria_homonuclear_20261014.md). |
 | 6.8 | `torch.compile` y CUDA graphs (después de 6.3) | T | L | alto | 🔶 opción `torch_compile` (35d0172): modelo sin TorchScript de e3nn y, al empezar el fit, `compile_submodules()` compila en el sitio las capas de MACE y las operaciones del readout (formas dinámicas; mismas claves de checkpoint). **Paso de `6x6` bf16: 138 → 70 ms (2,0×), pico 2425 → 1685 MiB**, tras ~90 s de compilación; test GPU: mismas matrices y gradientes. Requirió dar permiso de ejecución a los binarios de Triton del venv (`triton/backends/nvidia/bin/*`). En `w90` (fp32, limitado por lanzamientos) solo 91 → 68 ms frente a e3nn sin TorchScript, con 160 s de compilación: no compensa en sistemas diminutos. Entrenamiento real `6x6` fp32 + lin: misma precisión (1,057 frente a 1,056) y −25 % de tiempo total. CUDA graphs: pendiente (necesita 6.3); **sobre la mejor receta (fp32 + gauge + `kl` + Δ, 3 semillas): misma precisión (0,14 frente a 0,13 meV; bicapa 4,4 frente a 5,3; moiré 0,86 / 9,7 frente a 1,03 / 8,5) en 46 min de media frente a 127 (×2,8, con carga variable)**; **modo configurable (`torch_compile_mode`, tras la 6.3 sin sincronizaciones). Mismo modelo y batch de `6x6`, rondas alternas con la misma carga: `max-autotune-no-cudagraphs` 125,7 frente a 133,0 ms/paso (−5,5 %), misma salida, pero ~12 min de autoajuste la primera vez (luego en caché): opción, no por defecto. `reduce-overhead` (CUDA graphs): violación de segmento en torch 2.11 con estos módulos ❌** |
 | 6.9 | Kernels rápidos de TP (cuEquivariance, OpenEquivariance) | T V | L | alto | 🔶 opción `cueq` (backbone MACE, disposición `mul_ir`, convenciones e3nn): en `6x6` bf16 usa más de 6 GB frente a 2,5 GB de e3nn (repetido con Triton ya funcional) y en `w90` no terminó en 10 min. Aparcado: `torch_compile` da más con menos memoria |
 
@@ -626,18 +952,18 @@ Esto no cierra 4.1, todo 4.4, toda ola 4 ni los experimentos de 4.5.
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 7.1 | TP de aristas canal a canal o de rango bajo, con pesos por par y gates no lineales | P V | L | medio | 🔶 **Implementación opcional de rango bajo (2026-10-09)**: `E3nnLowRankEdgeBlock`, rank configurable, gates radiales SiLU/tanh y pesos por operación/par. Defaults y checkpoints anteriores preservados; contexto Hamiltoniano rechazado por incompatibilidad de corte. Contratos O(3), intercambio/periódicos homo/hetero s/p/d/f, C1/C2, gradientes, empty edges y checkpoints verificados en CPU/py39; cierre de suite completa registrado en [informe_readout_rango_bajo.md](informe_readout_rango_bajo.md). CPU sintético: paso modelo −24 %/−50 % (16/72 puntos), parámetros −32 %; operación aislada **+21.5 %/+3.0 % de tiempo**. No extrapolar a GPU/VRAM/precisión. Protocolo GPU/3 semillas preparado; **experimentos pendientes, no evaluado completamente** **Campaña 2026-10-11 (3 semillas, test / fuera de distribución, razón frente a baseline):** w90 test H 0,83 (IC95 0,72–1,07), 6x6 0,94 (0,80–1,08); H fuera ≈ igual (0,92–1,07) pero bandas alineadas peores: w90 ×1,11–1,31, 6x6 ×1,37–1,64. **No se promueve.** Paso +13 % (w90) / +1 % (6x6), misma VRAM. |
-| 7.2 | Capas de actualización de aristas | P | L | medio | 🔶 **implementado** (`edge_update_layers`, `edge_update_node_irreps`): capas residuales en `E3nnEdgeMessageBlock`, `m ← m + act(Linear(TP(m, P(h_receptor); w(r))))`. Hasta ahora el mensaje j → i solo dependía del emisor y el readout multiplica los dos mensajes del par (separable); con la actualización depende de los dos extremos a la vez. Sin sesgos: se anula con las features radiales (corte). Tests: depende del receptor, equivariante, cero en el corte, matriz simétrica. Coste en `6x6`: +31k parámetros por capa (+3 %), sin cambio de tiempo apreciable en CPU. **Medido en `6x6` (mejor receta, 3 semillas; validación / bicapa H (intra / inter), bandas / MD AB H (intra / inter), bandas / moiré H (intra / inter), bandas, meV):** sin capas 0,136 / 4,43 (4,79 / 4,06), 15,1 / 5,17 (6,35 / 4,00), 10,6 / 0,86 (1,04 / 0,67), 9,7; 1 capa 0,133 / 4,61 (5,81 / **3,41**), 15,2 / 5,06 (6,68 / **3,44**), 11,3 / 0,91 (1,22 / **0,60**), 10,0; 2 capas 0,156 / 5,59 (7,50 / 3,69), 14,1 / 5,78 (7,87 / 3,69), 9,6 / 0,99 (1,37 / 0,61), 9,6. El error entre capas baja un 9–16 % en las tres pruebas (lo que el término de tres centros debería capturar), pero el de dentro de cada capa sube más (+12 a +32 % con 1 capa, +32 a +57 % con 2) y el H total no mejora; las bandas solo bajan un poco con 2 capas (−7 %, −9 %, −1 %) a costa de la validación (+15 %) y del tiempo (67 frente a 45 min). ⚪ en grafeno (monocapa → bicapa/moiré) como mejora general para extrapolar desde la monocapa; queda la señal de que mejora el acoplamiento entre capas, a probar entrenando con bicapas |
+| 7.2 | Capas de actualización de aristas | P | L | medio | 🔶 **implementado** (`edge_update_layers`, `edge_update_node_irreps`): capas residuales en `E3nnEdgeMessageBlock`, `m ← m + act(Linear(TP(m, P(h_receptor); w(r))))`. Hasta ahora el mensaje j → i solo dependía del emisor y el readout multiplica los dos mensajes del par (separable); con la actualización depende de los dos extremos a la vez. Sin sesgos: se anula con las features radiales (corte). Tests: depende del receptor, equivariante, cero en el corte, matriz simétrica. Coste en `6x6`: +31k parámetros por capa (+3 %), sin cambio de tiempo apreciable en CPU. **Medido en `6x6` (mejor receta, 3 semillas; validación / bicapa H (intra / inter), bandas / MD AB H (intra / inter), bandas / moiré H (intra / inter), bandas, meV):** sin capas 0,136 / 4,43 (4,79 / 4,06), 15,1 / 5,17 (6,35 / 4,00), 10,6 / 0,86 (1,04 / 0,67), 9,7; 1 capa 0,133 / 4,61 (5,81 / **3,41**), 15,2 / 5,06 (6,68 / **3,44**), 11,3 / 0,91 (1,22 / **0,60**), 10,0; 2 capas 0,156 / 5,59 (7,50 / 3,69), 14,1 / 5,78 (7,87 / 3,69), 9,6 / 0,99 (1,37 / 0,61), 9,6. El error entre capas baja un 9–16 % en las tres pruebas (lo que el término de tres centros debería capturar), pero el de dentro de cada capa sube más (+12 a +32 % con 1 capa, +32 a +57 % con 2) y el H total no mejora; las bandas solo bajan un poco con 2 capas (−7 %, −9 %, −1 %) a costa de la validación (+15 %) y del tiempo (67 frente a 45 min). ⚪ en grafeno (monocapa → bicapa/moiré) como mejora general para extrapolar desde la monocapa; queda la señal de acoplamiento entre capas; la prueba con bicapas se cierra a continuación **Campaña bicapa cerrada2026-10-16,3semillas:** tbg OODH+16,8%/bandas−7,5%; grhbn_bl OODH−5,3%/bandas−9,5%, pero bandasID+35,4% en las tres semillas. BandasOOD mejoran solo en una semilla por material. No mejora general robusta, opción no promovida, defaults intactos. [Informe final](campana_edge_updates_bicapas_20261015.md). |
 | 7.3 | Envolvente y radiales por par (R_i+R_j) | P | M | bajo | 🔶 **implementado** (`pair_envelope`): las features radiales del readout se multiplican por la envolvente polinómica de MACE con el alcance de cada par, R_i + R_j (radios orbitales por especie), además de la global en 2·max(R). Las aristas existen hasta R_i + R_j, pero sin esto las features no se anulan ahí y el modelo tiene que aprender el salto a cero. En grafeno no cambia nada (una especie); en grafeno/hBN (B 3,38, C 2,58, N 2,53 Å) los pares C–C acaban en 5,15 Å con la envolvente global en 6,77. Test: bloque suprimido junto al alcance del par, sin efecto con el flag apagado. **Medido en grafeno/hBN bicapa → moiré 22° (`grhbn_bl`, fp32 + lin + gauge + Δ, 3 semillas; y en el banco: neutra en H2O, LiF y BaTiO3): validación 2,23 → 2,50 meV (peor en las 3 semillas), moiré H 1,26 → 1,27, intercapa 0,89 → 0,84, bandas 19,6 → 19,0 (dentro del ruido: 16–22 por semilla).** ❌ neutra en grafeno, grafeno/hBN, H2O, LiF y BaTiO3 (se mantiene como opción) El modelo ya aprende la caída a cero de los pares cortos sin ayuda; forzarla solo resta flexibilidad |
 | 7.4 | Readout en el marco local de la arista (SO(2)) o Slater–Koster neuronal más un residuo **(GPT CMP, Maths and Physics, Astra)** | P T | L | alto | 🔶 **SK neuronal + residual 7.1 opt-in, CPU verificado (2026-10-10):** s/p/d/f, capas repetidas, O(3), C1/C2, periodicidad, gradientes, coefficient-only, MACE/CLI/checkpoints y defaults preservados. Full CPU2597 pasan/2 omitidos existentes; Python3.9 y3.12 focused120 cada uno; revisión independiente sin hallazgos. CPU sintético72p: paso −51.35% vs baseline, **+3.12% vs7.1**; RSS proceso1943.51→1216.09MiB, **no VRAM**. No SO(2) general. [Informe/evidencia](informe_slater_koster_cpu.md), [protocolo preparado](protocolo_gpu_precision_7_4.md); **GPU/precisión/bandas/OOD pendientes; Task4 global abierto**. **Campaña 2026-10-11:** w90 test H **0,73 (IC95 0,60–0,93)**, la única mejora significativa; 6x6 0,91 (0,84–1,01). Bandas fuera peores: w90 ×1,14–1,34, 6x6 ×1,51–1,57. **No se promueve** (regla: ninguna regresión OOD >5 %). Paso +6 % / +3 %. Sigue opt-in. |
 | 7.5 | Readout compartido entre especies | P | L | medio | 🔶 **2026-10-10:** ya existe: `basis_grouping="max"` es un readout único compartido entre especies con padding y máscara; MACE completo equivariante con especies de distinta base (test 26bdbed). Pesos condicionados por especie = `E3nnEdgeBlockNodeMix` (1.9), peor OOD. Con ≤3 especies (todos los materiales actuales) el ahorro es marginal (10795 vs 11117 parámetros de readout en H/O). Falta solo medir `max` vs `point_type` en TMD/BaTiO3 (GPU) **Encolado (2026-10-11):** `bench_delta_max` (`bench_delta` + `basis_grouping="max"`) en TMD, ZnO y BaTiO3, 3 semillas, tras el experimento 4.5 (`MD_vs_AtomicDisplacement/Comparison/scripts/g2m_bench_grouping.py`). **Resultado 2026-10-12:** `max` en TMD gana mucho en la aleación (H ×0,51, bandas canónicas ×0,15) pero empeora validación (×1,13), heterobicapa (H ×1,25) y MoSe2 (×1,10); en ZnO (val ×1,20) y BaTiO3 (val ×1,10, pruebas ×1,19–1,24) empeora. **No se promueve.** |
-| 7.6 | Multi-tarea H + S + DM + EDM | P | L | medio | 🔶 **2026-10-10:** H+S conjuntos ya existen (`matrix_component_policy="h_and_overlap"`, 4.1). Falta solo cargar DM/EDM como objetivos adicionales del mismo grafo; sin dataset que lo pida todavía |
+| 7.6 | Multi-tarea H + S + DM + EDM | P | L | medio | ✅ **Cerrado sin promoción2026-10-19:** implementación opt-in CPU/CLI/checkpoints/inferencia/reconstrucción verificada ([contrato técnico](informe_multitarget_7_6_cpu_20261018.md)); seis fits H-only/joint seeds0/1/2 completos,4000updates/126110exposiciones/fit,39.223min. Evaluación CPU150val+150test×6: test raíz gauge-MSE H1.980→14.182meV; niveles8bandas con S_ref camino151k34.173→400.576meV; peor en3/3seeds. S_pred positiva en todos los puntos comprobados, sin cortes; DM/EDM/carga diagnosticados, no comparados contra modelos independientes. Joint×1.731tiempo y×4.221allocated; no beneficio demostrado para esta receta/presupuesto. No entrenamiento adicional ni defaults nuevos. Splits correlacionados/duplicado y colas del writer conservados: no OOD independiente ni conclusión universal contra multitarea. [Cierre, comandos y límites](campana_multitarget_w90_20261019.md). |
 | 7.7 | H = H_KS[DM predicha] con un paso de SIESTA | P | L | alto | ❌ **NO_GO (2026-10-10, piloto CPU sin entrenar, `MD_vs_AtomicDisplacement/Comparison/scripts/g2m_dm_pilot.py`, 3 muestras 6x6 Sobol):** un paso de SIESTA desde la DM reproduce H_ref (0,03 meV) y H0 (0,000 meV), pero los errores de la DM llegan a H sin apantallar: con ~1 % de error relativo en ΔDM, H sale 1× peor si el error es una corrección incompleta (t·ΔDM), ×25–30 con ruido uniforme y ×130–200 con ruido proporcional; conservar la carga Mulliken por átomo no ayuda. El modelo Δ-H actual (~0,7 % de |H−H0|) exigiría una DM con error aleatorio ≲0,005–0,03 %. La SCF existe precisamente para apantallar ese error; una DM predicha solo sirve como punto de partida de la SCF, no para obtener H en un paso. Prueba definitiva (opcional, GPU): entrenar un modelo de DM con las mismas recetas y construir H[DM_pred] |
 
 ## Ola 8 — Cobertura física (necesita datasets que lo requieran)
 
 | # | Cambio | Gana | Esf. | Riesgo | Estado |
 |---|---|---|---|---|---|
-| 8.1 | Spin colineal y SOC; referencia atómica coherente con spin | C P | L | medio | 🔶 `spin_h_only` del fork |
+| 8.1 | Spin colineal y SOC; referencia atómica coherente con spin | C P | L | medio | ⏸ **SOC: prioridad futura aplazada por el usuario2026-10-19.** No iniciar ahora diseño, implementación ni nuevos datasets. Existe `spin_h_only` y cobertura parcial colineal/no ortogonal; eso no certifica SOC complejo ni una referencia atómica coherente con spin en todos los casos. Retomar solo por nueva decisión del usuario y con contrato/datos concretos. |
 | 8.2 | Bloques de H mediados por proyectores KB (aristas de readout más largas) | P | L | medio | 🔶 **Controles de representación H y H−H0 medidos sin entrenar en BaTiO3 y TMD** (ver banco). Sin H0, quitar la cola cambia las bandas canónicas ≤0,56 y ≤0,064 meV, respectivamente. **Con Δ, H0 ya recupera la cola completa**: H−H0 fuera del grafo es cero en TMD y ≤3,4·10⁻¹⁸ meV en BaTiO3. No limita estas recetas Δ. Aristas largas todavía no implementadas; aplazadas a materiales o recetas donde la cola residual sea relevante |
 | 8.3 | Tipos de punto por Z: dos especies con la misma Z y distinta base (ghosts) | C | M | bajo | 🔶 **2026-10-10 (de43c1a):** error explícito si una especie con la misma Z tiene otra base que la tabla (antes desplazaba todas las etiquetas sin aviso). Soporte completo (tipos por etiqueta de especie) pendiente hasta que un dataset lo necesite |
 | 8.4 | **(GPT Astra, Maths and Physics)** Electrostática de largo alcance para sistemas polares | P | L | alto | 🔶 **implementada** (`long_range`: `"charges"` = cargas locales neutralizadas, `"qeq"` = equilibrado de cargas con electronegatividad y dureza aprendidas y la carga total de `NetCharge`; potencial de Ewald de cargas gaussianas de 2 Å y H += (V_i + V_j)/2 · S_ij; S de H0 en la predicción). Ganancias moderadas y dependientes del material (ver «Banco de materiales»): cargas fijas −7 % en validación de BaTiO3 y gap/bandas −25 a −45 %, pero rompen las láminas polares de ZnO (×2,4–3,8); Qeq las deja como sin término y mejora el gap de la lámina no polar (144 → 20 meV) y el centro F neutro (−24 %); sin estructuras cargadas en el entrenamiento la carga total aún no ayuda (F +1 peor). Origen: nanocubo de LiF 3,7 veces peor que el volumen con defecto y gap 3 eV demasiado grande con Δ; propuesta común de los 4 GPT: ΔH_LR ≈ (V_i + V_j)/2 · S_ij con V de cargas aprendidas + Ewald (compatible con el gauge) |

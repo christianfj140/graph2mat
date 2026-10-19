@@ -149,3 +149,38 @@ Campaña completa (6 smokes, 72 sondas, 18 entrenamientos, evaluación CPU). `pr
 
 H fuera de distribución apenas cambia (0,92–1,08); las bandas alineadas en registry, AB-MD y moiré empeoran
 en todos los casos. Ninguno cumple la regla de promoción; defaults sin cambios, ambos siguen opt-in.
+
+## Extensión a bicapas: `tbg` y `grhbn_bl` (2026-10-13)
+
+Se completó la comparación entrenada en la misma familia física que la prueba:
+baseline, `lowrank` (7.1), `sk` (7.4) y `nodemix` (1.9), semillas 0/1/2,
+para `tbg` (3 × 4 trabajos) y `grhbn_bl` (5 trabajos previos + 7 que completan
+la matriz de 12, tres semillas por variante). Configuración y datos congelados descritos
+en el traspaso; los resultados son `result.json` en
+`MD_vs_AtomicDisplacement/Comparison/results/dataset_design_curves_v1/runs/{bilayer,grhbn_bl}`.
+
+Resumen con la misma convención de `g2m_bilayer_benchmark.py --summary`:
+media aritmética de tres semillas y cociente entre medias de cada variante y
+baseline emparejada del mismo material. H está alineado al gauge; las bandas son
+RMSE alineado del moiré objetivo. No se estimaron intervalos de confianza.
+
+| Material / variante | Validación H (meV; razón) | Moiré H (meV; razón) | Bandas alineadas (meV; razón) | Tiempo medio / pico GPU máximo |
+|---|---:|---:|---:|---:|
+| `tbg` baseline | 1,266; 1,00 | 0,957; 1,00 | 1,982; 1,00 | 11,4 min / 2696 MiB |
+| `tbg` low-rank | 1,356; 1,07 | 1,097; 1,15 | 8,203; 4,14 | 22,4 min / 2572 MiB |
+| `tbg` SK | 1,254; 0,99 | 0,976; 1,02 | 7,687; 3,88 | 33,8 min / 3138 MiB |
+| `tbg` nodemix | 1,277; 1,01 | 1,066; 1,11 | 9,271; 4,68 | 22,8 min / 3222 MiB |
+| `grhbn_bl` baseline | 1,728; 1,00 | 0,991; 1,00 | 16,338; 1,00 | 173,2 min / 4626 MiB |
+| `grhbn_bl` low-rank | 1,853; 1,07 | 1,241; 1,25 | 14,363; 0,88 | 177,9 min / 4608 MiB |
+| `grhbn_bl` SK | 1,577; 0,91 | 0,863; 0,87 | 16,606; 1,02 | 187,0 min / 4128 MiB |
+| `grhbn_bl` nodemix | 1,443; 0,84 | 0,943; 0,95 | 14,692; 0,90 | 171,0 min / 4714 MiB |
+
+Interpretación: la conclusión provisional («la capacidad adicional no ayuda si
+el dominio está cubierto y Δ ya es bueno») **no se confirma de forma general**.
+En `tbg` los readouts no mejoran H y multiplican por 3,88–4,68 el error de
+bandas. En `grhbn_bl`, nodemix mejora las medias H y bandas; SK mejora H, con
+bandas neutras; low-rank empeora H pese a mejorar bandas. El efecto depende del
+material y la métrica. Son resultados exploratorios de tres semillas sin IC95;
+no justifican promoción ni cambio de defaults. Los tiempos y picos son los
+registrados por cada entrenamiento; no son una comparación controlada de
+rendimiento entre campañas/materiales.

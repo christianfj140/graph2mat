@@ -137,9 +137,18 @@ actuales de validación/inferencia y checkpoints siguen funcionando.
   reconstrucción/fallback explícito para objetivos no equivalentes.
   Gauge-MSE puede admitir una ruta con S proyectado, pero requiere demostrar
   por separado su producto interno, pesos, máscaras y shift por estructura.
-- [ ] Verificar flag apagado, checkpoints, tests amplios y medir GPU disponible.
+- [x] Verificar flag apagado/checkpoints/tests amplios en CPU y medir GPU fp32.
   CPU/defaults/restauración/DDP y suite completa final verificados en Task1.g.
-  La medida GPU sigue pendiente de hardware libre, no completada.
+  **2026-10-14:** CUDA fp32 MSE equivalente en pérdida y gradientes; con targets
+  en collate CPU síncrono, paso +28,2 % w90/+93,8 % 6x6, ahorro allocated <1 %.
+  Gauge confirma fallback. Beneficio desfavorable en este régimen, no promoción.
+  [Informe GPU y alcance](mediciones_gpu_pipeline_20261013.md).
+- [x] Validar AMP y fit/restauración end-to-end con Trainer CUDA.
+  **2026-10-14:** nueve tests GPU pasan: fp32/fp16/bf16, loss y todos los gradientes,
+  fit/validación/resume, Adam y scaler. AMP certificado con `readout_fp32=True`;
+  sin él y para gauge se conserva fallback. No es una prueba de precisión científica
+  ni DDP GPU. Wheels3.9/3.12:252 tests de foco instalados pasan en cada una.
+  [Cierre del pipeline y compatibilidad](diagnostico_pipeline_20261014.md).
 
 Expected: pruebas de contrato verdes y ninguna reconstrucción innecesaria en
 el camino certificado. Precisión mayor no es un requisito intrínseco de 5.3.
@@ -163,9 +172,20 @@ caché CPU reutilizable, conversiones equivalentes y batching de coste explícit
   estructura sobredimensionada produce singleton o error explícito documentado.
 - [x] Probar determinismo, cobertura de muestras, último lote, métricas y DDP;
   documentar que agrupar distinto puede cambiar la trayectoria de optimización.
-- [ ] Ejecutar lifecycle/ZIP/stages previos y medir carga, paso, pico y RAM.
-  CPU/cobertura/DDP y fullCPU final2209pasan/2omitidos verificados. Medida del
-  paso/pico GPU pendiente de hardware libre, no completada como beneficio VRAM.
+- [x] Ejecutar lifecycle/ZIP/stages previos y medir carga, paso y pico GPU fp32.
+  CPU/cobertura/DDP y fullCPU final2209pasan/2omitidos verificados anteriormente.
+  **2026-10-14:** 6.1 misma VRAM, coste pequeño de aislamiento; 6.2 forward GPU
+  + CSR −22,4 %/−67,4 % (w90/6x6), setup H+S +4,2 %/+17,3 %; 6.4 fixture
+  heterogénea allocated −42,65 %/reserved −43,96 %, tiempo por época 2,26×,
+  sin pérdidas de muestras. Grafeno uniforme: batching sin ahorro de memoria.
+  RSS del proceso principal registrado; [informe GPU](mediciones_gpu_pipeline_20261013.md).
+- [x] Completar medida de RAM del árbol de procesos con workers.
+  **2026-10-14:**32 procesos factoriales0/4workers×pinning, cuatro rondas:
+  RSS árbol~2,2GiB sin workers/~5,2GiB con cuatro; PSS~2,0/~2,1–2,3GiB.
+  Muestreo0,5s, no máximo instantáneo garantizado ni RAM del host completo.
+  Cero workers gana en estas muestras pequeñas/cacheadas, sin extrapolar a lazy
+  ni cambiar defaults. Precisión con otra agrupación de batches sigue pendiente.
+  [Diagnóstico factorial](diagnostico_pipeline_20261014.md).
 
 Expected: mismas conversiones; caché segura; sampler sin pérdida accidental de
 muestras. No asumir que caching reduce VRAM ni que batching siempre usa menos memoria.
@@ -726,6 +746,29 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   Hashdata.py ed975e57... coincide con benchmark final. Producto3a0af15;
   task-done real40pasan/659warnings/30.66s,exit0,rango903a132..3a0af15.
   Subplan cerrado CPU; evaluación GPU pendiente y goal general abierto.
+
+- Actualización2026-10-16: recuperación experimental certificada CPU/GPU/AMP/
+  compile;115tests focales pasan, general2744pasan/39omitidos y cuatro fallos
+  históricosdscribe. Pilotos reales h2oclu,5épocas/dos rondas: budget326283,
+  allocated1606,35→1432,02MiB (−10,85%), reserved1812→1814MiB, no ahorro.
+  No precisión/velocidad demostradas. Seis fits nuevos0/1/2,2000épocas,
+  64000muestras,cosineexplícito,4–7h exclusivas estimadas: usuario autorizó
+  «Autorizo esos 6 trabajos», después «Continua». Seis encolados2026-10-16
+  23:40CEST,cola1403→1409,prefijo intacto. Gatefinal2789pasan/39omitidos,
+  solo4HistorySOAPs históricos. Vistaigualtiempo diferida;6.4científico/Goal no completos.
+  [Campaña y recibo](campana_batching_h2oclu_20261016.md).
+  [Propuesta y límites](propuesta_batching_h2oclu_20261016.md).
+
+- **Cierre2026-10-17 recuperación+validación6.4:** seis fits DONE (2000épocas,
+  64000muestras/fit),627hashes y42matrices verificados; espectros contrastados
+  por Cholesky independiente. Cost326283: allocated−15,66%,reserved−25,55%,
+  hostPSS−10,24%,pared−3,77% medios. H OOD−1,14%,niveles−30,81% de media, pero
+  regresión de niveles en2/3seeds y todos los IC OOD cruzan1; gapOOD error≈2,98eV.
+  Opt-in sin promoción. Sensibilidad a direcciones de pequeñoS confirmada como
+  diagnóstico, no cambio de cutoff ni solución del error. Focal136pasan/5CUDAomitidos,
+  general vigente2789/39skip/4dscribe históricos,Ruff/mypy23 limpios. Sin jobs nuevos.
+  [Cierre de este Goal](cierre_goal_recuperacion_batching_20261017.md).
+  No cierra todo el plan ni vista igualtiempo/compute, que sigue separada sin jobs.
 
 ### 2026-10-09 — Task 3 / 7.1: variante de rango bajo, cierre CPU
 

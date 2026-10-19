@@ -1,5 +1,12 @@
 # Traspaso entre agentes — g2m-v2 (2026-10-13)
 
+**Actualización2026-10-15:**6.7 cerrado y seis trabajos7.2 autorizados/encolados.
+**Actualización2026-10-17:**7.2 ya cerrado; recuperación y seis fits6.4 de h2oclu
+completos/auditados, sin defaults nuevos. Leer cabecera del traspaso actual para
+resultados/límites; no repetir jobs ni actuar según las colas históricas de abajo.
+Lee primero [traspaso actual](traspaso_agente_20261015.md) y `roadmap.md`; el
+estado de cola y «siguiente paso» de este documento son históricos.
+
 Escrito para: el agente (Codex u otro) que continúe este trabajo en el repositorio `graph2mat`, rama
 `g2m-v2`, sin acceso al chat anterior. Todo lo que no está aquí ni en `roadmap.md` se perdió con la
 conversación; si algo parece faltar, pregúntalo al usuario en vez de suponerlo.
