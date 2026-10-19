@@ -8,6 +8,7 @@ from e3nn import o3
 from graph2mat import PointBasis
 from graph2mat.bindings.e3nn.irreps_tools import ReducedTensorProducts
 from graph2mat.bindings.torch import TorchMatrixBlock
+from .edge_operations import E3nnLinearEdgeBlock, _ordered_inputs
 
 __all__ = ["E3nnIrrepsMatrixBlock"]
 
@@ -28,7 +29,12 @@ def unreachable_irreps(irreps_in: Sequence[o3.Irreps], irreps_out: o3.Irreps) ->
 
 
 class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
-    """Computes a matrix block by computing its irreps first."""
+    """Compute a block through irreps.
+
+    ``fuse_homonuclear=True`` optionally projects LinearEdge weights to evaluate
+    one orientation of a certified homonuclear pair. Original weights/checkpoints
+    are preserved; unsupported operations, Q or precision use the legacy path.
+    """
 
     def __init__(
         self,
@@ -41,9 +47,14 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         irreps: Dict[str, o3.Irreps] = {},
         n_matrix_components: int = 1,
         output_scaleshift: bool = False,
+        fuse_homonuclear: bool = False,
         **operation_kwargs,
     ):
         torch.nn.Module.__init__(self)
+        if not isinstance(fuse_homonuclear, bool):
+            raise TypeError("fuse_homonuclear must be a bool.")
+        self.fuse_homonuclear = fuse_homonuclear
+        self._homonuclear_warned = False
 
         i_irreps = i_basis.e3nn_irreps
         j_irreps = j_basis.e3nn_irreps
@@ -90,6 +101,96 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
                 "be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps "
                 "(with MACE, num_interactions=1 leaves only scalar node features)."
             )
+        self._configure_homonuclear_fusion()
+        self.register_load_state_dict_post_hook(_recertify_homonuclear)
+
+    def _reject_homonuclear(self, reason):
+        self._homonuclear_rejection = reason
+        if self.fuse_homonuclear and self.symm_transpose and not self._homonuclear_warned:
+            warnings.warn(f"Homonuclear fusion disabled: {reason}.", stacklevel=3)
+            self._homonuclear_warned = True
+
+    def _configure_homonuclear_fusion(self):
+        self._fused_homonuclear = False
+        self._homonuclear_q_compatible = True
+        self._homonuclear_rejection = None
+        if not self.fuse_homonuclear or not self.symm_transpose:
+            return
+        if type(self.operation) is not E3nnLinearEdgeBlock:
+            self._reject_homonuclear("requires the exact E3nnLinearEdgeBlock operation")
+            return
+        self.operation._homonuclear_ready = False
+        if self.symmetry != "ij" or self.output_scaleshift:
+            self._reject_homonuclear("requires ij symmetry without output scale/shift")
+            return
+        index = self._coefficient_transpose_index
+        sign = self._coefficient_transpose_sign
+        q = self.change_of_basis
+        if index is None or sign is None or q.requires_grad:
+            self._reject_homonuclear("requires a fixed Q and certified transpose map")
+            return
+        index, sign, q = index.detach().cpu(), sign.detach().cpu(), q.detach().cpu()
+        k = self._single_irreps_out.dim
+        valid = (index.dtype == torch.long and index.shape == (k,) and sign.shape == (k,)
+                 and torch.equal(index.sort().values, torch.arange(k))
+                 and torch.all((sign == 1) | (sign == -1))
+                 and torch.equal(index[index], torch.arange(k))
+                 and torch.all(sign * sign[index] == 1))
+        if not valid or q.shape != (k, self.i_irreps.dim, self.j_irreps.dim):
+            self._homonuclear_q_compatible = False
+            self._reject_homonuclear("invalid transpose map or Q dimensions")
+            return
+        tolerance = 8 * torch.finfo(q.dtype).eps
+        if (q.shape[1] != q.shape[2] or not torch.allclose(
+                q.transpose(1, 2), q[index] * sign.to(q)[:, None, None], atol=tolerance, rtol=tolerance)):
+            self._homonuclear_q_compatible = False
+            self._reject_homonuclear("loaded Q does not match its signed transpose map")
+            return
+        # The combined API historically projects the matrix back through Q.
+        flat = q.flatten(1)
+        for row in range(k):
+            unit = q.new_zeros(k)
+            unit[row] = 1
+            if not torch.allclose(flat @ flat[row], unit, atol=tolerance, rtol=tolerance):
+                self._reject_homonuclear("requires orthonormal Q for the combined coefficient API")
+                return
+        full_index = torch.cat([index + c * k for c in range(self.n_matrix_components)])
+        reason = self.operation._prepare_homonuclear_fusion(full_index, sign.repeat(self.n_matrix_components))
+        if reason is not None:
+            self._reject_homonuclear(reason)
+            return
+        self._fused_homonuclear = True
+
+    def _fused_homonuclear_coefficients(self, args, kwargs):
+        if not self._fused_homonuclear:
+            return None
+        if args or not kwargs or any(not isinstance(pair, tuple) or len(pair) != 2 for pair in kwargs.values()):
+            self._reject_homonuclear("requires keyword tensor pairs")
+            return None
+        weight = self.operation.tensor_products[0].weight
+        if (self.change_of_basis.requires_grad or weight.dtype not in (torch.float32, torch.float64)
+                or torch.is_autocast_enabled(weight.device.type)
+                or any(not isinstance(x, torch.Tensor) or x.dtype != weight.dtype
+                       for pair in kwargs.values() for x in pair)):
+            self._reject_homonuclear("uncertified dtype, autocast context or trainable Q")
+            return None
+        pairs = _ordered_inputs(kwargs)
+        products = self.operation.tensor_products
+        n = pairs[0][0].shape[0] if pairs[0][0].ndim == 2 else None
+        if len(pairs) != len(products) or any(
+            a.ndim != 2 or b.ndim != 2
+            or a.shape != (n, tp.irreps_in1.dim) or b.shape != (n, tp.irreps_in2.dim)
+            for tp, (a, b) in zip(products, pairs)
+        ):
+            self._reject_homonuclear("requires compatible 2D input shapes with a common row count")
+            return None
+        return self.operation(_homonuclear=True, **kwargs)
+
+    def forward(self, *args, **kwargs):
+        coefficients = self._fused_homonuclear_coefficients(args, kwargs)
+        if coefficients is not None:
+            return self.coefficients_to_block(coefficients)
+        return super().forward(*args, **kwargs)
 
     def get_summary(self):
         return f"{str(self.operation.__class__.__name__)}: ({self.i_irreps}) x ({self.j_irreps}) -> {self._irreps_out}"
@@ -199,6 +300,11 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
         return self.coefficients_to_block(irreducible_out)
 
     def forward_coefficients(self, *args, **kwargs) -> torch.Tensor:
+        coefficients = self._fused_homonuclear_coefficients(args, kwargs)
+        if coefficients is not None:
+            return coefficients
+        if self.fuse_homonuclear and not self._homonuclear_q_compatible:
+            return self.block_to_coefficients(self.forward(*args, **kwargs))
         if self.symm_transpose == False:
             return self._compute_coefficients(*args, **kwargs)
 
@@ -233,6 +339,9 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
     def forward_with_coefficients(self, *args, **kwargs):
         """(block, coefficients) evaluating the operation once, not twice as
         calling ``forward`` and ``forward_coefficients`` separately would."""
+        coefficients = self._fused_homonuclear_coefficients(args, kwargs)
+        if coefficients is not None:
+            return self.coefficients_to_block(coefficients), coefficients
         if self.symm_transpose == False:
             coefficients = self._compute_coefficients(*args, **kwargs)
             return self.coefficients_to_block(coefficients), coefficients
@@ -265,3 +374,7 @@ class E3nnIrrepsMatrixBlock(TorchMatrixBlock):
                 kwargs[k] = irreps[k]
 
         return kwargs
+
+
+def _recertify_homonuclear(module, incompatible_keys):
+    module._configure_homonuclear_fusion()

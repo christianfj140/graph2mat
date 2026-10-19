@@ -11,7 +11,7 @@ will tipically not be symmetric, but it is common that.
 from e3nn import o3, nn
 import torch
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 from ._utils import tp_out_irreps_with_instructions
 
@@ -71,6 +71,9 @@ class E3nnLinearEdgeBlock(E3nnSimpleEdgeBlock):
     Without it the edge block is a homogeneous quadratic form of the messages.
     There are no biases: edge blocks must decay to zero with distance, as the
     messages do.
+
+    The enclosing matrix block may opt into certified homonuclear weight
+    projection; it keeps these original Parameters and their optimizer history.
     """
 
     def __init__(self, irreps_in: o3.Irreps, irreps_out: o3.Irreps):
@@ -78,10 +81,101 @@ class E3nnLinearEdgeBlock(E3nnSimpleEdgeBlock):
         self.linears = torch.nn.ModuleList(
             [o3.Linear(tp.irreps_in1, irreps_out) for tp in self.tensor_products]
         )
+        self._homonuclear_ready = False
+        for layer in [*self.tensor_products, *self.linears]:
+            layer.register_buffer("_homonuclear_index", torch.empty(0, dtype=torch.long), persistent=False)
+            layer.register_buffer("_homonuclear_sign", torch.empty(0), persistent=False)
+
+    def _prepare_homonuclear_fusion(self, index, sign) -> Optional[str]:
+        """Certify a signed involution of the existing, normalized weight paths."""
+        self._homonuclear_ready = False
+        layers = [*self.tensor_products, *self.linears]
+        for layer in layers:
+            layer._homonuclear_index = torch.empty(0, dtype=torch.long, device=layer.weight.device)
+            layer._homonuclear_sign = layer.weight.new_empty(0)
+        index, sign = index.detach().cpu(), sign.detach().cpu()
+        irreps = self.tensor_products[0].irreps_out
+        if (index.dtype != torch.long or index.shape != (irreps.dim,) or sign.shape != index.shape
+                or not torch.equal(index.sort().values, torch.arange(irreps.dim))
+                or not torch.all((sign == 1) | (sign == -1))
+                or not torch.equal(index[index], torch.arange(irreps.dim))
+                or not torch.all(sign * sign[index] == 1)):
+            return "invalid coefficient involution"
+        output_maps = []
+        offset = 0
+        for mul, ir in irreps:
+            local = index[offset:offset + mul * ir.dim].reshape(mul, ir.dim) - offset
+            signs = sign[offset:offset + mul * ir.dim].reshape(mul, ir.dim)
+            permutation = local[:, 0] // ir.dim
+            if (torch.any(permutation < 0) or torch.any(permutation >= mul)
+                    or not torch.equal(local, permutation[:, None] * ir.dim + torch.arange(ir.dim))
+                    or not torch.all(signs == signs[:, :1])):
+                return "transpose does not preserve irrep segments and magnetic components"
+            output_maps.append((permutation, signs[:, 0]))
+            offset += mul * ir.dim
+
+        prepared = []
+        for layer in layers:
+            if not layer.internal_weights or not layer.shared_weights:
+                return "weights must be internal and shared"
+            is_tp = isinstance(layer, o3.TensorProduct)
+            if not is_tp and layer.bias.numel():
+                return "linear bias is unsupported"
+            flat = torch.arange(layer.weight_numel)
+            lookup = {(r.i_in1, r.i_in2, r.i_out): n for n, r in enumerate(layer.instructions)} if is_tp else {}
+            indices, signs = [], []
+            for n, instruction in enumerate(layer.instructions):
+                permutation, output_sign = output_maps[instruction.i_out]
+                phase = 1
+                if is_tp:
+                    if instruction.connection_mode != "uvw" or not instruction.has_weight:
+                        return "only weighted uvw paths are supported"
+                    reverse = lookup.get((instruction.i_in2, instruction.i_in1, instruction.i_out))
+                    if reverse is None:
+                        return "missing reverse tensor product path"
+                    other = layer.instructions[reverse]
+                    if instruction.path_weight <= 0 or instruction.path_weight != other.path_weight:
+                        return "unequal or nonpositive reverse path normalization"
+                    view = layer.weight_view_for_instruction(reverse, weight=flat).transpose(0, 1)
+                    phase = (-1) ** (layer.irreps_in1[instruction.i_in1].ir.l
+                                    + layer.irreps_in2[instruction.i_in2].ir.l
+                                    - layer.irreps_out[instruction.i_out].ir.l)
+                    signs.append((phase * output_sign)[None, None, :].expand(instruction.path_shape).reshape(-1))
+                else:
+                    view = layer.weight_view_for_instruction(n, weight=flat)
+                    signs.append(output_sign[None, :].expand(instruction.path_shape).reshape(-1))
+                indices.append(view[..., permutation].reshape(-1))
+            mapping = torch.cat(indices) if indices else flat
+            multiplier = torch.cat(signs) if signs else torch.empty(0)
+            if (mapping.numel() != layer.weight_numel or not torch.equal(mapping.sort().values, flat)
+                    or not torch.equal(mapping[mapping], flat)
+                    or not torch.all(multiplier * multiplier[mapping] == 1)):
+                return "weight mapping is not a signed involution"
+            prepared.append((mapping, multiplier))
+        for layer, (mapping, multiplier) in zip(layers, prepared):
+            layer._homonuclear_index = mapping.to(layer.weight.device)
+            layer._homonuclear_sign = multiplier.to(layer.weight)
+        self._homonuclear_ready = True
+        return None
+
+    @staticmethod
+    def _projected_weight(layer):
+        return 0.5 * layer.weight + 0.5 * layer.weight[layer._homonuclear_index] * layer._homonuclear_sign
 
     def forward(
-        self, **tuple_kwargs: Tuple[torch.Tensor, torch.Tensor]
+        self, *, _homonuclear: bool = False, **tuple_kwargs: Tuple[torch.Tensor, torch.Tensor]
     ) -> torch.Tensor:
+        if _homonuclear:
+            if not self._homonuclear_ready:
+                raise RuntimeError("Homonuclear weight fusion has not been certified.")
+            assert len(tuple_kwargs) == len(self.tensor_products)
+            pairs = _ordered_inputs(tuple_kwargs)
+            out = self.tensor_products[0](*pairs[0], weight=self._projected_weight(self.tensor_products[0]))
+            for tp, pair in zip(self.tensor_products[1:], pairs[1:]):
+                out = out + tp(*pair, weight=self._projected_weight(tp))
+            for linear, (a, b) in zip(self.linears, pairs):
+                out = out + linear(a + b, weight=self._projected_weight(linear))
+            return out
         out = super().forward(**tuple_kwargs)
         for linear, (a, b) in zip(self.linears, _ordered_inputs(tuple_kwargs)):
             out = out + linear(a + b)
