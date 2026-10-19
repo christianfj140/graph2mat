@@ -87,6 +87,16 @@ Failed serialization preserves an existing destination and removes owned
 temporaries. Successful download temporaries are removed after the response.
 The client closes uploads and cleans its own files even on HTTP/read errors.
 
+The reconstruction contract is described in :doc:`data_loading`. The CPU
+oracles compare all generalized levels before/after physical output, not only
+matrix-element errors: NetCDF levels read back in the Ef-relative gauge, and
+TSHS with Ef=0 preserves the supplied levels. The Lightning ``MatrixWriter``
+has its own HSX output path; it is not the server writer and does not inherit
+all server guards. Use an explicit compatible geometry/basis when the reader
+needs it to restore the orbital layout. These representation checks do not
+demonstrate model accuracy, certify every k point of a learned S, or turn an
+H-only output into a self-contained nonorthogonal Hamiltonian.
+
 Extrapolation and SIESTA Lua
 ---------------------------
 
@@ -114,3 +124,12 @@ curl's HTTP/exit failure and aborts initialization rather than continuing with
 an invalid or stale DM. Standalone H/EDM extrapolation remains available using
 their appropriate formats; no H-to-DM conversion is implied. Empty/unobserved
 histories return HTTP 422.
+
+Joint matrix models
+-------------------
+
+The generic HTTP endpoints do not accept a processor with ``matrix_targets``
+enabled. Registration fails before inference/publication, rather than treating
+the H/S/DM/EDM packing as spin channels of one matrix. Reconstruct and select
+a target explicitly outside these endpoints; no joint HTTP API is added.
+Single-target models and the existing writer/gauge checks are unchanged.

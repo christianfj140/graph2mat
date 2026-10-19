@@ -32,6 +32,119 @@ one training sample when data are available. For correlated trajectories, use
 explicit validation runs from separate trajectories rather than a random split
 of adjacent frames.
 
+Warning-only split guardrail
+---------------------------
+
+Roadmap 3.12 adds a lightweight check during ``setup`` of labelled stages.
+It compares only already-loaded/resolved train/val/test inputs, never loads
+another split for the check, never parses a lazy matrix, and does nothing in
+``setup("predict")``. It logs ordinary warnings, not Python warnings that
+``-Werror`` could turn into exceptions. Alarms never repartition, remove samples,
+change a seed/fraction or stop training. Unchanged reports are not logged again
+on every setup. ``module.split_guardrail_report`` holds the latest report.
+
+Evidence is deliberately limited to:
+
+* Reused resolved source paths (including symlink aliases), or the same in-memory
+  input object. ZIP identity includes both archive and exact member; a ZIP file
+  or parent folder is **not** inferred to be a trajectory.
+* Explicit matching ``sample_id``, ``sha256`` or ``group_id`` declarations.
+  ``group_id`` should name the relevant correlated family, such as a trajectory
+  or common parent structure. The caller defines that physical meaning.
+
+For file inputs, an optional ``split_metadata`` map can be added to the existing
+``runs_json`` file. Source keys are relative to ``root_dir`` (or absolute paths);
+ordinary train/val/test path lists keep their existing meaning:
+
+.. code-block:: json
+
+    {
+      "train": ["trajectory1/frame0/RUN.fdf"],
+      "val": ["trajectory1/frame1/RUN.fdf"],
+      "split_metadata": {
+        "trajectory1/frame0/RUN.fdf": {"sample_id": "t1-f0", "group_id": "trajectory1"},
+        "trajectory1/frame1/RUN.fdf": {"sample_id": "t1-f1", "group_id": "trajectory1"}
+      }
+    }
+
+This example emits a shared-group alarm but still trains on those exact lists.
+Lexical symlink names and original absolute source keys remain usable when
+``copy_root_to_tmp=True``. A memory-backed ZIP can only be identified by its
+archive object and exact member; separate unnamed readers are not assumed equal.
+For in-memory configurations/prepared samples use
+``sample.metadata["split_guardrail"] = {"sample_id": "frame0", "group_id": "MD1"}``.
+Inline annotations take precedence over file annotations. IDs must be nonempty
+strings; optional ``sha256`` is a 64-hex-digit **declared** content digest.
+The check does not read/hash files or verify those declarations. In particular,
+identical FDF text does not prove identical matrix labels, and copied/renamed
+data without declared identity/hash can go undetected.
+
+Malformed alarm annotations produce a diagnostic, not a loading error. Missing
+group metadata yields ``not_evaluable`` (or a missing-information warning along
+with detected overlaps), not a claim of contamination. Fully declared disjoint
+groups yield ``no_known_overlap``, **not** certified independence. No geometric
+similarity metric, distance threshold, distribution test, automatic manifest,
+split generator or checkpoint policy is introduced. Custom/streaming datasets
+that cannot be inspected without iteration are reported as unavailable.
+
+Raw input identity is retained across normal in-memory/pool wrapping; all
+parent samples of a rotating pool are checked, not only its active window.
+Final ``teardown(None)`` clears the report and its raw-input references. Other
+resource ownership and checkpoint/default behaviour remain unchanged.
+
+Nonorthogonal Hamiltonian reconstruction
+----------------------------------------
+
+``matrix_component_policy="h_and_overlap"`` gives physical components an
+explicit meaning: ``(H, S)`` for an unpolarized Hamiltonian, or
+``(H_up, H_down, S)`` for collinear spin. H is in eV and S is dimensionless.
+Reading and reconstruction preserve the atom/orbital order, cell, periodic
+image layout and coefficients represented by the graph. This is a contract
+on the graph's support, not recovery of blocks outside its cutoff. The
+symmetric path reconstructs transposed partners at opposite images; the
+directed path does not silently symmetrize its inputs.
+
+For an existing ``sisl.Hamiltonian`` with compatible orbital basis:
+
+.. code-block:: python
+
+    from graph2mat import AtomicTableWithEdges, BasisMatrixData, MatrixDataProcessor
+
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges(hamiltonian.atoms.atom),
+        out_matrix="hamiltonian", sub_point_matrix=False,
+        symmetric_matrix=True, n_matrix_components=2,
+        matrix_component_policy="h_and_overlap",
+    )
+    data = BasisMatrixData.new(hamiltonian, processor)
+    reconstructed = processor.matrix_from_data(data, threshold=None)
+    levels = reconstructed.eigenvalue().eig  # solves H c = energy S c
+
+The example is unpolarized and assumes Hermitian input on the represented
+support. Collinear H+S needs three components. NumPy data take NumPy
+predictions, Torch data take tensors; keep numerical precision explicit when
+checking spectra. With ``predictions=None`` the labels supply H/S. With
+``predictions={"node_labels": ..., "edge_labels": ...}`` both H and S come
+from the supplied predictions; reconstruction must not mutate the labels.
+PyG batches return one reconstructed matrix per structure without sharing
+their coefficients.
+
+H-only predictions remain H-only even if training labels include S for a
+gauge loss. There is no implicit attachment of reference S or inference of
+spin semantics from an arbitrary raw component count. ``raw_components``
+storage does not authorize physical spin/SOC serialization. The generic
+Hamiltonian processor neither constructs SIESTA's superposed-atomic-density
+H0 nor automatically restores it: ``sub_point_matrix`` is a different,
+isolated-point baseline and is disabled for Hamiltonians. Explicit matrix
+references in extrapolation use their separate restoration contract.
+
+Certification uses full-space generalized eigenvalues at Gamma and nonzero k,
+an independent two-orbital spectrum, and H+cS controls. The latter shift every
+level by c without changing energy differences. Singular S is not repaired
+or truncated to make a spectrum pass; preservation of a predicted S does not
+guarantee that S is positive definite, accurate, or well conditioned.
+For file formats, gauge and explicit-reference rules, see :doc:`server`.
+
 Optional training batches by declared cost
 --------------------------------------------
 
@@ -380,3 +493,109 @@ data; it does not invent radial functions or change interpolation. The original
 file-content representation and legacy ``atoms`` states remain accepted. An old
 atoms-only checkpoint that already lost a cutoff cannot recover that missing
 information: use the original basis rather than guessing a radius.
+
+Joint H/S/DM/EDM targets (opt-in)
+--------------------------------
+
+``matrix_targets=None`` retains the single-target path, parameter keys and old
+checkpoint loading. Selecting ``hamiltonian`` and ``overlap`` enables joint
+prediction; ``density_matrix`` and/or ``energy_density_matrix`` may be added.
+One MACE backbone feeds the existing multicomponent readout. Its packed
+columns are not spin channels of a single Hamiltonian: the version1 descriptor
+fixes canonical H,S,DM,EDM order, slices, units and real spin1/2. The complete
+set has four unpolarized or seven collinear columns; S is always scalar.
+
+This mode learns direct matrices and requires ``sub_point_matrix=False``.
+There is no implicit H0/DM0. Select whole matrices only when their labels exist,
+even if a selected target has weight0. Real local FDF/TSHS/TSDE or a compatible
+sisl bundle are supported; new-mode ZIP is rejected. The TSHS supplies actual
+overlap; the TSDE reader's absent-overlap placeholder is never a target.
+Geometry, basis/orbital order, cell/images, spin and H/EDM energy gauges must
+match. H/EDM use eV; S is dimensionless; DM uses sisl occupation components
+without another factor2. Fractional occupation is allowed, without idempotency.
+
+The explicit ``matrix_target_weights`` and ``matrix_target_losses`` mappings
+must cover precisely the selected names. Weights are finite/nonnegative with
+at least one positive value. H selects ``elementwise_mse`` or
+``gauge_invariant_mse``; S/DM/EDM select ``elementwise_mse`` initially. Each
+target has its own denominator and conventional units. Weights are not an
+automatic normalization or a scientifically tuned recipe. A target with zero
+weight is not evaluated; an active target without observations in any sample
+raises before optimization. Unknown DM/EDM coefficients are excluded by
+component masks before arithmetic, not filled with observed zeros. Explicit
+stored zeros remain observed. A sisl container with shared component support
+cannot recover discarded per-spin support; an explicit validated
+``observation_masks`` bundle can restrict that support, never invent it.
+Archived DM/EDM support, including explicit zeros, must itself be Hermitian
+across opposite images before compacting edges; asymmetric support is rejected.
+
+Optional ``physical_labels`` can map target names to ``[charge, energy]``
+selections. The existing list shorthand means charge for selected DM and
+energy for selected H/DM/EDM. Matrix-specific loss kwargs
+``electron_weight``, ``mulliken_weight`` and ``energy_weight`` remain zero by
+default. Charge/Mulliken apply only to DM; energy requires certified full
+H/S/DM/EDM partners and an explicit supported SCF mesh. Both gauge alignment
+and these physical terms use S_ref, never S_pred. Energy is the perturbation
+objective continuing the reference outside the graph, not an identity between
+four predictions or the exact energy of the truncated exported matrix.
+
+``MatrixMACE.forward`` additionally returns differentiable views at
+``output["matrix_predictions"][target]["node_labels"|"edge_labels"]``.
+Geometry-only prediction obtains its descriptor from configuration/checkpoint;
+it does not read reference matrices as features. Batches may mix sizes/species,
+not semantic layouts or spins. Checkpoints persist and validate the descriptor,
+loss configuration and weights; matching column counts alone are insufficient.
+
+The CPU YAML example is exercised by the real CLI checkpoint prediction test:
+
+.. literalinclude:: examples/multitarget_predict.yaml
+   :language: yaml
+
+Supply a trusted matching checkpoint to ``predict --config <example.yaml>
+--ckpt_path <checkpoint> --data.root_dir <directory>``. Its weights demonstrate
+syntax only; no scientific accuracy is established. For fit, replace
+``predict_structs`` with explicit train/validation FDF splits and retain the
+matrix/layout/loss settings. This does not authorize or prescribe a campaign.
+
+Reconstruction always selects a target and carries predicted overlap explicitly:
+
+.. code-block:: python
+
+    from graph2mat.bindings.torch.load import load_from_lit_ckpt
+    from graph2mat.tools.lightning.callbacks import MatrixWriter
+
+    model, processor = load_from_lit_ckpt(trusted_checkpoint, as_torch=True)
+    model.eval()
+    hamiltonian = processor.torch_predict(model, geometry, matrix_target="hamiltonian")
+    writer = MatrixWriter("predicted.nc", matrix_target="density_matrix")
+
+H returns ``sisl.Hamiltonian`` with S_pred; S returns ``sisl.Overlap``; DM/EDM
+carry their physical channels and S_pred. No hidden S_ref, repair of non-SPD S,
+eigenvalue clipping or recovery beyond graph support is performed. Numeric
+``threshold`` affects the selected H/DM/EDM, not overlap. Spectra therefore
+need their own S_pred validity check. Export initially supports explicit
+target-specific NetCDF, in model energy gauge with serialized Ef0. S uses an
+explicit-overlap carrier to bypass sisl's Overlap writer identity convention;
+its coefficients are preserved. Invalid targets/formats/finite values and
+within-batch path collisions fail before writing matrices. This is preflight
+protection, not a transaction against arbitrary filesystem/IO failures.
+
+``SamplewiseMetricsLogger`` requires a target and explicit supported MSE/H-gauge
+metrics in joint mode; CSV includes target/unit. ``PlotMatrixError`` selects
+one target and excludes unknown individual components. Legacy row masks stay
+unchanged. CSV headers initialize on first use, after the joint-mode selector
+guard, so constructing an invalid callback cannot truncate its output file.
+A ``matrix_target`` selector on a legacy metrics logger is rejected before
+opening the output; omit it for the unchanged single-target CSV schema.
+Generic HTTP endpoints reject unsplit joint models rather than misreading spin.
+
+Long-range correction, Hamiltonian context, coefficient-only training and
+single-target loss replacement stages are rejected in joint mode. Standard
+and low-rank readouts are CPU tested; SK retains its existing C1/C2 limit and
+does not accept the complete4/7 packing. ``output_scaleshift=True`` requires
+fully observed finite labels for coefficient fitting; partial observations
+raise before fitting any buffers. Leave it disabled (the default) for partial
+targets; the masked matrix losses still support them without imputation.
+Compile backend=eager CPU preserves
+outputs/gradients/keys, not evidence about CUDA/cuEq/VRAM. More outputs can
+increase memory and runtime; CPU fixtures do not prove improved prediction.
