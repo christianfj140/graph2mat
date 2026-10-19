@@ -229,11 +229,16 @@ class LitBasisMatrixModel(pl.LightningModule):
         initial_node_feats: str = "OneHotZ",
         training_stages: Optional[list[dict[str, Any]]] = None,
         coefficient_training: bool = False,
+        selection_metric: Optional[str] = None,
         **kwargs,
     ):
+        """``selection_metric`` (roadmap 1.15) names an epoch metric, e.g. the loss-independent
+        ``val_matrix_rmse``, used as ``hp_metric`` and by the CLI's default best checkpoint
+        instead of ``val_loss``. ``None`` keeps the loss-dependent selection."""
         super().__init__()
 
         self.save_hyperparameters()
+        self.selection_metric = None if selection_metric == "val_loss" else selection_metric
 
         root_dir = maybe_zip_path(root_dir)
 
@@ -613,9 +618,46 @@ class LitBasisMatrixModel(pl.LightningModule):
         self.log(key, value, on_step=split == "train", on_epoch=True,
                  prog_bar=True, logger=True, batch_size=batch.num_graphs,
                  metric_attribute=attribute, sync_dist=attribute is None)
-        if split == "val":
+        if split == "val" and self.selection_metric is None:
             self.log("hp_metric", value, batch_size=batch.num_graphs,
                      metric_attribute=attribute, sync_dist=attribute is None)
+
+    def _log_matrix_rmse(self, split, out, batch):
+        """Loss-independent epoch error for model selection (roadmap 1.15).
+
+        Global RMSE over every observed element of the predicted components, nodes and
+        edges pooled with equal weight. Labels the model does not predict (S with an
+        H-only gauge objective) are skipped; no gauge alignment is applied.
+        """
+        squared, count = 0., 0
+        for pred, ref in ((out["node_labels"], batch.point_labels), (out["edge_labels"], batch.edge_labels)):
+            if pred.ndim < ref.ndim or (pred.ndim == 2 and pred.shape[1] < ref.shape[1]):
+                ref = ref[:, :1 if pred.ndim == 1 else pred.shape[1]].reshape(pred.shape)
+            valid = torch.isfinite(ref)
+            error = torch.where(valid, pred.detach().double() - ref.double(), 0.)
+            squared = squared + error.square().sum()
+            count = count + valid.sum()
+        key = f"{split}_matrix_rmse"
+        if key not in self._epoch_rmse:
+            self._epoch_rmse[key] = _EpochRMSE().to(self.device)
+        metric = self._epoch_rmse[key]
+        metric(torch.sqrt(squared / torch.clamp(count, min=1)), count)
+        self.log(key, metric, on_step=False, on_epoch=True, batch_size=batch.num_graphs,
+                 metric_attribute=f"_epoch_rmse.{key}")
+
+    def _log_selection_metric(self, batch):
+        name = self.selection_metric
+        stores = {"_epoch_losses": self._epoch_losses, "_epoch_rmse": self._epoch_rmse,
+                  "_epoch_errors": self._epoch_errors}
+        for key in (name, "multitarget_" + name.replace("/", "__")):
+            for attribute, store in stores.items():
+                if key in store:
+                    self.log("hp_metric", store[key], batch_size=batch.num_graphs,
+                             metric_attribute=f"{attribute}.{key}")
+                    return
+        available = sorted(key for store in stores.values() for key in store if key.startswith("val"))
+        raise ValueError(f"selection_metric {name!r} is not an epoch-aggregated validation metric; "
+                         f"available: {available}")
 
     def _physical_epoch_loss(self, key, batch, stats):
         """Matrix means use element counts; each physical mean uses structures."""
@@ -685,7 +727,7 @@ class LitBasisMatrixModel(pl.LightningModule):
             all_counts.extend(counts)
             all_weights.extend(target_weight * weight for weight in weights)
         metric, key = record(f"{split}_loss", all_means, all_counts, all_weights)
-        if split == "val":
+        if split == "val" and self.selection_metric is None:
             self.log("hp_metric", metric, batch_size=batch.num_graphs,
                      metric_attribute=f"_epoch_losses.{key}")
 
@@ -1052,6 +1094,11 @@ class LitBasisMatrixModel(pl.LightningModule):
 
         self._log_loss("val", loss, out, batch, stats)
         self._log_stats("val", stats, batch, out)
+        if not isinstance(self.loss_fn, MultitargetMatrixLoss):
+            # Packed multitarget components carry different units; they log per target.
+            self._log_matrix_rmse("val", out, batch)
+        if self.selection_metric is not None:
+            self._log_selection_metric(batch)
 
         # Only what callbacks read: keeping every MACE output alive until the end of
         # the batch only costs memory.
@@ -1078,6 +1125,8 @@ class LitBasisMatrixModel(pl.LightningModule):
 
         self._log_loss("test", loss, out, batch, stats)
         self._log_stats("test", stats, batch, out)
+        if not isinstance(self.loss_fn, MultitargetMatrixLoss):
+            self._log_matrix_rmse("test", out, batch)
 
         return out
 

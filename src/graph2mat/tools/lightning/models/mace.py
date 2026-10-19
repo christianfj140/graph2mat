@@ -120,6 +120,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         matrix_target_spin: Optional[int] = None,
         matrix_target_weights: Optional[dict] = None,
         matrix_target_losses: Optional[dict] = None,
+        selection_metric: Optional[str] = None,
     ):
         if matrix_targets is not None:
             from graph2mat.core.data.multitarget import MatrixTargetLayout
@@ -167,6 +168,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             coefficient_training=coefficient_training,
             initial_node_feats=initial_node_feats,
             model_cls=model_cls,
+            selection_metric=selection_metric,
         )
         self.save_hyperparameters()
         self.matrix_target_layout = layout if matrix_targets is not None else None

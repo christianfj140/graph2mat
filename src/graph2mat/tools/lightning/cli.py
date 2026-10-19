@@ -22,6 +22,21 @@ from graph2mat.tools.lightning.data import (
 )
 
 
+def _apply_selection_metric(config_ns: Namespace) -> None:
+    """Point checkpoints monitoring ``val_loss`` at ``model.selection_metric`` (roadmap 1.15).
+
+    Checkpoints that monitor anything else were chosen explicitly and are kept.
+    """
+    metric = getattr(getattr(config_ns, "model", None), "selection_metric", None)
+    if metric is None or metric == "val_loss":
+        return
+    for callback in getattr(getattr(config_ns, "trainer", None), "callbacks", None) or []:
+        init_args = getattr(callback, "init_args", None)
+        if (str(getattr(callback, "class_path", "")).rsplit(".", 1)[-1] == "ModelCheckpoint"
+                and getattr(init_args, "monitor", None) == "val_loss"):
+            init_args.monitor = metric
+
+
 def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None:
     """Infer matrix components from the dataset when config still uses the default."""
     data_cfg = getattr(config_ns, "data", None)
@@ -225,6 +240,7 @@ class OrbitalMatrixCLI(LightningCLI):
 
         config_ns = getattr(self.config, self.config.subcommand)
         _autoconfigure_n_matrix_components(config_ns, stage=self.config.subcommand)
+        _apply_selection_metric(config_ns)
         if config_ns.multiprocessing_sharing_strategy:
             assert (
                 config_ns.multiprocessing_sharing_strategy
