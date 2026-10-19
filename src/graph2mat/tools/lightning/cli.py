@@ -45,6 +45,8 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None
         return
 
     spin_orbit = getattr(data_cfg, "matrix_component_policy", "h_only") == "spin_orbit"
+    if getattr(model_cfg, "spin_orbit", False) and not spin_orbit:
+        raise ValueError("model.spin_orbit=True needs data.matrix_component_policy='spin_orbit'.")
     if spin_orbit or hasattr(model_cfg, "spin_orbit"):
         model_cfg.spin_orbit = spin_orbit
     options = dict(

@@ -134,6 +134,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
     ):
         if spin_orbit:
             rejected = {
+                # Without it on-site blocks use "ij" and each edge direction is predicted alone,
+                # so H is not Hermitian (measured |Hk - Hk^H| = 0.54 on an untrained model).
+                "symmetric_matrix=False (Hermiticity needs symmetric_matrix=True)": not symmetric_matrix,
                 "matrix_targets": matrix_targets is not None,
                 "coefficient_training": coefficient_training,
                 "return_coefficients": return_coefficients,
@@ -308,7 +311,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                     f"weights, got {type(loss_fn).__name__}."
                 )
 
-    def on_fit_start(self) -> None:
+    def _check_spin_orbit_data(self) -> None:
         # Data and model must agree: a plain model would fit [h0, gx, gy, gz] as four
         # unrelated scalars. Without a datamodule only spin_orbit=True fails (unverifiable).
         spin_orbit = self.hparams.get("spin_orbit", False)  # older checkpoints lack it
@@ -323,6 +326,15 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                    if getattr(module, name, None)]
             if bad:
                 raise ValueError(f"spin_orbit data do not support: {', '.join(bad)}.")
+
+    def setup(self, stage: str) -> None:
+        # validate/test/predict never reach on_fit_start. The datamodule is already set up here.
+        if getattr(self._trainer, "datamodule", None) is not None:
+            self._check_spin_orbit_data()
+        super().setup(stage)
+
+    def on_fit_start(self) -> None:
+        self._check_spin_orbit_data()  # fit without a datamodule too
         super().on_fit_start()
         if self.hparams.torch_compile:
             # 6x6 step: 138 -> 70 ms and -31% peak memory; ~90 s of compilation first.

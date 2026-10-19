@@ -190,11 +190,23 @@ def test_spin_orbit_fit_step_and_checkpoint(tmp_path):
     {"matrix_targets": ["hamiltonian", "overlap"]},
     {"n_output_components": 4},
     {"n_matrix_components": 2},
+    {"symmetric_matrix": False},
 ], ids=lambda bad: "-".join(f"{k}={getattr(v, '__name__', v)}" for k, v in bad.items()))
 def test_spin_orbit_rejects_uncertified_options(bad):
     atoms = [sisl.Atom("H", orbitals=_shell(0))]
+    # symmetric_matrix=True in the base: otherwise every case fails on that rule alone.
+    kwargs = {"symmetric_matrix": True, **TINY, **bad}
     with pytest.raises(ValueError, match="spin_orbit"):
-        LitMACEMatrixModel(basis_table=AtomicTableWithEdges(atoms), spin_orbit=True, **{**TINY, **bad})
+        LitMACEMatrixModel(basis_table=AtomicTableWithEdges(atoms), spin_orbit=True, **kwargs)
+
+
+def test_spin_orbit_requires_symmetric_matrix():
+    # False (also the default) predicts both edge directions apart and on-site blocks as "ij":
+    # H would not be Hermitian.
+    atoms = [sisl.Atom("H", orbitals=_shell(0))]
+    for kwargs in ({"symmetric_matrix": False}, {}):
+        with pytest.raises(ValueError, match=r"spin_orbit.*symmetric_matrix.*Hermiticity"):
+            LitMACEMatrixModel(basis_table=AtomicTableWithEdges(atoms), spin_orbit=True, **TINY, **kwargs)
 
 
 @pytest.mark.parametrize("ok", [
@@ -205,7 +217,8 @@ def test_spin_orbit_rejects_uncertified_options(bad):
 ], ids=["block_type_mae", "stage_mae", "simple_edge", "n4"])
 def test_spin_orbit_accepts_certified_options(ok):
     atoms = [sisl.Atom("H", orbitals=_shell(0))]
-    model = LitMACEMatrixModel(basis_table=AtomicTableWithEdges(atoms), spin_orbit=True, **{**TINY, **ok})
+    model = LitMACEMatrixModel(basis_table=AtomicTableWithEdges(atoms), symmetric_matrix=True,
+                               spin_orbit=True, **{**TINY, **ok})
     assert model.hparams.n_matrix_components == 4
 
 
@@ -213,19 +226,21 @@ def test_spin_orbit_accepts_certified_options(ok):
     (False, {}),
     (True, {"matrix_component_policy": "h_only", "n_matrix_components": 4}),
 ], ids=["soc_data_plain_model", "plain_data_soc_model"])
-def test_policy_and_model_flag_must_agree(model_flag, data):
+@pytest.mark.parametrize("stage", ["fit", "validate", "test", "predict"])
+def test_policy_and_model_flag_must_agree(model_flag, data, stage):
     model, samples = _soc_inputs(spin_orbit=model_flag, n_matrix_components=4)
     module = _data_module(model, samples, **data)
-    with pytest.raises(ValueError, match="spin_orbit"):
-        _trainer(max_steps=1).fit(model, datamodule=module)
+    with pytest.raises(ValueError, match="disagrees with data matrix_component_policy"):
+        getattr(_trainer(), stage)(model, datamodule=module)
 
 
-def test_model_rechecks_data_attributes_set_after_construction():
+@pytest.mark.parametrize("stage", ["fit", "validate"])
+def test_model_rechecks_data_attributes_set_after_construction(stage):
     model, samples = _soc_inputs()
     module = _data_module(model, samples)
     module.spectral_window = True
     with pytest.raises(ValueError, match=r"spin_orbit data do not support: spectral_window"):
-        _trainer(max_steps=1).fit(model, datamodule=module)
+        getattr(_trainer(), stage)(model, datamodule=module)
 
 
 @pytest.mark.parametrize("data,word", [
@@ -304,6 +319,7 @@ def test_cli_sets_spin_orbit_from_policy():
     assert config.data.n_matrix_components == config.model.n_matrix_components == 4
 
     config.data.matrix_component_policy = "h_only"
+    config.model.spin_orbit = False  # unset: derived from the policy
     config.data.n_matrix_components = config.model.n_matrix_components = 1
     _autoconfigure_n_matrix_components(config, stage="predict")
     assert config.model.spin_orbit is False and config.model.n_matrix_components == 1
@@ -312,3 +328,14 @@ def test_cli_sets_spin_orbit_from_policy():
     config.data.n_matrix_components = 2
     with pytest.raises(ValueError, match="spin_orbit"):
         _autoconfigure_n_matrix_components(config, stage="predict")
+
+
+def test_cli_rejects_explicit_spin_orbit_without_policy():
+    from jsonargparse import Namespace
+    from graph2mat.tools.lightning.cli import _autoconfigure_n_matrix_components
+
+    config = Namespace(data=Namespace(matrix_component_policy="h_only", n_matrix_components=1),
+                       model=Namespace(spin_orbit=True, n_matrix_components=1))
+    with pytest.raises(ValueError, match=r"model\.spin_orbit=True.*matrix_component_policy"):
+        _autoconfigure_n_matrix_components(config, stage="fit")
+    assert config.model.spin_orbit is True  # never overwritten behind the user's back

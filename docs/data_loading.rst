@@ -159,8 +159,10 @@ axes. The channels are ``h0 = (c0 + c1)/2``, ``gx = (c3 + c7)/2``,
 ``gy = (c2 - c6)/2`` and ``gz = (c4 - c5)/2``. ``g`` changes sign under
 transposition, so the symmetric path applies ``SOC_TRANSPOSE_SIGN =
 [1, -1, -1, -1]`` to the transposed partner; ``g`` is antisymmetric on-site.
-The channels are fixed by the policy: ``n_matrix_components`` must be 1 or 4,
-and the model and the command line interface set it to 4.
+The channels are fixed by the policy. ``MatrixDataProcessor`` accepts
+``n_matrix_components`` 1 or 4, and 1 is accepted only because loading infers
+the 4 channels from the labels. ``MatrixDataModule`` should use 4 (the command
+line interface sets it) and the model always uses 4.
 
 Loading checks that the data really have TRS. The four residuals ``Im h0``,
 ``Re hx``, ``Re hy`` and ``Re hz`` must be below ``SOC_TRS_RTOL = 1e-5`` of the
@@ -179,6 +181,7 @@ reference overlap explicitly with ``attach_overlap``:
 
 .. code-block:: python
 
+    import pytorch_lightning as pl
     import sisl
     from graph2mat import AtomicTableWithEdges, BasisMatrixData, MatrixDataProcessor
     from graph2mat.core.data.spin_orbit import attach_overlap
@@ -211,29 +214,36 @@ reference overlap explicitly with ``attach_overlap``:
         symmetric_matrix=True, matrix_component_policy="spin_orbit",
         n_matrix_components=4, train_runs="train/*/RUN.fdf", val_runs="val/*/RUN.fdf",
     )
+    pl.Trainer(max_epochs=100).fit(model, datamodule=datamodule)
 
 ``attach_overlap`` requires an orthogonal spin-orbit ``sisl.Hamiltonian`` and
 a single-component S carrier (such as ``sisl.Overlap``) with the same geometry
 and ``nsc``; a Hamiltonian is rejected because its component 0 is not S.
 With the command line interface the model flag is derived from the data
-policy; ``on_fit_start`` raises if a model and a datamodule disagree, because a
-plain model would fit ``[h0, gx, gy, gz]`` as four unrelated scalars.
+policy, and an explicit ``model.spin_orbit=True`` with another policy raises. The
+model raises in ``fit``, ``validate``, ``test`` and ``predict`` if it and the
+datamodule disagree, because a plain model would fit ``[h0, gx, gy, gz]`` as four
+unrelated scalars.
 
 ``spin_orbit=True`` swaps the readout for ``E3nnSpinOrbitMatrixBlock``: ``h0``
 as in the standard block plus ``g`` from a ``(l_i x l_j) x 1e`` product
 (antisymmetric on-site), so the prediction is equivariant under rotations,
-including spin rotations, and obeys TRS and Hermiticity by construction. The
-losses are limited to ``elementwise_mse``, ``elementwise_mae``,
+including spin rotations, and obeys TRS by construction. Hermiticity also holds
+by construction because ``spin_orbit=True`` requires ``symmetric_matrix=True``:
+the model then predicts one direction of each edge and builds the other with the
+signed transpose, whereas ``symmetric_matrix=False`` would predict both
+directions independently (an untrained model gave ``|Hk - Hk^H| = 0.54``) and
+is rejected. The losses are limited to ``elementwise_mse``, ``elementwise_mae``,
 ``block_type_mse`` and ``block_type_mae``, without physical weights. There is
 no per-channel loss weighting yet. Rejected with spin-orbit, before any
 training: magnetic spin-orbit, density and energy-density matrices,
 ``matrix_targets``, ``physical_labels``, ``spectral_window``,
 ``coefficient_training``, ``return_coefficients``, ``output_scaleshift``,
 ``long_range``, ``hamiltonian_local_context``, ``fuse_homonuclear``,
-``basis_grouping`` other than ``"point_type"``, SK and low-rank readouts and
-``n_output_components``. ``MatrixWriter`` and the HTTP server are not supported
-yet and raise; ``PlotMatrixError`` works (it plots the channels as plain
-components).
+``basis_grouping`` other than ``"point_type"``, SK and low-rank readouts,
+``n_output_components`` and ``symmetric_matrix=False``. ``MatrixWriter`` and the
+HTTP server are not supported yet and raise; ``PlotMatrixError`` works (it plots
+the channels as plain components).
 
 Known limits, measured on a real Bi2Se3 SIESTA Hamiltonian
 (``auditorias_mejoras/soc_roundtrip_check.py``). The code is tested on CPU and
@@ -246,8 +256,9 @@ has not been scientifically validated by training on a SOC dataset.
   3.4 eV at random k relative to the stored H. This is not a reconstruction
   error: a direct (non-delta) recipe needs longer readout edges (roadmap 8.2)
   or another treatment of the tails, whereas the delta recipe recovers them
-  from H0. The roundtrip is exact only against the stored matrix cut to the
-  support and projected onto TRS.
+  from H0. The roundtrip reproduces the stored matrix cut to the
+  support and projected onto TRS to 1e-8 eV (plus, with symmetric labels, the
+  Hermiticity-defect bound of the stored matrix).
 - **Reachable irreps.** MACE hidden irreps of natural parity only, for
   example ``8x0e+8x1o+8x2e+8x3o``, cannot reach the ``0o`` part of ``g``
   (about 1.2 % of the ``g`` coefficients for a Bi-like 2s2p2d basis: 8 of 630

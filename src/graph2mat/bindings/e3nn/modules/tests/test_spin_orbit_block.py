@@ -68,9 +68,10 @@ def test_homonuclear_edge_signed_transpose():
     assert not torch.allclose(ab[..., 1:], -ab[..., 1:].transpose(1, 2))
 
 
+@pytest.mark.parametrize("l", [1, 2], ids=["p", "d"])
 @pytest.mark.parametrize("convention", ["cartesian", "siesta_spherical"])
-def test_ls_coupling_spectrum(convention):
-    block = _block(PointBasis("A", R=3, basis="1o", basis_convention=convention))
+def test_ls_coupling_spectrum(convention, l):
+    block = _block(PointBasis("A", R=3, basis=f"{l}{'oe'[l % 2 == 0]}", basis_convention=convention))
     c = torch.zeros(1, block._irreps_out.dim)
     offset = block._single_irreps_out.dim
     (scalar,) = [s for (mul, ir), s in zip(block._g_irreps_out, block._g_irreps_out.slices()) if ir == o3.Irrep("0e")]
@@ -79,11 +80,15 @@ def test_ls_coupling_spectrum(convention):
     h0, g = B[..., 0], np.moveaxis(B[..., 1:], -1, 0)
     spinor = np.kron(h0, np.eye(2)) + 1j * sum(np.kron(g[a], PAULI[a]) for a in range(3))
     e = np.sort(np.linalg.eigvalsh(spinor))
-    # lambda L.S on p: a doublet (j=1/2) at -2a and a quartet (j=3/2) at +a, or its mirror.
-    if np.allclose(e[:4], e[0]):  # mirror: quartet below the doublet
+    assert e.size == 2 * (2 * l + 1)
+    # lambda L.S on a shell of angular momentum l: 2l+2 states (j=l+1/2) at +a*l and 2l states
+    # (j=l-1/2) at -a*(l+1), or the mirror image (the sign of a is a convention).
+    if np.sum(np.isclose(e, e[0], rtol=1e-8, atol=1e-10)) == 2 * l + 2:
         e = np.sort(-e)
-    assert abs(e[2]) > 1e-3
-    assert np.allclose(e[:2], e[0]) and np.allclose(e[2:], e[2]) and np.isclose(e[0], -2 * e[2])
+    low, high = e[:2 * l], e[2 * l:]
+    assert abs(high[0]) > 1e-3
+    np.testing.assert_allclose(high, high[0], rtol=1e-8, atol=1e-10)
+    np.testing.assert_allclose(low, -(l + 1) / l * high[0], rtol=1e-8, atol=1e-10)
 
 
 def test_rejected_options():
