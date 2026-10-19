@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/christian/repositorios/graph2mat/auditorias_mejoras/audit_multitarget_w90.py", line 213, in <module>
+    main()
+  File "/home/christian/repositorios/graph2mat/auditorias_mejoras/audit_multitarget_w90.py", line 137, in main
+    raise ValueError(f"native TSHS and FDF geometry differ: {sample_id}")
+ValueError: native TSHS and FDF geometry differ: md_0
