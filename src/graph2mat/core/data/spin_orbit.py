@@ -10,12 +10,14 @@ With time-reversal symmetry (TRS) the spinor block is
 4 real channels ``[h0, gx, gy, gz]`` are independent. ``h0`` is symmetric and
 ``g`` antisymmetric on-site, hence ``g`` changes sign under transposition.
 
-Pure NumPy: no torch dependency.
+NumPy and sisl only: no torch dependency.
 """
 
 import numpy as np
+import sisl
 
 __all__ = [
+    "attach_overlap",
     "SOC_TRS_RTOL",
     "SOC_TRANSPOSE_SIGN",
     "siesta_to_soc_channels",
@@ -92,3 +94,32 @@ def soc_channels_to_siesta(channels: np.ndarray) -> np.ndarray:
     channels = _check_last_dim(channels, 4, "channels")
     h0, gx, gy, gz = (channels[..., i] for i in range(4))
     return np.stack([h0, h0, gy, gx, gz, -gz, -gy, gx], -1)
+
+
+def attach_overlap(matrix: sisl.Hamiltonian, overlap: sisl.SparseOrbital) -> sisl.Hamiltonian:
+    """Return the non-orthogonal spin-orbit Hamiltonian ``matrix`` + ``overlap``.
+
+    Labels carry no overlap, so reconstructed spin-orbit Hamiltonians are orthogonal;
+    this adds the (spin-independent) ``S`` explicitly.
+
+    Parameters
+    ----------
+    matrix:
+        Orthogonal ``sisl.Hamiltonian`` with ``spin="spin-orbit"`` (8 components).
+    overlap:
+        Overlap matrix, with the same geometry and ``nsc`` as ``matrix``.
+    """
+    if not (isinstance(matrix, sisl.Hamiltonian) and matrix.spin.is_spinorbit):
+        raise ValueError("matrix must be a sisl.Hamiltonian with spin-orbit spin.")
+    if not matrix.orthogonal:
+        raise ValueError("matrix must be orthogonal: it already has an overlap.")
+    if not np.array_equal(matrix.nsc, overlap.nsc):
+        raise ValueError(f"nsc mismatch between matrix {matrix.nsc} and overlap {overlap.nsc}.")
+    if matrix.geometry != overlap.geometry:
+        raise ValueError("geometry mismatch between matrix and overlap.")
+    return sisl.Hamiltonian.fromsp(
+        matrix.geometry,
+        [matrix.tocsr(i) for i in range(8)],
+        S=overlap.tocsr(0),
+        spin=sisl.Spin("spin-orbit"),
+    )

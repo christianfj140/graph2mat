@@ -16,6 +16,7 @@ from scipy.sparse import coo_array, csr_array
 from .matrices import BasisMatrix, OrbitalMatrix
 from .formats import Formats, conversions
 from ._sparse import _csr_to_block_dict
+from .spin_orbit import SOC_TRANSPOSE_SIGN
 
 
 def register_all_sisl(source, target, converter, manager):
@@ -439,6 +440,18 @@ def nodes_and_edges_to_coo(
     )
 
 
+def _spin_orbit_csr_to_sisl(csr, geometry, sp_class) -> SparseOrbital:
+    """Orthogonal ``spin-orbit`` Hamiltonian from the 4 TRS channels ``[h0, gx, gy, gz]``."""
+    n = len(csr) if isinstance(csr, (list, tuple)) else 1
+    if n != 4:
+        raise ValueError(f"matrix_component_policy='spin_orbit' requires 4 components [h0, gx, gy, gz], got {n}.")
+    if not issubclass(sp_class, sisl.Hamiltonian):
+        raise ValueError(f"matrix_component_policy='spin_orbit' requires a sisl.Hamiltonian, got {sp_class.__name__}.")
+    # Same channel -> SIESTA component map as ``soc_channels_to_siesta``.
+    h0, gx, gy, gz = csr
+    return sp_class.fromsp(geometry, [h0, h0, gy, gx, gz, -gz, -gy, gx], spin=sisl.Spin("spin-orbit"))
+
+
 @converter(Formats.SCIPY_CSR, Formats.SISL)
 def csr_to_sisl_sparse_orbital(
     csr: Union[csr_array, Sequence[csr_array]],
@@ -447,6 +460,9 @@ def csr_to_sisl_sparse_orbital(
     matrix_component_policy: Optional[str] = None,
 ) -> SparseOrbital:
     """Converts a scipy CSR array to a sisl sparse orbital matrix."""
+    if matrix_component_policy == "spin_orbit":
+        return _spin_orbit_csr_to_sisl(csr, geometry, sp_class)
+
     if isinstance(csr, (list, tuple)):
         if len(csr) == 1:
             return sp_class.fromsp(geometry, csr[0])
@@ -533,8 +549,9 @@ def nodes_and_edges_to_sparse_orbital(
     node_components = node_vals.shape[1] if node_vals.ndim == 2 else 1
     edge_components = edge_vals.shape[1] if edge_vals.ndim == 2 else 1
     n_components = max(node_components, edge_components)
+    transpose_sign = SOC_TRANSPOSE_SIGN if matrix_component_policy == "spin_orbit" else None
 
-    if n_components == 1:
+    if n_components == 1 and transpose_sign is None:
         new_csr = conversions.get_converter(Formats.NODESEDGES, Formats.SCIPY_CSR)(
             node_vals=node_vals,
             edge_vals=edge_vals,
@@ -559,6 +576,7 @@ def nodes_and_edges_to_sparse_orbital(
         node_vals=node_vals,
         edge_vals=edge_vals,
         symmetrize_edges=symmetrize_edges,
+        transpose_sign=transpose_sign,
     )
     rows, cols, shape = _blockmatrix_coo_coords(
         orbitals=geometry.orbitals,
@@ -597,15 +615,24 @@ def _concatenate_nodes_and_edges_multicomponent(
     node_vals: np.ndarray,
     edge_vals: np.ndarray,
     symmetrize_edges: bool,
+    transpose_sign: Optional[np.ndarray] = None,
 ) -> np.ndarray:
+    """Stacks node and edge values, plus the transposed edge copy if ``symmetrize_edges``.
+
+    ``transpose_sign`` (one factor per component) multiplies the transposed copy, for
+    components that change sign under matrix transposition (e.g. spin-orbit ``g``).
+    """
     if node_vals.ndim == 1:
         node_vals = node_vals[:, None]
     if edge_vals.ndim == 1:
         edge_vals = edge_vals[:, None]
 
     if symmetrize_edges:
-        return np.concatenate([node_vals, edge_vals, edge_vals], axis=0)
+        transposed = edge_vals if transpose_sign is None else edge_vals * np.asarray(transpose_sign)
+        return np.concatenate([node_vals, edge_vals, transposed], axis=0)
     return np.concatenate([node_vals, edge_vals], axis=0)
+
+
 def _csr_to_block_dict_components(
     data: np.ndarray,
     ptr: np.ndarray,

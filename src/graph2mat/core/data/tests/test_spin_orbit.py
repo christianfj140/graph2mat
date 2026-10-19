@@ -5,7 +5,9 @@ from scipy.sparse import csr_array
 
 from graph2mat import AtomicTableWithEdges, BasisMatrixData, MatrixDataProcessor
 from graph2mat.core.data.configuration import OrbitalConfiguration
+from graph2mat.core.data.sparse import csr_to_sisl_sparse_orbital
 from graph2mat.core.data.spin_orbit import (
+    attach_overlap,
     SOC_TRANSPOSE_SIGN,
     siesta_to_soc_channels,
     soc_channels_to_siesta,
@@ -125,7 +127,7 @@ def _orbitals(ls):
     return [sisl.AtomicOrbital(n=l + 1, l=l, m=m, R=2.8) for l in ls for m in range(-l, l + 1)]
 
 
-def make_soc_system(seed=0, orthogonal=False):
+def make_soc_system(seed=0, orthogonal=False, centrosymmetric=False):
     """Periodic 2-atom (s+p, s) system with TRS spin-orbit blocks.
 
     Cell is short along x (nsc=[3,1,1]) so atoms interact with their own images.
@@ -136,9 +138,20 @@ def make_soc_system(seed=0, orthogonal=False):
     Returns ``(H, atoms, blocks, overlap)``: the sisl SO Hamiltonian, the atoms,
     ``blocks[R] -> (no, no, 4)`` TRS channels and ``overlap[R] -> (no, no)``
     (``None`` if ``orthogonal``). ``R`` is the supercell shift ``-1, 0, 1``.
+
+    With ``centrosymmetric`` the two atoms are identical (s+p) at ``+-r`` and the blocks
+    obey inversion, ``X(-R) = P X(R) P^T`` with ``P`` swapping the atoms and carrying the
+    orbital parity ``(-1)**l`` (``h0``, the axial ``g`` and ``S`` alike), so TRS + inversion
+    give Kramers-degenerate bands at every k.
     """
-    atoms = [sisl.Atom("H", orbitals=_orbitals((0, 1))), sisl.Atom("O", orbitals=_orbitals((0,)))]
-    geometry = sisl.Geometry([[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]], atoms=atoms, lattice=[5.0, 20.0, 20.0])
+    if centrosymmetric:
+        atom = sisl.Atom("H", orbitals=_orbitals((0, 1)))
+        atoms = [atom]
+        positions = [[0.25, 0.0, 0.0], [-0.25, 0.0, 0.0]]  # +-r: every block within the 5.6 A cutoff
+    else:
+        atoms = [sisl.Atom("H", orbitals=_orbitals((0, 1))), sisl.Atom("O", orbitals=_orbitals((0,)))]
+        positions = [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]]
+    geometry = sisl.Geometry(positions, atoms=atoms * (2 if centrosymmetric else 1), lattice=[5.0, 20.0, 20.0])
     geometry.set_nsc([3, 1, 1])
     no = geometry.no
     rng = np.random.default_rng(seed)
@@ -151,6 +164,19 @@ def make_soc_system(seed=0, orthogonal=False):
     blocks = {0: (onsite + transpose(onsite)) / 2, 1: image, -1: transpose(image)}
     s_on, s_im = rng.normal(size=(no, no)), rng.normal(size=(no, no))
     overlap = {0: np.eye(no) + 0.01 * (s_on + s_on.T), 1: 0.01 * s_im, -1: 0.01 * s_im.T}
+
+    if centrosymmetric:
+        parity = (-1.0) ** np.tile([o.l for o in atoms[0].orbitals], 2)
+        half = no // 2
+        swap = np.zeros((no, no))
+        swap[:half, half:] = swap[half:, :half] = np.eye(half)
+        P = swap * parity[None, :]  # permutation times orbital parity; P @ P.T = 1, P @ P = 1
+
+        def invert(x):
+            return np.einsum("ab,bc...,dc->ad...", P, x, P)
+
+        blocks = {r: (b + invert(blocks[-r])) / 2 for r, b in blocks.items()}
+        overlap = {r: (b + invert(overlap[-r])) / 2 for r, b in overlap.items()}
 
     def dense(per_image):
         # sc_off ordering is sisl's: concatenate in that order along columns.
@@ -270,3 +296,81 @@ def test_spin_orbit_processor_validation():
         MatrixDataProcessor(
             basis_table=table, out_matrix="hamiltonian", n_matrix_components=n, matrix_component_policy="spin_orbit"
         )
+
+
+# ---------------------------------------------------------------------------
+# Reconstruction: signed transposes and explicit overlap
+# ---------------------------------------------------------------------------
+
+def _overlap_of(H):
+    """Orthogonal ``SparseOrbital`` holding the overlap of a non-orthogonal ``H``."""
+    return sisl.SparseOrbital.fromsp(H.geometry, H.tocsr(H.S_idx))
+
+
+@pytest.mark.parametrize("centrosymmetric", [False, True])
+@pytest.mark.parametrize("symmetric", [False, True])
+def test_roundtrip_self_image(symmetric, centrosymmetric):
+    H_so, atoms, _, _ = make_soc_system(centrosymmetric=centrosymmetric)
+    processor = soc_processor(atoms, symmetric)
+    data = BasisMatrixData.new(H_so, processor)
+    S_ref = _overlap_of(H_so)
+
+    H_orth = processor.matrix_from_data(data, out_format="sisl_H", threshold=None)
+    assert H_orth.orthogonal and H_orth.spin.is_spinorbit
+    H = attach_overlap(H_orth, S_ref)
+    assert not H.orthogonal and H.S_idx == 8
+
+    for i in range(8):
+        np.testing.assert_allclose(H.tocsr(i).toarray(), H_so.tocsr(i).toarray(), atol=1e-12)
+    np.testing.assert_allclose(H.tocsr(8).toarray(), H_so.tocsr(8).toarray(), atol=1e-12)
+    for k in (np.zeros(3), np.array([0.17, 0, 0]), np.array([-0.31, 0, 0])):
+        e = H.eigh(k)
+        np.testing.assert_allclose(e, H_so.eigh(k), atol=1e-10)
+        if centrosymmetric:  # Kramers: TRS + inversion
+            np.testing.assert_allclose(e[::2], e[1::2], atol=1e-10)
+        elif k.any():  # TRS alone only protects the TRIM; the fixture must need the inversion
+            assert np.abs(e[::2] - e[1::2]).max() > 1e-3
+
+
+def test_symmetric_reconstruction_matches_full_edge_set():
+    H_so, atoms, _, _ = make_soc_system()
+    outs = []
+    for symmetric in (False, True):
+        processor = soc_processor(atoms, symmetric)
+        data = BasisMatrixData.new(H_so, processor)
+        outs.append(processor.matrix_from_data(data, out_format="sisl_H", threshold=None))
+    for i in range(8):
+        np.testing.assert_allclose(outs[0].tocsr(i).toarray(), outs[1].tocsr(i).toarray(), atol=1e-12)
+
+
+@pytest.mark.parametrize("n", [1, 2, 3, 5])
+def test_spin_orbit_needs_four_channels(n):
+    H, _, _, _ = make_soc_system(orthogonal=True)
+    csr = [csr_array(H.tocsr(0)) for _ in range(n)]
+    with pytest.raises(ValueError, match="4"):
+        csr_to_sisl_sparse_orbital(
+            csr if n > 1 else csr[0],
+            geometry=H.geometry,
+            sp_class=sisl.Hamiltonian,
+            matrix_component_policy="spin_orbit",
+        )
+
+
+def test_attach_overlap_validates_geometry():
+    H_so, _, _, _ = make_soc_system()
+    H_orth = sisl.Hamiltonian.fromsp(
+        H_so.geometry, [csr_array(H_so.tocsr(i)) for i in range(8)], spin=sisl.Spin("so")
+    )
+    S = _overlap_of(H_so)
+    with pytest.raises(ValueError, match="nsc"):
+        other = S.copy()
+        other.set_nsc([1, 1, 1])
+        attach_overlap(H_orth, other)
+    with pytest.raises(ValueError, match="geometry"):
+        moved = S.copy()
+        moved.geometry.xyz[0, 1] += 0.5
+        attach_overlap(H_orth, moved)
+    with pytest.raises(ValueError, match="spin-orbit"):
+        attach_overlap(sisl.Hamiltonian(H_so.geometry), S)
+    with pytest.raises(ValueError, match="orthogonal"):
+        attach_overlap(H_so, S)
