@@ -158,6 +158,90 @@ def test_matrix_from_data_uses_predictions_without_mutating_reference(backend):
     np.testing.assert_array_equal(data.numpy_arrays().edge_labels, [1.])
 
 
+@pytest.mark.parametrize("backend", ["numpy", "torch"])
+@pytest.mark.parametrize("symmetric", [False, True])
+def test_nonorthogonal_analytic_levels_and_gauge_shift(backend, symmetric):
+    import sisl
+    from scipy.linalg import cholesky, solve_triangular
+    from scipy.sparse import csr_array
+    from graph2mat import AtomicTableWithEdges
+
+    atom = sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=2.)])
+    geometry = sisl.Geometry([[0., 0., 0.], [1., 0., 0.]], atoms=atom, lattice=[20.] * 3)
+    h = np.array([[1.375, -.125], [-.125, 1.375]])
+    s = np.array([[1., .25], [.25, 1.]])
+    original = sisl.Hamiltonian.fromsp(geometry, csr_array(h), S=csr_array(s))
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges([atom]), out_matrix="hamiltonian",
+        symmetric_matrix=symmetric, sub_point_matrix=False,
+        n_matrix_components=2, matrix_component_policy="h_and_overlap",
+    )
+    data_cls = BasisMatrixData
+    if backend == "torch":
+        from graph2mat.bindings.torch import TorchBasisMatrixData
+        data_cls = TorchBasisMatrixData
+    data = data_cls.new(original, processor)
+    if backend == "torch":
+        # Dyadic input coefficients are exact in FP32; do gauge arithmetic in FP64.
+        data.point_labels = data.point_labels.double()
+        data.edge_labels = data.edge_labels.double()
+    nodes, edges = (a.copy() for a in (data.numpy_arrays().point_labels, data.numpy_arrays().edge_labels))
+    matrix = processor.matrix_from_data(data, threshold=None)
+    levels = matrix.eigenvalue().eig
+    np.testing.assert_allclose(levels, [1., 2.], rtol=1e-10, atol=1e-10)
+    l = cholesky(s, lower=True)
+    left = solve_triangular(l, h, lower=True)
+    cholesky_h = solve_triangular(l, left.T, lower=True).T
+    np.testing.assert_allclose(np.linalg.eigvalsh(cholesky_h), levels, rtol=1e-10, atol=1e-10)
+    predicted_nodes, predicted_edges = nodes.copy(), edges.copy()
+    predicted_nodes[:, 0] += .7 * predicted_nodes[:, -1]
+    predicted_edges[:, 0] += .7 * predicted_edges[:, -1]
+    if backend == "torch":
+        import torch
+        predicted_nodes = torch.from_numpy(predicted_nodes)
+        predicted_edges = torch.from_numpy(predicted_edges)
+    shifted = processor.matrix_from_data(data, predictions={
+        "node_labels": predicted_nodes, "edge_labels": predicted_edges,
+    }, threshold=None)
+    np.testing.assert_allclose(shifted.tocsr(0).toarray(), h + .7 * s, rtol=1e-10, atol=1e-10)
+    np.testing.assert_array_equal(shifted.tocsr(shifted.S_idx).toarray(), s)
+    shifted_levels = shifted.eigenvalue().eig
+    np.testing.assert_allclose(shifted_levels - levels, .7, rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(np.diff(shifted_levels), np.diff(levels), rtol=1e-10, atol=1e-10)
+    np.testing.assert_array_equal(data.numpy_arrays().point_labels, nodes)
+    np.testing.assert_array_equal(data.numpy_arrays().edge_labels, edges)
+    np.testing.assert_array_equal(original.tocsr(0).toarray(), h)
+    np.testing.assert_array_equal(original.tocsr(original.S_idx).toarray(), s)
+
+
+@pytest.mark.parametrize("singular", [False, True])
+def test_nonorthogonal_controls_detect_wrong_or_singular_overlap(singular):
+    import sisl
+    from scipy.sparse import csr_array
+    from graph2mat import AtomicTableWithEdges
+
+    atom = sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=2.)])
+    geometry = sisl.Geometry([[0., 0., 0.], [1., 0., 0.]], atoms=atom, lattice=[20.] * 3)
+    h = np.array([[1.375, -.125], [-.125, 1.375]])
+    s = np.ones((2, 2)) if singular else np.eye(2)
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges([atom]), out_matrix="hamiltonian",
+        symmetric_matrix=True, sub_point_matrix=False,
+        n_matrix_components=2, matrix_component_policy="h_and_overlap",
+    )
+    data = BasisMatrixData.new(sisl.Hamiltonian.fromsp(geometry, csr_array(h), S=csr_array(s)), processor)
+    before = data.point_labels.copy(), data.edge_labels.copy()
+    reconstructed = processor.matrix_from_data(data, threshold=None)
+    np.testing.assert_array_equal(reconstructed.tocsr(reconstructed.S_idx).toarray(), s)
+    if singular:
+        with pytest.raises(np.linalg.LinAlgError):
+            reconstructed.eigenvalue()
+    else:
+        assert not np.allclose(reconstructed.eigenvalue().eig, [1., 2.], rtol=1e-10, atol=1e-10)
+    np.testing.assert_array_equal(data.point_labels, before[0])
+    np.testing.assert_array_equal(data.edge_labels, before[1])
+
+
 def test_yield_from_batch_with_symmetric_matrix_handles_odd_edges_per_graph():
     basis_table = BasisTableWithEdges([PointBasis("A", R=2, basis=[1])])
     processor = MatrixDataProcessor(

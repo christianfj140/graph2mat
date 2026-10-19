@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import sisl
 from scipy.sparse import csr_array
+from scipy.linalg import eigh
 
 from graph2mat import AtomicTableWithEdges, BasisMatrixData, Formats, MatrixDataProcessor
 
@@ -65,6 +66,11 @@ def test_periodic_components_and_bloch_hermiticity_against_independent_fields(sh
         reconstructed = processor.matrix_from_data(data, out_format=Formats.SISL_H, threshold=None)
     assert not reconstructed.orthogonal
     assert reconstructed.S_idx == channels
+    np.testing.assert_array_equal(reconstructed.geometry.atoms.Z, geometry.atoms.Z)
+    np.testing.assert_array_equal(reconstructed.geometry.orbitals, geometry.orbitals)
+    np.testing.assert_array_equal(reconstructed.geometry.xyz, geometry.xyz)
+    np.testing.assert_array_equal(reconstructed.geometry.cell, geometry.cell)
+    np.testing.assert_array_equal(reconstructed.geometry.sc_off, geometry.sc_off)
     for channel, field in enumerate(fields):
         np.testing.assert_array_equal(reconstructed.tocsr(channel).toarray(), field)
     for k in (np.array([0., 0., 0.]), np.array([.17, 0., 0.]), np.array([-.31, 0., 0.])):
@@ -85,3 +91,7 @@ def test_periodic_components_and_bloch_hermiticity_against_independent_fields(sh
                 actual = reconstructed.Hk(k, format="array", **({"spin": channel} if channels == 2 else {}))
                 np.testing.assert_allclose(actual, bloch[channel], rtol=0, atol=2e-14)
                 np.testing.assert_allclose(actual, actual.conj().T, rtol=0, atol=2e-14)
+                expected_levels = eigh(bloch[channel], bloch[-1], eigvals_only=True)
+                levels = reconstructed.eigenvalue(k=k, spin=channel).eig
+                assert levels.shape == (geometry.no,)
+                np.testing.assert_allclose(levels, expected_levels, rtol=1e-10, atol=1e-10)

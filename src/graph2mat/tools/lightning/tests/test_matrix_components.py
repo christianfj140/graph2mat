@@ -7,6 +7,7 @@ import sisl
 import torch
 from jsonargparse import Namespace
 from scipy.sparse import csr_array
+from scipy.linalg import eigh
 from sisl.io.siesta import _siesta
 
 from graph2mat import (
@@ -351,6 +352,104 @@ def test_h_and_overlap_writes_unpolarized_nonorthogonal_hamiltonian():
     assert not matrix.spin.is_polarized
     assert not matrix.orthogonal
     assert matrix.S_idx == 1
+
+
+@pytest.mark.parametrize("spin", [1, 2])
+@pytest.mark.parametrize("symmetric", [False, True])
+def test_h_and_overlap_batch_predictions_keep_distinct_structures(spin, symmetric):
+    from torch_geometric.data import Batch
+    from graph2mat import AtomicTableWithEdges
+
+    atom = sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=2.)])
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges([atom]), out_matrix="hamiltonian",
+        symmetric_matrix=symmetric, sub_point_matrix=False,
+        n_matrix_components=spin + 1, matrix_component_policy="h_and_overlap",
+    )
+    samples, predicted_samples, expected, reference = [], [], [], []
+    for n in (2, 3):
+        geometry = sisl.Geometry([[float(i), 0., 0.] for i in range(n)], atoms=atom, lattice=[20.] * 3)
+        h = [np.diag(np.arange(n) + n + c) + .125 * np.ones((n, n)) for c in range(spin)]
+        s = np.eye(n) + .03125 * n * np.ones((n, n))
+        hs = [channel + n * .25 * np.eye(n) + .0625 * (n + c + 1) * np.ones((n, n))
+              for c, channel in enumerate(h)]
+        ss = s + .0625 * n * (np.eye(n) + np.ones((n, n)))
+        for matrices, target in (((h, s), samples), ((hs, ss), predicted_samples)):
+            channels, overlap = matrices
+            matrix = sisl.Hamiltonian.fromsp(
+                geometry, [csr_array(channel) for channel in channels], S=csr_array(overlap),
+                spin="polarized" if spin == 2 else "unpolarized",
+            )
+            sample = TorchBasisMatrixData.new(matrix, processor)
+            sample.point_labels = sample.point_labels.double()
+            sample.edge_labels = sample.edge_labels.double()
+            target.append(sample)
+        expected.append((geometry, hs, ss))
+        reference.append((samples[-1].point_labels.clone(), samples[-1].edge_labels.clone()))
+    batch = Batch.from_data_list(samples)
+    before = batch.point_labels.clone(), batch.edge_labels.clone(), batch.edge_index.clone()
+    predictions = {
+        "node_labels": torch.cat([sample.point_labels for sample in predicted_samples]),
+        "edge_labels": torch.cat([sample.edge_labels for sample in predicted_samples]),
+    }
+    converted = processor.matrix_from_data(batch, predictions=predictions, threshold=None)
+    explicit = tuple(processor.yield_from_batch(batch, predictions=predictions, threshold=None, as_matrix=True))
+    assert len(converted) == len(explicit) == 2
+    for result in (converted, explicit):
+        for matrix, (geometry, h, s) in zip(result, expected):
+            np.testing.assert_array_equal(matrix.geometry.xyz, geometry.xyz)
+            np.testing.assert_array_equal(matrix.geometry.cell, geometry.cell)
+            np.testing.assert_array_equal(matrix.geometry.orbitals, geometry.orbitals)
+            assert matrix.spin.is_polarized == (spin == 2)
+            np.testing.assert_array_equal(matrix.tocsr(matrix.S_idx).toarray(), s)
+            for channel in range(spin):
+                np.testing.assert_array_equal(matrix.tocsr(channel).toarray(), h[channel])
+                np.testing.assert_allclose(matrix.eigenvalue(spin=channel).eig,
+                    eigh(h[channel], s, eigvals_only=True), rtol=1e-10, atol=1e-10)
+    for actual, saved in zip((batch.point_labels, batch.edge_labels, batch.edge_index), before):
+        torch.testing.assert_close(actual, saved, rtol=0, atol=0)
+    for sample, (nodes, edges) in zip(samples, reference):
+        torch.testing.assert_close(sample.point_labels, nodes, rtol=0, atol=0)
+        torch.testing.assert_close(sample.edge_labels, edges, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("spin", [1, 2])
+def test_matrix_writer_h_and_overlap_hsx_preserves_generalized_levels(tmp_path, spin):
+    from torch_geometric.data import Batch
+    from graph2mat import AtomicTableWithEdges
+
+    atom = sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=2.)])
+    geometry = sisl.Geometry([[0., 0., 0.], [1., 0., 0.]], atoms=atom, lattice=[20.] * 3)
+    h = [np.array([[1.375, -.125], [-.125, 1.375]]) + .5 * c * np.array([[1., .25], [.25, 1.]])
+         for c in range(spin)]
+    s = np.array([[1., .25], [.25, 1.]])
+    original = sisl.Hamiltonian.fromsp(geometry, [csr_array(channel) for channel in h],
+        S=csr_array(s), spin="polarized" if spin == 2 else "unpolarized")
+    processor = MatrixDataProcessor(
+        basis_table=AtomicTableWithEdges([atom]), out_matrix="hamiltonian",
+        symmetric_matrix=True, sub_point_matrix=False,
+        n_matrix_components=spin + 1, matrix_component_policy="h_and_overlap",
+    )
+    sample = TorchBasisMatrixData.new(original, processor)
+    batch = Batch.from_data_list([sample])
+    nodes, edges = batch.point_labels.clone(), batch.edge_labels.clone()
+    trainer = SimpleNamespace(datamodule=SimpleNamespace(data_processor=processor, out_matrix="hamiltonian"))
+    path = tmp_path / "prediction.HSX"
+    MatrixWriter(str(path))._on_batch_end("predict", trainer, None,
+        {"node_labels": nodes, "edge_labels": edges}, batch, 0, 0)
+    matrix = sisl.get_sile(path).read_hamiltonian(geometry=geometry)
+    assert not matrix.orthogonal
+    assert matrix.spin.is_polarized == (spin == 2)
+    np.testing.assert_allclose(matrix.tocsr(matrix.S_idx).toarray(), s, rtol=1e-10, atol=1e-10)
+    for channel in range(spin):
+        np.testing.assert_allclose(matrix.tocsr(channel).toarray(), h[channel], rtol=1e-10, atol=1e-10)
+        np.testing.assert_allclose(matrix.eigenvalue(spin=channel).eig,
+            [1. + .5 * channel, 2. + .5 * channel], rtol=1e-10, atol=1e-10)
+    torch.testing.assert_close(batch.point_labels, nodes, rtol=0, atol=0)
+    torch.testing.assert_close(batch.edge_labels, edges, rtol=0, atol=0)
+    np.testing.assert_array_equal(original.tocsr(original.S_idx).toarray(), s)
+    for channel in range(spin):
+        np.testing.assert_array_equal(original.tocsr(channel).toarray(), h[channel])
 
 
 def test_matrix_writer_h_only_outputs_unpolarized_hamiltonian_metadata(tmp_path):

@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import sisl
+from scipy.linalg import eigh
 
 pytest.importorskip("fastapi")
 
@@ -91,15 +92,50 @@ def test_http_prediction_roundtrips_real_matrix_spin_overlap_and_fermi(tmp_path,
     assert matrix.spin.is_polarized == spin
     if kind == "hamiltonian":
         assert not matrix.orthogonal
-        np.testing.assert_allclose(matrix.tocsr(matrix.S_idx).toarray(), [[1., .25], [.25, 1.]], atol=1e-12)
+        np.testing.assert_allclose(matrix.tocsr(matrix.S_idx).toarray(), [[1., .25], [.25, 1.]], rtol=1e-10, atol=1e-12)
         # sisl's nc reader returns H - Ef*S. No extra shift by Graph2Mat.
         wanted = [[-2.5, .375], [.375, -3.5]]
         wanted_down = [[-4.5, .875], [.875, -6.5]]
     else:
         wanted, wanted_down = [[2., .5], [.5, 3.]], [[4., 1.], [1., 6.]]
-    np.testing.assert_allclose(matrix.tocsr(0).toarray(), wanted, atol=1e-10)
+    np.testing.assert_allclose(matrix.tocsr(0).toarray(), wanted, rtol=1e-10, atol=1e-10)
     if spin:
-        np.testing.assert_allclose(matrix.tocsr(1).toarray(), wanted_down, atol=1e-10)
+        np.testing.assert_allclose(matrix.tocsr(1).toarray(), wanted_down, rtol=1e-10, atol=1e-10)
+    if kind == "hamiltonian":
+        overlap = np.array([[1., .25], [.25, 1.]])
+        original_h = [np.array([[-2., .5], [.5, -3.]])]
+        if spin:
+            original_h.append(np.array([[-4., 1.], [1., -6.]]))
+        for channel, h in enumerate(original_h):
+            levels = matrix.eigenvalue(spin=channel).eig
+            expected = eigh(h - .5 * overlap, overlap, eigvals_only=True)
+            np.testing.assert_allclose(levels, expected, rtol=1e-10, atol=1e-10)
+            np.testing.assert_allclose(levels, eigh(h, overlap, eigvals_only=True) - .5,
+                                       rtol=1e-10, atol=1e-10)
+
+
+@pytest.mark.parametrize("local", [False, True])
+@pytest.mark.parametrize("spin", [False, True])
+def test_http_nonorthogonal_tshs_zero_fermi_preserves_generalized_levels(tmp_path, local, spin):
+    geometry, geometry_path, model = _model(tmp_path, spin=spin, fermi_level=0.)
+    client = TestClient(create_server_app({"m": model}, local=True), raise_server_exceptions=False)
+    output = tmp_path / "prediction.TSHS"
+    response = _request(client, geometry_path, output, local, output_suffix=".TSHS")
+    assert response.status_code == 200, response.text
+    if not local:
+        output.write_bytes(response.content)
+    matrix = sisl.get_sile(output).read_hamiltonian(geometry=geometry)
+    overlap = np.array([[1., .25], [.25, 1.]])
+    channels = [np.array([[-2., .5], [.5, -3.]])]
+    if spin:
+        channels.append(np.array([[-4., 1.], [1., -6.]]))
+    assert not matrix.orthogonal
+    assert matrix.spin.is_polarized == spin
+    np.testing.assert_allclose(matrix.tocsr(matrix.S_idx).toarray(), overlap, rtol=1e-10, atol=1e-10)
+    for channel, h in enumerate(channels):
+        np.testing.assert_allclose(matrix.tocsr(channel).toarray(), h, rtol=1e-10, atol=1e-10)
+        np.testing.assert_allclose(matrix.eigenvalue(spin=channel).eig,
+                                   eigh(h, overlap, eigvals_only=True), rtol=1e-10, atol=1e-10)
 
 
 @pytest.mark.parametrize("local", [False, True])
@@ -426,8 +462,11 @@ def test_extrapolated_h_only_delta_restores_explicit_reference_overlap(tmp_path)
     response = client.get("/extrapolate", params={"out": str(output), "m_0": str(reference_path), "fermi_level": 0.})
     assert response.status_code == 200, response.text
     matrix = sisl.get_sile(output).read_hamiltonian()
-    np.testing.assert_allclose(matrix.tocsr(0).toarray(), [[-12., 1.5], [1.5, -13.]], atol=1e-10)
-    np.testing.assert_allclose(matrix.tocsr(matrix.S_idx).toarray(), [[1., .25], [.25, 1.]], atol=1e-12)
+    np.testing.assert_allclose(matrix.tocsr(0).toarray(), [[-12., 1.5], [1.5, -13.]], rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(matrix.tocsr(matrix.S_idx).toarray(), [[1., .25], [.25, 1.]], rtol=1e-10, atol=1e-12)
+    np.testing.assert_allclose(matrix.eigenvalue().eig,
+        eigh(np.array([[-12., 1.5], [1.5, -13.]]), np.array([[1., .25], [.25, 1.]]), eigvals_only=True),
+        rtol=1e-10, atol=1e-10)
     np.testing.assert_array_equal(reference._csr.data, before)
 
 
@@ -438,6 +477,7 @@ def test_h_overlap_delta_and_reference_recover_s_without_doubling_it(tmp_path, s
     reference = matrix.copy()
     for channel in range(matrix.spin.size(matrix.dtype)):
         reference._csr.data[:, channel] *= .5
+    reference._csr.data[:, reference.S_idx] *= .5
     before, before_reference = matrix._csr.data.copy(), reference._csr.data.copy()
     series = MatrixTimeSeriesState(1, model["data_processor"])
     series.add_next_geometry(geometry.copy())
@@ -450,7 +490,14 @@ def test_h_overlap_delta_and_reference_recover_s_without_doubling_it(tmp_path, s
     assert response.status_code == 200
     restored = sisl.get_sile(output).read_hamiltonian()
     for channel in range(matrix.dim):
-        np.testing.assert_allclose(restored.tocsr(channel).toarray(), matrix.tocsr(channel).toarray(), atol=1e-10)
+        np.testing.assert_allclose(restored.tocsr(channel).toarray(), matrix.tocsr(channel).toarray(), rtol=1e-10, atol=1e-10)
+    overlap = np.array([[1., .25], [.25, 1.]])
+    channels = [np.array([[-2., .5], [.5, -3.]])]
+    if spin:
+        channels.append(np.array([[-4., 1.], [1., -6.]]))
+    for channel, h in enumerate(channels):
+        np.testing.assert_allclose(restored.eigenvalue(spin=channel).eig,
+                                   eigh(h, overlap, eigvals_only=True), rtol=1e-10, atol=1e-10)
     np.testing.assert_array_equal(matrix._csr.data, before)
     np.testing.assert_array_equal(reference._csr.data, before_reference)
 
