@@ -16,9 +16,11 @@ that are not reconstruction errors:
 So the hard gate compares the reconstruction with ``reference`` = the stored matrix with
 the TRS-odd part removed and the out-of-support blocks zeroed (same S): every component
 and the eigenvalues at Gamma and 3 random k must agree to ``TOL`` (1e-8 eV).
-With ``symmetric_matrix=True`` the stored H is only Hermitian up to numerical noise, and the
-reconstruction keeps one direction of each edge; the tolerance grows by the measured
-Hermiticity defect (components) and by the Weyl bound ``||dH(k)|| / lambda_min(S(k))`` (eigenvalues). The raw
+With ``symmetric_matrix=True`` the stored H is only Hermitian up to numerical noise and the
+reconstruction keeps one direction of each edge, so each tolerance grows by a bound computed
+from the stored matrix alone (not from the reconstruction): the max Hermiticity defect for the
+components, and ``2 sqrt(||a||_1 ||a||_inf) / lambda_min(S(k))`` for the eigenvalues, with
+``a`` the defect summed over images and channels (see ``hermiticity_defect``). The raw
 comparison (eigenvalue shift versus the stored matrix) is printed for information.
 Exit code 1 if any gate fails. Run with the MD venv python (this directory is not a
 package)::
@@ -60,29 +62,42 @@ def support_mask(H, data):
     return mask
 
 
-def asymmetry(H):
-    """Max |c_ij(R) - sign * c_ji(-R)^T| over the 4 TRS channels of the spin-orbit ``H``.
+def hermiticity_defect(H):
+    """Hermiticity defect of the spin-orbit ``H``, from the data alone.
 
-    Zero for a matrix that is exactly Hermitian; ``symmetric_matrix=True`` labels keep one
-    direction of every edge and rebuild the other, so they can only match up to this.
+    ``c_ij(R) - sign * c_ji(-R)^T`` over the 4 TRS channels; zero for an exactly Hermitian
+    matrix. ``symmetric_matrix=True`` labels keep one direction of every edge and rebuild
+    the other, so every reconstructed element equals the stored one or its transposed
+    counterpart: they differ from the stored matrix by at most this defect.
+
+    Returns ``(max defect, a)`` with ``a[r, c] = sum_R sum_channels |defect|`` ``(no, no)``;
+    a spinor element is bounded by that sum, so the spinor defect has 2-norm at most
+    ``2 sqrt(||a||_1 ||a||_inf)`` at any k.
     """
     g = H.geometry
     dense = np.stack([H.tocsr(i).toarray() for i in range(8)], -1).reshape(g.no, g.n_s, g.no, 8)
     c = siesta_to_soc_channels(dense)
     perm = g.lattice.sc_index(-g.lattice.sc_off)
     swapped = c[:, perm].transpose(2, 1, 0, 3)
-    return np.abs(c - swapped * SOC_TRANSPOSE_SIGN).max()
+    defect = np.abs(c - swapped * SOC_TRANSPOSE_SIGN)
+    return defect.max(), defect.sum(axis=(1, 3))
+
+
+def defect_eig_bound(a, Sk):
+    """Eigenvalue shift bound ``2 sqrt(||a||_1 ||a||_inf) / lambda_min(S(k))`` (Weyl)."""
+    return 2 * np.sqrt(np.abs(a).sum(0).max() * np.abs(a).sum(1).max()) / np.linalg.eigvalsh(Sk)[0]
 
 
 def main():
     geometry = sisl.get_sile(DATA / "RUN.fdf").read_geometry()
     H = sisl.get_sile(DATA / "bi2se3.TSHS").read_hamiltonian(geometry=geometry)
-    assert H.spin.is_spinorbit and not H.orthogonal, (H.spin, H.orthogonal)
     raw8 = H._csr._D[:, :8]
     rel = soc_trs_residual(raw8)
     h_max = np.abs(raw8).max()
     print(f"H: no={H.no} nsc={H.nsc.tolist()} nnz={H.nnz}  TRS residual {rel:.2e} (limit {SOC_TRS_RTOL:.0e}), |H|max {h_max:.2f} eV")
-    assert rel <= SOC_TRS_RTOL
+    if not (H.spin.is_spinorbit and not H.orthogonal and rel <= SOC_TRS_RTOL):
+        print("FAIL: TSHS is not a TRS non-orthogonal spin-orbit Hamiltonian")
+        return 1
 
     proj = H.copy()
     d = proj._csr._D
@@ -107,7 +122,7 @@ def main():
             S=H.tocsr(H.S_idx),
             spin=sisl.Spin("spin-orbit"),
         )
-        asym = asymmetry(ref) if symmetric else 0.0
+        asym, defect = hermiticity_defect(ref) if symmetric else (0.0, None)
         print(f"\nsymmetric_matrix={symmetric}: {data.point_labels.shape[0]} node + {data.edge_labels.shape[0]} edge label rows"
               + (f"; reference asymmetry {asym:.2e}" if symmetric else ""))
 
@@ -121,16 +136,16 @@ def main():
             ok &= bool(good)
             print(f"{i:>4} {e_ref:16.3e} {trs:11.3e} {outside:16.3e}{'' if good else '  <-- FAIL'}")
 
-        print(f"{'k':>26} {'rec - reference':>16} {'rec - stored':>13} {'Weyl':>10}")
+        print(f"{'k':>26} {'rec - reference':>16} {'rec - stored':>13} {'defect bound':>13}")
         for k in ks:
             e_rec = rec.eigh(k)
             d_ref = np.abs(e_rec - ref.eigh(k)).max()
             d_raw = np.abs(e_rec - H.eigh(k)).max()
-            # Symmetric labels: shift bounded by the Hermiticity defect of the reference (Weyl).
-            weyl = np.linalg.norm(rec.Hk(k, format="array") - ref.Hk(k, format="array"), 2) / np.linalg.eigvalsh(ref.Sk(k, format="array"))[0]
-            good = d_ref <= TOL + (weyl if symmetric else 0.0)
+            # Symmetric labels: shift bounded by the Hermiticity defect of the reference.
+            weyl = defect_eig_bound(defect, ref.Sk(k, format="array")) if symmetric else 0.0
+            good = d_ref <= TOL + weyl
             ok &= bool(good)
-            print(f"{np.array2string(k, precision=3):>26} {d_ref:16.3e} {d_raw:13.3e} {weyl:10.2e}{'' if good else '  <-- FAIL'}")
+            print(f"{np.array2string(k, precision=3):>26} {d_ref:16.3e} {d_raw:13.3e} {weyl:13.2e}{'' if good else '  <-- FAIL'}")
     print("\nOK" if ok else "\nFAIL")
     return 0 if ok else 1
 
