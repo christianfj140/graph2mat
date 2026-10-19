@@ -101,6 +101,9 @@ class MatrixWriter(Callback):
     ):
         # Get the data processor that the datamodule uses.
         data_processor: MatrixDataProcessor = trainer.datamodule.data_processor
+        if getattr(data_processor, "matrix_component_policy", None) == "spin_orbit":
+            raise ValueError("MatrixWriter does not support matrix_component_policy='spin_orbit' (spin-orbit "
+                             "writing is not supported); reconstruct with sisl_H and attach_overlap instead.")
         if getattr(data_processor, "matrix_target_layout", None) is not None:
             self._write_multitarget(data_processor, trainer, prediction, batch)
             return

@@ -99,6 +99,8 @@ def create_server_app(
     """
 
     for name, model in models.items():
+        if getattr(model.get("data_processor"), "matrix_component_policy", None) == "spin_orbit":
+            raise ValueError(f"{name}: spin_orbit processors are not supported by HTTP endpoints; HTTP serialization is uncertified")
         if getattr(model.get("data_processor"), "matrix_targets", None) is not None:
             raise ValueError(f"{name}: multitarget matrix_targets are not supported by HTTP endpoints; split a target explicitly")
 

@@ -374,3 +374,15 @@ def test_attach_overlap_validates_geometry():
         attach_overlap(sisl.Hamiltonian(H_so.geometry), S)
     with pytest.raises(ValueError, match="orthogonal"):
         attach_overlap(H_so, S)
+
+
+def test_attach_overlap_rejects_hamiltonian_like_overlap():
+    H_so, _, _, _ = make_soc_system()
+    H_orth = sisl.Hamiltonian.fromsp(
+        H_so.geometry, [csr_array(H_so.tocsr(i)) for i in range(8)], spin=sisl.Spin("so")
+    )
+    # Component 0 of these is H, not S.
+    for bad in (H_so, sisl.Hamiltonian(H_so.geometry), sisl.Hamiltonian(H_so.geometry, orthogonal=False)):
+        with pytest.raises(ValueError, match=r"overlap.*(S carrier|Hamiltonian)"):
+            attach_overlap(H_orth, bad)
+    attach_overlap(H_orth, sisl.Overlap.fromsp(H_so.geometry, H_so.tocsr(H_so.S_idx)))

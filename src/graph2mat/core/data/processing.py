@@ -1225,6 +1225,11 @@ class MatrixDataProcessor:
 
             return reconstruct_target(self, data, kwargs.pop("matrix_target", None),
                                       threshold=threshold, out_format=out_format)
+        if self.matrix_component_policy == "spin_orbit" and not out_format.startswith("sisl"):
+            raise ValueError(
+                f"matrix_component_policy='spin_orbit' only reconstructs to sisl formats, not {out_format!r}: "
+                "the transposed g copy needs a sign flip that only the sisl path applies."
+            )
         data_format = getattr(data.__class__, "_data_format", Formats.NODESEDGES)
         if not conversions.has_converter(data_format, out_format):
             converter = conversions.get_converter(getattr(data.__class__, "_format"), out_format)

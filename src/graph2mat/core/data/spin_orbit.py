@@ -113,6 +113,11 @@ def attach_overlap(matrix: sisl.Hamiltonian, overlap: sisl.SparseOrbital) -> sis
         raise ValueError("matrix must be a sisl.Hamiltonian with spin-orbit spin.")
     if not matrix.orthogonal:
         raise ValueError("matrix must be orthogonal: it already has an overlap.")
+    if overlap.dim != 1 or isinstance(overlap, sisl.Hamiltonian):
+        raise ValueError(
+            f"overlap must be an S carrier (single-component, e.g. sisl.Overlap), not a "
+            f"{type(overlap).__name__} with dim={overlap.dim}: its component 0 would not be S."
+        )
     if not np.array_equal(matrix.nsc, overlap.nsc):
         raise ValueError(f"nsc mismatch between matrix {matrix.nsc} and overlap {overlap.nsc}.")
     if matrix.geometry != overlap.geometry:

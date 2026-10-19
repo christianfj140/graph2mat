@@ -212,14 +212,65 @@ def test_spin_orbit_accepts_certified_options(ok):
 @pytest.mark.parametrize("model_flag,data", [
     (False, {}),
     (True, {"matrix_component_policy": "h_only", "n_matrix_components": 4}),
-    (True, {"spectral_window": True}),
-    (True, {"physical_labels": ["charge"]}),
-], ids=["soc_data_plain_model", "plain_data_soc_model", "spectral_window", "physical_labels"])
+], ids=["soc_data_plain_model", "plain_data_soc_model"])
 def test_policy_and_model_flag_must_agree(model_flag, data):
     model, samples = _soc_inputs(spin_orbit=model_flag, n_matrix_components=4)
     module = _data_module(model, samples, **data)
     with pytest.raises(ValueError, match="spin_orbit"):
         _trainer(max_steps=1).fit(model, datamodule=module)
+
+
+def test_model_rechecks_data_attributes_set_after_construction():
+    model, samples = _soc_inputs()
+    module = _data_module(model, samples)
+    module.spectral_window = True
+    with pytest.raises(ValueError, match=r"spin_orbit data do not support: spectral_window"):
+        _trainer(max_steps=1).fit(model, datamodule=module)
+
+
+@pytest.mark.parametrize("data,word", [
+    ({"spectral_window": True}, "spectral_window"),
+    ({"physical_labels": ["charge"]}, "physical_labels"),
+    ({"matrix_targets": ["hamiltonian", "overlap"]}, "matrix_targets"),
+])
+def test_data_module_rejects_uncertified_options(data, word):
+    atoms = [sisl.Atom("H", orbitals=_shell(0))]
+    with pytest.raises(ValueError, match=rf"(spin_orbit|spin-orbit).*{word}"):
+        MatrixDataModule(basis_table=AtomicTableWithEdges(atoms), out_matrix="hamiltonian",
+                         matrix_component_policy="spin_orbit", n_matrix_components=4, **data)
+
+
+@pytest.mark.parametrize("out_format", ["scipy_csr", "scipy_coo", "numpy"])
+def test_non_sisl_formats_rejected_for_spin_orbit(out_format):
+    H, atoms, _, _ = make_soc_system()
+    processor = soc_processor(atoms, symmetric=True)
+    data = TorchBasisMatrixData.new(H, data_processor=processor)
+    with pytest.raises(ValueError, match=r"(spin_orbit|spin-orbit).*sign.*sisl"):
+        processor.matrix_from_data(data, out_format=out_format)
+    with pytest.raises(ValueError, match=r"(spin_orbit|spin-orbit).*sign.*sisl"):
+        processor.labels_to(out_format, data)
+
+
+def test_writer_rejects_spin_orbit(tmp_path):
+    from types import SimpleNamespace
+    from graph2mat.tools.lightning.callbacks import MatrixWriter
+
+    H, atoms, _, _ = make_soc_system()
+    processor = soc_processor(atoms, symmetric=True)
+    trainer = SimpleNamespace(datamodule=SimpleNamespace(data_processor=processor, out_matrix="hamiltonian"))
+    writer = MatrixWriter(str(tmp_path / "out.HSX"))
+    with pytest.raises(ValueError, match=r"MatrixWriter.*(spin_orbit|spin-orbit).*not supported"):
+        writer._on_batch_end("predict", trainer, None, {}, None, 0, 0)
+    assert not list(tmp_path.iterdir())
+
+
+def test_server_rejects_spin_orbit_processor():
+    pytest.importorskip("fastapi")
+    from graph2mat.tools.server.server_app import create_server_app
+
+    _, atoms, _, _ = make_soc_system()
+    with pytest.raises(ValueError, match=r"soc: .*(spin_orbit|spin-orbit).*not supported"):
+        create_server_app({"soc": {"data_processor": soc_processor(atoms, symmetric=True)}})
 
 
 def test_cli_sets_spin_orbit_from_policy():

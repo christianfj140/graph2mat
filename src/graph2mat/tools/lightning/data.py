@@ -424,6 +424,13 @@ class MatrixDataModule(pl.LightningDataModule):
         self.sub_point_matrix = sub_point_matrix
         self.n_matrix_components = n_matrix_components
         self.matrix_component_policy = matrix_component_policy
+        if matrix_component_policy == "spin_orbit":
+            bad = [name for name, value in (("spectral_window", spectral_window),
+                                            ("physical_labels", physical_labels),
+                                            ("matrix_targets", matrix_targets))
+                   if (value is not None if name == "matrix_targets" else value)]
+            if bad:
+                raise ValueError(f"spin_orbit data do not support: {', '.join(bad)}.")
 
         self.batch_size = batch_size
         self.copy_root_to_tmp = copy_root_to_tmp
