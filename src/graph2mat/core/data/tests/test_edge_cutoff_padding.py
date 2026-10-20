@@ -154,6 +154,7 @@ def _checkpoint(tmp_path, pop_padding):
         edge_hidden_irreps="2x0e+2x1o",
         num_bessel=2,
         max_ell=1,
+        edge_cutoff_padding=0.5,
     )
     trainer = pl.Trainer(
         accelerator="cpu",
