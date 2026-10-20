@@ -233,7 +233,7 @@ def evaluate(model_ckpt: Path, delta: bool) -> dict:
 # --- training --------------------------------------------------------------------------------
 
 def run(arm: str, seed: int, updates: int | None) -> Path:
-    if arm not in ("delta", "direct"):
+    if arm not in ("delta", "direct", "direct_nopad"):  # direct_nopad: 8.2 ablation, R_i + R_j graph
         raise ValueError(arm)
     delta = arm == "delta"
     job = f"{MATERIAL}__soc_{arm}__ts{seed}" + (f"__u{updates}" if updates else "")
@@ -246,7 +246,7 @@ def run(arm: str, seed: int, updates: int | None) -> Path:
     train = [delta_sample(s, delta)[0] for s in bench.samples(MATERIAL, "train")]
     val = [delta_sample(s, delta)[0] for s in bench.samples(MATERIAL, "validation")]
     long_edges = {}
-    if not delta:  # roadmap 8.2: the readout graph reaches the KB tails, MACE keeps its range
+    if arm == "direct":  # roadmap 8.2: the readout graph reaches the KB tails, MACE keeps its range
         from graph2mat import AtomicTableWithEdges
         import glob
 
