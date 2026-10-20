@@ -44,6 +44,10 @@ s4 = c.s4
 MATERIAL = "bi2se3"
 RUNS = c.OUT / "runs" / "bench_soc" / MATERIAL
 DELTA = RUNS / "delta_samples"
+DIRECT = RUNS / "direct_samples"
+# 8.2: Bi2Se3 H elements reach 10.1 A (Bi-Bi), 9.7 (Bi-Se), 8.7 (Se-Se) against R_i + R_j = 8.10 / 7.41 / 6.73
+# (F4 audit); 1.2 A per point covers them. MACE keeps its old range through mp_cutoff = 2 maxR.
+PADDING = 1.2
 BASIS_GLOB = str(bench.BASIS / MATERIAL / "*.ion.xml")
 UPDATES, BATCH = 8000, 2
 HIDDEN = "16x0e + 16x0o + 16x1o + 16x1e + 16x2e + 16x2o"  # MACE needs one multiplicity for all irreps
@@ -71,18 +75,25 @@ def _components(H, nsc) -> list:
     return [H.tocsr(i) for i in range(8)]
 
 
-def delta_sample(sample) -> tuple:
-    """Copy of ``sample`` whose label is the TRS projection of H - H0 (with the label's S)."""
+def delta_sample(sample, subtract_h0: bool = True) -> tuple:
+    """Copy of ``sample`` whose label is the TRS projection of H - H0 (with the label's S);
+    ``subtract_h0=False``: of H itself (direct arm)."""
     import sisl
     from graph2mat.core.data.spin_orbit import soc_channels_to_siesta, soc_trs_residual
 
-    work = DELTA / sample.sample_id
+    work = (DELTA if subtract_h0 else DIRECT) / sample.sample_id
     matrix = work / Path(sample.reference_matrix).name
     if not matrix.exists():
-        h0_path = d.compute_h0(sample)
         H = _read(sample.reference_matrix, sample.run_fdf)
-        H0 = _read(h0_path, sample.run_fdf)
-        diff = [a - b for a, b in zip(_components(H, H.nsc), _components(H0, H.nsc))]
+        if not subtract_h0:
+            # The padded readout graph (8.2) reaches one image further than SIESTA's own range;
+            # those blocks are zero, so widen nsc with empty images instead of failing.
+            H = H.copy()
+            H.set_nsc(H.nsc + 2)
+        diff = _components(H, H.nsc)
+        if subtract_h0:
+            H0 = _read(d.compute_h0(sample), sample.run_fdf)
+            diff = [a - b for a, b in zip(diff, _components(H0, H.nsc))]
         stacked = np.stack([m.toarray() for m in diff], -1)
         residual = soc_trs_residual(stacked)
         h0c = (stacked[..., 0] + stacked[..., 1]) / 2
@@ -191,6 +202,8 @@ def evaluate(model_ckpt: Path, delta: bool) -> dict:
     for s in bench.samples(MATERIAL, "test"):
         ref = _read(s.reference_matrix, s.run_fdf)
         geometry = processor.add_basis_to_geometry(ref.geometry)
+        if processor.edge_cutoff_padding:
+            geometry.set_nsc(ref.nsc + 2)  # zero images beyond SIESTA's range, as in the labels
         pred = processor.torch_predict(model, geometry)
         h0_p, g_p = _channels(pred, ref.nsc)
         if delta:
@@ -220,8 +233,9 @@ def evaluate(model_ckpt: Path, delta: bool) -> dict:
 # --- training --------------------------------------------------------------------------------
 
 def run(arm: str, seed: int, updates: int | None) -> Path:
-    if arm != "delta":
-        raise ValueError("only the Delta arm runs before roadmap 8.2 (direct arm needs long readout edges)")
+    if arm not in ("delta", "direct"):
+        raise ValueError(arm)
+    delta = arm == "delta"
     job = f"{MATERIAL}__soc_{arm}__ts{seed}" + (f"__u{updates}" if updates else "")
     run_dir = RUNS / job
     result = run_dir / "result.json"
@@ -229,8 +243,15 @@ def run(arm: str, seed: int, updates: int | None) -> Path:
         return result
     s4.DEFAULT_BASIS_GLOB = BASIS_GLOB
     accelerator = s4.torch_backend_preflight()["effective_backend"]
-    train = [delta_sample(s)[0] for s in bench.samples(MATERIAL, "train")]
-    val = [delta_sample(s)[0] for s in bench.samples(MATERIAL, "validation")]
+    train = [delta_sample(s, delta)[0] for s in bench.samples(MATERIAL, "train")]
+    val = [delta_sample(s, delta)[0] for s in bench.samples(MATERIAL, "validation")]
+    long_edges = {}
+    if not delta:  # roadmap 8.2: the readout graph reaches the KB tails, MACE keeps its range
+        from graph2mat import AtomicTableWithEdges
+        import glob
+
+        max_r = AtomicTableWithEdges.from_basis_glob(sorted(glob.glob(BASIS_GLOB))).maxR()
+        long_edges = {"data": {"edge_cutoff_padding": PADDING}, "model": {"mp_cutoff": float(2 * max_r)}}
     n_updates = updates or UPDATES
     epochs = max(1, n_updates // -(-len(train) // BATCH))
     done = run_dir / "train_done.json"
@@ -254,12 +275,14 @@ def run(arm: str, seed: int, updates: int | None) -> Path:
                                 "monitor": "val_loss", "mode": "min", "save_top_k": 1,
                                 "filename": "best-epoch{epoch}-step{step}"}}]},
         })
+        if long_edges:
+            c.apply_config_patch(config, long_edges)
         checkpoint, seconds, peak = c.run_training(config, run_dir)
         c.write_json(done, {"checkpoint": str(checkpoint), "seconds": seconds, "peak": peak})
-    tests = evaluate(Path(checkpoint), delta=True)
+    tests = evaluate(Path(checkpoint), delta=delta)
     c.write_json(result, {"job_id": job, "arm": arm, "training_seed": seed, "updates": n_updates,
                           "checkpoint": str(checkpoint), "train_seconds": seconds, "peak_gpu_mib": peak,
-                          "hidden_irreps": HIDDEN, "edge_hidden_irreps": EDGE_HIDDEN, "tests": tests})
+                          "hidden_irreps": HIDDEN, "edge_hidden_irreps": EDGE_HIDDEN, "long_edges": long_edges, "tests": tests})
     return result
 
 
