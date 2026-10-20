@@ -81,6 +81,9 @@ def load_from_lit_ckpt(
         node_attr_getters=model.initial_node_feats,
         matrix_targets=ckpt["datamodule_hyper_parameters"].get("matrix_targets"),
         matrix_target_spin=ckpt["datamodule_hyper_parameters"].get("matrix_target_spin"),
+        edge_cutoff_padding=ckpt["datamodule_hyper_parameters"].get(
+            "edge_cutoff_padding", 0.0
+        ),
     )
 
     if as_torch:

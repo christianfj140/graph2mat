@@ -314,12 +314,16 @@ class MatrixDataModule(pl.LightningDataModule):
         physical_labels: Optional[Union[Sequence[str], dict]] = None,
         matrix_targets: Optional[List[str]] = None,
         matrix_target_spin: Optional[int] = None,
+        edge_cutoff_padding: float = 0.0,
     ):
         """
 
         Parameters
         ----------
             out_matrix :'density_matrix', 'hamiltonian', 'energy_density_matrix', 'dynamical_matrix'
+            edge_cutoff_padding : float
+                Extra radius (Å) added to each point's basis radius when searching for edges
+                (see `MatrixDataProcessor`). Must be >= 0. The model must use the same value.
             basis_files : Union[str, None]
             basis_table : Union[BasisTableWithEdges, None]
             root_dir :
@@ -445,6 +449,7 @@ class MatrixDataModule(pl.LightningDataModule):
             self.physical_labels = normalize_physical_labels(physical_labels)
         self.matrix_targets = matrix_targets
         self.matrix_target_spin = matrix_target_spin
+        self.edge_cutoff_padding = edge_cutoff_padding
         if matrix_targets is not None:
             from graph2mat.core.data.multitarget import MatrixTargetLayout
 
@@ -592,6 +597,7 @@ class MatrixDataModule(pl.LightningDataModule):
                 node_attr_getters=self.initial_node_feats,
                 matrix_targets=self.matrix_targets,
                 matrix_target_spin=self.matrix_target_spin,
+                edge_cutoff_padding=self.edge_cutoff_padding,
             )
 
         needed_splits = list(requested_splits)

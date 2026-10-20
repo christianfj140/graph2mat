@@ -128,6 +128,12 @@ class MatrixDataProcessor:
         Type of matrix to output. If None, the matrix is output as a `scipy` CSR matrix.
     matrix_component_policy :
         Component policy for multi-component Hamiltonian matrices.
+    edge_cutoff_padding :
+        Extra radius (Å) added to the basis radius of every point when searching
+        for edges, so that two points are neighbours if
+        ``dist < (R_i + p) + (R_j + p)``. It lets matrix elements beyond the orbital
+        overlap (e.g. Kleinman-Bylander tails) be part of the graph and the labels.
+        Must be finite and >= 0. The default 0 keeps the usual graph.
     """
 
     basis_table: BasisTableWithEdges
@@ -139,8 +145,13 @@ class MatrixDataProcessor:
     node_attr_getters: List[Any] = dataclasses.field(default_factory=list)
     matrix_targets: Optional[List[str]] = None
     matrix_target_spin: Optional[int] = None
+    edge_cutoff_padding: float = 0.0
 
     def __post_init__(self):
+        if not (np.isfinite(self.edge_cutoff_padding) and self.edge_cutoff_padding >= 0):
+            raise ValueError(
+                f"edge_cutoff_padding must be a finite float >= 0 (Å), got {self.edge_cutoff_padding!r}."
+            )
         if self.matrix_targets is not None:
             layout = self.matrix_target_layout
             if self.sub_point_matrix:
@@ -1012,9 +1023,9 @@ class MatrixDataProcessor:
         """
 
         if isinstance(self.basis_table.R, float):
-            return self.basis_table.R * 2
+            return (self.basis_table.R + self.edge_cutoff_padding) * 2
         else:
-            return self.basis_table.R[point_types]
+            return self.basis_table.R[point_types] + self.edge_cutoff_padding
 
     def get_nlabels_per_edge_type(self, edge_types: np.ndarray) -> np.ndarray:
         """Returns the number of labels for each edge type in a given matrix.
