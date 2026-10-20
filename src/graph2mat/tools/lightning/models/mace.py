@@ -131,7 +131,13 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         # Roadmap 8.1: TRS spin-orbit readout [h0, gx, gy, gz] (E3nnSpinOrbitMatrixBlock).
         # Needs data with matrix_component_policy="spin_orbit"; uncertified options fail.
         spin_orbit: bool = False,
+        # Roadmap 8.2: must equal the data's edge_cutoff_padding (Å); the CLI links them.
+        edge_cutoff_padding: float = 0.0,
     ):
+        if not (np.isfinite(edge_cutoff_padding) and edge_cutoff_padding >= 0):
+            raise ValueError(
+                f"edge_cutoff_padding must be a finite float >= 0 (Å), got {edge_cutoff_padding!r}."
+            )
         if spin_orbit:
             rejected = {
                 # Without it on-site blocks use "ij" and each edge direction is predicted alone,
@@ -226,7 +232,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         if isinstance(edge_hidden_irreps, str):
             edge_hidden_irreps = o3.Irreps(edge_hidden_irreps)
 
-        matrix_r_max = self.basis_table.maxR() * 2
+        # Matrix edges reach (R_i + p) + (R_j + p) (MatrixDataProcessor.edge_cutoff_padding).
+        matrix_r_max = (self.basis_table.maxR() + edge_cutoff_padding) * 2
         readout_radial_embedding = None
         if mp_cutoff is not None:
             if not 0 < mp_cutoff < matrix_r_max:
@@ -275,7 +282,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 readout_interaction_aggregation=readout_interaction_aggregation,
                 return_coefficients=return_coefficients,
                 hamiltonian_local_context=hamiltonian_local_context,
-                **({"pair_envelope_radii": np.broadcast_to(np.asarray(self.basis_table.R, dtype=float), (len(self.basis_table.basis),)).tolist(),
+                **({"pair_envelope_radii": np.broadcast_to(np.asarray(self.basis_table.R, dtype=float) + edge_cutoff_padding, (len(self.basis_table.basis),)).tolist(),
                     "pair_envelope_p": num_polynomial_cutoff} if pair_envelope else {}),
                 **({"long_range": long_range, "long_range_smearing": long_range_smearing} if long_range else {}),
                 hamiltonian_local_context_kwargs=hamiltonian_local_context_kwargs,
@@ -319,11 +326,18 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                     f"weights, got {type(loss_fn).__name__}."
                 )
 
-    def _check_spin_orbit_data(self) -> None:
+    def _check_data_agreement(self) -> None:
         # Data and model must agree: a plain model would fit [h0, gx, gy, gz] as four
         # unrelated scalars. Without a datamodule only spin_orbit=True fails (unverifiable).
         spin_orbit = self.hparams.get("spin_orbit", False)  # older checkpoints lack it
         module = getattr(self.trainer, "datamodule", None)
+        # Edges beyond the readout's radial range would get zero features (roadmap 8.2).
+        padding = self.hparams.get("edge_cutoff_padding", 0.0)
+        data_padding = getattr(module, "edge_cutoff_padding", 0.0)
+        if module is not None and padding != data_padding:
+            raise ValueError(
+                f"model edge_cutoff_padding={padding} disagrees with data edge_cutoff_padding={data_padding}."
+            )
         policy = getattr(module, "matrix_component_policy", None)
         if spin_orbit != (policy == "spin_orbit") and (module is not None or spin_orbit):
             raise ValueError(
@@ -338,11 +352,11 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
     def setup(self, stage: str) -> None:
         # validate/test/predict never reach on_fit_start. The datamodule is already set up here.
         if getattr(self._trainer, "datamodule", None) is not None:
-            self._check_spin_orbit_data()
+            self._check_data_agreement()
         super().setup(stage)
 
     def on_fit_start(self) -> None:
-        self._check_spin_orbit_data()  # fit without a datamodule too
+        self._check_data_agreement()  # fit without a datamodule too
         super().on_fit_start()
         if self.hparams.torch_compile:
             # 6x6 step: 138 -> 70 ms and -31% peak memory; ~90 s of compilation first.

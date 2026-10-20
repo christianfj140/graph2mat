@@ -146,6 +146,7 @@ class OrbitalMatrixCLI(LightningCLI):
         )
         parser.link_arguments("data.matrix_targets", "model.matrix_targets")
         parser.link_arguments("data.matrix_target_spin", "model.matrix_target_spin")
+        parser.link_arguments("data.edge_cutoff_padding", "model.edge_cutoff_padding")
         parser.link_arguments("data.initial_node_feats", "model.initial_node_feats")
 
         defaults = {}
