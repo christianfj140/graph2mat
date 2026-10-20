@@ -132,6 +132,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         # Needs data with matrix_component_policy="spin_orbit"; uncertified options fail.
         spin_orbit: bool = False,
         # Roadmap 8.2: must equal the data's edge_cutoff_padding (Å); the CLI links them.
+        # Without mp_cutoff, MACE also passes messages up to 2(maxR + p) (cost grows ~r^3);
+        # set mp_cutoff = 2 * maxR to keep the old message-passing range.
         edge_cutoff_padding: float = 0.0,
     ):
         if not (np.isfinite(edge_cutoff_padding) and edge_cutoff_padding >= 0):
