@@ -10,6 +10,11 @@ With time-reversal symmetry (TRS) the spinor block is
 4 real channels ``[h0, gx, gy, gz]`` are independent. ``h0`` is symmetric and
 ``g`` antisymmetric on-site, hence ``g`` changes sign under transposition.
 
+Magnetic systems break TRS and need all 8 real channels of the spinor
+``H = sum_mu sigma_mu (x) h^mu``, ``h^mu = a^mu + i b^mu``, in the order
+``[a0, bx, by, bz, b0, ax, ay, az]`` (policy ``spin_orbit_full``). Channels 0-3 are
+the TRS channels above; channels 4-7 are their TRS residuals, odd under time reversal.
+
 NumPy and sisl only: no torch dependency.
 """
 
@@ -23,6 +28,10 @@ __all__ = [
     "siesta_to_soc_channels",
     "soc_trs_residual",
     "soc_channels_to_siesta",
+    "SOC_FULL_TRANSPOSE_SIGN",
+    "SOC_FULL_TIME_REVERSAL_PARITY",
+    "siesta_to_soc_full_channels",
+    "soc_full_channels_to_siesta",
 ]
 
 #: Maximum TRS residual, relative to the largest channel, accepted when loading.
@@ -30,6 +39,12 @@ SOC_TRS_RTOL = 1e-5
 
 #: Sign of each channel ``[h0, gx, gy, gz]`` under matrix transposition.
 SOC_TRANSPOSE_SIGN = np.array([1.0, -1.0, -1.0, -1.0])
+
+#: Sign of each channel ``[a0, bx, by, bz, b0, ax, ay, az]`` under matrix transposition.
+SOC_FULL_TRANSPOSE_SIGN = np.array([1.0, -1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0])
+
+#: Parity of each full channel under time reversal (``+1`` even, ``-1`` odd).
+SOC_FULL_TIME_REVERSAL_PARITY = np.array([1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0])
 
 
 def _check_last_dim(values, n, name):
@@ -94,6 +109,38 @@ def soc_channels_to_siesta(channels: np.ndarray) -> np.ndarray:
     channels = _check_last_dim(channels, 4, "channels")
     h0, gx, gy, gz = (channels[..., i] for i in range(4))
     return np.stack([h0, h0, gy, gx, gz, -gz, -gy, gx], -1)
+
+
+def siesta_to_soc_full_channels(values: np.ndarray) -> np.ndarray:
+    """Convert SIESTA values ``(..., 8)`` into the full spinor channels ``(..., 8)``.
+
+    Channels are ``[a0, bx, by, bz, b0, ax, ay, az]``. Raises ``ValueError`` if the values
+    are not finite. Time reversal is not checked: the odd channels ``b0, ax, ay, az`` are kept.
+    """
+    values = _check_last_dim(values, 8, "values")
+    if not np.isfinite(values).all():
+        raise ValueError("Spin-orbit values must be finite (found nan or inf).")
+    c = [values[..., i] for i in range(8)]
+    return np.stack(
+        [
+            (c[0] + c[1]) / 2,
+            (c[3] + c[7]) / 2,
+            (c[2] - c[6]) / 2,
+            (c[4] - c[5]) / 2,
+            (c[4] + c[5]) / 2,
+            (c[2] + c[6]) / 2,
+            (c[7] - c[3]) / 2,
+            (c[0] - c[1]) / 2,
+        ],
+        -1,
+    )
+
+
+def soc_full_channels_to_siesta(channels: np.ndarray) -> np.ndarray:
+    """Convert full spinor channels ``(..., 8)`` into SIESTA values ``(..., 8)``."""
+    channels = _check_last_dim(channels, 8, "channels")
+    a0, bx, by, bz, b0, ax, ay, az = (channels[..., i] for i in range(8))
+    return np.stack([a0 + az, a0 - az, ax + by, bx - ay, b0 + bz, b0 - bz, ax - by, bx + ay], -1)
 
 
 def attach_overlap(matrix: sisl.Hamiltonian, overlap: sisl.SparseOrbital) -> sisl.Hamiltonian:

@@ -16,7 +16,7 @@ from scipy.sparse import coo_array, csr_array
 from .matrices import BasisMatrix, OrbitalMatrix
 from .formats import Formats, conversions
 from ._sparse import _csr_to_block_dict
-from .spin_orbit import SOC_TRANSPOSE_SIGN
+from .spin_orbit import SOC_FULL_TRANSPOSE_SIGN, SOC_TRANSPOSE_SIGN
 
 
 def register_all_sisl(source, target, converter, manager):
@@ -440,16 +440,31 @@ def nodes_and_edges_to_coo(
     )
 
 
-def _spin_orbit_csr_to_sisl(csr, geometry, sp_class) -> SparseOrbital:
-    """Orthogonal ``spin-orbit`` Hamiltonian from the 4 TRS channels ``[h0, gx, gy, gz]``."""
+#: Sign of each channel under transposition, for the policies that have signed channels.
+_TRANSPOSE_SIGN_BY_POLICY = {"spin_orbit": SOC_TRANSPOSE_SIGN, "spin_orbit_full": SOC_FULL_TRANSPOSE_SIGN}
+
+
+def _spin_orbit_csr_to_sisl(csr, geometry, sp_class, policy="spin_orbit") -> SparseOrbital:
+    """Orthogonal ``spin-orbit`` Hamiltonian from the channels of ``policy``.
+
+    ``spin_orbit``: 4 TRS channels ``[h0, gx, gy, gz]``.
+    ``spin_orbit_full``: 8 channels ``[a0, bx, by, bz, b0, ax, ay, az]``.
+    """
+    full = policy == "spin_orbit_full"
     n = len(csr) if isinstance(csr, (list, tuple)) else 1
-    if n != 4:
-        raise ValueError(f"matrix_component_policy='spin_orbit' requires 4 components [h0, gx, gy, gz], got {n}.")
+    if n != (8 if full else 4):
+        names = "[a0, bx, by, bz, b0, ax, ay, az]" if full else "[h0, gx, gy, gz]"
+        raise ValueError(f"matrix_component_policy={policy!r} requires {8 if full else 4} components {names}, got {n}.")
     if not issubclass(sp_class, sisl.Hamiltonian):
-        raise ValueError(f"matrix_component_policy='spin_orbit' requires a sisl.Hamiltonian, got {sp_class.__name__}.")
-    # Same channel -> SIESTA component map as ``soc_channels_to_siesta``.
-    h0, gx, gy, gz = csr
-    return sp_class.fromsp(geometry, [h0, h0, gy, gx, gz, -gz, -gy, gx], spin=sisl.Spin("spin-orbit"))
+        raise ValueError(f"matrix_component_policy={policy!r} requires a sisl.Hamiltonian, got {sp_class.__name__}.")
+    # Same channel -> SIESTA component map as ``soc_channels_to_siesta`` / ``soc_full_channels_to_siesta``.
+    if full:
+        a0, bx, by, bz, b0, ax, ay, az = csr
+        values = [a0 + az, a0 - az, ax + by, bx - ay, b0 + bz, b0 - bz, ax - by, bx + ay]
+    else:
+        h0, gx, gy, gz = csr
+        values = [h0, h0, gy, gx, gz, -gz, -gy, gx]
+    return sp_class.fromsp(geometry, values, spin=sisl.Spin("spin-orbit"))
 
 
 @converter(Formats.SCIPY_CSR, Formats.SISL)
@@ -460,8 +475,8 @@ def csr_to_sisl_sparse_orbital(
     matrix_component_policy: Optional[str] = None,
 ) -> SparseOrbital:
     """Converts a scipy CSR array to a sisl sparse orbital matrix."""
-    if matrix_component_policy == "spin_orbit":
-        return _spin_orbit_csr_to_sisl(csr, geometry, sp_class)
+    if matrix_component_policy in _TRANSPOSE_SIGN_BY_POLICY:
+        return _spin_orbit_csr_to_sisl(csr, geometry, sp_class, matrix_component_policy)
 
     if isinstance(csr, (list, tuple)):
         if len(csr) == 1:
@@ -549,7 +564,7 @@ def nodes_and_edges_to_sparse_orbital(
     node_components = node_vals.shape[1] if node_vals.ndim == 2 else 1
     edge_components = edge_vals.shape[1] if edge_vals.ndim == 2 else 1
     n_components = max(node_components, edge_components)
-    transpose_sign = SOC_TRANSPOSE_SIGN if matrix_component_policy == "spin_orbit" else None
+    transpose_sign = _TRANSPOSE_SIGN_BY_POLICY.get(matrix_component_policy)
 
     if n_components == 1 and transpose_sign is None:
         new_csr = conversions.get_converter(Formats.NODESEDGES, Formats.SCIPY_CSR)(

@@ -166,10 +166,12 @@ class MatrixDataProcessor:
             "h_and_overlap",
             "raw_components",
             "spin_orbit",
+            "spin_orbit_full",
         ):
             raise ValueError(
                 "matrix_component_policy must be one of 'h_only', "
-                "'spin_h_only', 'h_and_overlap', 'raw_components', or 'spin_orbit'."
+                "'spin_h_only', 'h_and_overlap', 'raw_components', 'spin_orbit', "
+                "or 'spin_orbit_full'."
             )
         if self.matrix_component_policy == "spin_orbit":
             if self.out_matrix != "hamiltonian":
@@ -180,6 +182,16 @@ class MatrixDataProcessor:
                 raise ValueError(
                     "matrix_component_policy='spin_orbit' stores 4 TRS channels; "
                     f"n_matrix_components must be 1 or 4, got {self.n_matrix_components}."
+                )
+        if self.matrix_component_policy == "spin_orbit_full":
+            if self.out_matrix != "hamiltonian":
+                raise ValueError(
+                    "matrix_component_policy='spin_orbit_full' requires out_matrix='hamiltonian'."
+                )
+            if self.n_matrix_components not in (1, 8):
+                raise ValueError(
+                    "matrix_component_policy='spin_orbit_full' stores 8 spinor channels; "
+                    f"n_matrix_components must be 1 or 8, got {self.n_matrix_components}."
                 )
 
         if self.sub_point_matrix and self.out_matrix not in (None, "density_matrix"):
@@ -1236,10 +1248,11 @@ class MatrixDataProcessor:
 
             return reconstruct_target(self, data, kwargs.pop("matrix_target", None),
                                       threshold=threshold, out_format=out_format)
-        if self.matrix_component_policy == "spin_orbit" and not out_format.startswith("sisl"):
+        if self.matrix_component_policy in ("spin_orbit", "spin_orbit_full") and not out_format.startswith("sisl"):
             raise ValueError(
-                f"matrix_component_policy='spin_orbit' only reconstructs to sisl formats, not {out_format!r}: "
-                "the transposed g copy needs a sign flip that only the sisl path applies."
+                f"matrix_component_policy={self.matrix_component_policy!r} only reconstructs to sisl formats, "
+                f"not {out_format!r}: the transposed copy of the odd channels needs a sign flip that only the "
+                "sisl path applies."
             )
         data_format = getattr(data.__class__, "_data_format", Formats.NODESEDGES)
         if not conversions.has_converter(data_format, out_format):

@@ -26,7 +26,7 @@ from .basis import NoBasisAtom, PointBasis
 from .formats import Formats, conversions
 from .matrices import BasisMatrix, OrbitalMatrix, get_matrix_cls
 from .sparse import csr_to_block_dict
-from .spin_orbit import siesta_to_soc_channels
+from .spin_orbit import siesta_to_soc_channels, siesta_to_soc_full_channels
 from .table import BasisTableWithEdges
 
 Vector = np.ndarray  # [3,]
@@ -38,7 +38,7 @@ PhysicsMatrixType = Literal[
     "density_matrix", "hamiltonian", "energy_density_matrix", "dynamical_matrix"
 ]
 MatrixComponentPolicy = Literal[
-    "h_only", "spin_h_only", "raw_components", "h_and_overlap", "spin_orbit"
+    "h_only", "spin_h_only", "raw_components", "h_and_overlap", "spin_orbit", "spin_orbit_full"
 ]
 
 DEFAULT_CONFIG_TYPE = "Default"
@@ -499,9 +499,10 @@ def _sisl_to_orbital_configuration(
             if isinstance(matrix, (sisl.DensityMatrix, sisl.EnergyDensityMatrix))
             else 0.0,
             component_indices=component_indices,
-            component_transform=siesta_to_soc_channels
-            if matrix_component_policy == "spin_orbit"
-            else None,
+            component_transform={
+                "spin_orbit": siesta_to_soc_channels,
+                "spin_orbit_full": siesta_to_soc_full_channels,
+            }.get(matrix_component_policy),
         )
         # Block keys index images in the matrix's own sc_off order, but the graph uses a
         # default-ordered Lattice (roadmap 3.11, CRIT-04): remap or images get swapped silently.
@@ -703,11 +704,11 @@ def _matrix_component_indices(
     policy = matrix_component_policy or DEFAULT_HAMILTONIAN_COMPONENT_POLICY
     if policy == "raw_components":
         return None
-    if policy == "spin_orbit":
+    if policy in ("spin_orbit", "spin_orbit_full"):
         spin = getattr(matrix, "spin", None)
         if not bool(getattr(spin, "is_spinorbit", False)):
             raise ValueError(
-                "matrix_component_policy='spin_orbit' requires a spin-orbit "
+                f"matrix_component_policy={policy!r} requires a spin-orbit "
                 f"Hamiltonian (sisl Spin('so')), got spin={spin!r}."
             )
         # S (if any) is excluded; the 8 H components keep sisl's order.
