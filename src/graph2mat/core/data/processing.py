@@ -71,6 +71,7 @@ else:
 
 
 from .configuration import (
+    MAGNETIC_MOMENTS_FILE,
     BasisConfiguration,
     MatrixComponentPolicy,
     OrbitalConfiguration,
@@ -92,6 +93,24 @@ def _block_rtp(formula: str, i: str, j: str, dtype):
     from graph2mat.bindings.e3nn.irreps_tools import ReducedTensorProducts
 
     return ReducedTensorProducts(formula, i=i, j=j)
+
+
+def check_magnetic_moments_option(
+    magnetic_moments: Optional[str], matrix_component_policy: str
+) -> None:
+    """Raises ``ValueError`` if ``magnetic_moments`` is not valid for the component policy.
+
+    The kinds are ``None``, ``"collinear"`` (only with ``spin_h_only``) and ``"vector"``.
+    """
+    if magnetic_moments not in (None, "collinear", "vector"):
+        raise ValueError(
+            f"magnetic_moments must be None, 'collinear' or 'vector', got {magnetic_moments!r}."
+        )
+    if magnetic_moments == "collinear" and matrix_component_policy != "spin_h_only":
+        raise ValueError(
+            "magnetic_moments='collinear' requires matrix_component_policy='spin_h_only', "
+            f"got {matrix_component_policy!r}."
+        )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -134,6 +153,14 @@ class MatrixDataProcessor:
         ``dist < (R_i + p) + (R_j + p)``. It lets matrix elements beyond the orbital
         overlap (e.g. Kleinman-Bylander tails) be part of the graph and the labels.
         Must be finite and >= 0. The default 0 keeps the usual graph.
+    magnetic_moments :
+        Whether the data carry the nominal magnetic moment of every point as the node
+        array ``magnetic_moments``: ``None`` (no moments, the default), ``"collinear"``
+        (signed scalar per point, shape ``(n_points,)``, requires
+        ``matrix_component_policy="spin_h_only"``) or ``"vector"`` (cartesian vector,
+        shape ``(n_points, 3)``, stored in the same basis as the positions).
+        The configurations must provide the moments (``magnetic_moments.json`` next
+        to the run file, or the ``magnetic_moments`` attribute).
     """
 
     basis_table: BasisTableWithEdges
@@ -146,12 +173,14 @@ class MatrixDataProcessor:
     matrix_targets: Optional[List[str]] = None
     matrix_target_spin: Optional[int] = None
     edge_cutoff_padding: float = 0.0
+    magnetic_moments: Optional[str] = None
 
     def __post_init__(self):
         if not (np.isfinite(self.edge_cutoff_padding) and self.edge_cutoff_padding >= 0):
             raise ValueError(
                 f"edge_cutoff_padding must be a finite float >= 0 (Å), got {self.edge_cutoff_padding!r}."
             )
+        check_magnetic_moments_option(self.magnetic_moments, self.matrix_component_policy)
         if self.matrix_targets is not None:
             layout = self.matrix_target_layout
             if self.sub_point_matrix:
@@ -1127,6 +1156,35 @@ class MatrixDataProcessor:
             [getter(config, self) for getter in node_attr_getters], axis=1
         )
 
+    def get_magnetic_moments(self, config: BasisConfiguration) -> Optional[np.ndarray]:
+        """Returns the nominal magnetic moments of the points (cartesian), or None.
+
+        None is returned if this processor does not use moments (``magnetic_moments=None``).
+        Otherwise the configuration must have them, with the shape ``(n_points,)`` for
+        ``"collinear"`` or ``(n_points, 3)`` for ``"vector"``, and all values finite.
+        """
+        if self.magnetic_moments is None:
+            return None
+
+        moments = config.magnetic_moments
+        if moments is None:
+            raise ValueError(
+                f"magnetic_moments={self.magnetic_moments!r} needs the nominal moment of every "
+                f"point, but the configuration has none. Provide {MAGNETIC_MOMENTS_FILE} next "
+                "to the run file or set the `magnetic_moments` of the configuration."
+            )
+        moments = np.array(moments, dtype=float)  # a copy: the data never alias the configuration
+        n_points = len(config.positions)
+        expected = (n_points,) if self.magnetic_moments == "collinear" else (n_points, 3)
+        if moments.shape != expected:
+            raise ValueError(
+                f"magnetic_moments={self.magnetic_moments!r} expects moments of shape "
+                f"{expected} (one per point), got {moments.shape}."
+            )
+        if not np.isfinite(moments).all():
+            raise ValueError("The magnetic moments must be finite (no NaN or inf).")
+        return moments
+
     def one_hot_encode(self, point_types: np.ndarray) -> np.ndarray:
         """One hot encodes a vector of point types.
 
@@ -1414,6 +1472,11 @@ class BasisMatrixDataBase(Generic[ArrayType]):
     node_attrs :
         Shape (n_points, n_node_feats).
         Inputs for each point in the configuration.
+    magnetic_moments :
+        Shape (n_points,) or (n_points, 3), or None if the data processor does not use
+        magnetic moments. Nominal magnetic moment of each point (see
+        ``MatrixDataProcessor.magnetic_moments``). Vectors are in the same basis as the
+        positions.
     positions :
         Shape (n_points, 3).
         Cartesian coordinates of each point in the configuration.
@@ -1467,7 +1530,12 @@ class BasisMatrixDataBase(Generic[ArrayType]):
 
     #: Sometimes it is useful to know explicitly which keys are node attributes
     #: The list is stored in this variable.
-    _node_attr_keys: Sequence[str] = ("node_attrs", "positions", "point_types")
+    _node_attr_keys: Sequence[str] = (
+        "node_attrs",
+        "positions",
+        "point_types",
+        "magnetic_moments",
+    )
 
     #: Sometimes it is useful to know explicitly which keys are edge attributes
     #: The list is stored in this variable.
@@ -1489,6 +1557,11 @@ class BasisMatrixDataBase(Generic[ArrayType]):
     #: Shape (n_points, n_node_feats).
     #: Inputs for each point in the configuration.
     node_attrs: ArrayType
+
+    #: Shape (n_points,) or (n_points, 3), None if the data processor uses no magnetic moments.
+    #: Nominal magnetic moment of each point. Vectors are **in the convention specified by
+    #: the data processor**, like ``positions``.
+    magnetic_moments: Optional[ArrayType]
 
     #: Shape (n_points, 3).
     #: Coordinates of each point in the configuration, **in the convention specified
@@ -1568,6 +1641,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         "labels_edge_filter",
         "point_types",
         "edge_types",
+        "magnetic_moments",
     )
 
     def __init__(
@@ -1589,6 +1663,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         data_processor: Optional[MatrixDataProcessor] = None,
         metadata: Optional[Dict[str, Any]] = None,
         already_basis: bool = False,
+        magnetic_moments: Optional[np.ndarray] = None,  # [n_nodes] or [n_nodes, 3]
     ):
         self._data = self._sanitize_data(
             edge_index=edge_index,
@@ -1607,6 +1682,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             data_processor=data_processor,
             metadata=metadata,
             already_basis=already_basis,
+            magnetic_moments=magnetic_moments,
         )
 
         for k in self._data:
@@ -1630,6 +1706,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         data_processor: Optional[MatrixDataProcessor] = None,
         metadata: Optional[Dict[str, Any]] = None,
         already_basis: bool = False,
+        magnetic_moments: Optional[np.ndarray] = None,  # [n_nodes] or [n_nodes, 3]
     ) -> Dict[str, Any]:
         # Check shapes
         num_nodes = node_attrs.shape[0] if node_attrs is not None else None
@@ -1646,6 +1723,10 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         assert shifts is None or shifts.shape[1] == 3
         assert node_attrs is None or len(node_attrs.shape) == 2
         assert cell is None or cell.shape == (3, 3)
+        assert magnetic_moments is None or magnetic_moments.shape in (
+            (num_nodes,),
+            (num_nodes, 3),
+        )
         assert point_labels is None or point_labels.ndim in (1, 2)
         assert edge_labels is None or edge_labels.ndim in (1, 2)
         if point_labels is not None and edge_labels is not None:
@@ -1672,6 +1753,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             "labels_edge_filter": labels_edge_filter,
             "point_types": point_types,
             "edge_types": edge_types,
+            "magnetic_moments": magnetic_moments,
             "metadata": {
                 **(metadata or {}),
                 "data_processor": data_processor,
@@ -1688,8 +1770,14 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         # We do the change in the inputs (coordinates, which are vectors) because it's much simpler
         # than doing it in the outputs (spherical harmonics with arbitrary l)
         # Matrix with the change of basis to go from cartesian coordinates to spherical harmonics.
+        # A magnetic moment vector is an axial vector, but this is a proper rotation, so it
+        # is converted like the positions. Scalar (collinear) moments are not converted.
         if not already_basis:
-            for k in ["positions", "shifts", "cell"]:
+            moments = data["magnetic_moments"]
+            vector_keys = ["positions", "shifts", "cell"]
+            if moments is not None and moments.ndim == 2:
+                vector_keys.append("magnetic_moments")
+            for k in vector_keys:
                 if data[k] is not None:
                     if data_processor is None:
                         raise ValueError("Cartesian arrays require data_processor.")
@@ -1856,6 +1944,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
         """
         indices = data_processor.get_point_types(config)
         node_attrs = data_processor.get_node_attrs(config)
+        magnetic_moments = data_processor.get_magnetic_moments(config)
 
         # Types come from Z (roadmap 8.3): a species with the same Z and another basis would
         # get the table's block size and misplace every label after it.
@@ -1949,6 +2038,7 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             edge_types=edge_types,
             data_processor=data_processor,
             metadata=config.metadata,
+            magnetic_moments=magnetic_moments,
         )
 
     def process_input_array(self, key: str, array: np.ndarray) -> Any:

@@ -28,6 +28,7 @@ from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 from graph2mat.core.data.configuration import MatrixComponentPolicy, PhysicsMatrixType
 from graph2mat.core.data.node_feats import NodeFeature
 from graph2mat.core.data.physical import normalize_physical_labels, physical_layout
+from graph2mat.core.data.processing import check_magnetic_moments_option
 
 from ._helpers import glob, maybe_clean_zip_path, maybe_zip_path
 from .split_guardrail import SplitGuardrail
@@ -315,6 +316,7 @@ class MatrixDataModule(pl.LightningDataModule):
         matrix_targets: Optional[List[str]] = None,
         matrix_target_spin: Optional[int] = None,
         edge_cutoff_padding: float = 0.0,
+        magnetic_moments: Optional[str] = None,
     ):
         """
 
@@ -324,6 +326,10 @@ class MatrixDataModule(pl.LightningDataModule):
             edge_cutoff_padding : float
                 Extra radius (Å) added to each point's basis radius when searching for edges
                 (see `MatrixDataProcessor`). Must be >= 0. The model must use the same value.
+            magnetic_moments : None, 'collinear' or 'vector'
+                Whether the data carry the nominal magnetic moment of every atom (see
+                `MatrixDataProcessor`). ``matrix_component_policy='spin_orbit_full'`` requires
+                'vector' and 'collinear' requires ``matrix_component_policy='spin_h_only'``.
             basis_files : Union[str, None]
             basis_table : Union[BasisTableWithEdges, None]
             root_dir :
@@ -428,6 +434,13 @@ class MatrixDataModule(pl.LightningDataModule):
         self.sub_point_matrix = sub_point_matrix
         self.n_matrix_components = n_matrix_components
         self.matrix_component_policy = matrix_component_policy
+        if matrix_component_policy == "spin_orbit_full" and magnetic_moments != "vector":
+            raise ValueError(
+                "matrix_component_policy='spin_orbit_full' requires magnetic_moments='vector', "
+                f"got {magnetic_moments!r}."
+            )
+        check_magnetic_moments_option(magnetic_moments, matrix_component_policy)
+        self.magnetic_moments = magnetic_moments
         if matrix_component_policy == "spin_orbit":
             bad = [name for name, value in (("spectral_window", spectral_window),
                                             ("physical_labels", physical_labels),
@@ -598,6 +611,7 @@ class MatrixDataModule(pl.LightningDataModule):
                 matrix_targets=self.matrix_targets,
                 matrix_target_spin=self.matrix_target_spin,
                 edge_cutoff_padding=self.edge_cutoff_padding,
+                magnetic_moments=self.magnetic_moments,
             )
 
         needed_splits = list(requested_splits)

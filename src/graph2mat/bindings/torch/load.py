@@ -84,6 +84,7 @@ def load_from_lit_ckpt(
         edge_cutoff_padding=ckpt["datamodule_hyper_parameters"].get(
             "edge_cutoff_padding", 0.0
         ),
+        magnetic_moments=ckpt["datamodule_hyper_parameters"].get("magnetic_moments"),
     )
 
     if as_torch:

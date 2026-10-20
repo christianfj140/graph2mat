@@ -10,6 +10,7 @@ for training, validating or testing. When doing inference, the configurations
 will not have an associated matrix, since the matrix is what you are trying
 to calculate.
 """
+import json
 import warnings
 import zipfile
 from dataclasses import dataclass
@@ -40,6 +41,9 @@ PhysicsMatrixType = Literal[
 MatrixComponentPolicy = Literal[
     "h_only", "spin_h_only", "raw_components", "h_and_overlap", "spin_orbit", "spin_orbit_full"
 ]
+
+#: File next to a run file with the nominal magnetic moments of its atoms (see `BasisConfiguration`).
+MAGNETIC_MOMENTS_FILE = "magnetic_moments.json"
 
 DEFAULT_CONFIG_TYPE = "Default"
 DEFAULT_HAMILTONIAN_COMPONENT_POLICY: MatrixComponentPolicy = "h_only"
@@ -89,6 +93,11 @@ class BasisConfiguration:
         A string that indicates the type of configuration.
     metadata:
         A dictionary with additional metadata related to the configuration.
+    magnetic_moments:
+        Nominal magnetic moment of each point (in μB), the input of magnetic models.
+        Shape (n_points,) (signed scalar, collinear spin) or (n_points, 3)
+        (cartesian vector, spin-orbit). ``None`` if the configuration has none.
+        When reading a run, it comes from ``magnetic_moments.json`` next to the run file.
     """
 
     #: Shape (n_points,).
@@ -123,6 +132,10 @@ class BasisConfiguration:
     #: A dictionary with additional metadata related to the configuration.
     metadata: Optional[Dict[str, Any]] = None
 
+    #: Shape (n_points,) or (n_points, 3). Nominal magnetic moment of each point in μB
+    #: (signed scalar or cartesian vector). The data processor checks the shape.
+    magnetic_moments: Optional[np.ndarray] = None
+
     #: The graph2mat format that identifies this class.
     _cls_format: str = Formats.BASISCONFIGURATION
 
@@ -130,6 +143,11 @@ class BasisConfiguration:
         if isinstance(self.basis, BasisTableWithEdges):
             # If the basis is a table, we need to convert it to a list of PointBasis objects
             object.__setattr__(self, "basis", self.basis.basis)
+
+        if self.magnetic_moments is not None:
+            object.__setattr__(
+                self, "magnetic_moments", np.asarray(self.magnetic_moments, dtype=float)
+            )
 
         if self.matrix is not None and not isinstance(self.matrix, BasisMatrix):
             matrix = self.matrix
@@ -327,6 +345,8 @@ class OrbitalConfiguration(BasisConfiguration):
         A string that indicates the type of configuration.
     metadata:
         A dictionary with additional metadata related to the configuration.
+    magnetic_moments:
+        Nominal magnetic moment of each atom (in μB). See `BasisConfiguration`.
     """
 
     #: Shape (n_points,).
@@ -360,6 +380,10 @@ class OrbitalConfiguration(BasisConfiguration):
 
     #: A dictionary with additional metadata related to the configuration.
     metadata: Optional[Dict[str, Any]] = None
+
+    #: Shape (n_points,) or (n_points, 3). Nominal magnetic moment of each point in μB
+    #: (signed scalar or cartesian vector). The data processor checks the shape.
+    magnetic_moments: Optional[np.ndarray] = None
 
     #: The graph2mat format that identifies this class.
     _cls_format: str = Formats.ORBITALCONFIGURATION
@@ -405,6 +429,7 @@ def _orbitalconfiguration_to_basisconfiguration(
         weight=config.weight,
         config_type=config.config_type,
         metadata=config.metadata,
+        magnetic_moments=config.magnetic_moments,
     )
 
 
@@ -581,6 +606,7 @@ def _sisl_run_to_orbitalconfiguration(
     main_input = sisl.get_sile(runfilepath)
     # Build some metadata so that the OrbitalConfiguration object can be traced back to the run.
     metadata = {"path": str(runfilepath)}
+    magnetic_moments = _read_magnetic_moments(runfilepath)
 
     def _change_geometry_basis(geometry, basis):
         # new_atoms = geometry.atoms.copy()
@@ -667,6 +693,7 @@ def _sisl_run_to_orbitalconfiguration(
             metadata=metadata,
             cls=cls,
             matrix_component_policy=matrix_component_policy,
+            magnetic_moments=magnetic_moments,
             **kwargs,
         )
     else:
@@ -686,7 +713,32 @@ def _sisl_run_to_orbitalconfiguration(
         from_geometry = conversions.get_converter(
             Formats.SISL_GEOMETRY, Formats.ORBITALCONFIGURATION
         )
-        return from_geometry(geometry=geometry, metadata=metadata, cls=cls)
+        return from_geometry(
+            geometry=geometry,
+            metadata=metadata,
+            cls=cls,
+            magnetic_moments=magnetic_moments,
+        )
+
+
+def _read_magnetic_moments(
+    runfilepath: Union[str, Path, zipfile.Path]
+) -> Optional[np.ndarray]:
+    """Read the ``nominal`` moments of ``magnetic_moments.json`` next to the run file.
+
+    Returns None if the file does not exist. The optional ``converged`` entry is ignored.
+    """
+    path = runfilepath if isinstance(runfilepath, zipfile.Path) else Path(runfilepath)
+    side_file = path.parent / MAGNETIC_MOMENTS_FILE
+    if not side_file.is_file():
+        return None
+    try:
+        return np.asarray(json.loads(side_file.read_text())["nominal"], dtype=float)
+    except (ValueError, KeyError, TypeError) as error:
+        raise ValueError(
+            f"{side_file} must be a JSON object with the nominal moments of every atom "
+            f'under the key "nominal", e.g. {{"nominal": [[0, 0, 2.2], ...]}}: {error!r}'
+        ) from error
 
 
 def _matrix_component_indices(
