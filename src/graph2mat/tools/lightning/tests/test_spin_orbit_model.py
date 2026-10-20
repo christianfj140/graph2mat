@@ -339,3 +339,17 @@ def test_cli_rejects_explicit_spin_orbit_without_policy():
     with pytest.raises(ValueError, match=r"model\.spin_orbit=True.*matrix_component_policy"):
         _autoconfigure_n_matrix_components(config, stage="fit")
     assert config.model.spin_orbit is True  # never overwritten behind the user's back
+
+
+def test_spin_orbit_disables_e3nn_torchscript_codegen():
+    # TorchScript fx codegen of the SOC node TensorSquare stalled Lightning's sanity check.
+    from e3nn import get_optimization_defaults, set_optimization_defaults
+
+    previous = get_optimization_defaults()["jit_script_fx"]
+    try:
+        set_optimization_defaults(jit_script_fx=True)
+        atoms = [sisl.Atom("H", orbitals=_shell(0))]
+        LitMACEMatrixModel(basis_table=AtomicTableWithEdges(atoms), symmetric_matrix=True, spin_orbit=True, **TINY)
+        assert get_optimization_defaults()["jit_script_fx"] is False
+    finally:
+        set_optimization_defaults(jit_script_fx=previous)

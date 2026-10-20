@@ -154,6 +154,14 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             if bad:
                 raise ValueError(f"spin_orbit does not support: {', '.join(bad)}.")
             n_matrix_components = 4
+            # The node TensorSquare of h0 + g has irreps up to l=5: with e3nn's TorchScript fx
+            # codegen, the second no_grad forward (Lightning's sanity check) did not finish in
+            # 40 min (Bi2Se3, 2026-10-20); without it the same step takes 0.06 s.
+            # ponytail: process-wide e3nn default, set before any module is built; scope it per
+            # module if non-SOC models in the same process need TorchScript.
+            from e3nn import set_optimization_defaults
+
+            set_optimization_defaults(jit_script_fx=False)
         if matrix_targets is not None:
             from graph2mat.core.data.multitarget import MatrixTargetLayout
 
