@@ -380,3 +380,39 @@ def test_nodes_edges_to_polarized_hamiltonian():
     assert h._csr.data.shape[1] == 2
     np.testing.assert_allclose(h.tocsr(0).toarray()[0, 0], 1.0)
     np.testing.assert_allclose(h.tocsr(1).toarray()[0, 0], 2.0)
+
+
+def test_polarized_density_matrix_round_trip_with_point_matrix_subtracted():
+    """sub_point_matrix (the density-matrix default) with one label column per spin: the
+    atomic reference is subtracted from every spin channel of the on-site blocks and added
+    back on reconstruction, for atoms with 2 and 4 orbitals."""
+    from graph2mat import BasisMatrixData, MatrixDataProcessor
+    from graph2mat.core.data.table import AtomicTableWithEdges
+
+    H_DZ = sisl.Atom(1, orbitals=[sisl.AtomicOrbital(n=1, l=0, m=0, zeta=1, R=1.6, q0=0.7),
+                                  sisl.AtomicOrbital(n=1, l=0, m=0, zeta=2, R=1.6, q0=0.3)])
+    C_SZP = sisl.Atom(6, orbitals=[sisl.AtomicOrbital(n=2, l=0, m=0, R=2.0, q0=2.0)]
+                      + [sisl.AtomicOrbital(n=2, l=1, m=m, R=2.0, q0=2 / 3) for m in (-1, 0, 1)])
+    geometry = sisl.Geometry([[5.0, 5.0, 5.0], [25.0, 5.0, 5.0]], atoms=[H_DZ, C_SZP],
+                             lattice=sisl.Lattice([40.0, 40.0, 40.0], nsc=[1, 1, 1]))
+    rng = np.random.default_rng(0)
+    DM = sisl.DensityMatrix(geometry, spin=sisl.Spin("polarized"))
+    for ia in range(geometry.na):
+        orbs = geometry.a2o(ia, all=True)
+        for i in orbs:
+            for j in orbs:
+                if j >= i:
+                    DM[i, j] = DM[j, i] = rng.normal(size=2)
+
+    processor = MatrixDataProcessor(basis_table=AtomicTableWithEdges([H_DZ, C_SZP]), symmetric_matrix=True,
+                                    sub_point_matrix=True, out_matrix="density_matrix", n_matrix_components=2)
+    data = BasisMatrixData.from_config(OrbitalConfiguration.from_matrix(DM, labels=True), processor)
+
+    expected = DM.tocsr(0).toarray(), DM.tocsr(1).toarray()
+    q0_H = np.diag([0.7, 0.3])
+    labels_H = np.asarray(data.point_labels)[:4].reshape(2, 2, 2)
+    for spin in range(2):
+        np.testing.assert_allclose(labels_H[..., spin], expected[spin][:2, :2] - q0_H, atol=1e-12)
+    rebuilt = data.convert_to("sisl_DM")
+    for spin in range(2):
+        np.testing.assert_allclose(rebuilt.tocsr(spin).toarray(), expected[spin], atol=1e-12)

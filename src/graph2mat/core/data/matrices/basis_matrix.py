@@ -100,10 +100,18 @@ class BasisMatrix:
         if sub_point_matrix:
             assert basis_table is not None and point_types is not None
             point_matrices = self.get_point_matrices(basis_table)
+
+            def _sub_point(i):
+                block = self._get_block(i, i, 0)
+                reference = point_matrices[point_types[i]]
+                # Multi-component blocks are (rows, cols, components): subtract the reference
+                # from every component, as MatrixDataProcessor adds it back.
+                if block.ndim == 3:
+                    reference = reference[..., None]
+                return block - reference
+
             blocks = [
-                self._flatten_block(
-                    self._get_block(i, i, 0) - point_matrices[point_types[i]]
-                )
+                self._flatten_block(_sub_point(i))
                 for i in order
                 if self.basis_count[i] > 0
             ]
