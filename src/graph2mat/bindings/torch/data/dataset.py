@@ -24,6 +24,16 @@ __all__ = ["TorchBasisMatrixDataset", "InMemoryData", "RotatingPoolData"]
 reading = False
 
 
+def _net_charge(item) -> float:
+    """SIESTA NetCharge of an fdf (0 if unset). sisl applies the fdf label rules (case,
+    '.', '_', '-') and follows %include; inside a zip only the file itself is searched."""
+    if isinstance(item, zipfile.Path):
+        labels = (re.match(r"\s*(\S+)\s+(\S+)", line) for line in item.read_text(errors="ignore").splitlines())
+        values = [m.group(2) for m in labels if m and re.sub(r"[._-]", "", m.group(1)).lower() == "netcharge"]
+        return float(values[0]) if values else 0.0
+    return float(sisl.get_sile(str(item)).get("NetCharge", 0.0))
+
+
 class TorchBasisMatrixDataset(torch.utils.data.Dataset):
     """Stores all configuration info of a dataset.
 
@@ -174,9 +184,7 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
         if isinstance(item, (str, os.PathLike, zipfile.Path)) and str(item).endswith(".fdf"):
             # Total charge of the structure (SIESTA NetCharge, 0 by default), for models whose
             # charges depend on it (long_range="qeq", roadmap 8.4).
-            path = item if isinstance(item, zipfile.Path) else Path(item)
-            match = re.search(r"(?im)^\s*NetCharge\s+(\S+)", path.read_text(errors="ignore"))
-            data.total_charge = torch.tensor([float(match.group(1)) if match else 0.0], dtype=torch.get_default_dtype())
+            data.total_charge = torch.tensor([_net_charge(item)], dtype=torch.get_default_dtype())
         if self.spectral_window:
             # Projection columns of the spectral loss (MatrixDataModule.spectral_window).
             name = self.spectral_window if isinstance(self.spectral_window, str) else "spectral_window.npz"

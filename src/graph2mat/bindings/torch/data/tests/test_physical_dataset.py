@@ -318,3 +318,20 @@ def test_preparation_uses_known_scalar_overlap_type_without_fallback_warning():
     with warnings.catch_warnings():
         warnings.filterwarnings("error", message=".*not a known matrix type.*")
         prepared_sample()
+
+
+def test_net_charge_follows_fdf_label_rules_and_includes(tmp_path):
+    """Audit M16: 'Net.Charge' or a NetCharge in an %include file gave a total charge of 0."""
+    import zipfile
+
+    from graph2mat.bindings.torch.data.dataset import _net_charge
+
+    (tmp_path / "a.fdf").write_text("SystemLabel x\nNet.Charge -1.0\n")
+    (tmp_path / "b.fdf").write_text("SystemLabel x\n%include b_inc.fdf\n")
+    (tmp_path / "b_inc.fdf").write_text("netcharge 2.0\n")
+    (tmp_path / "c.fdf").write_text("SystemLabel x\n")
+    assert [_net_charge(tmp_path / f"{n}.fdf") for n in "abc"] == [-1.0, 2.0, 0.0]
+    with zipfile.ZipFile(tmp_path / "s.zip", "w") as archive:
+        archive.writestr("s.fdf", "Net_Charge 0.5\n")
+    with zipfile.ZipFile(tmp_path / "s.zip") as reader:
+        assert _net_charge(zipfile.Path(reader, "s.fdf")) == 0.5
