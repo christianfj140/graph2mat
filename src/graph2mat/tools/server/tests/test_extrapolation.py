@@ -267,13 +267,17 @@ def test_history_copy_aligns_global_descriptors_to_available_block_steps():
         None, None, history, {(0, 1, 0): [1]}, None,
     )
     assert irreps is None
+    # Label at step p pairs with the global matrix of step p - 1 (audit M6): block (0, 1, 0)
+    # has labels at steps 0 and 2, so its descriptors are steps 1 and 2 (the target's), where
+    # only the (0, 0, 0) column is complete.
     np.testing.assert_array_equal(descriptors[0, 0, 0], [[1.], [2.], [4.]])
-    np.testing.assert_array_equal(descriptors[0, 1, 0], [[1., 10.], [4., 40.]])
+    np.testing.assert_array_equal(descriptors[0, 1, 0], [[2.], [4.]])
     result = HistoryCopy.predict_from_descriptors(
         descriptors, history, {"rcond": {key: 1e-8 for key in history}},
     )
+    # Both blocks double at every step: the next values are 8 and 80.
     np.testing.assert_allclose(result[0, 0, 0], [[8.]], rtol=0, atol=1e-12)
-    np.testing.assert_allclose(result[0, 1, 0], [[160.]], rtol=0, atol=1e-12)
+    np.testing.assert_allclose(result[0, 1, 0], [[80.]], rtol=0, atol=1e-12)
     for key in history:
         np.testing.assert_array_equal(history[key], before[key])
 
@@ -367,10 +371,12 @@ def test_real_extrapolation_with_missing_onsite_and_edge_blocks(manager, compone
               for config in series.configs]
     series.add_next_geometry(geometry.copy())
     actual = extrapolate_from_series(series, descriptor_manager=manager, descriptor_order=1)
-    # The series path includes the existing constant descriptor. With one
-    # observed pair, its least-squares weight is (1 + 4*S) / (1 + S).
-    squared_features = (21 if symmetric else 30) * (101 if components == 2 else 1)
-    weight = (1 + 4*squared_features) / (1 + squared_features)
+    # The blocks other than (0, 0, 0) miss step 1: their one observed pair is the label of
+    # step 2 with the global matrix of step 1 (audit M6), where only the constant
+    # descriptor and (0, 0, 0) (2 * [1, 10]) are complete; the target uses step 2 (4 * [1, 10]).
+    # The least-squares prediction is label * (D2 . D1) / (D1 . D1).
+    squared_features = 101 if components == 2 else 1
+    weight = (1 + 8*squared_features) / (1 + 4*squared_features)
     expected = {(0, 0, 0): 8., (1, 1, 0): 16*weight, (0, 1, 0): 8*weight}
     if manager is HistorySOAPs:
         expected = {(0, 0, 0): 7/3, (1, 1, 0): 10., (0, 1, 0): 5.}

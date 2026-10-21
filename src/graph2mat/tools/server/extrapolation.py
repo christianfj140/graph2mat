@@ -361,11 +361,15 @@ class HistoryCopy(DescriptorManager):
             rows[key] = present
             all_descriptors[present, offset:offset + value.shape[1]] = value
             offset += value.shape[1]
-        # Keep the global matrix descriptor, selecting the same available frames
-        # as each block's compacted labels, and no columns containing missing data.
+        # predict_from_descriptors fits label[i + 1] (the block's present steps, compacted)
+        # from descriptor row i and predicts the next step from the last row. The descriptor
+        # of the label at step p is the global matrix of step p - 1, and the target's is the
+        # last history step: with missing steps, the rows must follow the label's steps, not
+        # the block's own present steps. Columns with missing data are dropped.
         descriptors = {}
         for key, present in rows.items():
-            value = all_descriptors[present]
+            steps = np.flatnonzero(present)
+            value = all_descriptors[[*(steps[1:] - 1), history_len - 1]]
             descriptors[key] = value[:, np.isfinite(value).all(axis=0)]
 
         return descriptors, None
