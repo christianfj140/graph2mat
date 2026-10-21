@@ -130,8 +130,7 @@ def test_delta_cli(tmp_path, fake_siesta, monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["siesta", "delta", "h0", str(ref_dir), "--out-root", str(tmp_path / "h0s"), "--siesta", fake_siesta])
     assert result.exit_code == 0, result.output
-    h0 = tmp_path / "h0s" / "sample" / "sample.TSHS"
-    assert h0.exists()
+    (h0,) = (tmp_path / "h0s").glob("sample-*/sample.TSHS")
     result = runner.invoke(app, ["siesta", "delta", "label", str(ref_dir), str(h0), str(tmp_path / "delta")])
     assert result.exit_code == 0, result.output
     result = runner.invoke(app, ["siesta", "delta", "add-h0", str(tmp_path / "delta" / "sample.TSHS"), str(h0),
@@ -153,3 +152,61 @@ def test_add_h0_keeps_h0_couplings_beyond_the_prediction_supercell(tmp_path):
     out = _read(add_h0(tmp_path / "pred.TSHS", tmp_path / "h0.TSHS", tmp_path / "out.TSHS"))
     k = [0.23, 0.0, 0.0]
     np.testing.assert_allclose(out.Hk(k=k).toarray(), pred.Hk(k=k).toarray() + h0.Hk(k=k).toarray(), atol=1e-12)
+
+
+def test_delta_cli_keeps_runs_with_the_same_directory_name_apart(tmp_path, fake_siesta, monkeypatch):
+    """Audit G5: A/run and B/run used to share one H0 directory, and "." emptied OUT_ROOT."""
+    from typer.testing import CliRunner
+
+    from graph2mat.tools.cli.cli import app
+
+    runs = []
+    for parent, onsite in (("A", 0.1), ("B", 0.4)):
+        H = make_hamiltonian(onsite=onsite)
+        run = write_fdf(tmp_path / parent / "run", H.geometry)
+        H.write(str(run.parent / "sample.TSHS"))
+        runs.append(run.parent)
+    make_hamiltonian(onsite=-0.3).write(str(tmp_path / "h0.TSHS"))
+    monkeypatch.setenv("FAKE_SIESTA_TSHS", str(tmp_path / "h0.TSHS"))
+    out_root = tmp_path / "h0s"
+    keep = out_root / "unrelated.txt"
+    out_root.mkdir()
+    keep.write_text("not an H0")
+    result = CliRunner().invoke(app, ["siesta", "delta", "h0", *map(str, runs), "--out-root", str(out_root),
+                                      "--siesta", fake_siesta])
+    assert result.exit_code == 0, result.output
+    assert len(list(out_root.glob("run-*/sample.TSHS"))) == 2
+    monkeypatch.chdir(runs[0])
+    result = CliRunner().invoke(app, ["siesta", "delta", "h0", ".", "--out-root", str(out_root),
+                                      "--siesta", fake_siesta])
+    assert result.exit_code == 0, result.output
+    assert keep.read_text() == "not an H0"
+
+
+def test_compute_h0_never_reuses_the_output_of_a_failed_siesta(tmp_path, fake_siesta, monkeypatch):
+    """Audit G6: SIESTA writing the TSHS and then failing left a file that was reused."""
+    import subprocess
+
+    _, _, ref_dir = _sample(tmp_path)
+    moved = make_hamiltonian(onsite=-0.3)
+    moved.geometry.xyz[0, 0] += 0.5
+    moved.write(str(tmp_path / "moved.TSHS"))
+    monkeypatch.setenv("FAKE_SIESTA_TSHS", str(tmp_path / "moved.TSHS"))
+    monkeypatch.setenv("FAKE_SIESTA_FAIL_AFTER", "1")
+    with pytest.raises(subprocess.CalledProcessError):
+        compute_h0(ref_dir, tmp_path / "h0run", siesta=fake_siesta)
+    assert not (tmp_path / "h0run").exists()
+    monkeypatch.delenv("FAKE_SIESTA_FAIL_AFTER")
+    with pytest.raises(RuntimeError, match="geometry differs"):
+        compute_h0(ref_dir, tmp_path / "h0run", siesta=fake_siesta)
+
+
+def test_a_reused_h0_is_checked_against_the_label_geometry(tmp_path):
+    _, _, ref_dir = _sample(tmp_path)
+    stale = make_hamiltonian(onsite=-0.3)
+    stale.geometry.xyz[0, 0] += 0.5
+    (tmp_path / "h0run").mkdir()
+    stale.write(str(tmp_path / "h0run" / "sample.TSHS"))
+    with pytest.raises(RuntimeError, match="geometry differs"):
+        compute_h0(ref_dir, tmp_path / "h0run")
+    assert (tmp_path / "h0run" / "sample.TSHS").exists()  # not ours to delete

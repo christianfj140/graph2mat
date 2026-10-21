@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 from typing import List, Optional
 
@@ -15,12 +16,16 @@ app = typer.Typer(
 @app.command("h0")
 def h0_command(
     reference_dirs: List[Path] = typer.Argument(..., help="Converged SIESTA runs (RUN.fdf, pseudopotentials)."),
-    out_root: Path = typer.Option(..., help="H0 of each run goes to OUT_ROOT/<run directory name>."),
+    out_root: Path = typer.Option(..., help="H0 of each run goes to OUT_ROOT/<run directory name>-<path hash>."),
     siesta: Optional[str] = typer.Option(None, help="SIESTA command (default: $SIESTA or 'siesta' on the PATH)."),
 ):
     """Compute H0 (one SCF iteration from atomic densities) of each run."""
     for reference_dir in reference_dirs:
-        typer.echo(compute_h0(reference_dir, out_root / reference_dir.name, siesta=siesta))
+        # Named after the run directory and a hash of its full path: runs with the same
+        # directory name (A/run, B/run) or given as "." get separate H0 directories.
+        resolved = reference_dir.resolve()
+        key = f"{resolved.name}-{hashlib.sha1(str(resolved).encode()).hexdigest()[:8]}"
+        typer.echo(compute_h0(reference_dir, out_root / key, siesta=siesta))
 
 
 @app.command("label")

@@ -21,7 +21,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from .delta import H0_KEYS, _read
-from .runner import find_pseudos, replace_fdf_keys, run_siesta, system_label
+from .runner import find_pseudos, replace_fdf_keys, run_siesta_into, system_label
 
 __all__ = [
     "DM_KEYS",
@@ -47,19 +47,16 @@ def run_from_dm(reference_dir: Path, work_dir: Path, dm=None, siesta: Optional[s
     ``dm`` (sisl DensityMatrix) is the initial density. Returns the TSHS (reused if present)."""
     reference_dir, work_dir = Path(reference_dir), Path(work_dir)
     label = system_label(reference_dir / "RUN.fdf")
-    out = work_dir / f"{label}.TSHS"
-    if out.exists():
-        return out
+    if (work_dir / f"{label}.TSHS").exists():
+        return work_dir / f"{label}.TSHS"
     fdf = replace_fdf_keys((reference_dir / "RUN.fdf").read_text(), DM_KEYS)
     with tempfile.TemporaryDirectory() as tmp:
         extra = {}
         if dm is not None:
             dm.write(str(Path(tmp) / f"{label}.DM"))
             extra[f"{label}.DM"] = Path(tmp) / f"{label}.DM"
-        run_siesta(work_dir, fdf, find_pseudos(reference_dir), siesta=siesta, extra_files=extra)
-    if not out.exists():
-        raise RuntimeError(f"SIESTA wrote no {out.name} in {work_dir}")
-    return out
+        return run_siesta_into(work_dir, fdf, find_pseudos(reference_dir), f"{label}.TSHS",
+                               siesta=siesta, extra_files=extra)
 
 
 def aligned_error(H, ref) -> float:
@@ -114,7 +111,8 @@ def pilot_structure(
 ) -> Dict:
     """Run the pilot for the converged calculation in ``reference_dir`` (needs its
     ``<label>.TSHS`` and ``<label>.DM``) with its ``h0`` (see ``delta.compute_h0``). Every
-    SIESTA run goes to a subdirectory of ``work_dir``. Returns the scales and one row per
+    SIESTA run goes to a subdirectory of ``work_dir`` (named with the seed for the random
+    errors) and is reused if it finished. Returns the scales and one row per
     error kind and level (relative DM and H errors, H error in meV)."""
     import sisl
 
@@ -141,7 +139,9 @@ def pilot_structure(
 
     def measure(kind, level, dm_csr):
         dm = sisl.DensityMatrix.fromsp(geometry, dm_csr, S=overlap_csr)
-        tshs = run_from_dm(reference_dir, work_dir / f"{kind}_{level}", dm, siesta=siesta)
+        # Random errors depend on the seed: it names their run, so another seed never reuses them.
+        name = f"{kind}_{level}" if kind in ("exact", "atomic", "t") else f"{kind}_{level}_seed{seed}"
+        tshs = run_from_dm(reference_dir, work_dir / name, dm, siesta=siesta)
         err_h = aligned_error(sisl.get_sile(str(tshs)).read_hamiltonian(), H_ref)
         err_dm = _rms(dm_csr - DM_ref.tocsr(0))
         rows.append(

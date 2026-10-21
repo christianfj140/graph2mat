@@ -18,18 +18,22 @@ label = match.group(1) if match else "siesta"
 source = os.environ.get("FAKE_SIESTA_TSHS")
 if source:
     shutil.copy(source, label + ".TSHS")
+if os.environ.get("FAKE_SIESTA_FAIL_AFTER"):
+    sys.exit(1)
 """
 
 
 @pytest.fixture
 def fake_siesta(tmp_path, monkeypatch):
     """Command of a fake SIESTA that copies ``$FAKE_SIESTA_TSHS`` to ``<SystemLabel>.TSHS``
-    (``$FAKE_SIESTA_FAIL`` makes it exit with an error)."""
+    (``$FAKE_SIESTA_FAIL`` makes it exit with an error before, ``$FAKE_SIESTA_FAIL_AFTER``
+    after writing it)."""
     script = tmp_path / "fake_siesta.py"
     script.write_text(_FAKE_SIESTA)
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
     monkeypatch.delenv("FAKE_SIESTA_FAIL", raising=False)
     monkeypatch.delenv("FAKE_SIESTA_TSHS", raising=False)
+    monkeypatch.delenv("FAKE_SIESTA_FAIL_AFTER", raising=False)
     return f"{sys.executable} {script}"
 
 

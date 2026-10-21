@@ -23,7 +23,7 @@ from typing import Optional
 
 import numpy as np
 
-from .runner import find_pseudos, replace_fdf_keys, run_siesta, system_label
+from .runner import find_pseudos, replace_fdf_keys, run_siesta_into, system_label
 
 __all__ = [
     "H0_KEYS",
@@ -75,36 +75,35 @@ def compute_h0(
 ) -> Path:
     """H0 of the calculation in ``reference_dir`` (its ``RUN.fdf`` and pseudopotentials).
 
-    SIESTA runs in ``out_dir`` (emptied first) and the result, ``<SystemLabel>.TSHS``, is
-    returned; an existing one is reused without running SIESTA. The geometry of H0 is
-    checked against ``reference_matrix`` (default: ``<SystemLabel>.TSHS`` of the reference,
-    if it exists): if any atom moved more than ``geometry_tol`` Ang the file is removed and
-    a ``RuntimeError`` raised.
+    The result, ``out_dir / <SystemLabel>.TSHS``, is returned; an existing one is reused
+    without running SIESTA. ``out_dir`` only appears when SIESTA succeeds (see
+    ``runner.run_siesta_into``). The geometry of H0, also a reused one, is checked against
+    ``reference_matrix`` (default: ``<SystemLabel>.TSHS`` of the reference, if it exists):
+    if any atom moved more than ``geometry_tol`` Ang a ``RuntimeError`` is raised (and a
+    freshly computed ``out_dir`` removed).
     """
     import sisl
 
     reference_dir, out_dir = Path(reference_dir), Path(out_dir)
     label = system_label(reference_dir / "RUN.fdf")
-    out = out_dir / f"{label}.TSHS"
-    if out.exists():
-        return out
     if reference_matrix is None and (reference_dir / f"{label}.TSHS").exists():
         reference_matrix = reference_dir / f"{label}.TSHS"
-    run_siesta(
+    cached = (out_dir / f"{label}.TSHS").exists()
+    out = run_siesta_into(
         out_dir,
         h0_fdf((reference_dir / "RUN.fdf").read_text()),
         find_pseudos(reference_dir),
+        f"{label}.TSHS",
         siesta=siesta,
     )
-    if not out.exists():
-        raise RuntimeError(f"SIESTA wrote no {out.name} in {out_dir}")
     if reference_matrix is not None:
         moved = np.abs(
             sisl.get_sile(str(out)).read_geometry().xyz
             - sisl.get_sile(str(reference_matrix)).read_geometry().xyz
         ).max()
         if moved > geometry_tol:
-            out.unlink()
+            if not cached:  # only remove what this call created
+                shutil.rmtree(out_dir)
             raise RuntimeError(
                 f"H0 geometry differs from the label's by {moved:.4f} Ang in {out_dir}"
             )

@@ -17,7 +17,7 @@ from typing import Dict, Mapping, Optional, Tuple
 import numpy as np
 
 from ..analysis.metrics import gamma_hk
-from .runner import find_pseudos, run_siesta, system_label
+from .runner import find_pseudos, run_siesta_into, system_label
 
 __all__ = ["VARIANTS", "SHIFT_ANG", "noise_fdf", "run_label_noise", "gamma_mae_mev"]
 
@@ -62,23 +62,16 @@ def run_label_noise(
     siesta: Optional[str] = None,
 ) -> Dict[str, Path]:
     """Recompute the calculation of ``reference_dir`` once per variant, in
-    ``work_dir / <variant>`` (finished runs, with ``0_NORMAL_EXIT``, are reused). Returns the
-    TSHS of each variant. Coordinates must be in Ang for ``shift``."""
+    ``work_dir / <variant>`` (finished runs are reused, failed ones never land there).
+    Returns the TSHS of each variant. Coordinates must be in Ang for ``shift``."""
     reference_dir, work_dir = Path(reference_dir), Path(work_dir)
     label = system_label(reference_dir / "RUN.fdf")
     text = (reference_dir / "RUN.fdf").read_text()
-    out = {}
-    for name, (shift, tolerance) in variants.items():
-        run_dir = work_dir / name
-        if not (run_dir / "0_NORMAL_EXIT").exists():
-            run_siesta(
-                run_dir, noise_fdf(text, shift, tolerance), find_pseudos(reference_dir), siesta=siesta, nice=0
-            )
-        tshs = run_dir / f"{label}.TSHS"
-        if not tshs.exists():
-            raise RuntimeError(f"SIESTA wrote no {tshs.name} in {run_dir}")
-        out[name] = tshs
-    return out
+    return {
+        name: run_siesta_into(work_dir / name, noise_fdf(text, shift, tolerance), find_pseudos(reference_dir),
+                              f"{label}.TSHS", siesta=siesta, nice=0)
+        for name, (shift, tolerance) in variants.items()
+    }
 
 
 def gamma_mae_mev(a: Path, b: Path) -> float:

@@ -50,7 +50,8 @@ def test_run_siesta_writes_inputs_and_output(tmp_path, fake_siesta, monkeypatch)
     extra = tmp_path / "old.DM"
     extra.write_text("dm")
     work = tmp_path / "work"
-    (work / "stale").mkdir(parents=True)
+    (work / "stale").mkdir(parents=True)  # leftovers of a previous run in the same directory
+    (work / "RUN.fdf").write_text("SystemLabel old\n")
     run_siesta(work, "SystemLabel g\n", [pseudo], siesta=fake_siesta, extra_files={"g.DM": extra})
     assert sorted(p.name for p in work.iterdir()) == ["C.psf", "RUN.fdf", "RUN.out", "g.DM"]
     assert (work / "RUN.out").read_text() == "fake siesta\n"
@@ -58,3 +59,10 @@ def test_run_siesta_writes_inputs_and_output(tmp_path, fake_siesta, monkeypatch)
     monkeypatch.setenv("FAKE_SIESTA_FAIL", "1")
     with pytest.raises(subprocess.CalledProcessError):
         run_siesta(work, "SystemLabel g\n", [], siesta=fake_siesta)
+
+
+def test_run_siesta_refuses_to_empty_an_unrelated_directory(tmp_path, fake_siesta):
+    (tmp_path / "data.txt").write_text("keep")
+    with pytest.raises(FileExistsError, match="not a previous SIESTA run"):
+        run_siesta(tmp_path, "SystemLabel g\n", [], siesta=fake_siesta)
+    assert (tmp_path / "data.txt").read_text() == "keep"

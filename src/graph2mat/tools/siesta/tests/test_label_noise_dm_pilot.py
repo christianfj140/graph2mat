@@ -79,3 +79,28 @@ def test_pilot_structure_rows(tmp_path, monkeypatch):
     assert exact["kind"] == "exact" and exact["dm_err"] == 0
     assert "vs_h0_meV" in out["rows"][1]
     assert [r["level"] for r in out["rows"] if r["kind"] == "t"] == [0.7, 0.9, 0.97, 0.99]
+
+
+def test_pilot_runs_of_random_errors_are_named_by_seed(tmp_path, monkeypatch):
+    """Audit M5: another seed reused the SIESTA runs (and thus H errors) of the first one."""
+    H = make_hamiltonian()
+    ref = tmp_path / "ref"
+    write_fdf(ref, H.geometry, label="g")
+    H.write(str(ref / "g.TSHS"))
+    dm = sisl.DensityMatrix.fromsp(H.geometry, H.tocsr(0) * 0.1, S=H.tocsr(H.S_idx))
+    dm.write(str(ref / "g.DM"))
+    make_hamiltonian(onsite=0.3).write(str(tmp_path / "h0.TSHS"))
+    names = []
+
+    def fake_run(reference_dir, work_dir, dm=None, siesta=None):
+        names.append(work_dir.name)
+        work_dir.mkdir(parents=True, exist_ok=True)
+        H.write(str(work_dir / "g.TSHS"))
+        return work_dir / "g.TSHS"
+
+    monkeypatch.setattr(dm_pilot, "run_from_dm", fake_run)
+    for seed in (0, 1):
+        dm_pilot.pilot_structure(ref, tmp_path / "h0.TSHS", tmp_path / "work", seed=seed)
+    random_runs = [n for n in names if n.startswith(("rel_", "abs_", "relq_", "absq_"))]
+    assert len(set(random_runs)) == len(random_runs) == 2 * 16
+    assert names.count("exact_0.0") == 2  # deterministic runs keep their name (reused)

@@ -18,6 +18,7 @@ __all__ = [
     "find_pseudos",
     "siesta_command",
     "run_siesta",
+    "run_siesta_into",
 ]
 
 
@@ -76,13 +77,15 @@ def run_siesta(
 ) -> Path:
     """Run SIESTA in a fresh ``work_dir`` with ``fdf_text`` as ``RUN.fdf``.
 
-    ``work_dir`` is removed first. ``pseudos`` are copied in, and ``extra_files`` are
-    copied under the given names. SIESTA reads ``RUN.fdf`` from stdin and writes
+    ``work_dir`` is removed first (only if empty or a previous run, with a ``RUN.fdf``).
+    ``pseudos`` are copied in, and ``extra_files`` are copied under the given names. SIESTA reads ``RUN.fdf`` from stdin and writes
     ``RUN.out``; it runs on one OpenMP thread and with lower priority (``nice``).
     Raises ``subprocess.CalledProcessError`` if SIESTA fails. Returns ``work_dir``.
     """
     command = siesta_command(siesta)
     work_dir = Path(work_dir)
+    if work_dir.exists() and any(work_dir.iterdir()) and not (work_dir / "RUN.fdf").exists():
+        raise FileExistsError(f"refusing to empty {work_dir}: it is not a previous SIESTA run directory")
     shutil.rmtree(work_dir, ignore_errors=True)
     work_dir.mkdir(parents=True)
     (work_dir / "RUN.fdf").write_text(fdf_text)
@@ -101,3 +104,34 @@ def run_siesta(
             preexec_fn=(lambda: os.nice(nice)) if nice else None,
         )
     return work_dir
+
+
+def run_siesta_into(
+    final_dir: Path,
+    fdf_text: str,
+    pseudos: Sequence[Path],
+    expect: str,
+    *,
+    siesta: Optional[str] = None,
+    extra_files: Mapping[str, Path] = {},
+    nice: int = 10,
+) -> Path:
+    """``final_dir / expect`` from a SIESTA run that only lands in ``final_dir`` if it succeeds.
+
+    An existing ``final_dir / expect`` is returned as is. Otherwise SIESTA runs in a hidden
+    sibling directory, which is renamed to ``final_dir`` only after SIESTA exits cleanly and
+    wrote ``expect``: a failed or interrupted run never leaves a result to be reused. A
+    ``final_dir`` without ``expect`` is not touched (error).
+    """
+    final_dir = Path(final_dir)
+    out = final_dir / expect
+    if out.exists():
+        return out
+    if final_dir.exists():
+        raise FileExistsError(f"{final_dir} exists without {expect}: remove it to run SIESTA there")
+    partial = final_dir.with_name(f".{final_dir.name}.partial-{os.getpid()}")
+    run_siesta(partial, fdf_text, pseudos, siesta=siesta, extra_files=extra_files, nice=nice)
+    if not (partial / expect).exists():
+        raise RuntimeError(f"SIESTA wrote no {expect} in {partial}")
+    os.replace(partial, final_dir)
+    return out
