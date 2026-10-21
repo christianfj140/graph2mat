@@ -37,6 +37,39 @@ def _apply_selection_metric(config_ns: Namespace) -> None:
             init_args.monitor = metric
 
 
+def _magnetic_options(policy: str, moments):
+    """``(spin_orbit, magnetic_moments, channels)`` of the model that goes with the data, or ``ValueError``.
+
+    ``channels`` is fixed by the policy (``None`` when the labels decide).
+    """
+    if moments not in (None, "collinear", "vector"):
+        raise ValueError(f"data.magnetic_moments must be None, 'collinear' or 'vector', got {moments!r}.")
+    if policy == "spin_orbit_full":
+        if moments != "vector":
+            raise ValueError(
+                f"data.matrix_component_policy='spin_orbit_full' needs data.magnetic_moments='vector', got {moments!r}."
+            )
+        return True, "vector", 8
+    if policy == "spin_orbit":
+        if moments is not None:
+            raise ValueError(
+                "data.matrix_component_policy='spin_orbit' takes no magnetic moments (use 'spin_orbit_full' "
+                f"with data.magnetic_moments='vector'), got data.magnetic_moments={moments!r}."
+            )
+        return True, None, 4
+    if moments == "vector":
+        raise ValueError(
+            f"data.magnetic_moments='vector' needs data.matrix_component_policy='spin_orbit_full', got {policy!r}."
+        )
+    if moments == "collinear":
+        if policy != "spin_h_only":
+            raise ValueError(
+                f"data.magnetic_moments='collinear' needs data.matrix_component_policy='spin_h_only', got {policy!r}."
+            )
+        return False, "collinear", 2
+    return False, None, None
+
+
 def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None:
     """Infer matrix components from the dataset when config still uses the default."""
     data_cfg = getattr(config_ns, "data", None)
@@ -44,11 +77,24 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None
     if data_cfg is None or model_cfg is None:
         return
 
-    spin_orbit = getattr(data_cfg, "matrix_component_policy", "h_only") == "spin_orbit"
+    policy = getattr(data_cfg, "matrix_component_policy", "h_only")
+    data_moments = getattr(data_cfg, "magnetic_moments", None)
+    spin_orbit, moments, channels = _magnetic_options(policy, data_moments)
     if getattr(model_cfg, "spin_orbit", False) and not spin_orbit:
-        raise ValueError("model.spin_orbit=True needs data.matrix_component_policy='spin_orbit'.")
+        raise ValueError(
+            "model.spin_orbit=True needs data.matrix_component_policy='spin_orbit', or 'spin_orbit_full' "
+            "with data.magnetic_moments='vector'."
+        )
+    explicit = getattr(model_cfg, "magnetic_moments", None)
+    if explicit is not None and explicit != moments:
+        raise ValueError(
+            f"model.magnetic_moments={explicit!r} disagrees with data.magnetic_moments={data_moments!r} "
+            f"(data.matrix_component_policy={policy!r}); the model option is derived from the data."
+        )
     if spin_orbit or hasattr(model_cfg, "spin_orbit"):
         model_cfg.spin_orbit = spin_orbit
+    if moments or hasattr(model_cfg, "magnetic_moments"):
+        model_cfg.magnetic_moments = moments
     options = dict(
         root_dir=getattr(data_cfg, "root_dir", "."),
         basis_files=getattr(data_cfg, "basis_files", None),
@@ -100,12 +146,16 @@ def _autoconfigure_n_matrix_components(config_ns: Namespace, stage=None) -> None
         return
     if getattr(model_cfg, "matrix_targets", None) is not None:
         raise ValueError("model matrix_targets require matching data matrix_targets")
-    if spin_orbit:
-        # [h0, gx, gy, gz] is fixed by the policy: no labels needed (also for predict).
+    if channels:
+        # [h0, gx, gy, gz], the 8 spinor channels or [up, down] are fixed by the policy: no labels
+        # needed (also for predict).
         for config in (data_cfg, model_cfg):
-            if getattr(config, "n_matrix_components", 1) not in (1, 4):
-                raise ValueError("spin_orbit stores 4 components; n_matrix_components must be 1 or 4")
-            config.n_matrix_components = 4
+            if getattr(config, "n_matrix_components", 1) not in (1, channels):
+                raise ValueError(
+                    f"matrix_component_policy={policy!r} stores {channels} components; "
+                    f"n_matrix_components must be 1 or {channels}"
+                )
+            config.n_matrix_components = channels
         return
     configured = getattr(data_cfg, "n_matrix_components", None)
     if configured != 1:

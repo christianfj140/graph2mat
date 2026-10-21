@@ -265,6 +265,129 @@ has not been scientifically validated by training on a SOC dataset.
   on-site and 16 of 1296 per edge). Include both parities, as above, in
   campaigns.
 
+Magnetic moments
+----------------
+
+Magnetic systems break time-reversal symmetry (TRS), so the TRS channels of
+``spin_orbit`` are not enough, and the nominal magnetic moment of every atom
+(the one that initialises the SCF cycle) is an input of the model. Both parts
+are opt-in (roadmap 8.1, magnetism); without them nothing changes.
+
+**Full spinor channels.** ``matrix_component_policy="spin_orbit_full"`` loads
+the SIESTA spin-orbit Hamiltonian as 8 real channels
+``[a0, bx, by, bz, b0, ax, ay, az]``, from the spinor
+``H = sum_mu sigma_mu (x) (a^mu + i b^mu)``. From sisl's values ``c`` the
+channels are ``a0 = (c0 + c1)/2``, ``az = (c0 - c1)/2``, ``ax = (c2 + c6)/2``,
+``by = (c2 - c6)/2``, ``bx = (c3 + c7)/2``, ``ay = (c7 - c3)/2``,
+``b0 = (c4 + c5)/2`` and ``bz = (c4 - c5)/2``. The first four are exactly the
+channels of ``spin_orbit`` and the last four are their TRS residuals, so no
+TRS check is made on loading (non-finite values are still rejected). The
+transposed partner of an edge gets the signs
+``SOC_FULL_TRANSPOSE_SIGN = [1, -1, -1, -1, -1, 1, 1, 1]`` and the channels
+have the time-reversal parity ``SOC_FULL_TIME_REVERSAL_PARITY =
+[1, 1, 1, 1, -1, -1, -1, -1]`` (``b0`` and ``a`` are odd). As with
+``spin_orbit``, reconstruction goes only to sisl formats and
+``MatrixDataProcessor`` accepts ``n_matrix_components`` 1 or 8.
+
+**Moments as data.** ``magnetic_moments`` of ``MatrixDataProcessor`` and
+``MatrixDataModule`` is ``None`` (default), ``"collinear"`` (a signed scalar
+per atom, only with ``matrix_component_policy="spin_h_only"``) or ``"vector"``
+(an axial vector per atom, in Bohr magnetons). The moments are read from
+``magnetic_moments.json`` next to each ``.fdf`` (also inside a ZIP):
+
+.. code-block:: json
+
+    {"nominal": [[0.0, 0.0, 2.2], [0.0, 0.0, -2.2]], "converged": [[0.0, 0.0, 2.1], [0.0, 0.0, -2.3]]}
+
+``nominal`` has shape ``(n_atoms,)`` (collinear) or ``(n_atoms, 3)`` in
+Cartesian axes (vector) and is what the model uses; ``converged`` is optional
+and ignored. A missing file, a wrong shape or non-finite values raise a
+``ValueError`` that names the file, and ``spin_orbit_full`` requires
+``magnetic_moments="vector"`` (zeros are allowed). Vector moments are
+converted to the processor's basis exactly like the positions. Two structures
+with the same geometry and different moments give different data.
+
+**Model.** ``LitMACEMatrixModel`` takes the moments as an input:
+
+- ``spin_orbit=True, magnetic_moments="vector"`` (policy ``spin_orbit_full``):
+  the 8 channels, with ``E3nnSpinOrbitFullMatrixBlock`` (``b0`` has the basis of
+  ``h0`` and changes sign under transposition, ``a`` is an axial vector that
+  keeps its sign).
+- ``magnetic_moments="collinear"`` (policy ``spin_h_only``): the two
+  channels up and down.
+- ``spin_orbit=True`` alone (policy ``spin_orbit``) and the plain model are
+  unchanged, and any other combination raises a ``ValueError``.
+  ``n_matrix_components`` is normalised to 8, 2 or 4.
+
+MACE runs once and sees only the geometry. A ``MagneticMomentLayer`` adds to
+its node features a term that is linear in the moments: the own moment
+``m_i`` coupled to the features of atom ``i``, plus the sum over the edges of
+the readout graph of ``m_j`` times the spherical harmonics of the edge, with
+weights from the radial features and divided by ``avg_num_neighbors``. The
+on-site block of ``i`` sees ``m_i`` and the moments of its neighbours, and the
+block of an edge sees ``m_i`` and ``m_j``. The readout runs with ``m`` and
+with ``-m`` on the same MACE features, and the two results are combined so
+that time reversal is exact: with moments ``F(m)`` and ``F(-m)``, the even
+channels are ``(F(m) + F(-m))/2`` and the odd ones ``(F(m) - F(-m))/2``;
+collinear ``up = (u(m) + d(-m))/2`` and ``down = (d(m) + u(-m))/2``. Hence
+flipping every moment negates the odd channels (swaps up and down) exactly,
+and zero moments give odd channels that are exactly 0. The prediction is
+equivariant under rotations of the positions and moments together, proper or
+improper (``m`` is axial). Only a single readout is supported.
+
+The neighbour sum divides by MACE's ``avg_num_neighbors``, whose default 1.0
+would make it too large in a dense metal (O(100) neighbours for bcc Fe). While
+the option has its default, ``fit`` replaces it with the mean number of
+readout-graph neighbours of the training data (from up to 32 training graphs)
+and stores it in the hyperparameters, so a checkpoint rebuilds the same model;
+MACE's own interactions use the same value. An explicit or restored value is
+kept.
+
+.. code-block:: python
+
+    model = LitMACEMatrixModel(
+        basis_table=table, symmetric_matrix=True, spin_orbit=True,
+        magnetic_moments="vector", hidden_irreps=both_parities,
+        edge_hidden_irreps=both_parities, max_ell=3,
+    )
+    datamodule = MatrixDataModule(
+        basis_table=table, out_matrix="hamiltonian", sub_point_matrix=False,
+        symmetric_matrix=True, matrix_component_policy="spin_orbit_full",
+        magnetic_moments="vector", n_matrix_components=8,
+        train_runs="train/*/RUN.fdf", val_runs="val/*/RUN.fdf",
+    )
+    pl.Trainer(max_epochs=100).fit(model, datamodule=datamodule)
+
+**Agreement.** The model raises a ``ValueError`` in ``fit``, ``validate``,
+``test`` and ``predict`` if its ``spin_orbit`` and ``magnetic_moments`` do not
+match the datamodule's policy and ``magnetic_moments`` (for example
+``spin_orbit_full`` data without moments, or a plain model with moments in the
+data). With the command line interface ``model.spin_orbit`` and
+``model.magnetic_moments`` are derived from ``data.matrix_component_policy`` and
+``data.magnetic_moments``, the number of channels is fixed by the policy, and
+an explicit model option that disagrees raises.
+
+**Rejected** (with the moments or ``spin_orbit_full``, before any training):
+``matrix_targets``, ``physical_labels``, ``spectral_window``,
+``coefficient_training``, ``return_coefficients``, ``output_scaleshift``,
+``long_range``, ``hamiltonian_local_context``, ``readout_per_interaction``,
+``basis_grouping`` other than ``"point_type"``, SK and low-rank readouts,
+``n_output_components``, losses other than ``elementwise_mse``,
+``elementwise_mae``, ``block_type_mse`` and ``block_type_mae`` (without physical
+weights) and, for ``spin_orbit_full``, ``symmetric_matrix=False``.
+``MatrixWriter`` and the HTTP server raise for ``spin_orbit_full``, and the
+server also for any processor with moments (its extrapolation path rebuilds
+the configurations without them); ``MatrixWriter`` still writes ``spin_h_only``
+predictions. ``PlotMatrixError`` plots the 8 channels as plain components.
+
+Limits. The code is tested on CPU with synthetic data (equivariance,
+exact time reversal, permutations, 3-step training, checkpoints) and has not
+been scientifically validated by training on a magnetic dataset. Building the
+full-spinor model for the Fe basis (``3x0e+2x1o+2x2e``) with the campaign hidden
+irreps (``16x0e+16x0o+16x1o+16x1e+16x2e+16x2o``) took 135 s on CPU, mostly
+e3nn's reduced tensor products; with these irreps no coefficient of the 8
+channels is structurally zero (on-site ``a`` includes ``4o``).
+
 Optional training batches by declared cost
 --------------------------------------------
 

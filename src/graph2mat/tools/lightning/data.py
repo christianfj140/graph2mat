@@ -441,13 +441,15 @@ class MatrixDataModule(pl.LightningDataModule):
             )
         check_magnetic_moments_option(magnetic_moments, matrix_component_policy)
         self.magnetic_moments = magnetic_moments
-        if matrix_component_policy == "spin_orbit":
+        if matrix_component_policy in ("spin_orbit", "spin_orbit_full") or magnetic_moments is not None:
             bad = [name for name, value in (("spectral_window", spectral_window),
                                             ("physical_labels", physical_labels),
                                             ("matrix_targets", matrix_targets))
                    if (value is not None if name == "matrix_targets" else value)]
             if bad:
-                raise ValueError(f"spin_orbit data do not support: {', '.join(bad)}.")
+                raise ValueError(
+                    f"{'magnetic_moments' if magnetic_moments else 'spin_orbit'} data do not support: {', '.join(bad)}."
+                )
 
         self.batch_size = batch_size
         self.copy_root_to_tmp = copy_root_to_tmp

@@ -1,4 +1,5 @@
 import contextlib
+import warnings
 from typing import Literal, Optional, Type, Union
 
 import numpy as np
@@ -14,6 +15,7 @@ from graph2mat.bindings.e3nn import (
     E3nnLinearEdgeBlock,
     E3nnSimpleEdgeBlock,
     E3nnSimpleNodeBlock,
+    E3nnSpinOrbitFullMatrixBlock,
     E3nnSpinOrbitMatrixBlock,
 )
 from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
@@ -131,6 +133,10 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         # Roadmap 8.1: TRS spin-orbit readout [h0, gx, gy, gz] (E3nnSpinOrbitMatrixBlock).
         # Needs data with matrix_component_policy="spin_orbit"; uncertified options fail.
         spin_orbit: bool = False,
+        # Roadmap 8.1 (magnetism): nominal magnetic moments of the atoms as model input, with exact
+        # time reversal. "vector" (+ spin_orbit=True): the 8 channels of policy spin_orbit_full;
+        # "collinear": the 2 channels of policy spin_h_only. Needs data with the same moments.
+        magnetic_moments: Optional[str] = None,
         # Roadmap 8.2: must equal the data's edge_cutoff_padding (Å); the CLI links them.
         # Without mp_cutoff, MACE also passes messages up to 2(maxR + p) (cost grows ~r^3);
         # set mp_cutoff = 2 * maxR to keep the old message-passing range.
@@ -140,28 +146,38 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             raise ValueError(
                 f"edge_cutoff_padding must be a finite float >= 0 (Å), got {edge_cutoff_padding!r}."
             )
-        if spin_orbit:
+        if magnetic_moments not in (None, "collinear", "vector"):
+            raise ValueError(f"magnetic_moments must be None, 'collinear' or 'vector', got {magnetic_moments!r}.")
+        if magnetic_moments == "vector" and not spin_orbit:
+            raise ValueError("magnetic_moments='vector' needs spin_orbit=True (data policy spin_orbit_full).")
+        if magnetic_moments == "collinear" and spin_orbit:
+            raise ValueError("magnetic_moments='collinear' is the spin_h_only model: spin_orbit must be False.")
+        if spin_orbit or magnetic_moments:
+            channels = {"vector": 8, "collinear": 2}.get(magnetic_moments, 4)
             rejected = {
                 # Without it on-site blocks use "ij" and each edge direction is predicted alone,
                 # so H is not Hermitian (measured |Hk - Hk^H| = 0.54 on an untrained model).
-                "symmetric_matrix=False (Hermiticity needs symmetric_matrix=True)": not symmetric_matrix,
+                "symmetric_matrix=False (Hermiticity needs symmetric_matrix=True)": spin_orbit and not symmetric_matrix,
                 "matrix_targets": matrix_targets is not None,
                 "coefficient_training": coefficient_training,
                 "return_coefficients": return_coefficients,
                 "output_scaleshift": output_scaleshift,
                 "long_range": long_range,
                 "hamiltonian_local_context": hamiltonian_local_context,
+                # The magnetic layer reads the single concatenated node feature vector.
+                "readout_per_interaction": readout_per_interaction and magnetic_moments is not None,
                 "basis_grouping != 'point_type'": basis_grouping != "point_type",
                 "n_output_components": n_output_components is not None,
-                "n_matrix_components not in (1, 4)": n_matrix_components not in (1, 4),
+                f"n_matrix_components not in (1, {channels})": n_matrix_components not in (1, channels),
                 # ponytail: exact classes; SK, low-rank and other readouts assume h0-only blocks.
                 "node_block_readout": node_block_readout is not E3nnSimpleNodeBlock,
                 "edge_block_readout": edge_block_readout not in (E3nnSimpleEdgeBlock, E3nnLinearEdgeBlock),
             }
             bad = [name for name, value in rejected.items() if value]
             if bad:
-                raise ValueError(f"spin_orbit does not support: {', '.join(bad)}.")
-            n_matrix_components = 4
+                raise ValueError(f"{'magnetic_moments' if magnetic_moments else 'spin_orbit'} does not support: {', '.join(bad)}.")
+            n_matrix_components = channels
+        if spin_orbit:
             # The node TensorSquare of h0 + g has irreps up to l=5: with e3nn's TorchScript fx
             # codegen, the second no_grad forward (Lightning's sanity check) did not finish in
             # 40 min (Bi2Se3, 2026-10-20); without it the same step takes 0.06 s.
@@ -219,7 +235,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             selection_metric=selection_metric,
         )
         self.save_hyperparameters()
-        if spin_orbit:
+        if spin_orbit or magnetic_moments:
             self._check_spin_orbit_losses()
         self.matrix_target_layout = layout if matrix_targets is not None else None
         if self.matrix_target_layout is not None:
@@ -311,11 +327,14 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                    if edge_block_readout_kwargs is not None else {}),
                 basis_grouping=basis_grouping,
                 n_matrix_components=n_output_components or n_matrix_components,
-                **({"matrix_block_cls": E3nnSpinOrbitMatrixBlock} if spin_orbit else {}),
+                **({"matrix_block_cls": E3nnSpinOrbitFullMatrixBlock if magnetic_moments else E3nnSpinOrbitMatrixBlock}
+                   if spin_orbit else {}),
+                **({"magnetic_moments": magnetic_moments} if magnetic_moments else {}),
             )
 
     def _check_spin_orbit_losses(self) -> None:
         # Other losses read channels as H/S (gauge) or project h0-only coefficients.
+        name = "magnetic_moments" if self.hparams.get("magnetic_moments") else "spin_orbit"
         allowed = (elementwise_mse, elementwise_mae, block_type_mse, block_type_mae)
         losses = [self.default_loss_fn] + [
             self._resolve_metric(stage["loss"])(**(stage.get("loss_kwargs") or {}))
@@ -324,14 +343,16 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         for loss_fn in losses:
             if type(loss_fn) not in allowed or any(self._physical_weights(loss_fn)):
                 raise ValueError(
-                    f"spin_orbit only supports {[m.__name__ for m in allowed]} without physical "
+                    f"{name} only supports {[m.__name__ for m in allowed]} without physical "
                     f"weights, got {type(loss_fn).__name__}."
                 )
 
     def _check_data_agreement(self) -> None:
         # Data and model must agree: a plain model would fit [h0, gx, gy, gz] as four
-        # unrelated scalars. Without a datamodule only spin_orbit=True fails (unverifiable).
+        # unrelated scalars. Without a datamodule only the spin-orbit and magnetic models
+        # fail (unverifiable).
         spin_orbit = self.hparams.get("spin_orbit", False)  # older checkpoints lack it
+        moments = self.hparams.get("magnetic_moments")
         module = getattr(self.trainer, "datamodule", None)
         # Edges beyond the readout's radial range would get zero features (roadmap 8.2).
         padding = self.hparams.get("edge_cutoff_padding", 0.0)
@@ -341,15 +362,52 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 f"model edge_cutoff_padding={padding} disagrees with data edge_cutoff_padding={data_padding}."
             )
         policy = getattr(module, "matrix_component_policy", None)
-        if spin_orbit != (policy == "spin_orbit") and (module is not None or spin_orbit):
+        required = {(True, None): "spin_orbit", (True, "vector"): "spin_orbit_full",
+                    (False, "collinear"): "spin_h_only"}.get((spin_orbit, moments))
+        # A plain model only excludes the spin-orbit policies, whose channels it would misread.
+        agrees = policy == required if required else policy not in ("spin_orbit", "spin_orbit_full")
+        if not agrees and (module is not None or required):
             raise ValueError(
-                f"model spin_orbit={spin_orbit} disagrees with data matrix_component_policy={policy!r}."
+                f"model spin_orbit={spin_orbit}, magnetic_moments={moments!r} disagrees with data "
+                f"matrix_component_policy={policy!r}."
             )
-        if policy == "spin_orbit":
+        data_moments = getattr(module, "magnetic_moments", None)
+        if module is not None and data_moments != moments:
+            raise ValueError(
+                f"model magnetic_moments={moments!r} disagrees with data magnetic_moments={data_moments!r}."
+            )
+        if policy in ("spin_orbit", "spin_orbit_full") or data_moments:
             bad = [name for name in ("spectral_window", "physical_labels", "matrix_targets")
                    if getattr(module, name, None)]
             if bad:
-                raise ValueError(f"spin_orbit data do not support: {', '.join(bad)}.")
+                raise ValueError(
+                    f"{'magnetic_moments' if data_moments else 'spin_orbit'} data do not support: {', '.join(bad)}."
+                )
+
+    def _normalise_magnetic_neighbours(self) -> None:
+        """Sets ``avg_num_neighbors`` to the mean number of readout-graph neighbours of the training data.
+
+        The magnetic layer divides its neighbour sum by MACE's ``avg_num_neighbors``, whose default 1.0
+        would leave it ~100 times too large for a dense metal (Fe bcc). Only done while the option has
+        its default: a stored or explicit value is kept. The mean comes from up to 32 training graphs
+        spread over the dataset and is stored in the hyperparameters (so checkpoints rebuild the same model).
+        """
+        if self.hparams.get("magnetic_moments") is None or self.hparams.avg_num_neighbors != 1.0:
+            return
+        dataset = getattr(getattr(self.trainer, "datamodule", None), "train_dataset", None)
+        dataset = getattr(dataset, "parent_data", dataset)  # rotating pool -> its dataset
+        if dataset is None or len(dataset) == 0:
+            warnings.warn("No training dataset to derive avg_num_neighbors from: the magnetic layer keeps 1.0.")
+            return
+        graphs = [dataset[int(i)] for i in np.unique(np.linspace(0, len(dataset) - 1, min(len(dataset), 32)).astype(int))]
+        mean = sum(g["edge_index"].shape[1] for g in graphs) / sum(len(g["positions"]) for g in graphs)
+        if mean <= 0:
+            warnings.warn("The training graphs have no edges: the magnetic layer keeps avg_num_neighbors=1.0.")
+            return
+        self.hparams.avg_num_neighbors = mean
+        self.model.magnetic_layer.avg_num_neighbors = mean
+        for interaction in self.model.mace.interactions:
+            interaction.avg_num_neighbors = mean
 
     def setup(self, stage: str) -> None:
         # validate/test/predict never reach on_fit_start. The datamodule is already set up here.
@@ -359,10 +417,20 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
 
     def on_fit_start(self) -> None:
         self._check_data_agreement()  # fit without a datamodule too
+        self._normalise_magnetic_neighbours()
         super().on_fit_start()
         if self.hparams.torch_compile:
             # 6x6 step: 138 -> 70 ms and -31% peak memory; ~90 s of compilation first.
             self.model.compile_submodules(mode=self.hparams.torch_compile_mode)
+
+    def _parameter_group_modules(self) -> dict[str, torch.nn.Module]:
+        # The magnetic layer is part of the readout path: stages that train or freeze the readout include it.
+        groups = super()._parameter_group_modules()
+        layer = getattr(self.model, "magnetic_layer", None)
+        if layer is not None:
+            for name in ("readout", "readouts", "matrix_readouts"):
+                groups[name] = torch.nn.ModuleList([groups[name], layer])
+        return groups
 
     def configure_optimizers(self):
         model = self.model
@@ -405,7 +473,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 {
                     "name": "readouts",
                     "params": list(model.matrix_readouts.parameters())
-                    + (list(model.charge_readout.parameters()) if getattr(model, "charge_readout", None) else []),
+                    + (list(model.charge_readout.parameters()) if getattr(model, "charge_readout", None) else [])
+                    + (list(model.magnetic_layer.parameters()) if getattr(model, "magnetic_layer", None) else []),
                     "weight_decay": 0.0,
                 },
             ],

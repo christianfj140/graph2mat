@@ -434,7 +434,9 @@ def test_datamodule_rejects_unknown_kind():
 def _checkpoint(tmp_path, pop_moments):
     from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
 
-    basis, module = _module(magnetic_moments="vector")
+    # A plain model does not take data with moments (the model checks it): its checkpoint is edited to
+    # carry the option. A real magnetic model's checkpoint is covered by lightning/tests/test_magnetic_model.py.
+    basis, module = _module()
     model = LitMACEMatrixModel(
         basis_table=basis,
         symmetric_matrix=True,
@@ -456,10 +458,12 @@ def _checkpoint(tmp_path, pop_moments):
     path = tmp_path / "m.ckpt"
     trainer.save_checkpoint(path)
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
-    assert ckpt["datamodule_hyper_parameters"]["magnetic_moments"] == "vector"
+    assert ckpt["datamodule_hyper_parameters"]["magnetic_moments"] is None
     if pop_moments:
         ckpt["datamodule_hyper_parameters"].pop("magnetic_moments")
-        torch.save(ckpt, path)
+    else:
+        ckpt["datamodule_hyper_parameters"]["magnetic_moments"] = "vector"
+    torch.save(ckpt, path)
     module.teardown(None)
     return path
 

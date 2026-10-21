@@ -101,8 +101,9 @@ class MatrixWriter(Callback):
     ):
         # Get the data processor that the datamodule uses.
         data_processor: MatrixDataProcessor = trainer.datamodule.data_processor
-        if getattr(data_processor, "matrix_component_policy", None) == "spin_orbit":
-            raise ValueError("MatrixWriter does not support matrix_component_policy='spin_orbit' (spin-orbit "
+        policy = getattr(data_processor, "matrix_component_policy", None)
+        if policy in ("spin_orbit", "spin_orbit_full"):
+            raise ValueError(f"MatrixWriter does not support matrix_component_policy={policy!r} (spin-orbit "
                              "writing is not supported); reconstruct with sisl_H and attach_overlap instead.")
         if getattr(data_processor, "matrix_target_layout", None) is not None:
             self._write_multitarget(data_processor, trainer, prediction, batch)
@@ -591,9 +592,9 @@ class PlotMatrixError(Callback):
         if processor.matrix_target_layout is not None:
             processor = processor.copy(matrix_targets=None, matrix_target_spin=None,
                 n_matrix_components=self._matrix_data.point_labels.shape[1])
-        elif processor.matrix_component_policy == "spin_orbit":
+        elif processor.matrix_component_policy in ("spin_orbit", "spin_orbit_full"):
             # Error magnitudes carry no transpose sign; plot channels as plain components.
-            processor = processor.copy(matrix_component_policy="h_only",
+            processor = processor.copy(matrix_component_policy="h_only", magnetic_moments=None,
                 n_matrix_components=self._matrix_data.point_labels.shape[1])
         unique_atoms = processor.basis_table.get_sisl_atoms()
         geometry = sisl.Geometry(
