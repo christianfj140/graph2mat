@@ -13,7 +13,7 @@
 
 ## Global Constraints
 
-- Checkout `/home/christian/repositorios/graph2mat`, rama `g2m-v2`; sin commits/worktrees ni instalaciones.
+- Checkout `<graph2mat>`, rama `g2m-v2`; sin commits/worktrees ni instalaciones.
 - fixed/cost326283 × seeds0/1/2; 2000 épocas, 64000 muestras/fit, cosine2000/eta_min1e-5 explícito, Adam nativo, best-val_loss cada5.
 - Datos/splits/initials y fuentes técnicas v4 intactos. No defaults, fonones, a-SiO2, generación de H0/Δ ni trabajos adicionales.
 - GPU secuencial, guardas existentes de VRAM/temperatura/cesión; evaluación solo CPU, H0+Δ, S referencia condicional.

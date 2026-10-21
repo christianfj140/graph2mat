@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Checkout `/home/christian/repositorios/graph2mat`, rama `g2m-v2`, sin commits/worktrees; preservar cambios previos.
+- Checkout `<graph2mat>`, rama `g2m-v2`, sin commits/worktrees; preservar cambios previos.
 - Solo tres fits científicos nuevos, semillas0/1/2; reutilizar fixed_s0/1/2 únicamente mientras pase comparabilidad. Ninguna referencia nueva sin preguntar.
 - Dataset h2oclu existente:32train/4validation/3OOD; geometrías, etiquetas, H0, bases, pseudos y splits intactos. No escribir en otro repositorio salvo los tres appends autorizados a su cola existente.
 - Baseline científico cerrado: `auditorias_mejoras/experimentos_batching_h2oclu_20261016_science_v1/`; manifest SHA256 `da7a0e3a1268cb9504f2ede4dd0b3cfe1df263294cb5ff21324949e26ac0ddca`.

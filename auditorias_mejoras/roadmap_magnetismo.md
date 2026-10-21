@@ -28,11 +28,11 @@ representación completa para esta fase).
 
 **Tech Stack:** Python ≥3.9, NumPy/SciPy, sisl 0.16.4, Torch, e3nn 0.4.4, MACE,
 Lightning, pytest. SIESTA 5.4.2 con PseudoDojo nc-fr-04 PBE standard (psml).
-Intérprete: `/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python`.
+Intérprete: `python`.
 
 ## Global Constraints
 
-- Repositorio `/home/christian/repositorios/graph2mat`, rama `g2m-v2`, este checkout.
+- Repositorio `<graph2mat>`, rama `g2m-v2`, este checkout.
 - **Sin merge, push ni PR.** La rama debe contener todo el roadmap antes de fusionar.
 - Commits locales pocos y con sentido; resultados y estado del roadmap en lotes.
   Trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (o el del agente que ejecute).

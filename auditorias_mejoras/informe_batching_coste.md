@@ -106,7 +106,7 @@ Source model.py:
 ## Reproducir
 
 ```bash
-CUDA_VISIBLE_DEVICES='' PYTHONPATH=/home/christian/repositorios/graph2mat/src \
+CUDA_VISIBLE_DEVICES='' PYTHONPATH=src \
 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
 /tmp/g2m-python312-full.LHyni1/venv/bin/python \
 auditorias_mejoras/bench_batching_coste.py

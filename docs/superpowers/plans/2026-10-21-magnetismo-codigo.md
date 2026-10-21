@@ -8,7 +8,7 @@
 
 **Architecture:** Los datos ganan una política `spin_orbit_full` (8 canales) y un array de nodo `magnetic_moments` (μB; escalar con signo en colineal, vector cartesiano 1e con SOC) leído de `magnetic_moments.json` junto al fdf. El modelo evalúa MACE una vez (solo geometría), añade a los rasgos de nodo la salida de una capa magnética local (lineal en m, sobre el grafo del readout) y evalúa el readout con m y con −m. La mitad par va a los canales pares en T y la mitad impar a los impares: inversión temporal exacta por construcción.
 
-**Tech Stack:** Python ≥3.9, NumPy, sisl 0.16.4, Torch, e3nn 0.4.4, MACE, Lightning. Tests: `/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest` con `CUDA_VISIBLE_DEVICES=''`.
+**Tech Stack:** Python ≥3.9, NumPy, sisl 0.16.4, Torch, e3nn 0.4.4, MACE, Lightning. Tests: `python -m pytest` con `CUDA_VISIBLE_DEVICES=''`.
 
 ## Global Constraints
 

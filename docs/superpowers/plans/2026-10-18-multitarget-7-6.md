@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Solo `/home/christian/repositorios/graph2mat`, rama `g2m-v2`, checkout actual; preservar cambios anteriores y artefactos congelados.
+- Solo `<graph2mat>`, rama `g2m-v2`, checkout actual; preservar cambios anteriores y artefactos congelados.
 - Solo CPU. Un paso sintético de Trainer está autorizado; no entrenamientos científicos, GPU, cola/autorun, nuevos datasets, otros proyectos ni fonones.
 - Sin commits, cambios de rama, worktrees, instalaciones ni cambios de defaults legacy.
 - `matrix_targets=None` conserva ruta, retornos y claves de pesos legacy; no exige nuevas claves en checkpoints antiguos.
@@ -70,7 +70,7 @@ Ejecutar desde graph2mat. No instalar si faltan temporales: informar del recurso
 export CUDA_VISIBLE_DEVICES=
 export PYTHONPATH=/tmp/g2m-server-tests.IcPjmO:/tmp/g2m-http-runtime.LOcBGk:/tmp/g2m-soap-deps.o0Kjat
 export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2
-G2M_PY=/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python
+G2M_PY=python
 ```
 
 El intérprete es una herramienta existente; no acceder al código/datos del proyecto que lo contiene. Verificar import de graph2mat en este checkout. Evidencia previa 4.1: suite CPU2732passed/20skip, no asumir que sigue pasando después de 7.6.

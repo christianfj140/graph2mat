@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Repositorio: `/home/christian/repositorios/graph2mat`, rama `g2m-v2`, checkout actual.
+- Repositorio: `<graph2mat>`, rama `g2m-v2`, checkout actual.
 - Sin commits ni worktrees nuevos. Preservar todos los cambios previos sin limpiar el árbol.
 - El entrenamiento normal de Graph2Mat no cambia de comportamiento ni de defaults.
 - No se modifica ni se relanza la campaña 7.2 cerrada. Su runner y artefactos congelados quedan intactos.
@@ -50,7 +50,7 @@ Actualizar únicamente documentos propios: este plan, diseño si requiere aclara
 Comandos desde Graph2Mat. En ejemplos, `G2M_RECOVERY_PY` identifica solo este entorno:
 
 ```bash
-G2M_RECOVERY_PY=/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python
+G2M_RECOVERY_PY=python
 CUDA_VISIBLE_DEVICES='' PYTHONPATH=src:auditorias_mejoras OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 "$G2M_RECOVERY_PY" -m pytest auditorias_mejoras/test_training_recovery.py -q --tb=short
 ```
 

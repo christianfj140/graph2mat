@@ -41,7 +41,7 @@ estado previo, no el actual. No autorizan GPU ni el lote científico.
 
 El documento local `inventario_objetivos_fisicos.md` registra el recurso:
 
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500`
+`$MDVS_ROOT/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500`
 
 Ese inventario histórico contabiliza 1500 tripletes TSHS/TSDE/HSX, con
 `benchmark_ready=true`. Solo comprobó numéricamente una muestra del conjunto;

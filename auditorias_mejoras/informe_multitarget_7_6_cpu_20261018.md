@@ -1,6 +1,6 @@
 # 7.6 — integración multitarget H/S/DM/EDM en CPU
 
-Fecha:2026-10-18. Checkout `/home/christian/repositorios/graph2mat`, rama
+Fecha:2026-10-18. Checkout `<graph2mat>`, rama
 `g2m-v2`, HEAD270d17d, cambios previos preservados. Diseño y plan aprobados
 por el usuario con «Apruebo» en sus respectivas solicitudes. Ejecución Native.
 [Diseño aprobado](../docs/superpowers/specs/2026-10-18-multitarget-7-6-design.md)
@@ -167,7 +167,7 @@ Desde graph2mat, reutilizar entorno existente sin instalar:
 export CUDA_VISIBLE_DEVICES=
 export PYTHONPATH=/tmp/g2m-server-tests.IcPjmO:/tmp/g2m-http-runtime.LOcBGk:/tmp/g2m-soap-deps.o0Kjat
 export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2
-G2M_PY=/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python
+G2M_PY=python
 "$G2M_PY" -m pytest src -q -rs --tb=short --disable-warnings
 "$G2M_PY" .superpowers/sdd/2026-10-18-multitarget-7-6/bench_cpu.py
 ```

@@ -3,7 +3,7 @@
 **Fecha de corte:** 2026-10-06  
 **Estado auditado:** `g2m-v2` local en `e0a88d6ae1ab1971aecebc2cd9d6b366f48fc81b`  
 **Baseline:** `4cc8fd19f3d17e569ec56a4f24d1a65d306b394a`  
-**Repositorio:** `christianfj140/graph2mat`
+**Repositorio:** `<fork>/graph2mat`
 
 ## Alcance, método y niveles de evidencia
 
@@ -1070,5 +1070,5 @@ En ingeniería, MACE ligero, layout precomputado y `torch.compile` mantienen la 
 - Diagnóstico de rango: `Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/report.md`.
 - Resultados externos: `../MD_vs_AtomicDisplacement/Comparison/results/dataset_design_curves_v1/g2m_improvements/` y `runs/`.
 - Scripts externos: `../MD_vs_AtomicDisplacement/Comparison/scripts/g2m_*.py`.
-- Chat original de creación/ejecución de la rama: `/home/christian/.claude/projects/-home-christian-repositorios-graph2mat/0a698975-5150-4a17-943d-a9cd374ce083.jsonl`.
+- Chat original de creación/ejecución de la rama: `~/.claude/projects/<project>/0a698975-5150-4a17-943d-a9cd374ce083.jsonl`.
 - GitHub: PR #1–#6 y refs recuperadas el 2026-10-06; no contienen los 78 commits locales finales.

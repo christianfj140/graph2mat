@@ -9,7 +9,7 @@ generalización sigue siendo una validación, no autoriza nuevas recetas.
 La vista igualtiempo quedó explícitamente separada y sin trabajos adicionales
 en la propuesta aprobada; no sustituirla por igualar updates ni fingir que se hizo.
 
-Repositorio/branch actuales: `/home/christian/repositorios/graph2mat`, `g2m-v2`,
+Repositorio/branch actuales: `<graph2mat>`, `g2m-v2`,
 HEAD270d17d1f204293a059baa09e8f1b3756981e2bf. Checkout sucio previo preservado.
 Reanudación del Goal comprobada active en esta continuación. No se crea otro Goal.
 
@@ -85,7 +85,7 @@ la referencia. Solo diagnóstico, nunca reemplazo de la métrica predeclarada.
 ## Gates y cierre
 
 Revalidación CPU final:136passed/5skipped,248,95s. Comando:
-`CUDA_VISIBLE_DEVICES='' PYTHONPATH=src:auditorias_mejoras OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest auditorias_mejoras/test_training_recovery.py auditorias_mejoras/test_cost_batching_comparison.py auditorias_mejoras/test_recovery_certification.py auditorias_mejoras/test_h2oclu_batching_science.py auditorias_mejoras/test_bilayer_edge_updates.py auditorias_mejoras/test_bench_pipeline_gpu.py -q --tb=short --disable-warnings`.
+`CUDA_VISIBLE_DEVICES='' PYTHONPATH=src:auditorias_mejoras OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 python -m pytest auditorias_mejoras/test_training_recovery.py auditorias_mejoras/test_cost_batching_comparison.py auditorias_mejoras/test_recovery_certification.py auditorias_mejoras/test_h2oclu_batching_science.py auditorias_mejoras/test_bilayer_edge_updates.py auditorias_mejoras/test_bench_pipeline_gpu.py -q --tb=short --disable-warnings`.
 Log: `.superpowers/sdd/2026-10-16-h2oclu-six-approved/closure-focused.log`.
 Los5omitidos son perfilesGPU con permiso/guard explícito; pruebas CUDA ya
 certificadas en snapshot técnico igual, no se relanzaron en este cierre CPU.

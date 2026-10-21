@@ -124,7 +124,7 @@ Tolerancias de comprobación1e-8eV en niveles y1e-5meV en métricas; identidad
 analítica de tres niveles y gauge comprobada antes. Estadísticas y bootstrap
 exacto27resamples pareados recalculados, coinciden con summary.json.
 Evidencia generada: `experimentos_batching_h2oclu_20261016_science_v1/closure_audit_20261017.json`.
-Comando reproducible: `CUDA_VISIBLE_DEVICES='' PYTHONPATH=src:auditorias_mejoras OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python .superpowers/sdd/2026-10-16-h2oclu-six-approved/closure-audit.py`.
+Comando reproducible: `CUDA_VISIBLE_DEVICES='' PYTHONPATH=src:auditorias_mejoras OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 python .superpowers/sdd/2026-10-16-h2oclu-six-approved/closure-audit.py`.
 El script solo lee campaña/datos; no entrena, encola ni sustituye resultados.
 Revalidación enfocada CPU final136pasan/5CUDAomitidos248,95s; Ruff/mypy23fuentes
 limpios. Suite general vigente2789pasan/39omitidos/4fallos históricos de dscribe,

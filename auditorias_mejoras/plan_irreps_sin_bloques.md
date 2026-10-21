@@ -20,7 +20,7 @@ subproyecto `plan_coeficientes_orientacion.md`.
 
 ## Global Constraints
 
-- Solo `/home/christian/repositorios/graph2mat`, `g2m-v2`, mismo checkout.
+- Solo `<graph2mat>`, `g2m-v2`, mismo checkout.
 - APIs/checkpoints/defaults preservados; ningún buffer persistente nuevo.
 - CPU aislada; no GPU ocupada, procesos, colas, datos ni entornos ajenos.
 - No matriz K×K adicional ni cambios de capacidad/operación del readout.

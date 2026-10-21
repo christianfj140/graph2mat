@@ -73,7 +73,7 @@ coeficientes/contexto/CLI 291 passed (313.64s), operación Python3.9 70 passed
 Comando real, exit 0, SHA medido `f0acdadccacab38d4f596d39f14953db564b9f33`:
 
 ```bash
-CUDA_VISIBLE_DEVICES='' PYTHONPATH=/home/christian/repositorios/graph2mat/src \
+CUDA_VISIBLE_DEVICES='' PYTHONPATH=src \
 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
 /tmp/g2m-python312-full.LHyni1/venv/bin/python \
 auditorias_mejoras/bench_slater_koster_cpu.py \

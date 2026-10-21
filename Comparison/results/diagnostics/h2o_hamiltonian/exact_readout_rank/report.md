@@ -7,16 +7,16 @@ This report computes exact local Jacobians with PyTorch autograd for Graph2Mat e
 ## Reproduction Command
 
 ```bash
-Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --checkpoint /home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt --seeds 0 1 2
+Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --checkpoint $MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt --seeds 0 1 2
 ```
 
 ## Configuration
 
 ```json
 {
-  "checkpoint": "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt",
+  "checkpoint": "$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt",
   "checkpoint_exists": true,
-  "command": "Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --checkpoint /home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt --seeds 0 1 2",
+  "command": "Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --checkpoint $MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt --seeds 0 1 2",
   "device": "cpu",
   "dtype": "float64",
   "edge_messages_irreps": "4x0e+4x1o+4x2e",
@@ -200,8 +200,8 @@ Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_
 
 ## Validation Runs
 
-- `PYTHONPATH=src /home/christian/graph2mat-env/bin/python -m py_compile Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py`: passed.
-- `PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --checkpoint /home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt --seeds 0 1 2`: passed; wrote `rank_results.json` and this report.
-- `PYTHONPATH=src /home/christian/graph2mat-env/bin/python -m pytest src/graph2mat/bindings/e3nn/modules/tests/test_e3nngraph2mat.py`: failed in the existing test suite before any production edits, with e3nn `wigner_D` dtype errors from integer `torch.tensor(0)` angle inputs.
-- `PYTHONPATH=src /home/christian/graph2mat-env/bin/python -m pytest src/graph2mat/core/modules/tests/test_graph2mat.py`: 7 passed, 2 failed in existing multicomponent branch behavior (`np.concatenate` on empty edge outputs; multicomponent transpose expectation mismatch).
+- `PYTHONPATH=src python -m py_compile Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py`: passed.
+- `PYTHONPATH=src python Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --checkpoint $MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt --seeds 0 1 2`: passed; wrote `rank_results.json` and this report.
+- `PYTHONPATH=src python -m pytest src/graph2mat/bindings/e3nn/modules/tests/test_e3nngraph2mat.py`: failed in the existing test suite before any production edits, with e3nn `wigner_D` dtype errors from integer `torch.tensor(0)` angle inputs.
+- `PYTHONPATH=src python -m pytest src/graph2mat/core/modules/tests/test_graph2mat.py`: 7 passed, 2 failed in existing multicomponent branch behavior (`np.concatenate` on empty edge outputs; multicomponent transpose expectation mismatch).
 - `git diff --check`: passed.

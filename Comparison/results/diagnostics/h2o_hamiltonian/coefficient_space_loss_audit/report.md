@@ -1,7 +1,7 @@
 # Coefficient-Space Loss Audit
 
-Source workspace: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix`
-Checkpoint: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt`
+Source workspace: `$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix`
+Checkpoint: `$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt`
 
 ## Verdict
 
@@ -47,15 +47,15 @@ Gradient cosine similarities:
 
 ## Output Files
 
-- JSON: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/coefficient_space_loss_audit.json`
-- objective CSV: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/objective_gradient_comparison.csv`
-- training CSV: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/controlled_training_comparison.csv`
-- report: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/report.md`
+- JSON: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/coefficient_space_loss_audit.json`
+- objective CSV: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/objective_gradient_comparison.csv`
+- training CSV: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/controlled_training_comparison.csv`
+- report: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/report.md`
 
 ## Reproduction Command
 
 ```bash
-PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/coefficient_space_loss_audit.py
+PYTHONPATH=src python Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/coefficient_space_loss_audit.py
 ```
 
 ## Validation

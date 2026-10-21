@@ -19,7 +19,7 @@ porque no determina de forma única todos los coeficientes agrupados.
 
 ## Global Constraints
 
-- Solo checkout `/home/christian/repositorios/graph2mat`, `g2m-v2`, sin worktree.
+- Solo checkout `<graph2mat>`, `g2m-v2`, sin worktree.
 - Firmas, checkpoints, defaults y media por operación preservados.
 - CPU aislada: GPU ocupada por trabajos ajenos, sin modificar procesos ni colas.
 - No datasets originales, entornos compartidos, autorun ni otros repositorios.

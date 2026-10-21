@@ -8,7 +8,7 @@ Implementa y evalúa en modo goal los candidatos de precisión, velocidad y VRAM
 de Graph2Mat. Demuestra las ganancias o documenta resultados neutros/negativos.
 
 REPOSITORIO Y REFERENCIA
-Trabaja solo en /home/christian/repositorios/graph2mat, g2m-v2, en ese checkout.
+Trabaja solo en <graph2mat>, g2m-v2, en ese checkout.
 Lee completamente auditorias_mejoras/roadmap_precision_rendimiento.md y
 auditorias_mejoras/roadmap.md; lee el cierre de goal_ingenieria.md.
 El roadmap específico fija los contratos, límites y criterios de cierre.

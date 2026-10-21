@@ -23,7 +23,7 @@ Los contratos y límites siguientes concretan ese acuerdo.
 
 ## Global Constraints
 
-- Único repositorio: `/home/christian/repositorios/graph2mat`, rama `g2m-v2`.
+- Único repositorio: `<graph2mat>`, rama `g2m-v2`.
 - Trabajar en el checkout indicado, sin crear otro worktree.
 - Preservar cambios ajenos, APIs públicas, Python >=3.9 y checkpoints previos.
 - No trabajar en fonones ni modificar otros repositorios.
@@ -96,7 +96,7 @@ HEAD, inventario contrastado, comandos reproducibles y resultado de referencia.
 
 ```bash
 CUDA_VISIBLE_DEVICES='' \
-PYTHONPATH=/home/christian/repositorios/graph2mat/src \
+PYTHONPATH=src \
 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
 /tmp/g2m-python312-full.LHyni1/venv/bin/python -m pytest -q \
   src/graph2mat/bindings/e3nn/modules/tests/test_diagnostic_dense_readout.py \
@@ -317,7 +317,7 @@ El resto del roadmap principal continúa abierto: este goal no pretende cerrarlo
   Resultado: Cython 3.3.0 instalado; `python -m pip check` exit 0,
   `No broken requirements found`. No se cambia la evidencia histórica del goal anterior.
 - Import posterior confirmado desde
-  `/home/christian/repositorios/graph2mat/src/graph2mat/__init__.py`;
+  `src/graph2mat/__init__.py`;
   Torch `2.11.0+cpu`, e3nn `0.4.4`. Este venv sirve para CPU, no para medir CUDA.
 - Referencia con el comando de Task 0: **67 passed, 186 warnings, 2.32 s**, exit 0.
   Log: `/tmp/g2m-precision-goal.A2Pbgk/baseline-coefficients.log`.

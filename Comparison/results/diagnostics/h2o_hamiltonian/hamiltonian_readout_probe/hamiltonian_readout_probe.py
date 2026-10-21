@@ -40,7 +40,8 @@ H2O_DIAGNOSTIC_ROOT = Path(__file__).resolve().parents[1]
 LOCAL_CONTEXT_DIR = H2O_DIAGNOSTIC_ROOT / "local_context_probe"
 JOINT_RANK_DIR = H2O_DIAGNOSTIC_ROOT / "concrete_joint_readout_rank"
 DEFAULT_PIPELINE_ROOT = Path(
-    "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement"
+    # MD_vs_AtomicDisplacement checkout (formerly MD_vs_OnlyAtomDisplacement).
+    os.environ.get("MDVS_ROOT", Path(__file__).resolve().parents[6] / "MD_vs_AtomicDisplacement")
 )
 DEFAULT_SOURCE_WORKSPACE = (
     DEFAULT_PIPELINE_ROOT

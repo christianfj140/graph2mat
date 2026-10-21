@@ -1,7 +1,7 @@
 """CPU-only, label-free inference for the six frozen w90 checkpoints.
 
 CUDA_VISIBLE_DEVICES= python auditorias_mejoras/close_multitarget_w90.py --out \
-    /home/christian/repositorios/graph2mat/auditorias_mejoras/cierre_multitarget_w90_20261019_v1
+    auditorias_mejoras/cierre_multitarget_w90_20261019_v1
 """
 
 import argparse

@@ -2,9 +2,12 @@ import os
 import sisl
 import numpy as np
 
-path = "/home/christian/Escritorio/CINN/repositorios/ejemplo_graph2mat_h2o/results/hamiltonian_reconstructed/predicted_matrices/4.HSX"
+# Local check of a reconstructed H2O prediction; set G2M_H2O_EXAMPLE to the example
+# workspace (with results/... and test/4/siesta.TSHS) to run it.
+EXAMPLE = os.environ.get("G2M_H2O_EXAMPLE", "")
+path = os.path.join(EXAMPLE, "results/hamiltonian_reconstructed/predicted_matrices/4.HSX")
 
-if not os.path.exists(path):
+if not EXAMPLE or not os.path.exists(path):
     import pytest
 
     pytest.skip(f"local example file not available: {path}", allow_module_level=True)
@@ -24,8 +27,8 @@ print("nnz:", H.nnz)
 
 
 
-pred_path = "/home/christian/Escritorio/CINN/repositorios/ejemplo_graph2mat_h2o/results/hamiltonian_reconstructed/predicted_matrices/4.HSX"
-real_path = "/home/christian/Escritorio/CINN/repositorios/ejemplo_graph2mat_h2o/test/4/siesta.TSHS"
+pred_path = path
+real_path = os.path.join(EXAMPLE, "test/4/siesta.TSHS")
 
 with sisl.get_sile(pred_path) as f:
     H_pred = f.read_hamiltonian()

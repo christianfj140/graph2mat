@@ -287,7 +287,7 @@ la fuente de las conclusiones finales.
 ```bash
 CUDA_VISIBLE_DEVICES='' PYTHONPATH=src:auditorias_mejoras \
 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+python \
 auditorias_mejoras/diagnose_h2oclu_ood.py \
 --output auditorias_mejoras/diagnostico_h2oclu_ood_20261017/reproduction.json
 ```

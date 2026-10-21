@@ -31,8 +31,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import run_readout_comparison as rc  # noqa: E402
 
-CAMPAIGN = Path("/home/christian/repositorios/graph2mat/auditorias_mejoras/experimentos_readout_w90_6x6_20261010_v1")
-SOURCES = {"base": Path("/home/christian/repositorios/graph2mat-wt-base/src"), "cpu": HERE.parent / "src"}
+CAMPAIGN = HERE / "experimentos_readout_w90_6x6_20261010_v1"
+SOURCES = {"base": HERE.parent.parent / "graph2mat-wt-base/src", "cpu": HERE.parent / "src"}
 VARIANTS = {"pre26": ("base", {}), "current": ("cpu", {}),
             "no_lean": ("cpu", {"lean_mace": False}), "simplify": ("cpu", {"simplify_node_irreps": True})}
 ROUNDS = 6

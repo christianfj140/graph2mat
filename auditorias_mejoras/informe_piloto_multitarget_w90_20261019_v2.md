@@ -136,7 +136,7 @@ CUDA_VISIBLE_DEVICES= "$P" auditorias_mejoras/pilot_multitarget_w90.py preflight
 "$P" auditorias_mejoras/pilot_multitarget_w90.py pilot --out auditorias_mejoras/piloto_multitarget_w90_20261019_v2
 ```
 
-`P=/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python`;
+`P=python`;
 PYTHONDONTWRITEBYTECODE=1, OMP/OPENBLAS/MKL_NUM_THREADS=2 y overlays instalados
 registrados en el ledger. Evidencia y logs propios:
 `.superpowers/sdd/2026-10-19-multitarget-w90-pilot/{pid-fix-red.log,pid-fix-green.log,pid-fix-cpu-gate.log,preflight-v2.log,pilot-v2.log,closure-v2.json}`.

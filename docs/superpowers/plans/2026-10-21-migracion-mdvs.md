@@ -20,11 +20,11 @@ Los lanzadores de benchmarks no se portan (dependen del arnés de 2345 líneas, 
 un ejemplo documentado con la receta real y un flujo Δ-learning ejecutable.
 
 **Tech Stack:** Python ≥3.9, NumPy, SciPy, sisl 0.16, typer (CLI). Sin dependencias nuevas. Tests:
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest` con `CUDA_VISIBLE_DEVICES=''`.
+`python -m pytest` con `CUDA_VISIBLE_DEVICES=''`.
 
 ## Global Constraints
 
-- No modificar nada en `MD_vs_AtomicDisplacement` ni en `/mnt/research-data` (solo lectura). Estado `git status` de
+- No modificar nada en `MD_vs_AtomicDisplacement` ni en `$G2M_DATA_ROOT` (solo lectura). Estado `git status` de
   MD_vs idéntico antes y después.
 - Fórmulas, umbrales y nombres de métricas idénticos a los originales: `INTERLAYER_DZ=1.5` Å, ventana ±2 eV (Γ y
   camino), ventana espectral 4.4 `3.0` eV, espacio nulo 4.7 `threshold=1e-2`, `floor=1e-3`, `CANON_THR=1e-2`,

@@ -132,7 +132,7 @@ CUDA_VISIBLE_DEVICES= "$P" auditorias_mejoras/pilot_multitarget_w90.py preflight
 "$P" auditorias_mejoras/pilot_multitarget_w90.py pilot --out auditorias_mejoras/piloto_multitarget_w90_20261019_v1
 ```
 
-`P=/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python`.
+`P=python`.
 Los hashes de datos y código se volvieron a contrastar tras abortar: intactos.
 Los28hashes de producto/tests del cierre7.6 también coinciden. GPU0 vuelve a
 32096MiB libres,36°C,0% en la consulta de cierre; ningún proceso propio de

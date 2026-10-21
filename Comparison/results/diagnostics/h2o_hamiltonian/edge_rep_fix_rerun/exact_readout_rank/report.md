@@ -7,16 +7,16 @@ This report computes exact local Jacobians with PyTorch autograd for Graph2Mat e
 ## Reproduction Command
 
 ```bash
-Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/exact_readout_rank --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
+Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/exact_readout_rank --checkpoint $MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
 ```
 
 ## Configuration
 
 ```json
 {
-  "checkpoint": "/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
+  "checkpoint": "$MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
   "checkpoint_exists": true,
-  "command": "Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/exact_readout_rank --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
+  "command": "Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/exact_readout_rank --checkpoint $MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt",
   "device": "cpu",
   "dtype": "float64",
   "edge_messages_irreps": "4x0e+4x1o+4x2e",

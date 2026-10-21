@@ -26,7 +26,7 @@ siguientes no cambian.
 ## Datos y comprobaciones realizadas
 
 Raíz externa, solo lectura:
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/results/dataset_design_curves_v1`.
+`$MDVS_ROOT/Comparison/results/dataset_design_curves_v1`.
 Manifest: `g2m_improvements/bench/h2oclu/frozen_split_manifest.json`, SHA256
 `90f446b3a6577f81cc2b1a86a0f0e4f20acb06ba5d8b0503effc64267c7e79d3`.
 Su esquema contiene material/rows, pero no hashes de artefactos ni identificadores

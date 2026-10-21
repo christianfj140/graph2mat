@@ -1,4 +1,4 @@
-He hecho una **auditoría estática del código** del fork `christianfj140/graph2mat`, de la versión actual de upstream, de la API actual de MACE y de sisl, y he contrastado todo ello con la auditoría de Claude que adjuntaste. **No he ejecutado entrenamientos, tests ni benchmarks, y no he modificado código.**
+He hecho una **auditoría estática del código** del fork `<fork>/graph2mat`, de la versión actual de upstream, de la API actual de MACE y de sisl, y he contrastado todo ello con la auditoría de Claude que adjuntaste. **No he ejecutado entrenamientos, tests ni benchmarks, y no he modificado código.**
 
 A fecha de hoy, tu repositorio es un fork de `BIG-MAP/graph2mat` con 208 commits frente a 213 en upstream. Sin embargo, esto no es simplemente un problema de que el fork esté unos commits atrasado: varios de los problemas importantes que describo siguen presentes también en upstream, entre ellos leer únicamente `spmat.data[:,0]`, `symmetric_matrix=False` por defecto y el tratamiento incorrecto de los mensajes inversos en el modo no simétrico. :chatgpt-content-reference{index="0"}
 

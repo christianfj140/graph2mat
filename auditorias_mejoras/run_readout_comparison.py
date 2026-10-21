@@ -21,7 +21,7 @@ import yaml
 
 
 REPO = Path(__file__).resolve().parents[1]
-LEGACY = Path("/home/christian/repositorios/MD_vs_AtomicDisplacement")
+LEGACY = Path(os.environ.get("MDVS_ROOT", REPO.parent / "MD_vs_AtomicDisplacement"))
 SCRIPTS = LEGACY / "Comparison/scripts"
 PREVIOUS = LEGACY / "Comparison/results/dataset_design_curves_v1"
 VARIANTS = {"baseline": "E3nnLinearEdgeBlock", "low_rank": "E3nnLowRankEdgeBlock",

@@ -4,7 +4,7 @@ Estado: **diseño aprobado por el usuario el 2026-10-14**, mediante «Apruebo»
 en respuesta a la solicitud de revisión. La aprobación autoriza redactar el
 plan, no ejecutar un plan aún no revisado. No se ha escrito código de producto.
 
-Repositorio: `/home/christian/repositorios/graph2mat`, rama `g2m-v2`.
+Repositorio: `<graph2mat>`, rama `g2m-v2`.
 Referencia de coste: [perfil por pares y backward](../../../auditorias_mejoras/informe_simetria_homonuclear_20261014.md).
 
 ## 1. Objetivo y límites

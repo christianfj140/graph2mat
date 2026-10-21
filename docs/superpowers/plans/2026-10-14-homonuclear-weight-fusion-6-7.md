@@ -14,7 +14,7 @@
 
 ## Global Constraints
 
-- Único repositorio: `/home/christian/repositorios/graph2mat`, rama `g2m-v2`.
+- Único repositorio: `<graph2mat>`, rama `g2m-v2`.
 - Trabajar en el checkout indicado; no crear otro worktree.
 - `fuse_homonuclear=False` por defecto; ninguna promoción automática.
 - No cambiar core/NumPy, DataModule, CLI, exports, vecinos, datasets/splits ni colas.
@@ -56,7 +56,7 @@ No crear otro módulo de producción para dos transformaciones privadas ni un pr
 HEAD al redactar: `270d17d1f204293a059baa09e8f1b3756981e2bf`, con cambios previos **sin commit**. HEAD no identifica por sí solo la referencia: guardar diff y hashes de fuentes al empezar, sin incluir archivos ajenos en commits.
 
 Intérprete CUDA existente:
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python`.
+`python`.
 Intérprete floor3.9 existente:
 `/tmp/g2m-python39.D7TJAp/full-venv/bin/python`.
 Verificar que todavía existen e importan el source correcto antes de usarlos.
@@ -68,7 +68,7 @@ que precargan explícitamente extensiones nativas con `compiled_extensions()`.
 
 ```bash
 CUDA_VISIBLE_DEVICES='' PYTHONPATH=src OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest \
+  python -m pytest \
   src/graph2mat/bindings/e3nn/modules/tests/test_coefficient_only_block.py \
   src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py -q --tb=short
 ```
@@ -245,7 +245,7 @@ no construir Q float32 y castear después como supuesto oráculo float64.
 - [ ] Implementar `validate` con el mismo supervisor; comprobar procesos CUDA ajenos antes del hijo y usar límite calculado, nunca establecer fracción fija mayor que el presupuesto. El hijo precarga extensiones e importa Graph2Mat antes de e3nn. Ejecución prevista:
 
 ```bash
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+python \
   auditorias_mejoras/bench_homonuclear_fusion.py validate \
   --out auditorias_mejoras/experimentos_speed_probe_homonuclear_20261014_cuda_v1
 ```
@@ -254,7 +254,7 @@ no construir Q float32 y castear después como supuesto oráculo float64.
 
 ```bash
 CUDA_VISIBLE_DEVICES='' PYTHONPATH=src OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest src tests -q --tb=short
+  python -m pytest src tests -q --tb=short
 ```
 
 Registrar los cuatro casos históricos `test_real_extrapolation_with_missing_onsite_and_edge_blocks[False/True-1/2-HistorySOAPs]` si continúa ausente `dscribe`; no instalarlo en el entorno compartido. Cualquier otro fallo se diagnostica y se informa antes del benchmark final.
@@ -318,10 +318,10 @@ warmup, steps, fraction y output. Añadir al resultado original los campos
 - [ ] Campaña corta:4rondas×2variantes×4sistemas=32hijos,10warmups+30pasos por hijo. Solo optimización breve para medir cómputo, no entrenamientos científicos. Comandos previstos:
 
 ```bash
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+python \
   auditorias_mejoras/bench_homonuclear_fusion.py run --rounds 1 --warmup 1 --steps 2 \
   --out auditorias_mejoras/experimentos_speed_probe_homonuclear_20261014_smoke_v1
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+python \
   auditorias_mejoras/bench_homonuclear_fusion.py run --rounds 4 --warmup 10 --steps 30 \
   --out auditorias_mejoras/experimentos_speed_probe_homonuclear_20261014_v1
 ```

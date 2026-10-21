@@ -17,7 +17,7 @@ y [protocolo pendiente](protocolo_precision_4_4_4_5.md). No cierre de todo 4.4�
 
 El objetivo inicialmente limitaba la búsqueda al repositorio Graph2Mat. El
 usuario indicó después que los materiales están en
-`/home/christian/repositorios/MD_vs_AtomicDisplacement`. Se inspeccionaron allí
+`$MDVS_ROOT`. Se inspeccionaron allí
 los datasets en lectura sola. No se modificaron datos, manifiestos, entornos,
 colas, entrenamientos ni código de ese repositorio. No se ejecutaron fonones,
 GPU, SIESTA ni entrenamientos.
@@ -31,7 +31,7 @@ acotada siguiente localizó conjuntos persistentes con etiquetas adicionales.
 ## Datos localizados y profundidad de comprobación
 
 Raíz común:
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets`.
+`$MDVS_ROOT/Comparison/datasets`.
 
 | Conjunto, relativo a la raíz | Snapshots numéricos en `MD_steps` | Tripletes TSHS/TSDE/HSX presentes | Manifiesto `benchmark_ready` |
 | --- | ---: | ---: | --- |

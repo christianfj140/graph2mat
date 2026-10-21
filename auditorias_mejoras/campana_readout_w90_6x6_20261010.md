@@ -83,7 +83,7 @@ abierto una vez confirmada la entrada y el daemon.
 Comprobar resultados locales:
 
 ```bash
-cd /home/christian/repositorios/graph2mat
+cd <graph2mat>
 ls auditorias_mejoras/experimentos_readout_w90_6x6_20261010_v1/completed/
 ```
 
@@ -116,7 +116,7 @@ La primera suite completa usó por error `PYTHONPATH=src`: diez pruebas DDP
 cargaban la instalación antigua al cambiar su cwd. Se interrumpió esa ejecución
 (1757 passed, 10 failed, 2 skipped); log `/tmp/g2m-campaign-full-suite.log`.
 La prueba DDP aislada pasa al usar la ruta absoluta. Se relanzó toda la suite con
-`PYTHONPATH=/home/christian/repositorios/graph2mat/src`: **2610 passed, 2 skipped,
+`PYTHONPATH=src`: **2610 passed, 2 skipped,
 36534 warnings, 862.35 s**, ningún fallo. Log completo conservado en
 `verification/g2m-campaign-full-suite-absolute.log` dentro de la campaña.
 

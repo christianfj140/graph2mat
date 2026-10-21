@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Repositorio `/home/christian/repositorios/graph2mat`, rama `g2m-v2`, mismo checkout; sin worktree, push ni merge. Preservar cambios ajenos y no usar staging global.
+- Repositorio `<graph2mat>`, rama `g2m-v2`, mismo checkout; sin worktree, push ni merge. Preservar cambios ajenos y no usar staging global.
 - `electron_weight=0.0`, `mulliken_weight=0.0`, `energy_weight=0.0`; pesos finitos y no negativos. `physical_labels=None` conserva la ruta actual, sin lecturas auxiliares.
 - Charge necesita DM y S reales; energy necesita H/S/DM/EDM reales. No inventar DM/EDM, ocupaciones ni etiquetas cero a partir de H.
 - Matrices reales no polarizadas o colineales; sin factor de spin adicional. Rechazar SOC, no colinealidad y coeficientes complejos.
@@ -22,7 +22,7 @@
 - Medias físicas por estructura; contracciones periódicas por átomo, nunca producto de matrices plegadas a Γ. Media arista aporta a ambos extremos, también a imágenes del mismo átomo.
 - Preparación CPU: diagonalización de S permitida; paso de pérdida: productos/scatter, sin reconstrucción orbital densa ni diagonalización.
 - Campos `physical_*` sin `index`; referencias no entran en features/readout. Importación NumPy sin Torch y checkpoints legacy preservados.
-- Datos externos autorizados solo en lectura: `/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets`. No escribir allí ni importar scripts de ese repositorio.
+- Datos externos autorizados solo en lectura: `$MDVS_ROOT/Comparison/datasets`. No escribir allí ni importar scripts de ese repositorio.
 - Sin fonones, 7.4, autorun, colas, GPU, AMP CUDA, entrenamientos comparativos largos, instalaciones ni cambios de entornos compartidos. No detener procesos ajenos.
 - No atribuir mejoras de precisión, velocidad o VRAM a una implementación correcta. Los auxiliares pueden aumentar RAM/transferencia/VRAM.
 
@@ -151,9 +151,9 @@ export G2M_PHYS_PY39=/tmp/g2m-python39.D7TJAp/full-venv/bin/python
 export G2M_PHYS_RUFF=/tmp/g2m-static-gates.YpKMAH/venv/bin/ruff
 export G2M_PHYS_MYPY=/tmp/g2m-static-gates.YpKMAH/venv/bin/mypy
 export CUDA_VISIBLE_DEVICES=''
-export PYTHONPATH=/home/christian/repositorios/graph2mat/src
+export PYTHONPATH=src
 export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2
-"$G2M_PHYS_PY" -c 'import sys,graph2mat,sisl,torch,pytorch_lightning; print(sys.version,graph2mat.__file__,sisl.__version__,torch.__version__,pytorch_lightning.__version__); assert graph2mat.__file__.startswith("/home/christian/repositorios/graph2mat/src/"); assert not torch.cuda.is_available()'
+"$G2M_PHYS_PY" -c 'import sys,graph2mat,sisl,torch,pytorch_lightning; print(sys.version,graph2mat.__file__,sisl.__version__,torch.__version__,pytorch_lightning.__version__); assert graph2mat.__file__.startswith("src/"); assert not torch.cuda.is_available()'
 ```
 
 - [x] Registrar baseline enfocada, salida completa y exit code; ningún test nuevo debe contar como RED por un fallo previo de entorno.
@@ -170,7 +170,7 @@ La suite histórica 2251/2 no es evidencia nueva de este bloque.
   untracked ajenos conservados. Estado preparatorio histórico; plan/método
   aprobados después explícitamente por el usuario.
 - Python 3.12.3, sisl 0.16.4, Torch 2.11.0+cpu, Lightning 2.6.1; importación
-  desde `/home/christian/repositorios/graph2mat/src/graph2mat/__init__.py`,
+  desde `src/graph2mat/__init__.py`,
   CUDA no disponible con la variable de entorno vacía.
 - Comando de baseline de cinco módulos arriba, con PYTHONPATH absoluto y
   OMP/OPENBLAS/MKL=2: **138 passed, 4992 warnings, 70.74 s, exit code 0**.

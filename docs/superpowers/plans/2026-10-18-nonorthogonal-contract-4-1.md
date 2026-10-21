@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Solo `/home/christian/repositorios/graph2mat`, rama `g2m-v2`, checkout actual y cambios previos preservados.
+- Solo `<graph2mat>`, rama `g2m-v2`, checkout actual y cambios previos preservados.
 - CPU; sin entrenamientos científicos, GPU, cola/autorun, commits, ramas, worktrees ni instalaciones.
 - Sin cambios de defaults, losses, checkpoints, datos o artefactos de campañas congeladas; fonones y otros proyectos excluidos.
 - Matrices reales no polarizadas/colineales; raw/SOC no adquiere una semántica física nueva.
@@ -45,7 +45,7 @@ No nueva export pública, config ni fixture científica. Cambios productivos, si
 
 ## Entorno reproducible y baseline
 
-Usar el intérprete preexistente `/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python` como herramienta, sin entrar en ese proyecto ni modificar su entorno.
+Usar el intérprete preexistente `python` como herramienta, sin entrar en ese proyecto ni modificar su entorno.
 
 Los extras se reutilizan desde sus directorios existentes, para este proceso:
 
@@ -53,7 +53,7 @@ Los extras se reutilizan desde sus directorios existentes, para este proceso:
 env CUDA_VISIBLE_DEVICES= \
  PYTHONPATH=/tmp/g2m-server-tests.IcPjmO:/tmp/g2m-http-runtime.LOcBGk:/tmp/g2m-soap-deps.o0Kjat \
  OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
- /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest \
+ python -m pytest \
  src/graph2mat/core/data/tests/test_spin_collinear.py \
  src/graph2mat/core/data/tests/test_periodic_hermiticity_oracles.py \
  src/graph2mat/tools/lightning/tests/test_matrix_components.py \

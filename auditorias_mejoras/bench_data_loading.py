@@ -19,8 +19,8 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TREES = {"f1bb647": Path("/home/christian/repositorios/graph2mat-wt-f1bb/src"),
-         "4444ff7": Path("/home/christian/repositorios/graph2mat-wt-base/src"), "current": HERE.parent / "src"}
+TREES = {"f1bb647": HERE.parent.parent / "graph2mat-wt-f1bb/src",
+         "4444ff7": HERE.parent.parent / "graph2mat-wt-base/src", "current": HERE.parent / "src"}
 
 
 def one(run):

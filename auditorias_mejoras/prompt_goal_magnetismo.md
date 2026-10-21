@@ -9,7 +9,7 @@ magnéticos por átomo como entrada, representación completa del spinor con SOC
 sin imponer inversión temporal (8 canales) y spin colineal con momentos.
 
 REPOSITORIO Y REFERENCIA
-Trabaja solo en /home/christian/repositorios/graph2mat, rama g2m-v2, en ese
+Trabaja solo en <graph2mat>, rama g2m-v2, en ese
 checkout. Lee completamente auditorias_mejoras/roadmap_magnetismo.md: fija
 diseño, contratos, métricas, límites y criterios de cierre. Lee la fila 8.1 de
 auditorias_mejoras/roadmap.md y docs/superpowers/specs/2026-10-19-soc-8-1-design.md.

@@ -29,14 +29,14 @@ from pathlib import Path
 
 import numpy as np
 
-MD = Path("/home/christian/repositorios/MD_vs_AtomicDisplacement")
+MD = Path(os.environ.get("MDVS_ROOT", Path(__file__).resolve().parents[2] / "MD_vs_AtomicDisplacement"))
 sys.path.insert(0, str(MD / "Comparison/scripts"))
 from g2m_autorun import cpu_temp  # noqa: E402
 from g2m_bench_materials import MESH, RELAX, SINGLE_POINT, fdf_text  # noqa: E402
 from g2m_delta import h0_fdf  # noqa: E402
 
 PSEUDO = MD / "materials/bench_common/pseudos_fr/Fe.psml"
-SIESTA = "/home/christian/bin/siesta"
+SIESTA = os.environ.get("SIESTA", "siesta")
 OUT = Path(__file__).resolve().parent / "experimentos_magnetismo_f0_fe_20261021"
 CPUS, NPROC, WORKERS, MAX_TEMP = "8-23", 4, 3, 79.0  # E-cores, as the materials bench
 ETEMP, M0 = 0.05, 2.2  # eV (metal); nominal moment, mu_B

@@ -13,15 +13,15 @@ conversación; si algo parece faltar, pregúntalo al usuario en vez de suponerlo
 
 ## 1. Dónde está cada cosa
 
-- Código y estado del roadmap: `/home/christian/repositorios/graph2mat`, rama `g2m-v2` (HEAD `ae65fbc` o posterior).
+- Código y estado del roadmap: `<graph2mat>`, rama `g2m-v2` (HEAD `ae65fbc` o posterior).
   `auditorias_mejoras/roadmap.md` es la fuente de verdad: cada punto tiene su estado, medidas y fecha.
 - Resultados de la campaña 7.1/7.4: `auditorias_mejoras/campana_readout_w90_6x6_20261010.md` y
   `experimentos_readout_w90_6x6_20261010_v1/precision_summary.json` (directorio ignorado por git).
 - Diagnóstico del error de bandas fuera de distribución:
-  `/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/results/dataset_design_curves_v1/g2m_improvements/ood_band_attribution/README.md`.
-- Worktree auxiliar en uso: `/home/christian/repositorios/graph2mat-wt-cpu` (rama `g2m-v2-cpu`, ya fusionada en `g2m-v2`).
+  `$MDVS_ROOT/Comparison/results/dataset_design_curves_v1/g2m_improvements/ood_band_attribution/README.md`.
+- Worktree auxiliar en uso: `../graph2mat-wt-cpu` (rama `g2m-v2-cpu`, ya fusionada en `g2m-v2`).
   Lo importan las sondas y el experimento de energía encolados; no lo borres mientras haya trabajos suyos pendientes.
-- Entorno: `/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python` (graph2mat editable apunta al
+- Entorno: `python` (graph2mat editable apunta al
   checkout principal). Para ejecutar el código de otro árbol hay que quitar el finder editable:
   `PYTHONPATH=auditorias_mejoras/probe_site:<árbol>/src:auditorias_mejoras`.
 

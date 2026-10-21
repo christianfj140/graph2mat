@@ -1,7 +1,7 @@
 # Concrete H2O Joint Readout Rank Diagnostic
 
-Source workspace: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix`
-Checkpoint: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt`
+Source workspace: `$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix`
+Checkpoint: `$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt`
 
 ## Verdict
 
@@ -107,20 +107,20 @@ The reported coefficient ranks are irreps-space ranks. The symmetric node block-
 
 ## Output Files
 
-- JSON: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/joint_rank_results.json`
-- Rank CSV: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/joint_rank_by_operation.csv`
-- Input feature distances CSV: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/input_feature_distances.csv`
+- JSON: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/joint_rank_results.json`
+- Rank CSV: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/joint_rank_by_operation.csv`
+- Input feature distances CSV: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/input_feature_distances.csv`
 
 ## Reproduction Command
 
 ```bash
-PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py
+PYTHONPATH=src python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py
 ```
 
 ## Validation Runs
 
-- `PYTHONPATH=src /home/christian/graph2mat-env/bin/python -m py_compile Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py`: passed.
-- `PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py`: passed. Generated joint_rank_results.json, joint_rank_by_operation.csv, input_feature_distances.csv, and report.md.
+- `PYTHONPATH=src python -m py_compile Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py`: passed.
+- `PYTHONPATH=src python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py`: passed. Generated joint_rank_results.json, joint_rank_by_operation.csv, input_feature_distances.csv, and report.md.
 
 ## Repository Context
 

@@ -595,6 +595,13 @@ bicapa, con `kl`: H −36 % y bandas −9 %):
   ⚪ neutro o peor **en lo medido** (casi siempre grafeno): no está descartado. Hay que volver a medirlo en el banco de
   materiales (ver «Banco de materiales»), porque grafeno no pone a prueba varias de estas modificaciones (una sola
   especie, orbitales s/p, no polar). ❌ queda solo para lo que falla por construcción o está roto.
+- **Rutas:** en documentos y scripts, `<graph2mat>` es la raíz de este repositorio (las rutas sin prefijo son
+  relativas a ella), `$MDVS_ROOT` el checkout de MD_vs_AtomicDisplacement (antes MD_vs_OnlyAtomDisplacement; los
+  scripts usan por defecto `../MD_vs_AtomicDisplacement`), `$G2M_DATA_ROOT` la raíz de los datos y resultados
+  pesados (no versionados), `$G2M_H2O_EXAMPLE` el antiguo ejemplo de H2O y `SIESTA` el ejecutable (por defecto
+  `siesta` del `PATH`). Los `.json` y `.log` de resultados conservan las rutas originales de la máquina en que se
+  generaron, como procedencia histórica, y `audit_multitarget_w90.py` también, porque su hash está citado en
+  `certificacion_multitarget_w90_20261018.md`.
 
 ## Reglas del proceso
 

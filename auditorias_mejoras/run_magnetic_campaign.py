@@ -37,7 +37,7 @@ for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_var, "4")  # small dense eigenproblems; SIESTA labels may share the CPU
 import numpy as np  # noqa: E402
 
-MD = Path("/home/christian/repositorios/MD_vs_AtomicDisplacement")
+MD = Path(os.environ.get("MDVS_ROOT", Path(__file__).resolve().parents[2] / "MD_vs_AtomicDisplacement"))
 sys.path.insert(0, str(MD / "Comparison/scripts"))
 import dataset_design_curves_v1 as c  # noqa: E402
 import g2m_bench_materials as bench  # noqa: E402

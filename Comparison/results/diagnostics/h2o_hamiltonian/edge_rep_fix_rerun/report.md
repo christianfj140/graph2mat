@@ -14,10 +14,10 @@ One important caveat remains: the production `coefficient_space_mse` audit did n
 
 ## Workspaces
 
-- Graph2Mat repo: `/home/christian/repositorios/graph2mat`
+- Graph2Mat repo: `<graph2mat>`
 - Branch: `hamiltonian-spin-colineal-support`
-- H2O source workspace found: `/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01`
-- Checkpoint used: `/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt`
+- H2O source workspace found: `$MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01`
+- Checkpoint used: `$MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt`
 - Diagnostic workspace view: `Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view`
 - `MD_vs_OnlyAtomDisplacement` was not present at the old hard-coded path, so the rerun used the available `MD_vs_AtomicDisplacement` H2O H-only workspace as read-only input.
 
@@ -129,8 +129,8 @@ IndexError: too many indices for array: array is 0-dimensional, but 1 were index
 ## Commands
 
 ```bash
-PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m py_compile \
+PYTHONPATH=src:$MDVS_ROOT/Comparison/scripts:$MDVS_ROOT/scripts/torch_serialization_compat \
+python -m py_compile \
   Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/coefficient_space_loss_audit.py \
   Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py \
   Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py \
@@ -139,44 +139,44 @@ PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/
 ```
 
 ```bash
-PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+PYTHONPATH=src:$MDVS_ROOT/Comparison/scripts:$MDVS_ROOT/scripts/torch_serialization_compat \
+python \
   Comparison/results/diagnostics/h2o_hamiltonian/exact_readout_rank/exact_readout_rank.py \
   --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/exact_readout_rank \
-  --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
+  --checkpoint $MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
 ```
 
 ```bash
 CUDA_VISIBLE_DEVICES= \
-PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+PYTHONPATH=src:$MDVS_ROOT/Comparison/scripts:$MDVS_ROOT/scripts/torch_serialization_compat \
+python \
   Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py \
-  --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement \
+  --pipeline-root $MDVS_ROOT \
   --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view \
   --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank \
-  --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
+  --checkpoint $MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
 ```
 
 ```bash
 CUDA_VISIBLE_DEVICES= \
-PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+PYTHONPATH=src:$MDVS_ROOT/Comparison/scripts:$MDVS_ROOT/scripts/torch_serialization_compat \
+python \
   Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py \
-  --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement \
+  --pipeline-root $MDVS_ROOT \
   --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view \
   --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank \
-  --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
+  --checkpoint $MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
 ```
 
 ```bash
 CUDA_VISIBLE_DEVICES= \
-PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+PYTHONPATH=src:$MDVS_ROOT/Comparison/scripts:$MDVS_ROOT/scripts/torch_serialization_compat \
+python \
   Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_probe.py \
-  --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement \
+  --pipeline-root $MDVS_ROOT \
   --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view \
   --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/dense_readout_probe \
-  --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt \
+  --checkpoint $MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt \
   --steps-per-stage 250
 ```
 

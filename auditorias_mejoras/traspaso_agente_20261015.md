@@ -613,7 +613,7 @@ cinco siguen encolados. GateCPU del fix:2662pasan/34omitidos/4fallos históricos
 usar `relaunch_receipt.json.retry_job.id` para tbg_s0, no el IDoriginalfallido.
 No confundir el control diagnóstico2500pasos con un entrenamiento de campaña.
 
-Repositorio exclusivo: `/home/christian/repositorios/graph2mat`, rama `g2m-v2`.
+Repositorio exclusivo: `<graph2mat>`, rama `g2m-v2`.
 HEAD `270d17d1f204293a059baa09e8f1b3756981e2bf`, cambios previos sin commit
 preservados. No commits/worktrees nuevos, cambios de defaults, fonones,
 reanudación a-SiO2 ni cambios de autorun autorizados.
@@ -663,7 +663,7 @@ v3 tuvo bloqueo sin causa determinada, se mató únicamente su grupo propio;
 v4/v6 no lo reprodujeron, watchdog añadido (no decir que la causa está arreglada).
 
 Cola externa autorizada solo para estos seis appends:
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/results/dataset_design_curves_v1/g2m_improvements/autorun/queue.jsonl`.
+`$MDVS_ROOT/Comparison/results/dataset_design_curves_v1/g2m_improvements/autorun/queue.jsonl`.
 1396→1402entradas, prefix SHA256 intacto; `queue_receipt.json` guarda prueba eIDs.
 Daemon existentePID1756952 vivo, no reiniciado. IDs:
 `experimentos_edge_updates_bilayer_20261015_v6:{tbg_s0,grhbn_bl_s0,tbg_s1,grhbn_bl_s1,tbg_s2,grhbn_bl_s2}`,

@@ -1,7 +1,7 @@
 # Full Model Jacobian Rank Diagnostic
 
-Source workspace: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix`
-Checkpoint: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt`
+Source workspace: `$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix`
+Checkpoint: `$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt`
 
 ## Verdict
 
@@ -35,20 +35,20 @@ The decisive comparison is coefficient-space `all_trainable`: it tests whether u
 
 ## Output Files
 
-- JSON: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_rank_results.json`
-- rank CSV: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_rank_by_parameter_group.csv`
-- coefficient rank CSV: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/coefficient_space_full_model_rank.csv`
+- JSON: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_rank_results.json`
+- rank CSV: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_rank_by_parameter_group.csv`
+- coefficient rank CSV: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/coefficient_space_full_model_rank.csv`
 
 ## Reproduction Command
 
 ```bash
-PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py
+PYTHONPATH=src python Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py
 ```
 
 ## Validation Runs
 
-- `PYTHONPATH=src /home/christian/graph2mat-env/bin/python -m py_compile Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py`: passed.
-- `PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py`: passed. Generated exact row-wise Jacobian ranks for label and coefficient spaces.
+- `PYTHONPATH=src python -m py_compile Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py`: passed.
+- `PYTHONPATH=src python Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py`: passed. Generated exact row-wise Jacobian ranks for label and coefficient spaces.
 
 ## Repository Context
 

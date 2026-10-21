@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- `/home/christian/repositorios/graph2mat`, rama `g2m-v2`, mismo checkout, sin worktree; preservar cambios ajenos.
+- `<graph2mat>`, rama `g2m-v2`, mismo checkout, sin worktree; preservar cambios ajenos.
 - Python >=3.9; sin dependencias nuevas, GPU, entrenamientos comparativos largos, fonones, autorun, colas, otros repositorios, push/merge ni procesos ajenos.
 - Readout actual, defaults, APIs anteriores y checkpoints legacy se conservan. No se cambia el backbone MACE ni se reabre 4.4–4.5 o 7.1.
 - Una variante: SK neuronal con residual de 7.1; no segunda arquitectura SO(2).
@@ -31,7 +31,7 @@
 
 ## Archivos y responsabilidades
 
-Rutas siguientes relativas a `/home/christian/repositorios/graph2mat`.
+Rutas siguientes relativas a `<graph2mat>`.
 
 | Archivo | Acción y responsabilidad |
 | --- | --- |
@@ -59,9 +59,9 @@ si no existen, buscar entornos ya disponibles sin instalar ni tocar otros repos.
 Si faltan recursos imprescindibles, informar el bloqueo concreto.
 
 ```bash
-cd /home/christian/repositorios/graph2mat
+cd <graph2mat>
 export CUDA_VISIBLE_DEVICES=''
-export PYTHONPATH=/home/christian/repositorios/graph2mat/src
+export PYTHONPATH=src
 export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2
 G2M_PY=/tmp/g2m-python312-full.LHyni1/venv/bin/python
 G2M_PY39=/tmp/g2m-python39.D7TJAp/full-venv/bin/python

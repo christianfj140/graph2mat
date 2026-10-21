@@ -1,7 +1,7 @@
 # Dense Diagnostic Readout Probe
 
-Source workspace: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix`
-Checkpoint: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt`
+Source workspace: `$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix`
+Checkpoint: `$MDVS_ROOT/Comparison/results/diagnostics/h2o_hamiltonian/one_sample_overfit_h_only_after_yield_fix/training/logs/one_sample_h_only/version_0/checkpoints/best-298.ckpt`
 
 ## Verdict
 
@@ -50,14 +50,14 @@ Checkpoint: `/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplace
 
 ## Output Files
 
-- JSON: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_probe_results.json`
-- rank CSV: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_rank_by_operation.csv`
-- coefficient errors CSV: `/home/christian/Escritorio/CINN/repositorios/grap2math_yo/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_coefficient_errors.csv`
+- JSON: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_probe_results.json`
+- rank CSV: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_rank_by_operation.csv`
+- coefficient errors CSV: `graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_coefficient_errors.csv`
 
 ## Reproduction Command
 
 ```bash
-PYTHONPATH=src /home/christian/graph2mat-env/bin/python Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_probe.py
+PYTHONPATH=src python Comparison/results/diagnostics/h2o_hamiltonian/dense_readout_probe/dense_readout_probe.py
 ```
 
 ## Repository Context

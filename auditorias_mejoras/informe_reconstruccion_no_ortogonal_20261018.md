@@ -58,14 +58,14 @@ vez, sin afirmar que su contenido sea físicamente ese H0.
 ## Comandos reproducibles y resultados
 
 Usar, desde este repositorio, el intérprete preexistente
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python`.
+`python`.
 Solo se utiliza como herramienta; no se trabaja en ese otro proyecto.
 
 ```bash
 env CUDA_VISIBLE_DEVICES= \
  PYTHONPATH=/tmp/g2m-server-tests.IcPjmO:/tmp/g2m-http-runtime.LOcBGk:/tmp/g2m-soap-deps.o0Kjat \
  OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
- /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest \
+ python -m pytest \
  src/graph2mat/core/data/tests/test_processing.py \
  src/graph2mat/core/data/tests/test_spin_collinear.py \
  src/graph2mat/core/data/tests/test_periodic_hermiticity_oracles.py \

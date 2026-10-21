@@ -26,13 +26,13 @@ from pathlib import Path
 
 import numpy as np
 
-MD = Path("/home/christian/repositorios/MD_vs_AtomicDisplacement")
+MD = Path(os.environ.get("MDVS_ROOT", Path(__file__).resolve().parents[2] / "MD_vs_AtomicDisplacement"))
 sys.path.insert(0, str(MD / "Comparison/scripts"))
 from g2m_autorun import cpu_temp  # noqa: E402
 from g2m_delta import h0_fdf  # noqa: E402
 
 PSEUDOS = MD / "materials/bench_common/pseudos_fr"
-SIESTA = "/home/christian/bin/siesta"
+SIESTA = os.environ.get("SIESTA", "siesta")
 OUT = Path(__file__).resolve().parent / "experimentos_soc_f0_bi2se3_20261019"
 CPUS, NPROC, MAX_TEMP = "8-23", 4, 79.0  # E-cores, as the materials bench
 A, C, U_BI, U_SE = 4.143, 28.636, 0.4008, 0.2117

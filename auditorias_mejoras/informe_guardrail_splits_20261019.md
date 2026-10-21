@@ -89,7 +89,7 @@ Comando focal reproducible desde la raíz de graph2mat:
 
 ```bash
 CUDA_VISIBLE_DEVICES= PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest -q \
+python -m pytest -q \
 src/graph2mat/tools/lightning/tests/test_split_guardrail.py \
 src/graph2mat/tools/lightning/tests/test_datamodule_split.py \
 src/graph2mat/tools/lightning/tests/test_datamodule_stages.py \
@@ -104,7 +104,7 @@ sin instalar dependencias ni modificar el entorno del producto:
 ```bash
 CUDA_VISIBLE_DEVICES= PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
 PYTHONPATH=/tmp/g2m-server-tests.IcPjmO:/tmp/g2m-http-runtime.LOcBGk:/tmp/g2m-soap-deps.o0Kjat \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest -q
+python -m pytest -q
 ```
 
 Se corrigió un comando focal que nombraba un archivo inexistente antes de

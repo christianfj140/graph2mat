@@ -25,7 +25,7 @@ datos, splits, dependencias o autorun. Sin fonones ni otros proyectos.
 ## 2. Recurso autorizado e integridad
 
 Único dataset externo, solo lectura:
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500`.
+`$MDVS_ROOT/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500`.
 Usar su `material_basis`, no las rutas externas del YAML histórico. Reutilizar
 `checked_path` y `verified_file` de `auditorias_mejoras/audit_multitarget_w90.py`.
 Rechazar enlaces externos e includes FDF antes de cargarlos; no abrir fuentes

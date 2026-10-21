@@ -18,7 +18,7 @@ las métricas Lightning usan el mismo espacio para su schema de operaciones.
 
 ## Global Constraints
 
-- Checkout `/home/christian/repositorios/graph2mat`, `g2m-v2`; no worktree nuevo.
+- Checkout `<graph2mat>`, `g2m-v2`; no worktree nuevo.
 - APIs, Python >=3.9, checkpoints y defaults científicos preservados.
 - No cambios de media por operación a media por elemento.
 - Sin GPU, autorun/colas, datasets originales, entornos compartidos ni otros repositorios.

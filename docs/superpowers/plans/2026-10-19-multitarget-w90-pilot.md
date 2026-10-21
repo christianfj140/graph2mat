@@ -25,8 +25,8 @@ Seis fits definitivos continúan sin autorización; no relanzar v1/v2.
 
 ## Global Constraints
 
-- Checkout actual `/home/christian/repositorios/graph2mat`, rama `g2m-v2`; preservar todo cambio previo. Sin commits, worktrees, cambios de rama ni dependencias nuevas.
-- Único dataset externo de solo lectura: `/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500`; no explorar fuentes del otro repositorio.
+- Checkout actual `<graph2mat>`, rama `g2m-v2`; preservar todo cambio previo. Sin commits, worktrees, cambios de rama ni dependencias nuevas.
+- Único dataset externo de solo lectura: `$MDVS_ROOT/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500`; no explorar fuentes del otro repositorio.
 - Split intacto1198/150/150, exclusiones md_1198/md_1349; duplicados y bloques MD compartidos se notifican, nunca se redistribuyen automáticamente.
 - H-only y joint directos, seed0, batch32, fp32,20warmups+100updates medidos por brazo; sin compile/checkpointing/augmentations/cost batching ni test predictivo.
 - Receta completa de §3 del diseño, pesos H1/S114.9749324374332/DM211.0388115121933/EDM3.133677534317286. Cosine por update, T_max4000 y eta_min1e-5; no4000épocas ni T_max120.
@@ -49,7 +49,7 @@ Crear `auditorias_mejoras/pilot_multitarget_w90.py` (CLI/preflight/loop/supervis
 
 Artefactos bajo `auditorias_mejoras/piloto_multitarget_w90_20261019_v1/`, creado exclusivamente por preflight. Si ya existe, parar y acordar otro nombre: no borrar, sobrescribir ni reutilizar como intento nuevo. Pilot solo puede consumir un preflight completo del mismo directorio y crear una marca exclusiva de lanzamiento una vez.
 
-Intérprete `P=/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python`, con `PYTHONDONTWRITEBYTECODE=1`, OMP/OPENBLAS/MKL_NUM_THREADS=2. Para los comandos CPU añadir `CUDA_VISIBLE_DEVICES=`; para el piloto identificar GPU0 física y no ocultarla. Reutilizar únicamente overlays de dependencias ya instalados registrados en el traspaso si siguen disponibles, sin seguir overlays hacia código de otros repositorios. Verificar que `graph2mat.__file__` resuelve al checkout actual.
+Intérprete `P=python`, con `PYTHONDONTWRITEBYTECODE=1`, OMP/OPENBLAS/MKL_NUM_THREADS=2. Para los comandos CPU añadir `CUDA_VISIBLE_DEVICES=`; para el piloto identificar GPU0 física y no ocultarla. Reutilizar únicamente overlays de dependencias ya instalados registrados en el traspaso si siguen disponibles, sin seguir overlays hacia código de otros repositorios. Verificar que `graph2mat.__file__` resuelve al checkout actual.
 
 Comandos previstos, siempre desde Graph2Mat:
 

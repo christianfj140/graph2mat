@@ -44,7 +44,7 @@ como en el readout actual; no se cruzan fuentes distintas.
 
 ## Global Constraints
 
-- `/home/christian/repositorios/graph2mat`, `g2m-v2`, checkout actual.
+- `<graph2mat>`, `g2m-v2`, checkout actual.
 - No otro worktree, dependencias nuevas, GPU, fonones, autorun, colas, datasets
   originales, entrenamientos ajenos, push o merge. Cambios ajenos preservados.
 - APIs previas, checkpoints y Python >=3.9 preservados. Commits locales propios.

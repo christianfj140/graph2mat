@@ -133,8 +133,8 @@ Reproducir la auditoría, desde Graph2Mat y con destino nuevo:
 
 ```bash
 CUDA_VISIBLE_DEVICES='' PYTHONPATH=auditorias_mejoras/probe_site:src:auditorias_mejoras OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python auditorias_mejoras/audit_h2oclu_nullspace.py \
-  --out /home/christian/repositorios/graph2mat/auditorias_mejoras/experimentos_nullspace_h2oclu_20261017_v1/closure_audit_repeat.json
+python auditorias_mejoras/audit_h2oclu_nullspace.py \
+  --out auditorias_mejoras/experimentos_nullspace_h2oclu_20261017_v1/closure_audit_repeat.json
 ```
 
 El script rechaza un destino existente. No repetir prepare/enqueue ni restaurar

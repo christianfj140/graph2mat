@@ -106,7 +106,7 @@ esas evidencias a todas las configuraciones opcionales.
 Comandos de reproducción (desde el repositorio):
 
 ```bash
-CUDA_VISIBLE_DEVICES='' PYTHONPATH=/home/christian/repositorios/graph2mat/src \
+CUDA_VISIBLE_DEVICES='' PYTHONPATH=src \
 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
 /tmp/g2m-python312-full.LHyni1/venv/bin/python -m pytest -q \
   src/graph2mat/bindings/e3nn/modules/tests/test_low_rank_edge_readout.py \

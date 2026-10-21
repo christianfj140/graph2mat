@@ -30,7 +30,8 @@ import yaml
 
 GRAPH2MAT_ROOT = Path(__file__).resolve().parents[5]
 PIPELINE_ROOT = Path(
-    "/home/christian/Escritorio/CINN/repositorios/MD_vs_OnlyAtomDisplacement"
+    # MD_vs_AtomicDisplacement checkout (formerly MD_vs_OnlyAtomDisplacement).
+    os.environ.get("MDVS_ROOT", Path(__file__).resolve().parents[6] / "MD_vs_AtomicDisplacement")
 )
 DEFAULT_SOURCE_WORKSPACE = (
     PIPELINE_ROOT

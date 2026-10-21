@@ -13,7 +13,7 @@ manuales, con alarmas informativas por un duplicado train/validación y bloques
 MD compartidos; no se modifican ni se bloquean automáticamente entrenamientos.
 
 Recurso autorizado:
-`/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500`.
+`$MDVS_ROOT/Comparison/datasets/graphene_w90_joint/graphene_w90_phase1_iid1500`.
 No se leyeron otros datasets ni el código del otro repositorio. Los enlaces
 que escapan de esta raíz se rechazan antes de abrirlos. Entradas FDF con
 `%include` no se siguen sin una autorización adicional de sus rutas.
@@ -156,7 +156,7 @@ Desde Graph2Mat, sin escribir en el dataset:
 ```bash
 CUDA_VISIBLE_DEVICES= PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 \
 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+python \
   auditorias_mejoras/audit_multitarget_w90.py > /ruta/nueva/en/graph2mat/resultado.json
 ```
 

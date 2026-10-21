@@ -21,7 +21,7 @@ se integran después, sin dar por completo 5.3 al acabar este plan.
 
 ## Global Constraints
 
-- Solo `/home/christian/repositorios/graph2mat`, `g2m-v2`, mismo checkout.
+- Solo `<graph2mat>`, `g2m-v2`, mismo checkout.
 - APIs, defaults y checkpoints preservados; metadatos nuevos no persistentes.
 - Entornos propios; no GPU ocupada ni cambios de procesos/colas/datos originales.
 - `edge_weight` cuenta elementos tanto en numerador como denominador.

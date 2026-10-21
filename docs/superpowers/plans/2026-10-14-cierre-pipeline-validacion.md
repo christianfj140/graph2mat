@@ -14,7 +14,7 @@
 
 ## Global Constraints
 
-- Repositorio `/home/christian/repositorios/graph2mat`, rama `g2m-v2`; conservar todos los cambios previos.
+- Repositorio `<graph2mat>`, rama `g2m-v2`; conservar todos los cambios previos.
 - No cambiar defaults, receta científica, pérdida, splits existentes ni configuración del entorno compartido.
 - No modificar `g2m_autorun.py`, su cola ni escribir en MD_vs_AtomicDisplacement sin permiso específico.
 - Reutilizar datos congelados w90/6x6 para sondas; no iniciar campañas largas como parte de estas sondas.

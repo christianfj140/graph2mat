@@ -9,7 +9,7 @@ con código, regresiones y evidencia. Un sublote verde no completa el goal.
   verificados y aprobados en revisión independiente**. La matriz y los comandos
   definitivos están al final; las reanudaciones y cifras siguientes son historia
   del trabajo, no pendientes actuales. El resto del roadmap no se cierra aquí.
-- Checkout solicitado: `/home/christian/repositorios/graph2mat`, `g2m-v2`.
+- Checkout solicitado: `<graph2mat>`, `g2m-v2`.
 - HEAD inicial verificado: `d7c87f4`; sin modificaciones tracked previas.
 - Preservar `.agents/`, `.claude/`, `agent-skills/`, el informe de evolución y los planes previos untracked.
 - Implementación directa autorizada por el usuario, sin consultas de continuación entre bloques.
@@ -76,7 +76,7 @@ de datos; las otras cuatro áreas permanecen en la tabla y no se excluyen.
   mediante NumPy y construir el subgrafo con `already_basis=True`.
 - No redefinir pérdidas ni implementar filtrado de matrices etiquetadas en esta API.
 - Prueba enfocada: `pytest -q src/graph2mat/core/data/tests/test_data_filters_and_subgraphs.py`.
-- Gate completo: `PYTHONPATH=/tmp/g2m-server-tests.IcPjmO OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/pytest -q --disable-warnings --tb=short`.
+- Gate completo: `PYTHONPATH=/tmp/g2m-server-tests.IcPjmO OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 $MDVS_ROOT/.venv/bin/pytest -q --disable-warnings --tb=short`.
 - RED comprobado: 6 fallos y 2 pruebas de caracterización pasan. Máscaras ausentes
   en ambos backends, rechazo incorrecto de etiquetas None en NumPy y reconversión
   de arrays Torch como si fueran NumPy. Log: `data-api-red.log` en el directorio de evidencia.
@@ -1666,18 +1666,18 @@ artefactos de /tmp no son almacenamiento permanente y pueden limpiarse fuera
 de esta sesión. No se borraron pruebas ni recursos ajenos.
 
 ```bash
-# Source: cwd /home/christian/repositorios/graph2mat
+# Source: cwd <graph2mat>
 CUDA_VISIBLE_DEVICES='' \
 PYTHONPATH=/tmp/g2m-http-runtime.LOcBGk:/tmp/g2m-soap-deps.o0Kjat:/tmp/g2m-server-tests.IcPjmO \
 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/pytest \
+$MDVS_ROOT/.venv/bin/pytest \
   -q --disable-warnings --tb=short
 
 # Wheel: cwd /tmp; repetir para cada PY de perfil completo listado abajo
 CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
 "$PY" -I -m pytest -q --pyargs graph2mat --disable-warnings --tb=short
 CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-"$PY" -I -m pytest -q /home/christian/repositorios/graph2mat/tests \
+"$PY" -I -m pytest -q tests \
   --disable-warnings --tb=short
 
 # Base: cwd /tmp; repetir para ambos PY base
@@ -1685,7 +1685,7 @@ CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS
   --pyargs graph2mat.core.data.tests.test_density_numpy_oracle \
   graph2mat.core.data.tests.test_periodic_hermiticity_oracles \
   --disable-warnings --tb=short
-"$PY" -I -m pytest -q /home/christian/repositorios/graph2mat/tests/test_minimal_install.py \
+"$PY" -I -m pytest -q tests/test_minimal_install.py \
   -k 'base_cli_help or core_optional_torch and base or optional_command_reports or importing_graph2mat_cli or server_extra_declares or legacy_template_api' \
   --disable-warnings --tb=short
 "$PY" -m pip check

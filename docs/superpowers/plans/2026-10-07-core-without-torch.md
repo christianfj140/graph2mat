@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Repository: `/home/christian/repositorios/graph2mat`; preserve unrelated untracked files.
+- Repository: `<graph2mat>`; preserve unrelated untracked files.
 - Preserve `requires-python = ">=3.9"` and all public names and signatures.
 - No new dependency, dependency upgrade, training run, checkpoint-format change, or phonon work.
 - Keep Torch gradients, loss definitions, and the existing full CPU suite unchanged.
@@ -121,7 +121,7 @@ def test_core_optional_torch(mode):
 - [x] **Step 2: Run the focused test before changing source.**
 
 ```bash
-OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/pytest -q tests/test_minimal_install.py
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 $MDVS_ROOT/.venv/bin/pytest -q tests/test_minimal_install.py
 ```
 
 Expected: `base` fails at the unconditional Torch import in `metrics.py`; `torch_only` exercises the already-existing PyG fallback. The original no-Torch import failure was independently reproduced during planning.
@@ -175,8 +175,8 @@ Do not invoke `pytest --pyargs graph2mat` in this job: its package `conftest.py`
 - [x] **Step 5: Run the focused test and full installed-stack suite.**
 
 ```bash
-OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/pytest -q tests/test_minimal_install.py --tb=short
-PYTHONPATH=/tmp/g2m-server-tests.IcPjmO OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/pytest -q --disable-warnings --tb=short
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 $MDVS_ROOT/.venv/bin/pytest -q tests/test_minimal_install.py --tb=short
+PYTHONPATH=/tmp/g2m-server-tests.IcPjmO OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 $MDVS_ROOT/.venv/bin/pytest -q --disable-warnings --tb=short
 git diff --check
 ```
 

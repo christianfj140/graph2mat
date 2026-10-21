@@ -2,7 +2,7 @@
 
 El hallazgo más relevante es que **el rango `174/276` observado en los experimentos de H₂O coincide exactamente con los grados de libertad permitidos por la reflexión del plano molecular**. Interpretarlo directamente como una limitación del readout puede conducir a rediseñar innecesariamente la arquitectura.
 
-He revisado las seis auditorías de [auditorias_mejoras](/home/christian/repositorios/graph2mat/auditorias_mejoras), el código local de `g2m-v2`, los diagnósticos guardados y fuentes científicas y documentación primaria. La referencia Git es `1a131f1`; el directorio contiene además cambios previos en las pérdidas de `metrics.py`, que también he considerado. **No he ejecutado código del proyecto, pruebas, entrenamientos ni benchmarks, ni he modificado archivos.**
+He revisado las seis auditorías de [auditorias_mejoras](auditorias_mejoras), el código local de `g2m-v2`, los diagnósticos guardados y fuentes científicas y documentación primaria. La referencia Git es `1a131f1`; el directorio contiene además cambios previos en las pérdidas de `metrics.py`, que también he considerado. **No he ejecutado código del proyecto, pruebas, entrenamientos ni benchmarks, ni he modificado archivos.**
 
 Los impactos indicados son potenciales o deducibles de la implementación. No son mejoras de rendimiento medidas.
 
@@ -65,9 +65,9 @@ Esto da:
 | Dos H–O | \(2[4·9+1·4]=80\) | 80 |
 | **Total** | **174** | **174** |
 
-La coincidencia es exacta en cada operación. Los valores están en [joint_rank_by_operation.csv](/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/joint_rank_by_operation.csv).
+La coincidencia es exacta en cada operación. Los valores están en [joint_rank_by_operation.csv](Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/joint_rank_by_operation.csv).
 
-Además, el modelo completo también tiene rango **174** con tolerancias \(10^{-5}\) y \(10^{-6}\). El 196 aparece al contar valores mucho menores. El script calcula los valores singulares mediante autovalores de \(JJ^T\), un procedimiento que empeora el condicionamiento numérico. Véanse [los resultados por tolerancia](/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/coefficient_space_full_model_rank.csv) y [el cálculo del espectro](/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py:283).
+Además, el modelo completo también tiene rango **174** con tolerancias \(10^{-5}\) y \(10^{-6}\). El 196 aparece al contar valores mucho menores. El script calcula los valores singulares mediante autovalores de \(JJ^T\), un procedimiento que empeora el condicionamiento numérico. Véanse [los resultados por tolerancia](Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/full_model_jacobian_rank/coefficient_space_full_model_rank.csv) y [el cálculo del espectro](Comparison/results/diagnostics/h2o_hamiltonian/full_model_jacobian_rank/full_model_jacobian_rank.py:283).
 
 **Mi interpretación:** estos resultados no demuestran un déficit de capacidad. Son compatibles con un modelo que cubre todas las direcciones permitidas por la reflexión.
 
@@ -88,7 +88,7 @@ Después habría que determinar cuánto error queda dentro del subespacio permit
 
 Los archivos físicos originales enlazados desde el diagnóstico ya no están disponibles en esas rutas, por lo que no he verificado esa proyección sobre la muestra.
 
-El readout denso está declarado expresamente **no equivariante** en [dense_readout.py](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/e3nn/modules/dense_readout.py:1). Que memorice una muestra y alcance rango 276 no demuestra que sea una arquitectura física superior.
+El readout denso está declarado expresamente **no equivariante** en [dense_readout.py](src/graph2mat/bindings/e3nn/modules/dense_readout.py:1). Que memorice una muestra y alcance rango 276 no demuestra que sea una arquitectura física superior.
 
 **Impacto:** puede evitar un aumento grande de VRAM y tiempo basado en un diagnóstico equivocado. También puede revelar un suelo de error de las etiquetas.
 
@@ -104,9 +104,9 @@ El modo simétrico existe, pero `symmetric_matrix=False` sigue siendo el default
 
 Hay dos problemas actuales adicionales:
 
-1. **Aristas homonucleares en modo no simétrico:** ambas entradas del readout seleccionan el mismo mensaje, mediante `i_edges = slice(None)` y `j_edges = slice(None)`. Se entrega \((m_{ij},m_{ij})\) donde se espera \((m_{ij},m_{ji})\). [Selección actual](/home/christian/repositorios/graph2mat/src/graph2mat/core/modules/graph2mat.py:931).
+1. **Aristas homonucleares en modo no simétrico:** ambas entradas del readout seleccionan el mismo mensaje, mediante `i_edges = slice(None)` y `j_edges = slice(None)`. Se entrega \((m_{ij},m_{ij})\) donde se espera \((m_{ij},m_{ji})\). [Selección actual](src/graph2mat/core/modules/graph2mat.py:931).
 
-2. **Aristas heteronucleares en modo no simétrico:** se producen las orientaciones por separado, pero la reordenación cuenta ambas con `abs(type)`. Con varios enlaces del mismo tipo puede asociar una predicción a otro enlace. [Contadores de reordenación](/home/christian/repositorios/graph2mat/src/graph2mat/core/modules/_labels_resort.py:74).
+2. **Aristas heteronucleares en modo no simétrico:** se producen las orientaciones por separado, pero la reordenación cuenta ambas con `abs(type)`. Con varios enlaces del mismo tipo puede asociar una predicción a otro enlace. [Contadores de reordenación](src/graph2mat/core/modules/_labels_resort.py:74).
 
 Recomendaría que el objetivo físico determine la simetría predeterminada, manteniendo una ruta no simétrica correctamente implementada para otros usos.
 
@@ -122,7 +122,7 @@ El grafo sigue construyéndose por solapamiento de los radios orbitales:
 r_{ij}<R_i+R_j.
 \]
 
-El código conserva el tamaño de supercelda de la matriz original y reconoce los términos de proyectores Kleinman–Bylander, pero **conservar `nsc` no incorpora los enlaces ausentes del grafo**. [Construcción actual](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/processing.py:1684).
+El código conserva el tamaño de supercelda de la matriz original y reconoce los términos de proyectores Kleinman–Bylander, pero **conservar `nsc` no incorpora los enlaces ausentes del grafo**. [Construcción actual](src/graph2mat/core/data/processing.py:1684).
 
 Un pseudopotencial no local puede conectar dos orbitales a través de un tercer centro:
 
@@ -148,7 +148,7 @@ Hay dos precauciones importantes:
 
 ### 4. Tratar \(S\) como parte explícita del problema, sin obligarse a aprenderlo
 
-La afirmación «Graph2Mat siempre descarta \(S\) y spin» está desactualizada. La selección actual de componentes y la serialización multicomponente están implementadas en [configuration.py](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/configuration.py:652) y [sparse.py](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/sparse.py:457).
+La afirmación «Graph2Mat siempre descarta \(S\) y spin» está desactualizada. La selección actual de componentes y la serialización multicomponente están implementadas en [configuration.py](src/graph2mat/core/data/configuration.py:652) y [sparse.py](src/graph2mat/core/data/sparse.py:457).
 
 Sin embargo, `h_only` sigue sin transportar automáticamente un solapamiento auxiliar para evaluación e inferencia.
 
@@ -208,7 +208,7 @@ Si interesan alineamientos entre materiales, potenciales de contacto o funciones
 
 ### 6. Aprender un residuo y normalizarlo respetando la equivariancia
 
-Para \(H\) sigue faltando una referencia específica equivalente a la referencia atómica de DM. `sub_point_matrix` se desactiva para objetivos distintos de densidad. [Política actual](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/processing.py:127).
+Para \(H\) sigue faltando una referencia específica equivalente a la referencia atómica de DM. `sub_point_matrix` se desactiva para objetivos distintos de densidad. [Política actual](src/graph2mat/core/data/processing.py:127).
 
 Propondría:
 
@@ -270,7 +270,7 @@ Para las pérdidas en coeficientes:
 
 requiere un cambio de base isométrico y una ponderación compatible. No se extiende automáticamente a MAE, máscaras parciales ni promedios diferentes.
 
-La implementación actual promedia errores por operación; **cambiar a `coefficient_space_mse` también cambia la ponderación**, no solo la base. [Reducción actual](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/metrics.py:431).
+La implementación actual promedia errores por operación; **cambiar a `coefficient_space_mse` también cambia la ponderación**, no solo la base. [Reducción actual](src/graph2mat/core/data/metrics.py:431).
 
 **Impacto:** puede mejorar mucho la distribución del error entre especies, distancias y tamaños, sin ampliar el modelo.
 
@@ -314,7 +314,7 @@ Los defaults actuales siguen siendo:
 - cuatro canales por irrep en los mensajes finales de arista;
 - `avg_num_neighbors=1.0`.
 
-[Configuración del modelo](/home/christian/repositorios/graph2mat/src/graph2mat/tools/lightning/models/mace.py:45).
+[Configuración del modelo](src/graph2mat/tools/lightning/models/mace.py:45).
 
 Investigaría, por separado:
 
@@ -353,7 +353,7 @@ Separaría dos conceptos:
 
 Un elemento on-site puede depender de electrostática lejana aunque su soporte matricial sea estrictamente local.
 
-El módulo `HamiltonianLocalContext` actual añade descriptores locales invariantes; **no equivale a un modelo de carga autoconsistente ni de potencial electrostático de largo alcance**. [Implementación](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/e3nn/modules/hamiltonian_context.py:30).
+El módulo `HamiltonianLocalContext` actual añade descriptores locales invariantes; **no equivale a un modelo de carga autoconsistente ni de potencial electrostático de largo alcance**. [Implementación](src/graph2mat/bindings/e3nn/modules/hamiltonian_context.py:30).
 
 Para sistemas polares o heteroestructuras consideraría carga/multipolos más un tratamiento electrostático consistente. Hay investigación reciente específica en esta dirección, como HamGNN-LR; sus resultados son evidencia de una posibilidad, no una validación para Graph2Mat. [Prepublicación de HamGNN-LR](https://arxiv.org/abs/2603.20007).
 
@@ -416,9 +416,9 @@ Con `return_coefficients=True`, el código:
 1. Evalúa el bloque matricial.
 2. Vuelve a llamar a `forward_coefficients` con las mismas entradas.
 
-Ocurre en nodos y aristas. [Nodos](/home/christian/repositorios/graph2mat/src/graph2mat/core/modules/graph2mat.py:862) y [aristas](/home/christian/repositorios/graph2mat/src/graph2mat/core/modules/graph2mat.py:967).
+Ocurre en nodos y aristas. [Nodos](src/graph2mat/core/modules/graph2mat.py:862) y [aristas](src/graph2mat/core/modules/graph2mat.py:967).
 
-Para bloques con `symm_transpose`, `forward_coefficients` vuelve a ejecutar el forward simetrizado y después proyecta el bloque a coeficientes. Así, una arista puede llegar a **cuatro evaluaciones de la operación subyacente** para devolver matriz y coeficientes. [Ruta de coeficientes](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/e3nn/modules/matrixblock.py:109).
+Para bloques con `symm_transpose`, `forward_coefficients` vuelve a ejecutar el forward simetrizado y después proyecta el bloque a coeficientes. Así, una arista puede llegar a **cuatro evaluaciones de la operación subyacente** para devolver matriz y coeficientes. [Ruta de coeficientes](src/graph2mat/bindings/e3nn/modules/matrixblock.py:109).
 
 La mejora sería calcular los coeficientes una vez y derivar de ellos las representaciones necesarias. Si la pérdida solo necesita coeficientes, debería poder evitar completamente la reconstrucción matricial durante ese paso.
 
@@ -434,7 +434,7 @@ El diagnóstico guardado ya señala un fallo que sigue siendo visible:
 - `_map_types` intenta convertirlo con `np.asarray(type_map)[values]`.
 - Ese objeto no se convierte en el vector de mapeo esperado.
 
-[Objeto identidad](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/table.py:312) y [conversión incompatible](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/metrics.py:117).
+[Objeto identidad](src/graph2mat/core/data/table.py:312) y [conversión incompatible](src/graph2mat/core/data/metrics.py:117).
 
 Además:
 
@@ -444,7 +444,7 @@ Además:
 
 Por tanto, esta ruta necesita consolidación antes de usarse como fundamento de una comparación arquitectónica.
 
-El informe antiguo donde la MSE en coeficientes mejora el ajuste tampoco demuestra que sea intrínsecamente superior: el propio experimento muestra que **la MSE matricial con readout denso también converge**, y el rerun posterior de la pérdida de producción no se completó. [Auditoría guardada de pérdidas](/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/report.md).
+El informe antiguo donde la MSE en coeficientes mejora el ajuste tampoco demuestra que sea intrínsecamente superior: el propio experimento muestra que **la MSE matricial con readout denso también converge**, y el rerun posterior de la pérdida de producción no se completó. [Auditoría guardada de pérdidas](Comparison/results/diagnostics/h2o_hamiltonian/coefficient_space_loss_audit/report.md).
 
 ### 3. Controlar el crecimiento del nuevo readout condicionado
 
@@ -462,11 +462,11 @@ La última capa tiene tamaño \(h\times W\). Cuando domina \(W\), contiene aprox
 W^2
 \]
 
-parámetros. [Selección del ancho y MLP](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/e3nn/modules/hamiltonian_readout.py:97).
+parámetros. [Selección del ancho y MLP](src/graph2mat/bindings/e3nn/modules/hamiltonian_readout.py:97).
 
 Esto puede disparar memoria de parámetros, gradientes y estados de Adam. Además se generan pesos por nodo o arista.
 
-Otro matiz: el helper usa instrucciones **`uvu`**, que siguen mezclando pares de canales. No son equivalentes a un producto diagonal `uuu` cuyo coste crece linealmente con la multiplicidad. [Instrucciones tensoriales](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/e3nn/modules/_utils.py:8).
+Otro matiz: el helper usa instrucciones **`uvu`**, que siguen mezclando pares de canales. No son equivalentes a un producto diagonal `uuu` cuyo coste crece linealmente con la multiplicidad. [Instrucciones tensoriales](src/graph2mat/bindings/e3nn/modules/_utils.py:8).
 
 Recomendaría probar un contexto y ancho moderados, generar compuertas o combinaciones de pocos operadores y ampliar solo si la validación lo justifica.
 
@@ -491,7 +491,7 @@ En un sólido homogéneo tridimensional, el número de vecinos crece aproximadam
 
 ### 5. Reducir las representaciones antes de replicarlas por arista
 
-`E3nnEdgeMessageBlock` conserva inicialmente la anchura de los nodos, realiza el gather y el producto tensorial, y comprime al final. [Preprocesado de aristas](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/e3nn/modules/preprocessing.py:115).
+`E3nnEdgeMessageBlock` conserva inicialmente la anchura de los nodos, realiza el gather y el producto tensorial, y comprime al final. [Preprocesado de aristas](src/graph2mat/bindings/e3nn/modules/preprocessing.py:115).
 
 Una alternativa es:
 
@@ -517,7 +517,7 @@ types.numpy(force=True)
 original_types.numpy(force=True)
 ```
 
-[Implementación](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/torch/modules/graph2mat.py:57).
+[Implementación](src/graph2mat/bindings/torch/modules/graph2mat.py:57).
 
 A ello se suman máscaras por tipo, decisiones Python basadas en `mask.any()` y reconstrucción de índices. Las pérdidas nuevas también hacen conversiones a CPU y bucles por bloque.
 
@@ -537,7 +537,7 @@ El forward debería recibir esa información lista para usar.
 
 ### 7. Reutilizar el cálculo de MACE y revisar qué tensores se conservan
 
-`MatrixMACE.forward` ejecuta MACE y después recalcula vectores, distancias, armónicos y embedding radial. [Forward](/home/christian/repositorios/graph2mat/src/graph2mat/models/mace.py:247).
+`MatrixMACE.forward` ejecuta MACE y después recalcula vectores, distancias, armónicos y embedding radial. [Forward](src/graph2mat/models/mace.py:247).
 
 La integración debería permitir reutilizar estos resultados y omitir las cabezas de energía si no participan en el objetivo.
 
@@ -549,7 +549,7 @@ La adaptación debe respetar la API de la versión utilizada. Por ejemplo, algun
 
 ### 8. Aprovechar la caché existente y añadir persistencia cuando haga falta
 
-El dataset perezoso reconstruye cada muestra mediante `data_cls.new()` en cada acceso. Ya existe `InMemoryData`; sería incorrecto afirmar que Graph2Mat carece de caché. [Dataset](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/torch/data/dataset.py:101).
+El dataset perezoso reconstruye cada muestra mediante `data_cls.new()` en cada acceso. Ya existe `InMemoryData`; sería incorrecto afirmar que Graph2Mat carece de caché. [Dataset](src/graph2mat/bindings/torch/data/dataset.py:101).
 
 Mi orden sería:
 
@@ -620,7 +620,7 @@ Además de los errores de aristas y coeficientes, encontré estos puntos:
 | `initial_node_feats` se sustituye por `"OneHotZ"` al llamar al constructor base | La configuración del usuario puede ignorarse. |
 | Medias sobre aristas vacías y pesos de dominio sin validación suficiente | Riesgo de NaN o divisiones inválidas en casos límite. |
 
-Referencias: [errores y métricas](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/metrics.py:55), [métrica de densidad](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/metrics.py:1849), [pérdida MAPE](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/metrics.py:1418), [etapas](/home/christian/repositorios/graph2mat/src/graph2mat/tools/lightning/model.py:375), [optimizador](/home/christian/repositorios/graph2mat/src/graph2mat/tools/lightning/models/mace.py:157) e [inferencia de componentes](/home/christian/repositorios/graph2mat/src/graph2mat/tools/lightning/data.py:78).
+Referencias: [errores y métricas](src/graph2mat/core/data/metrics.py:55), [métrica de densidad](src/graph2mat/core/data/metrics.py:1849), [pérdida MAPE](src/graph2mat/core/data/metrics.py:1418), [etapas](src/graph2mat/tools/lightning/model.py:375), [optimizador](src/graph2mat/tools/lightning/models/mace.py:157) e [inferencia de componentes](src/graph2mat/tools/lightning/data.py:78).
 
 No todos afectan a un entrenamiento concreto: depende de la ruta activada. Conviene corregirlos antes de utilizar esas opciones como evidencia comparativa.
 
@@ -641,7 +641,7 @@ Las comprobaciones más valiosas serían:
 - estructuras sin aristas;
 - carga de checkpoints y combinaciones reales de opciones.
 
-El test de equivariancia existente sí aplica una rotación no trivial; no debe descartarse como inútil. Pero utiliza bases pequeñas y no cubre todas estas rutas. [Test actual](/home/christian/repositorios/graph2mat/src/graph2mat/bindings/e3nn/modules/tests/test_e3nngraph2mat.py:50).
+El test de equivariancia existente sí aplica una rotación no trivial; no debe descartarse como inútil. Pero utiliza bases pequeñas y no cubre todas estas rutas. [Test actual](src/graph2mat/bindings/e3nn/modules/tests/test_e3nngraph2mat.py:50).
 
 Fijaría una combinación reproducible de PyTorch, e3nn, MACE y sisl para experimentos. No asumiría que instalar sus versiones más recientes conserva comportamiento y checkpoints.
 
@@ -649,7 +649,7 @@ Fijaría una combinación reproducible de PyTorch, e3nn, MACE y sisl para experi
 
 ### Evitar que la validación mida solo interpolación entre fotogramas vecinos
 
-Si no se proporciona validación, el DataModule selecciona aleatoriamente el 10 % del entrenamiento. [División automática](/home/christian/repositorios/graph2mat/src/graph2mat/tools/lightning/data.py:290).
+Si no se proporciona validación, el DataModule selecciona aleatoriamente el 10 % del entrenamiento. [División automática](src/graph2mat/tools/lightning/data.py:290).
 
 Para trayectorias correlacionadas, una separación aleatoria puede colocar configuraciones casi idénticas a ambos lados.
 
@@ -664,7 +664,7 @@ Separaría por trayectoria, bloque temporal o condición física, según el uso 
 
 Antes de perseguir errores cada vez menores, comprobaría la sensibilidad de las referencias a convergencia SCF, malla, puntos \(\mathbf k\), smearing y formato de almacenamiento.
 
-También validaría orden y fases de los orbitales. `get_atom_basis` cuenta orbitales por \(l\), pero ese conteo no demuestra que el orden real de filas y columnas coincida con el orden supuesto por las irreps. [Construcción de la base](/home/christian/repositorios/graph2mat/src/graph2mat/core/data/basis.py:46).
+También validaría orden y fases de los orbitales. `get_atom_basis` cuenta orbitales por \(l\), pero ese conteo no demuestra que el orden real de filas y columnas coincida con el orden supuesto por las irreps. [Construcción de la base](src/graph2mat/core/data/basis.py:46).
 
 El experimento de H₂O hace especialmente relevante distinguir **error del modelo, componente incompatible con la simetría y ruido numérico de referencia**.
 

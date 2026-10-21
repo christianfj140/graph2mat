@@ -54,7 +54,7 @@ sparse necesita investigación y aceptación separadas.
 
 ## 2. Comandos y recursos
 
-Python CUDA: `/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python`.
+Python CUDA: `python`.
 Usar runner para medidas: carga Python actual y los mismos binarios nativos
 instalados, registrando sus hashes; no instala paquetes.
 

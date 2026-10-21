@@ -6,7 +6,7 @@
 
 **Architecture:** Un padding escalar en Å se suma al radio de cada punto al construir el grafo de matrices (`MatrixDataProcessor.get_cutoff`), así que las aristas llegan a R_i + R_j + 2·padding y SIESTA ya trae esas etiquetas. El modelo alarga en consecuencia la base radial y la envolvente por pares del readout. MACE puede seguir con su radio anterior vía `mp_cutoff` (roadmap 2.7).
 
-**Tech Stack:** Python ≥3.9, NumPy, sisl, Torch/Lightning, MACE; pytest con `/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python -m pytest`.
+**Tech Stack:** Python ≥3.9, NumPy, sisl, Torch/Lightning, MACE; pytest con `python -m pytest`.
 
 **Spec:** diseño aprobado en chat (usuario, 2026-10-20: «me vale»). Motivación: auditoría F4 de Bi2Se3 (`auditorias_mejoras/roadmap.md`, fila 8.1): elementos fuera del grafo hasta 10,1 Å (Bi–Bi), 9,7 Å (Bi–Se) y 8,7 Å (Se–Se), frente a cortes de 8,10, 7,41 y 6,73 Å. Recortarlos desplaza autovalores hasta 12 eV porque S está mal condicionada.
 

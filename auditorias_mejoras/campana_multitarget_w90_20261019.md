@@ -106,9 +106,9 @@ sin OOM/abortos/reintentos, ningún fit adicional pendiente.
 
 ```bash
 CUDA_VISIBLE_DEVICES= PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+python \
 auditorias_mejoras/close_multitarget_w90.py --out \
-/home/christian/repositorios/graph2mat/auditorias_mejoras/<directorio_nuevo>
+auditorias_mejoras/<directorio_nuevo>
 ```
 
 No reutilizar una salida existente. Todas las dependencias ya estaban instaladas.

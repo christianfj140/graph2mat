@@ -29,11 +29,12 @@ import dataclasses
 import json
 import shutil
 import sys
+import os
 from pathlib import Path
 
 import numpy as np
 
-MD = Path("/home/christian/repositorios/MD_vs_AtomicDisplacement")
+MD = Path(os.environ.get("MDVS_ROOT", Path(__file__).resolve().parents[2] / "MD_vs_AtomicDisplacement"))
 sys.path.insert(0, str(MD / "Comparison/scripts"))
 import dataset_design_curves_v1 as c  # noqa: E402
 import g2m_bench_benchmark as bb  # noqa: E402

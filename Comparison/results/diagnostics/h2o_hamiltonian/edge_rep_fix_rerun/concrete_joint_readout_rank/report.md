@@ -1,7 +1,7 @@
 # Concrete H2O Joint Readout Rank Diagnostic
 
-Source workspace: `/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view`
-Checkpoint: `/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt`
+Source workspace: `Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view`
+Checkpoint: `$MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt`
 
 ## Verdict
 
@@ -107,19 +107,19 @@ The reported coefficient ranks are irreps-space ranks. The symmetric node block-
 
 ## Output Files
 
-- JSON: `/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/joint_rank_results.json`
-- Rank CSV: `/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/joint_rank_by_operation.csv`
-- Input feature distances CSV: `/home/christian/repositorios/graph2mat/Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/input_feature_distances.csv`
+- JSON: `Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/joint_rank_results.json`
+- Rank CSV: `Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/joint_rank_by_operation.csv`
+- Input feature distances CSV: `Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank/input_feature_distances.csv`
 
 ## Reproduction Command
 
 ```bash
-PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
+PYTHONPATH=src:$MDVS_ROOT/Comparison/scripts:$MDVS_ROOT/scripts/torch_serialization_compat python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py --pipeline-root $MDVS_ROOT --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank --checkpoint $MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt
 ```
 
 ## Validation Runs
 
-- `PYTHONPATH=src:/home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/scripts:/home/christian/repositorios/MD_vs_AtomicDisplacement/scripts/torch_serialization_compat /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py --pipeline-root /home/christian/repositorios/MD_vs_AtomicDisplacement --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank --checkpoint /home/christian/repositorios/MD_vs_AtomicDisplacement/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt`: passed. Generated joint_rank_results.json, joint_rank_by_operation.csv, input_feature_distances.csv, and report.md.
+- `PYTHONPATH=src:$MDVS_ROOT/Comparison/scripts:$MDVS_ROOT/scripts/torch_serialization_compat python Comparison/results/diagnostics/h2o_hamiltonian/concrete_joint_readout_rank/concrete_joint_readout_rank.py --pipeline-root $MDVS_ROOT --source-workspace Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/workspace_view --output-dir Comparison/results/diagnostics/h2o_hamiltonian/edge_rep_fix_rerun/concrete_joint_readout_rank --checkpoint $MDVS_ROOT/Comparison/workspaces/20260520_095922/md/md_dataset1_zzu9ln_sweep015_ep550_lr0p005_l3_c32_i3_corr2_b96_w4_s15_honly_huber_b0p01/training/lightning_logs/my_first_model/version_0/checkpoints/best-4788.ckpt`: passed. Generated joint_rank_results.json, joint_rank_by_operation.csv, input_feature_distances.csv, and report.md.
 
 ## Repository Context
 

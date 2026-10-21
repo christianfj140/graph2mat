@@ -6,7 +6,7 @@ separado del mejor `val_loss` y contabilidad del trabajo repetido. Después apro
 este documento mediante «Listo, apruebo». Autoriza redactar el plan; no aprueba
 por anticipación su ejecución ni trabajos científicos todavía no presentados.
 
-Repositorio: `/home/christian/repositorios/graph2mat`, rama `g2m-v2`, checkout
+Repositorio: `<graph2mat>`, rama `g2m-v2`, checkout
 actual. Sin commits ni worktrees nuevos. Evidencia inicial:
 [preflight](../../../auditorias_mejoras/preflight_h2oclu_recuperacion_20261016.md).
 

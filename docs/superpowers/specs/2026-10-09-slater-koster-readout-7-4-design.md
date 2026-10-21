@@ -3,7 +3,7 @@
 Estado: **diseño aprobado por el usuario** el 2026-10-09: «Apruebo el diseño
 7.4: redacta el plan». Autoriza planificación, no ejecución de producto hasta
 revisar el plan. Goal creado el 2026-10-09; base inspeccionada `8c8dc3e`, rama
-`g2m-v2`, checkout `/home/christian/repositorios/graph2mat`.
+`g2m-v2`, checkout `<graph2mat>`.
 
 ## 1. Intención y contrato
 

@@ -77,7 +77,7 @@ Primero smoke con una ronda, un warmup y dos unidades medidas; después cuatro
 rondas, diez warmups y treinta unidades medidas. Para 6.4 una unidad es una época.
 
 ```bash
-/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/bin/python \
+python \
   auditorias_mejoras/bench_pipeline_gpu.py run \
   --out auditorias_mejoras/experimentos_speed_probe_pipeline_20261014_v2 \
   --rounds 4 --warmup 10 --steps 30
