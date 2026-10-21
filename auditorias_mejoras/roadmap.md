@@ -986,6 +986,8 @@ receta actual, 3 semillas, prueba dentro de distribución y una de extrapolació
 | Dos especies con la misma Z y distinta base (ghosts) | 8.3 | — | solo si se usan átomos fantasma |
 | Dimensionalidad (0D, 2D, 3D) | 2.7, 6.4 | H2O (0D), grafeno (2D), Si amorfo (3D) | — |
 
+**MgO y GaAs para 8.4 (2026-10-21, usuario):** segundo sólido iónico y semiconductor polar covalente. PseudoDojo nc-sr-04 PBE standard (Mg 10 e con 2s2p, Ga 13 e y As 15 e con 3d; mismo tarball, hash verificado). Pilotos (`g2m_bench_materials.py relax`): **MgO** rocksalt relajado con PBE, a = 4,274 Å (exp. 4,212), gap directo en Γ 4,19 eV, Mg 9 y O 13 orbitales (O idéntico al registro congelado), λmin(S) 2·10⁻⁴. **GaAs** zincblenda con la red experimental fija (a = 5,653 Å, decisión del usuario: la red PBE ≈5,75 Å cerraría el gap y las láminas polares se metalizarían), gap directo en Γ 0,57 eV (umbral pedido 0,3 eV: no hace falta ampliar la base), Ga y As 18 orbitales (3d SZ, 4s/4p DZ, 4d de polarización), λmin(S) 4,5·10⁻⁵ (bandas también con S canónica). Siguiente: piloto de convergencia, estructuras (volumen, nanocubo/vacantes y láminas polares (111)/(100) frente a no polares (100)/(110)) y etiquetas.
+
 **Lista definitiva (2026-10-03, consenso de 4 GPT + revisión propia):** H2O en clústeres, LiF, BaTiO3 (fase 1);
 ZnO, a-SiO2, MoSe2/WSe2 sin SOC (fase 2); Fe bcc (con espín colineal) y MoSe2/WSe2 con SOC, Bi2Se3 opcional (fase 3).
 
