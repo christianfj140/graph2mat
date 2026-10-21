@@ -338,3 +338,18 @@ def test_samplewise_metrics_compare_h_only_predictions_with_the_h_labels(tmp_pat
     assert rows
     for name in ("block_type_mse", "elementwise_mse", "node_mse", "edge_mse"):
         assert all(np.isfinite(float(row[name])) for row in rows), name
+
+
+def test_samplewise_metrics_write_one_file_per_ddp_rank(tmp_path):
+    """Audit M9: under DDP only rank 0 wrote, covering 1/world_size of the split."""
+    from types import SimpleNamespace
+
+    from graph2mat.tools.lightning.callbacks import PlotMatrixError, SamplewiseMetricsLogger
+
+    logger = SamplewiseMetricsLogger(output_file=str(tmp_path / "metrics.csv"))
+    logger.setup(SimpleNamespace(world_size=1, global_rank=0), None, "test")
+    assert logger.output_file == str(tmp_path / "metrics.csv")
+    logger.setup(SimpleNamespace(world_size=2, global_rank=1), None, "test")
+    assert logger.output_file == str(tmp_path / "metrics.rank1.csv")
+    with pytest.raises(ValueError, match="DDP"):
+        PlotMatrixError().setup(SimpleNamespace(world_size=2, global_rank=0), None, "test")

@@ -353,6 +353,7 @@ class SamplewiseMetricsLogger(Callback):
         self.splits = splits
         self.metrics = [metric() for metric in metrics]
         self.output_file = output_file
+        self._requested_output_file = output_file
         self.matrix_target = matrix_target
         self._handles = {}
         self._warned_metric_failures = set()
@@ -392,11 +393,18 @@ class SamplewiseMetricsLogger(Callback):
                 "test", trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
             )
 
+    def setup(self, trainer, pl_module, stage):
+        # Under DDP every rank only sees its share of the data: each writes its own file
+        # (<name>.rank<r><suffix>), so no sample is lost.
+        if getattr(trainer, "world_size", 1) > 1:
+            path = Path(self._requested_output_file)
+            self.output_file = str(path.with_name(f"{path.stem}.rank{trainer.global_rank}{path.suffix}"))
+
     def _on_batch_end(
         self, split, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
     ):
-        # Sanity-check batches are not an epoch; with several processes, rank 0 writes.
-        if trainer.sanity_checking or not trainer.is_global_zero:
+        # Sanity-check batches are not an epoch.
+        if trainer.sanity_checking:
             return
         processor = getattr(trainer.datamodule, "data_processor", None)
         if getattr(processor, "matrix_target_layout", None) is not None:
@@ -713,6 +721,11 @@ class PlotMatrixError(Callback):
                     trainer.logger.experiment.add_image(
                         title, img_array, dataformats="HWC", global_step=trainer.global_step
                     )
+
+    def setup(self, trainer, pl_module, stage):
+        if getattr(trainer, "world_size", 1) > 1:
+            raise ValueError("PlotMatrixError only sees one process's share of the data under DDP; "
+                             "run it on a single device.")
 
     def on_validation_epoch_start(self, trainer, pl_module):
         if self.split in [None, "val"]:
