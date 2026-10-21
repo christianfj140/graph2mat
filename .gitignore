@@ -46,3 +46,4 @@ auditorias_mejoras/cierre_*_v[0-9]*/
 
 # Claude Code harness lock
 .claude/scheduled_tasks.lock
+auditorias_mejoras/experimentos_lr_schedule_*/
