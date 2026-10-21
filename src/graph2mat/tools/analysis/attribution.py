@@ -65,6 +65,12 @@ def element_classes(h_ref, pred_nsc) -> Tuple[sp.coo_matrix, np.ndarray]:
     return ref, cls
 
 
+def _unpolarized(*hamiltonians) -> None:
+    for h in hamiltonians:
+        if not h.spin.is_unpolarized:
+            raise NotImplementedError(f"band attribution supports unpolarized matrices only, not {h.spin}")
+
+
 def _fold(rows, cols, vals, no, sc_off, k) -> np.ndarray:
     phase = np.exp(2j * np.pi * (sc_off[cols // no] @ k))
     return sp.coo_matrix((vals * phase, (rows, cols % no)), shape=(no, no)).toarray()
@@ -85,6 +91,7 @@ def attribute(
 
     h_ref = sisl.get_sile(str(reference)).read_hamiltonian()
     h_pred = sisl.get_sile(str(predicted)).read_hamiltonian()
+    _unpolarized(h_ref, h_pred)
     pred_nsc = h_pred.nsc.copy()
     h_pred.set_nsc(h_ref.nsc)
     g, no = h_ref.geometry, h_ref.no
@@ -153,6 +160,7 @@ def counterfactuals(
     h_ref = sisl.get_sile(str(reference)).read_hamiltonian()
     h_pred = sisl.get_sile(str(predicted)).read_hamiltonian()
     h_0 = sisl.get_sile(str(h0)).read_hamiltonian()
+    _unpolarized(h_ref, h_pred, h_0)
     pred_nsc = h_pred.nsc.copy()
     for h in (h_pred, h_0):
         h.set_nsc(h_ref.nsc)

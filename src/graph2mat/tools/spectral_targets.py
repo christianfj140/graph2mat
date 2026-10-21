@@ -39,6 +39,8 @@ def spectral_window_columns(matrix: Path, window_ev: float = SPECTRAL_WINDOW_EV)
     import sisl
 
     h = sisl.get_sile(str(matrix)).read_hamiltonian()
+    if not h.spin.is_unpolarized:
+        raise NotImplementedError(f"spectral window columns need an unpolarized H, not {h.spin}")
     e, v = scipy.linalg.eigh(h.Hk(format="array"), h.Sk(format="array"))
     return v[:, np.abs(e) <= window_ev]
 

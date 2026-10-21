@@ -19,7 +19,7 @@ from typing import Any, Dict, Iterable, Sequence, Tuple, Union
 
 import numpy as np
 
-from .metrics import gauge_shift
+from .metrics import _hk, _same_channels, gauge_shift
 
 __all__ = [
     "SHELLS_ANG",
@@ -87,10 +87,13 @@ def structure_breakdown(
     import sisl
 
     h_ref = sisl.get_sile(str(reference)).read_hamiltonian()
+    h_pred = sisl.get_sile(str(predicted)).read_hamiltonian()
     geometry = h_ref.geometry
-    ref = h_ref.Hk(format="array")
-    delta = sisl.get_sile(str(predicted)).read_hamiltonian().Hk(format="array") - ref
-    overlap = h_ref.Sk(format="array")
+    channels = _same_channels(h_pred, h_ref)
+    # (n_spin, no, no): every spin channel, the category masks broadcast over it.
+    ref = _hk(h_ref, [0.0, 0.0, 0.0], channels)
+    delta = _hk(h_pred, [0.0, 0.0, 0.0], channels) - ref
+    overlap = np.asarray(h_ref.Sk(format="array"))
     c_star = gauge_shift(delta, overlap)
     err, aligned = np.abs(delta), np.abs(delta - c_star * overlap)
 
@@ -98,10 +101,10 @@ def structure_breakdown(
     atoms, l, radius = orbital_info(geometry, species_z, basis_files)
     dist = min_image_distances(geometry)[atoms[:, None], atoms[None, :]]
     masks = {
-        "total": np.ones_like(err, dtype=bool),
+        "total": np.ones(err.shape[1:], dtype=bool),
         "onsite": atoms[:, None] == atoms[None, :],
         "beyond_range": dist > radius[:, None] + radius[None, :],
-        "ref_zero": ref == 0,
+        "ref_zero": (ref == 0).all(axis=0),
     }
     for lo, hi in zip(shells[:-1], shells[1:]):
         masks[f"shell_{lo:.1f}-{hi:.1f}"] = (dist >= lo) & (dist < hi)
@@ -110,8 +113,8 @@ def structure_breakdown(
             masks[f"l_{L_NAMES[li]}{L_NAMES[lj]}"] = ((l[:, None] == li) & (l[None, :] == lj)) | (
                 (l[:, None] == lj) & (l[None, :] == li)
             )
-    out: Dict[str, float] = {f"{k}_sum": float(aligned[m].sum()) for k, m in masks.items()}
-    out.update({f"{k}_n": int(m.sum()) for k, m in masks.items()})
+    out: Dict[str, float] = {f"{k}_sum": float(aligned[:, m].sum()) for k, m in masks.items()}
+    out.update({f"{k}_n": int(m.sum()) * len(channels) for k, m in masks.items()})
     out.update({"gauge_c_meV": 1e3 * c_star, "raw_sum": float(err.sum())})
     return out
 

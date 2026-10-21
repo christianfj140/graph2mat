@@ -114,15 +114,19 @@ def compute_h0(
 def combine_hamiltonians(a, b, sign: float):
     """``a + sign * b`` for every spin component, with the overlap of ``a``.
 
-    ``b`` is brought to the supercell of ``a`` (``set_nsc``) when they differ.
+    When the supercells differ both are brought to the larger one (elementwise maximum of
+    ``nsc``), so no coupling of either is dropped: SIESTA's H0 usually reaches more images
+    than a model's prediction.
     """
     import sisl
 
     if a.spin.kind != b.spin.kind:
         raise ValueError(f"cannot combine Hamiltonians with spin {a.spin} and {b.spin}")
     if not np.array_equal(b.nsc, a.nsc):
-        b = b.copy()
-        b.set_nsc(a.nsc)
+        nsc = np.maximum(a.nsc, b.nsc)
+        a, b = a.copy(), b.copy()
+        a.set_nsc(nsc)
+        b.set_nsc(nsc)
     n_spin = a.spin.size(a.dtype)
     h = [a.tocsr(i) + sign * b.tocsr(i) for i in range(n_spin)]
     S = None if a.orthogonal else a.tocsr(a.S_idx)

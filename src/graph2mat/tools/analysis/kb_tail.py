@@ -17,23 +17,13 @@ __all__ = ["without_kb_tail"]
 def without_kb_tail(hamiltonian, radii: Sequence[float], baseline=None) -> Tuple[Any, Dict[str, float]]:
     """Copy of ``hamiltonian`` (sisl) without the elements of atom pairs at distance
     ``>= radii[i] + radii[j]`` (``radii``: orbital range per atom, Ang), and a report:
-    number of removed non-zero elements, their largest magnitude (meV) and their sum of
-    squares (eV^2). S and the inputs are left untouched."""
+    number of removed non-zero elements (over all spin components), their largest magnitude
+    (meV) and their sum of squares (eV^2). S and the inputs are left untouched."""
     if baseline is not None:
-        import sisl
+        from graph2mat.tools.siesta.delta import combine_hamiltonians
 
-        baseline = baseline.copy()
-        if not np.array_equal(hamiltonian.nsc, baseline.nsc):
-            baseline.set_nsc(hamiltonian.nsc)
-        overlap = hamiltonian.tocsr(hamiltonian.S_idx)
-        residual = sisl.Hamiltonian.fromsp(
-            hamiltonian.geometry, hamiltonian.tocsr(0) - baseline.tocsr(0), S=overlap
-        )
-        truncated, report = without_kb_tail(residual, radii)
-        restored = sisl.Hamiltonian.fromsp(
-            hamiltonian.geometry, truncated.tocsr(0) + baseline.tocsr(0), S=overlap
-        )
-        return restored, report
+        truncated, report = without_kb_tail(combine_hamiltonians(hamiltonian, baseline, -1.0), radii)
+        return combine_hamiltonians(truncated, baseline, 1.0), report
     truncated = hamiltonian.copy()
     csr = truncated._csr
     rows = np.repeat(np.arange(truncated.no), csr.ncol)
@@ -46,9 +36,11 @@ def without_kb_tail(hamiltonian, radii: Sequence[float], baseline=None) -> Tuple
         geometry.xyz[ja] + geometry.sc_off[image] @ geometry.cell - geometry.xyz[ia], axis=1
     )
     radii = np.asarray(radii)
-    outside = distances >= radii[ia] + radii[ja]
-    removed = csr._D[slots[outside], 0].copy()
-    csr._D[slots[outside], 0] = 0
+    outside = slots[distances >= radii[ia] + radii[ja]]
+    # Every H spin component (the overlap, if any, is the last column and stays).
+    n_h = truncated.spin.size(truncated.dtype)
+    removed = csr._D[outside, :n_h].copy()
+    csr._D[outside, :n_h] = 0
     return truncated, {
         "n_removed_elements": int(np.count_nonzero(removed)),
         "removed_max_meV": 1e3 * float(np.abs(removed).max()) if removed.size else 0.0,

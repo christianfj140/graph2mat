@@ -73,3 +73,39 @@ def test_without_kb_tail_cuts_only_far_pairs():
     same, report = without_kb_tail(H, radii, baseline=H)
     assert report["n_removed_elements"] == 0
     np.testing.assert_allclose(same.tocsr(0).toarray(), before, atol=1e-12)
+
+
+def _polarized_pair(tmp_path):
+    H = make_hamiltonian(sisl.geom.graphene(atoms=_carbon()), spin="polarized")
+    pred = H.copy()
+    pred._csr._D[:, 1] += 0.3  # error in the spin-down channel only
+    H.write(str(tmp_path / "ref.TSHS"))
+    pred.write(str(tmp_path / "pred.TSHS"))
+    return H
+
+
+def test_breakdown_covers_every_spin_channel(tmp_path):
+    H = _polarized_pair(tmp_path)
+    fdf = write_fdf(tmp_path / "s", H.geometry)
+    row = structure_breakdown(tmp_path / "pred.TSHS", tmp_path / "ref.TSHS", fdf, [_carbon()])
+    assert row["raw_sum"] > 0 and row["total_n"] == 2 * H.no**2
+
+
+def test_attribution_rejects_spin_polarized_matrices(tmp_path):
+    _polarized_pair(tmp_path)
+    with pytest.raises(NotImplementedError, match="unpolarized"):
+        attribute(tmp_path / "pred.TSHS", tmp_path / "ref.TSHS", n_per_segment=3)
+
+
+def test_without_kb_tail_cuts_every_spin_channel():
+    H = make_hamiltonian(sisl.geom.graphene(atoms=_carbon()), spin="polarized")
+    truncated, report = without_kb_tail(H, [0.1] * H.geometry.na)  # every off-site pair is "outside"
+    for spin in range(2):
+        off = truncated.tocsr(spin).toarray()
+        off[np.arange(H.no), np.arange(H.no)] = 0
+        assert np.abs(off).max() == 0
+    np.testing.assert_array_equal(truncated.tocsr(truncated.S_idx).toarray(), H.tocsr(H.S_idx).toarray())
+    restored, _ = without_kb_tail(H, [0.1] * H.geometry.na, baseline=H)
+    assert restored.spin.is_polarized
+    for spin in range(2):
+        np.testing.assert_allclose(restored.tocsr(spin).toarray(), H.tocsr(spin).toarray(), atol=1e-12)

@@ -103,3 +103,23 @@ def test_band_window_needs_occupied_and_empty_bands(tmp_path):
     ref = _write(make_hamiltonian(onsite=-30.0), tmp_path / "ref.TSHS")
     with pytest.raises(ValueError, match="occupied/unoccupied"):
         band_window_metrics(ref, ref)
+
+
+def test_spin_polarized_errors_count_every_channel(tmp_path):
+    H = make_hamiltonian(spin="polarized")
+    pred = H.copy()
+    pred._csr._D[:, 1] += 0.3  # spin down only
+    ref, p = _write(H, tmp_path / "ref.TSHS"), _write(pred, tmp_path / "pred.TSHS")
+    gamma = gamma_metrics(p, ref, window_ev=10.0)
+    assert gamma["H_MAE_meV"] > 1 and gamma["spectral_err_meV"] > 1
+    exact = gamma_metrics(ref, ref, window_ev=10.0)
+    assert exact["H_MAE_meV"] == 0 and exact["spectral_err_meV"] == pytest.approx(0, abs=1e-9)
+    eig_pred, eig_ref = path_bands(p, ref, n_per_segment=4)
+    assert eig_ref.shape[1] == 2 * H.no
+
+
+def test_unpolarized_prediction_of_a_polarized_reference_is_rejected(tmp_path):
+    ref = _write(make_hamiltonian(spin="polarized"), tmp_path / "ref.TSHS")
+    pred = _write(make_hamiltonian(), tmp_path / "pred.TSHS")
+    with pytest.raises(ValueError, match="spin"):
+        gamma_metrics(pred, ref)

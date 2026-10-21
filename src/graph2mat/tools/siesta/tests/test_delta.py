@@ -67,12 +67,12 @@ def test_add_h0_in_place_keeps_prediction_overlap(tmp_path):
     )
 
 
-def test_combine_brings_h0_to_the_label_supercell():
+def test_combine_uses_the_larger_supercell():
     a = make_hamiltonian()
     b = make_hamiltonian(onsite=1.0)
     b.set_nsc([5, 5, 1])
     out = combine_hamiltonians(a, b, -1.0)
-    assert np.array_equal(out.nsc, a.nsc)
+    assert np.array_equal(out.nsc, [5, 5, 1])
     np.testing.assert_allclose(out.Hk().toarray(), a.Hk().toarray() - make_hamiltonian(onsite=1.0).Hk().toarray(), atol=1e-12)
 
 
@@ -138,3 +138,18 @@ def test_delta_cli(tmp_path, fake_siesta, monkeypatch):
                                  "--out", str(tmp_path / "back.TSHS")])
     assert result.exit_code == 0, result.output
     np.testing.assert_allclose((_read(tmp_path / "back.TSHS").tocsr(0) - H.tocsr(0)).toarray(), 0, atol=1e-12)
+
+
+def test_add_h0_keeps_h0_couplings_beyond_the_prediction_supercell(tmp_path):
+    """SIESTA's H0 reaches more periodic images than a model's prediction: none is dropped."""
+    atom = sisl.Atom(6, R=3.0)
+    chain = lambda nsc: sisl.Geometry([[0.0, 0.0, 0.0]], atoms=atom, lattice=sisl.Lattice([1.5, 20.0, 20.0], nsc=nsc))
+    h0 = sisl.Hamiltonian(chain([5, 1, 1]), orthogonal=False)
+    h0.construct([(0.1, 1.6, 3.1), ((0.5, 1.0), (-2.0, 0.2), (-0.3, 0.05))])  # second neighbours in images +-2
+    pred = sisl.Hamiltonian(chain([3, 1, 1]), orthogonal=False)
+    pred.construct([(0.1, 1.6), ((0.1, 1.0), (-0.4, 0.2))])
+    h0.write(str(tmp_path / "h0.TSHS"))
+    pred.write(str(tmp_path / "pred.TSHS"))
+    out = _read(add_h0(tmp_path / "pred.TSHS", tmp_path / "h0.TSHS", tmp_path / "out.TSHS"))
+    k = [0.23, 0.0, 0.0]
+    np.testing.assert_allclose(out.Hk(k=k).toarray(), pred.Hk(k=k).toarray() + h0.Hk(k=k).toarray(), atol=1e-12)
