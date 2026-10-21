@@ -186,6 +186,10 @@ def test_other_combinations_are_rejected(options):
     {"long_range": "charges"},
     {"hamiltonian_local_context": True},
     {"readout_per_interaction": True},
+    {"torch_compile": True},
+    {"cueq": True},
+    {"gradient_checkpointing": True},
+    {"readout_fp32": True},
     {"basis_grouping": "max"},
     {"edge_block_readout": E3nnSlaterKosterEdgeBlock},
     {"node_block_readout": E3nnLinearTSQNodeBlock},
@@ -291,6 +295,16 @@ def test_magnetic_models_need_a_datamodule_to_fit(models, kind):
     # Unverifiable agreement: the fit hook fails instead of silently training on another policy.
     with pytest.raises(ValueError, match="disagrees with data"):
         _trainer(max_steps=1).fit(models[kind], train_dataloaders=torch.utils.data.DataLoader([0]))
+
+
+@pytest.mark.parametrize("stage", ["fit", "validate", "test", "predict"])
+@pytest.mark.parametrize("moments", [None, "collinear"], ids=["no-moments", "moments"])
+def test_collinear_model_rejects_h_and_overlap_data(models, stage, moments):
+    # h_and_overlap also has 2 components: it would be flipped as up/down if only the shape were checked.
+    module = _module("plain", matrix_component_policy="h_and_overlap", n_matrix_components=2)
+    module.magnetic_moments = moments
+    with pytest.raises(ValueError, match="disagrees with data matrix_component_policy='h_and_overlap'"):
+        getattr(_trainer(), stage)(models["collinear"], datamodule=module)
 
 
 @pytest.mark.parametrize("kind", ["vector", "collinear"])
@@ -544,6 +558,43 @@ def test_checkpoint_reproduces_the_trained_model(trained):
     for key in ("node_labels", "edge_labels"):
         assert torch.isfinite(expected[key]).all()
         torch.testing.assert_close(actual[key], expected[key], rtol=0, atol=0)
+
+
+def test_ckpt_path_restores_the_derived_normalisation_into_a_default_model(trained):
+    # trainer.predict(fresh_model, ckpt_path=...) with a model built with the default (a config saved before fit):
+    # the derived value is not in the state dict, so loading the checkpoint has to restore it.
+    fresh = _model(trained.kind)
+    assert fresh.hparams.avg_num_neighbors == 1.0
+    module = _module(trained.kind, trained.samples)
+    module.predict_dataset = trained.samples
+    _trainer().predict(fresh, datamodule=module, ckpt_path=trained.path)
+    expected = _mean_neighbours(trained.samples)
+    assert fresh.hparams.avg_num_neighbors == pytest.approx(expected)
+    assert fresh.model.magnetic_layer.avg_num_neighbors == pytest.approx(expected)
+    assert all(i.avg_num_neighbors == pytest.approx(expected) for i in fresh.model.mace.interactions)
+    batch = Batch.from_data_list(trained.samples)
+    trained.model.eval(), fresh.eval()
+    with torch.no_grad():
+        actual, reference = fresh(batch.clone()), trained.model(batch.clone())
+    for key in ("node_labels", "edge_labels"):
+        torch.testing.assert_close(actual[key], reference[key], rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("stored", [None, 1.0])
+def test_resumed_fit_does_not_derive_over_a_restored_value(trained, tmp_path, stored):
+    # The checkpoint's value wins over the training data's mean, also when it is the default 1.0.
+    path = trained.path
+    if stored is not None:
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        checkpoint["hyper_parameters"]["avg_num_neighbors"] = stored
+        path = tmp_path / "stored.ckpt"
+        torch.save(checkpoint, path)
+    fresh = _model(trained.kind)
+    _trainer(max_steps=4, max_epochs=4).fit(
+        fresh, datamodule=_module(trained.kind, trained.samples), ckpt_path=path)
+    expected = _mean_neighbours(trained.samples) if stored is None else stored
+    assert fresh.hparams.avg_num_neighbors == pytest.approx(expected)
+    assert fresh.model.magnetic_layer.avg_num_neighbors == pytest.approx(expected)
 
 
 def test_load_from_lit_ckpt_restores_model_and_processor(trained):

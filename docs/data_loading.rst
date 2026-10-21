@@ -341,9 +341,21 @@ the option has its default, ``fit`` replaces it with the mean number of
 readout-graph neighbours of the training data (from up to 32 training graphs)
 and stores it in the hyperparameters, so a checkpoint rebuilds the same model;
 MACE's own interactions use the same value. An explicit or restored value is
-kept.
+kept. Loading a checkpoint into a model that was built with the default
+(``ckpt_path``, a configuration saved before ``fit``) restores the stored value
+too, as it is not part of the weights.
 
 .. code-block:: python
+
+    import pytorch_lightning as pl
+    import sisl
+    from graph2mat import AtomicTableWithEdges
+    from graph2mat.tools.lightning import MatrixDataModule
+    from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+
+    H = sisl.get_sile("train/fe0/RUN.TSHS").read_hamiltonian()
+    table = AtomicTableWithEdges(H.geometry.atoms.atom)
+    both_parities = "8x0e+8x0o+8x1o+8x1e+8x2e+8x2o+8x3o+8x3e"
 
     model = LitMACEMatrixModel(
         basis_table=table, symmetric_matrix=True, spin_orbit=True,
@@ -371,6 +383,7 @@ an explicit model option that disagrees raises.
 ``matrix_targets``, ``physical_labels``, ``spectral_window``,
 ``coefficient_training``, ``return_coefficients``, ``output_scaleshift``,
 ``long_range``, ``hamiltonian_local_context``, ``readout_per_interaction``,
+``torch_compile``, ``cueq``, ``gradient_checkpointing``, ``readout_fp32``,
 ``basis_grouping`` other than ``"point_type"``, SK and low-rank readouts,
 ``n_output_components``, losses other than ``elementwise_mse``,
 ``elementwise_mae``, ``block_type_mse`` and ``block_type_mae`` (without physical

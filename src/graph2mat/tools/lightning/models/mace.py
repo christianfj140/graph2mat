@@ -51,6 +51,7 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
     """
 
     model: MACE
+    _magnetic_neighbours_restored = False  # set by on_load_checkpoint: fit must not derive over it
 
     def __init__(
         self,
@@ -166,6 +167,11 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 "hamiltonian_local_context": hamiltonian_local_context,
                 # The magnetic layer reads the single concatenated node feature vector.
                 "readout_per_interaction": readout_per_interaction and magnetic_moments is not None,
+                # Not exercised with the double pass (m, -m) of the moment models.
+                "torch_compile": torch_compile and magnetic_moments is not None,
+                "cueq": cueq and magnetic_moments is not None,
+                "gradient_checkpointing": gradient_checkpointing and magnetic_moments is not None,
+                "readout_fp32": readout_fp32 and magnetic_moments is not None,
                 "basis_grouping != 'point_type'": basis_grouping != "point_type",
                 "n_output_components": n_output_components is not None,
                 f"n_matrix_components not in (1, {channels})": n_matrix_components not in (1, channels),
@@ -389,10 +395,12 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
 
         The magnetic layer divides its neighbour sum by MACE's ``avg_num_neighbors``, whose default 1.0
         would leave it ~100 times too large for a dense metal (Fe bcc). Only done while the option has
-        its default: a stored or explicit value is kept. The mean comes from up to 32 training graphs
-        spread over the dataset and is stored in the hyperparameters (so checkpoints rebuild the same model).
+        its default: a stored, restored or explicit value is kept. The mean comes from up to 32 training
+        graphs spread over the dataset and is stored in the hyperparameters (so checkpoints rebuild the
+        same model; ``on_load_checkpoint`` restores it into a model built with the default).
         """
-        if self.hparams.get("magnetic_moments") is None or self.hparams.avg_num_neighbors != 1.0:
+        if (self.hparams.get("magnetic_moments") is None or self.hparams.avg_num_neighbors != 1.0
+                or self._magnetic_neighbours_restored):
             return
         dataset = getattr(getattr(self.trainer, "datamodule", None), "train_dataset", None)
         dataset = getattr(dataset, "parent_data", dataset)  # rotating pool -> its dataset
@@ -404,10 +412,23 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         if mean <= 0:
             warnings.warn("The training graphs have no edges: the magnetic layer keeps avg_num_neighbors=1.0.")
             return
-        self.hparams.avg_num_neighbors = mean
-        self.model.magnetic_layer.avg_num_neighbors = mean
+        self._set_magnetic_neighbours(mean)
+
+    def _set_magnetic_neighbours(self, value: float) -> None:
+        """Sets ``avg_num_neighbors`` everywhere the model uses it: hparams, magnetic layer, MACE interactions."""
+        self.hparams.avg_num_neighbors = value
+        self.model.magnetic_layer.avg_num_neighbors = value
         for interaction in self.model.mace.interactions:
-            interaction.avg_num_neighbors = mean
+            interaction.avg_num_neighbors = value
+
+    def on_load_checkpoint(self, checkpoint) -> None:
+        # The derived avg_num_neighbors is not in the state dict: a checkpoint loaded into a model built with
+        # the default (``ckpt_path``, a config saved before fit) must restore it, or predictions use 1.0.
+        super().on_load_checkpoint(checkpoint)
+        stored = checkpoint.get("hyper_parameters", {}).get("avg_num_neighbors")
+        if self.hparams.get("magnetic_moments") is not None and stored is not None:
+            self._set_magnetic_neighbours(stored)
+            self._magnetic_neighbours_restored = True  # a later on_fit_start must not derive over it
 
     def setup(self, stage: str) -> None:
         # validate/test/predict never reach on_fit_start. The datamodule is already set up here.
