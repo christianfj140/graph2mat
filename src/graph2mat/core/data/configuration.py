@@ -42,7 +42,8 @@ MatrixComponentPolicy = Literal[
     "h_only", "spin_h_only", "raw_components", "h_and_overlap", "spin_orbit", "spin_orbit_full"
 ]
 
-#: File next to a run file with the nominal magnetic moments of its atoms (see `BasisConfiguration`).
+#: Suffix of the file next to a run file with the nominal magnetic moments of its atoms
+#: (``<stem>.magnetic_moments.json``; ``.fdf`` runs also accept this name alone in the directory).
 MAGNETIC_MOMENTS_FILE = "magnetic_moments.json"
 
 DEFAULT_CONFIG_TYPE = "Default"
@@ -97,7 +98,8 @@ class BasisConfiguration:
         Nominal magnetic moment of each point (in μB), the input of magnetic models.
         Shape (n_points,) (signed scalar, collinear spin) or (n_points, 3)
         (cartesian vector, spin-orbit). ``None`` if the configuration has none.
-        When reading a run, it comes from ``magnetic_moments.json`` next to the run file.
+        When reading a run, it comes from ``<stem>.magnetic_moments.json`` next to the run file
+        (``magnetic_moments.json`` also works for SIESTA ``.fdf`` runs).
     """
 
     #: Shape (n_points,).
@@ -724,13 +726,22 @@ def _sisl_run_to_orbitalconfiguration(
 def _read_magnetic_moments(
     runfilepath: Union[str, Path, zipfile.Path]
 ) -> Optional[np.ndarray]:
-    """Read the ``nominal`` moments of ``magnetic_moments.json`` next to the run file.
+    """Read the ``nominal`` moments of the file ``<stem>.magnetic_moments.json`` next to the run file.
 
-    Returns None if the file does not exist. The optional ``converged`` entry is ignored.
+    ``<stem>`` is the name of the run file without extension (``RUN.magnetic_moments.json``
+    for ``RUN.fdf``, ``afm.magnetic_moments.json`` for ``afm.xyz``), so that several
+    structures can share a directory. For SIESTA runs (``.fdf``, one run per directory by
+    SIESTA convention) the directory-level ``magnetic_moments.json`` is the fallback.
+
+    Returns None if there is no such file. The optional ``converged`` entry is ignored.
     """
     path = runfilepath if isinstance(runfilepath, zipfile.Path) else Path(runfilepath)
-    side_file = path.parent / MAGNETIC_MOMENTS_FILE
-    if not side_file.is_file():
+    name = Path(path.name)
+    candidates = [path.parent / f"{name.stem}.{MAGNETIC_MOMENTS_FILE}"]
+    if name.suffix.lower() == ".fdf":
+        candidates.append(path.parent / MAGNETIC_MOMENTS_FILE)
+    side_file = next((file for file in candidates if file.is_file()), None)
+    if side_file is None:
         return None
     try:
         return np.asarray(json.loads(side_file.read_text())["nominal"], dtype=float)

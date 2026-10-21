@@ -1,11 +1,12 @@
 """Nominal per-atom magnetic moments as node data (roadmap 8.1, magnetism).
 
-The moments come from ``magnetic_moments.json`` next to the run file (or from the
-configuration in the Python API), are validated by the processor and travel as the
-node array ``magnetic_moments`` of the data objects and of their batches.
+The moments come from ``<stem>.magnetic_moments.json`` next to the run or structure file (for SIESTA
+``.fdf`` runs also ``magnetic_moments.json``), or from the configuration in the Python API. The processor
+validates them and they travel as the node array ``magnetic_moments`` of the data objects and their batches.
 """
 
 import json
+import re
 import zipfile
 
 import numpy as np
@@ -56,8 +57,8 @@ def _data(moments, processor, cls=BasisMatrixData, positions=POSITIONS):
     return cls.new(_geometry(positions), processor, labels=False, magnetic_moments=moments)
 
 
-def _write_run(folder, moments=None, extra=None, labels=False):
-    """A SIESTA run folder: ``sample.fdf`` (+ ``sample.DM``) and optionally the moments file."""
+def _write_run(folder, moments=None, extra=None, labels=False, file=FILE):
+    """A SIESTA run folder: ``sample.fdf`` (+ ``sample.DM``) and optionally the moments file ``file``."""
     folder.mkdir(parents=True, exist_ok=True)
     geometry = _geometry()
     run = folder / "sample.fdf"
@@ -69,8 +70,18 @@ def _write_run(folder, moments=None, extra=None, labels=False):
             matrix[i, i] = 1.0 + i
         matrix.write(folder / "sample.DM")
     if moments is not None:
-        (folder / FILE).write_text(json.dumps({"nominal": moments, **(extra or {})}))
+        (folder / file).write_text(json.dumps({"nominal": moments, **(extra or {})}))
     return run
+
+
+def _write_structure(folder, name, moments=None):
+    """A bare structure file (any format sisl reads) and optionally its ``<stem>.magnetic_moments.json``."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / name
+    _geometry().write(path)
+    if moments is not None:
+        (folder / f"{path.stem}.{FILE}").write_text(json.dumps({"nominal": moments}))
+    return path
 
 
 def _from_run(run, labels=False):
@@ -100,11 +111,12 @@ def test_from_run_without_json_has_no_moments(tmp_path, labels):
     assert _from_run(_write_run(tmp_path, labels=labels), labels).magnetic_moments is None
 
 
+@pytest.mark.parametrize("file", [FILE, f"sample.{FILE}"])
 @pytest.mark.parametrize("legacy_python", [False, True])
 @pytest.mark.parametrize("labels", [False, True])
-def test_from_run_reads_moments_inside_zip(tmp_path, monkeypatch, legacy_python, labels):
+def test_from_run_reads_moments_inside_zip(tmp_path, monkeypatch, legacy_python, labels, file):
     folder = tmp_path / "source"
-    _write_run(folder, VECTOR.tolist(), labels=labels)
+    _write_run(folder, VECTOR.tolist(), labels=labels, file=file)
     archive_path = tmp_path / "dataset.zip"
     with zipfile.ZipFile(archive_path, "w") as archive:
         for path in folder.iterdir():
@@ -136,7 +148,7 @@ def test_zip_without_json_has_no_moments(tmp_path):
 
 def test_processor_with_moments_needs_the_json_file(tmp_path):
     run = _write_run(tmp_path)
-    with pytest.raises(ValueError, match=FILE):
+    with pytest.raises(ValueError, match=re.escape(f"{run} has none") + rf".*Provide sample\.{FILE}"):
         BasisMatrixData.new(run, _processor("vector"), labels=False)
     # The same run is fine for a processor that does not use moments (data unchanged).
     assert BasisMatrixData.new(run, _processor(None), labels=False)["magnetic_moments"] is None
@@ -148,6 +160,39 @@ def test_json_without_nominal_or_malformed_names_the_file(tmp_path, content):
     (tmp_path / FILE).write_text(content)
     with pytest.raises(ValueError, match=FILE):
         _from_run(run)
+
+
+def test_fdf_prefers_its_own_file_over_the_directory_one(tmp_path):
+    run = _write_run(tmp_path, VECTOR.tolist())
+    (tmp_path / f"sample.{FILE}").write_text(json.dumps({"nominal": (-VECTOR).tolist()}))
+    np.testing.assert_array_equal(_from_run(run).magnetic_moments, -VECTOR)
+
+
+@pytest.mark.parametrize("suffix", ["xyz", "fdf"])
+def test_structures_in_one_directory_get_their_own_moments(tmp_path, suffix):
+    # afm and fm share the directory (and, for fdf, a directory-level file that must not win).
+    afm = _write_structure(tmp_path, f"afm.{suffix}", [[0, 0, 2.2], [0, 0, -2.2], [0, 0, 2.2]])
+    fm = _write_structure(tmp_path, f"fm.{suffix}", [[0, 0, 2.2]] * 3)
+    (tmp_path / FILE).write_text(json.dumps({"nominal": [[1.0, 1.0, 1.0]] * 3}))
+    afm_moments, fm_moments = (_from_run(path).magnetic_moments for path in (afm, fm))
+    np.testing.assert_array_equal(afm_moments, [[0, 0, 2.2], [0, 0, -2.2], [0, 0, 2.2]])
+    np.testing.assert_array_equal(fm_moments, [[0, 0, 2.2]] * 3)
+    processor = _processor("vector")
+    first, second = (BasisMatrixData.new(path, processor, labels=False) for path in (afm, fm))
+    assert not np.array_equal(first["magnetic_moments"], second["magnetic_moments"])
+
+
+def test_directory_level_file_is_only_for_siesta_runs(tmp_path):
+    # One structure, only the directory-level file: other structure files are not "one run per directory".
+    structure = _write_structure(tmp_path, "afm.xyz")
+    (tmp_path / FILE).write_text(json.dumps({"nominal": VECTOR.tolist()}))
+    assert _from_run(structure).magnetic_moments is None
+    with pytest.raises(ValueError, match=rf"afm\.{FILE}"):
+        BasisMatrixData.new(structure, _processor("vector"), labels=False)
+    # A processor without moments still loads it, and the same file works for an fdf run.
+    assert BasisMatrixData.new(structure, _processor(None), labels=False)["magnetic_moments"] is None
+    fdf = _write_run(tmp_path)
+    np.testing.assert_array_equal(_from_run(fdf).magnetic_moments, VECTOR)
 
 
 def test_dataset_item_path_loads_moments(tmp_path):
@@ -210,9 +255,38 @@ def test_wrong_moments_are_rejected(kind, moments, match):
         _data(moments, _processor(kind, policy, n_matrix_components=2 if kind == "collinear" else 1))
 
 
+@pytest.mark.parametrize("moments, match", [
+    ([[0.0, 0.0, 1.0]] * 2, "shape"),
+    ([[0.0, 0.0, float("nan")]] * 3, "finite"),
+])
+def test_wrong_moments_of_a_run_name_the_sample(tmp_path, moments, match):
+    run = _write_run(tmp_path, moments)
+    with pytest.raises(ValueError, match=match) as error:
+        BasisMatrixData.new(run, _processor("vector"), labels=False)
+    assert str(run) in str(error.value)
+
+
 def test_missing_moments_in_the_python_api_name_the_file():
     with pytest.raises(ValueError, match=FILE):
         _data(None, _processor("vector"))
+
+
+def test_torch_predict_takes_the_moments_of_the_geometry():
+    def model(data):
+        seen.append(data.magnetic_moments.clone())
+        return {"node_labels": torch.zeros(3), "edge_labels": torch.zeros(data.edge_index.shape[1] // 2)}
+
+    seen = []
+    processor = _processor("vector", symmetric_matrix=True)
+    processor.torch_predict(model, _geometry(), magnetic_moments=VECTOR)
+    expected = processor.cartesian_to_basis(VECTOR)
+    np.testing.assert_allclose(seen[0].numpy(), expected, rtol=1e-6)
+    # A geometry has no moments file: asking for them is an error, and so is giving them for nothing.
+    with pytest.raises(ValueError, match="pass the nominal moment"):
+        processor.torch_predict(model, _geometry())
+    with pytest.raises(ValueError, match="must not be given"):
+        _processor(None, symmetric_matrix=True).torch_predict(model, _geometry(), magnetic_moments=VECTOR)
+    assert len(seen) == 1
 
 
 @pytest.mark.parametrize("bad", ["scalar", "Vector", True, 1])

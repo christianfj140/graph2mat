@@ -30,6 +30,7 @@ from graph2mat.bindings.torch import TorchBasisMatrixData
 from graph2mat.bindings.torch.load import load_from_lit_ckpt
 from graph2mat.core.data import metrics
 from graph2mat.core.data.spin_orbit import SOC_FULL_TIME_REVERSAL_PARITY
+from graph2mat.models import mace as mace_module
 from graph2mat.core.data.tests.test_spin_orbit import make_soc_system, soc_processor
 from graph2mat.core.data.tests.test_spin_orbit_full import full_processor, make_magnetic_system
 from graph2mat.tools.lightning import MatrixDataModule
@@ -55,6 +56,17 @@ VARIANTS = {
 def float64():
     previous = torch.get_default_dtype()
     torch.set_default_dtype(torch.float64)
+    try:
+        yield
+    finally:
+        torch.set_default_dtype(previous)
+
+
+@pytest.fixture
+def float32():
+    """A test that runs in the precision of real training (the module default is float64)."""
+    previous = torch.get_default_dtype()
+    torch.set_default_dtype(torch.float32)
     try:
         yield
     finally:
@@ -189,7 +201,6 @@ def test_other_combinations_are_rejected(options):
     {"torch_compile": True},
     {"cueq": True},
     {"gradient_checkpointing": True},
-    {"readout_fp32": True},
     {"basis_grouping": "max"},
     {"edge_block_readout": E3nnSlaterKosterEdgeBlock},
     {"node_block_readout": E3nnLinearTSQNodeBlock},
@@ -204,8 +215,9 @@ def test_magnetic_models_reject_uncertified_options(kind, bad):
 def test_magnetic_models_accept_certified_options():
     for kind in ("vector", "collinear"):
         model = _model(kind, loss=metrics.block_type_mae, edge_block_readout=E3nnSimpleEdgeBlock,
-                       training_stages=[{"max_epochs": 1, "loss": "elementwise_mae"}])
+                       training_stages=[{"max_epochs": 1, "loss": "elementwise_mae"}], readout_fp32=True)
         assert model.hparams.n_matrix_components == VARIANTS[kind][3]
+        assert model.model.readout_fp32
 
 
 def test_per_interaction_readout_stays_allowed_without_moments():
@@ -241,6 +253,33 @@ def test_lit_model_applies_exact_time_reversal(models, kind):
                                        rtol=0, atol=1e-10)
         else:
             torch.testing.assert_close(minus[key], plus[key].flip(-1), rtol=0, atol=1e-12)
+
+
+def test_readout_fp32_keeps_exact_time_reversal_under_bf16_autocast(float32, monkeypatch):
+    # The m / -m double pass runs inside the readout that readout_fp32 takes out of the autocast region.
+    # e3nn's Linear cannot consume the bf16 features that autocast makes on CPU, so the backbone is
+    # emulated: it runs in fp32 and hands over bf16 node features, as MACE does under bf16-mixed.
+    real, handed_over = mace_module.mace_node_feats, []
+
+    def bf16_backbone(*args, **kwargs):
+        with torch.autocast("cpu", enabled=False):
+            handed_over.append(real(*args, **kwargs).to(torch.bfloat16))
+        return handed_over[-1]
+
+    monkeypatch.setattr(mace_module, "mace_node_feats", bf16_backbone)
+    model = _model("vector", readout_fp32=True).model.eval()
+    sample = _samples("vector", 1)[0]
+    flipped = sample.clone()
+    flipped["magnetic_moments"] = -sample["magnetic_moments"]
+    with torch.no_grad(), torch.autocast("cpu", dtype=torch.bfloat16):
+        plus, minus = model(sample), model(flipped)
+    assert len(handed_over) == 2 and all(f.dtype == torch.bfloat16 for f in handed_over)
+    for key in ("node_labels", "edge_labels"):
+        assert plus[key].dtype == minus[key].dtype == torch.float32
+        scale = plus[key].abs().max()
+        assert scale > 1e-3 and plus[key][:, ODD].abs().max() > 1e-4 * scale
+        torch.testing.assert_close(minus[key][:, EVEN], plus[key][:, EVEN], rtol=0, atol=1e-6 * scale)
+        torch.testing.assert_close(minus[key][:, ODD], -plus[key][:, ODD], rtol=0, atol=1e-6 * scale)
 
 
 @pytest.mark.parametrize("kind", ["vector", "collinear"])
@@ -706,8 +745,9 @@ CAMPAIGN = dict(hidden_irreps="16x0e+16x0o+16x1o+16x1e+16x2e+16x2o",
                 num_interactions=2, num_bessel=8)
 
 
-def test_fe_basis_reaches_every_coefficient_of_the_eight_channels():
-    """Fe SIESTA basis: 3 s, 2 p and 2 d shells (``3x0e+2x1o+2x2e``). With the campaign hidden irreps
+def test_fe_basis_reaches_every_coefficient_of_the_eight_channels(float32):
+    """Structural check, so it runs in float32 (seconds; float64 takes minutes).
+    Fe SIESTA basis: 3 s, 2 p and 2 d shells (``3x0e+2x1o+2x2e``). With the campaign hidden irreps
     no irrep instance of any of the eight channels (on-site ``a`` has a ``4o`` part) is structurally zero:
     the coefficients of both passes, combined as time reversal combines them, are non-zero everywhere."""
     fe = sisl.Atom("Fe", orbitals=[o for l, zetas in ((0, 3), (1, 2), (2, 2)) for z in range(1, zetas + 1)
@@ -745,7 +785,8 @@ def test_fe_basis_reaches_every_coefficient_of_the_eight_channels():
         for name, (irreps, coefficients) in zip(["a0", "b", "b0", "a"], groups):
             for mul, ir in irreps:
                 for _ in range(mul):
-                    if coefficients[:, start:start + ir.dim].norm() < 1e-8 * coefficients.abs().max():
+                    # fp32 rounding is ~1e-7 of the largest coefficient; the smallest real ones are ~2e-4 of it.
+                    if coefficients[:, start:start + ir.dim].norm() < 1e-5 * coefficients.abs().max():
                         missing.append(f"{block.i_irreps} x {block.j_irreps} {name} {ir}")
                     start += ir.dim
         assert start == block._irreps_out.dim

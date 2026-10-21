@@ -5,6 +5,8 @@ below build it by hand from complex matrices and the Pauli matrices and read the
 values off the spinor entries (sisl's documented component order); nothing is derived from the
 formulas under test.
 """
+from pathlib import Path
+
 import numpy as np
 import pytest
 import sisl
@@ -332,3 +334,48 @@ def test_full_policy_needs_hamiltonian_class():
         csr_to_sisl_sparse_orbital(
             csr, geometry=H.geometry, sp_class=sisl.SparseOrbital, matrix_component_policy=POLICY
         )
+
+
+# ---------------------------------------------------------------------------
+# Real SIESTA data: bcc Fe (2 atoms, DZP, spin-orbit) with the moments along +n and along -n
+# ---------------------------------------------------------------------------
+
+FE_RUNS = Path(__file__).resolve().parents[5] / "auditorias_mejoras" / "experimentos_magnetismo_f0_fe_20261021"
+
+
+@pytest.fixture(scope="module")
+def fe_runs():
+    """``{run: (H, data)}`` for ``sym_base`` and ``sym_trev`` (same structure, every moment reversed)."""
+    paths = {run: [FE_RUNS / run / name for name in ("RUN.fdf", "fe.TSHS", "Fe.ion.xml")]
+             for run in ("sym_base", "sym_trev")}
+    if not all(path.is_file() for files in paths.values() for path in files):
+        pytest.skip(f"SIESTA runs not available in {FE_RUNS}")
+    runs, processor = {}, None
+    for run, (fdf, tshs, _) in paths.items():
+        H = sisl.get_sile(tshs).read_hamiltonian(geometry=sisl.get_sile(fdf).read_geometry())
+        processor = full_processor(H.geometry.atoms.atom, symmetric=True)
+        runs[run] = (H, BasisMatrixData.new(H, processor), processor)
+    return runs
+
+
+def test_siesta_fe_roundtrip_on_the_graph_support_and_b0(fe_runs):
+    for H, data, processor in fe_runs.values():
+        assert data.point_labels.shape[1] == data.edge_labels.shape[1] == 8
+        rec = processor.matrix_from_data(data, out_format="sisl_H", threshold=None)
+        for i in range(8):
+            coo = rec.tocsr(i).tocoo()
+            assert coo.nnz > 0
+            reference = np.asarray(H.tocsr(i).tocsr()[coo.row, coo.col]).ravel()
+            # 1.9e-9 eV measured (in a0 and az; the other channels agree to 2e-16).
+            np.testing.assert_allclose(coo.data, reference, rtol=0, atol=1e-8)
+        # b0 = (Im H_uu + Im H_dd)/2 is zero for these runs (7.6e-16 eV measured).
+        assert max(abs(data.point_labels[:, 4]).max(), abs(data.edge_labels[:, 4]).max()) <= 1e-12
+
+
+def test_siesta_fe_time_reversal_between_the_two_runs(fe_runs):
+    (_, base, _), (_, trev, _) = fe_runs["sym_base"], fe_runs["sym_trev"]
+    for labels in ("point_labels", "edge_labels"):
+        a, b = getattr(base, labels), getattr(trev, labels)
+        assert abs(a[:, 4:]).max() > 0.05  # the odd channels are not just zero
+        np.testing.assert_allclose(b[:, :4], a[:, :4], rtol=0, atol=1e-8)  # 8.8e-10 eV measured
+        np.testing.assert_allclose(b[:, 4:], -a[:, 4:], rtol=0, atol=1e-8)  # 2.0e-9 eV measured

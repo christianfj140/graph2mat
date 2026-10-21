@@ -171,7 +171,6 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 "torch_compile": torch_compile and magnetic_moments is not None,
                 "cueq": cueq and magnetic_moments is not None,
                 "gradient_checkpointing": gradient_checkpointing and magnetic_moments is not None,
-                "readout_fp32": readout_fp32 and magnetic_moments is not None,
                 "basis_grouping != 'point_type'": basis_grouping != "point_type",
                 "n_output_components": n_output_components is not None,
                 f"n_matrix_components not in (1, {channels})": n_matrix_components not in (1, channels),

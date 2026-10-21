@@ -159,8 +159,8 @@ class MatrixDataProcessor:
         (signed scalar per point, shape ``(n_points,)``, requires
         ``matrix_component_policy="spin_h_only"``) or ``"vector"`` (cartesian vector,
         shape ``(n_points, 3)``, stored in the same basis as the positions).
-        The configurations must provide the moments (``magnetic_moments.json`` next
-        to the run file, or the ``magnetic_moments`` attribute).
+        The configurations must provide the moments (``<stem>.magnetic_moments.json``
+        next to the run file, or the ``magnetic_moments`` attribute).
     """
 
     basis_table: BasisTableWithEdges
@@ -266,19 +266,42 @@ class MatrixDataProcessor:
         else:
             return {}
 
-    def torch_predict(self, torch_model, geometry: sisl.Geometry, *, matrix_target: Optional[str] = None):
+    def torch_predict(
+        self,
+        torch_model,
+        geometry: sisl.Geometry,
+        *,
+        matrix_target: Optional[str] = None,
+        magnetic_moments: Optional[np.ndarray] = None,
+    ):
+        """Predicts the matrix of ``geometry`` with ``torch_model``.
+
+        ``magnetic_moments`` are the nominal moments of the atoms (shape ``(n_atoms,)`` or
+        ``(n_atoms, 3)`` as this processor's ``magnetic_moments`` kind). They are required
+        if the processor uses moments and rejected if it does not.
+        """
         import torch
 
         from graph2mat.bindings.torch import TorchBasisMatrixData
 
         if self.matrix_target_layout is not None and matrix_target not in self.matrix_target_layout.targets:
             raise ValueError("select matrix_target before multitarget inference/reconstruction")
+        if self.magnetic_moments is not None and magnetic_moments is None:
+            raise ValueError(
+                f"This processor has magnetic_moments={self.magnetic_moments!r}: a geometry carries no "
+                "moments, so pass the nominal moment of every atom as `magnetic_moments`."
+            )
+        if self.magnetic_moments is None and magnetic_moments is not None:
+            raise ValueError(
+                "This processor uses no magnetic moments (magnetic_moments=None), "
+                "so `magnetic_moments` must not be given."
+            )
 
         with torch.no_grad():
             # USE THE MODEL
             # First, we need to process the input data, to get inputs as the model expects.
             input_data = TorchBasisMatrixData.new(
-                geometry, data_processor=self, labels=False
+                geometry, data_processor=self, labels=False, magnetic_moments=magnetic_moments
             )
             if self.matrix_target_layout is not None:
                 from .multitarget import _set_array
@@ -1167,11 +1190,15 @@ class MatrixDataProcessor:
             return None
 
         moments = config.magnetic_moments
+        run = (config.metadata or {}).get("path")
+        sample = f" of {run}" if run is not None else ""
         if moments is None:
+            file = f"{Path(str(run)).stem if run is not None else '<stem>'}.{MAGNETIC_MOMENTS_FILE}"
             raise ValueError(
                 f"magnetic_moments={self.magnetic_moments!r} needs the nominal moment of every "
-                f"point, but the configuration has none. Provide {MAGNETIC_MOMENTS_FILE} next "
-                "to the run file or set the `magnetic_moments` of the configuration."
+                f"point, but the configuration{sample} has none. Provide {file} next to the run "
+                f"file ({MAGNETIC_MOMENTS_FILE} also works for SIESTA .fdf runs), or set the "
+                "`magnetic_moments` of the configuration."
             )
         moments = np.array(moments, dtype=float)  # a copy: the data never alias the configuration
         n_points = len(config.positions)
@@ -1179,10 +1206,10 @@ class MatrixDataProcessor:
         if moments.shape != expected:
             raise ValueError(
                 f"magnetic_moments={self.magnetic_moments!r} expects moments of shape "
-                f"{expected} (one per point), got {moments.shape}."
+                f"{expected} (one per point), got {moments.shape}{sample}."
             )
         if not np.isfinite(moments).all():
-            raise ValueError("The magnetic moments must be finite (no NaN or inf).")
+            raise ValueError(f"The magnetic moments must be finite (no NaN or inf){sample}.")
         return moments
 
     def one_hot_encode(self, point_types: np.ndarray) -> np.ndarray:

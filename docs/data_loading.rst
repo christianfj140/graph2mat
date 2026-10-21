@@ -292,8 +292,16 @@ have the time-reversal parity ``SOC_FULL_TIME_REVERSAL_PARITY =
 **Moments as data.** ``magnetic_moments`` of ``MatrixDataProcessor`` and
 ``MatrixDataModule`` is ``None`` (default), ``"collinear"`` (a signed scalar
 per atom, only with ``matrix_component_policy="spin_h_only"``) or ``"vector"``
-(an axial vector per atom, in Bohr magnetons). The moments are read from
-``magnetic_moments.json`` next to each ``.fdf`` (also inside a ZIP):
+(an axial vector per atom, in Bohr magnetons). The moments are read from the
+file ``<stem>.magnetic_moments.json`` next to each run or structure file
+(also inside a ZIP), where ``<stem>`` is the file name without extension:
+``afm.magnetic_moments.json`` for ``afm.xyz`` and ``RUN.magnetic_moments.json``
+for ``RUN.fdf``. Several structures can therefore share a directory, each with
+its own moments. SIESTA runs (``.fdf``, one run per directory by SIESTA
+convention) fall back to ``magnetic_moments.json`` in the directory when they
+have no file of their own; any other structure file does not, so
+``afm.xyz`` with only a ``magnetic_moments.json`` has no moments and a
+processor that needs them fails naming ``afm.magnetic_moments.json``:
 
 .. code-block:: json
 
@@ -301,11 +309,15 @@ per atom, only with ``matrix_component_policy="spin_h_only"``) or ``"vector"``
 
 ``nominal`` has shape ``(n_atoms,)`` (collinear) or ``(n_atoms, 3)`` in
 Cartesian axes (vector) and is what the model uses; ``converged`` is optional
-and ignored. A missing file, a wrong shape or non-finite values raise a
-``ValueError`` that names the file, and ``spin_orbit_full`` requires
+and ignored. A missing or malformed file raises a ``ValueError`` that names
+the expected file, and a wrong shape or non-finite values one that names the
+sample (the path of the run), and ``spin_orbit_full`` requires
 ``magnetic_moments="vector"`` (zeros are allowed). Vector moments are
 converted to the processor's basis exactly like the positions. Two structures
-with the same geometry and different moments give different data.
+with the same geometry and different moments give different data. A geometry
+has no file: ``processor.torch_predict(model, geometry, magnetic_moments=moments)``
+takes the moments of its atoms, and raises if the processor needs them and none
+are given (or if it does not use them and they are).
 
 **Model.** ``LitMACEMatrixModel`` takes the moments as an input:
 
@@ -353,7 +365,9 @@ too, as it is not part of the weights.
     from graph2mat.tools.lightning import MatrixDataModule
     from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
 
-    H = sisl.get_sile("train/fe0/RUN.TSHS").read_hamiltonian()
+    # The orbitals (with their l) come from the geometry that RUN.fdf reads (Fe.ion.xml).
+    geometry = sisl.get_sile("train/fe0/RUN.fdf").read_geometry()
+    H = sisl.get_sile("train/fe0/RUN.TSHS").read_hamiltonian(geometry=geometry)
     table = AtomicTableWithEdges(H.geometry.atoms.atom)
     both_parities = "8x0e+8x0o+8x1o+8x1e+8x2e+8x2o+8x3o+8x3e"
 
@@ -383,7 +397,7 @@ an explicit model option that disagrees raises.
 ``matrix_targets``, ``physical_labels``, ``spectral_window``,
 ``coefficient_training``, ``return_coefficients``, ``output_scaleshift``,
 ``long_range``, ``hamiltonian_local_context``, ``readout_per_interaction``,
-``torch_compile``, ``cueq``, ``gradient_checkpointing``, ``readout_fp32``,
+``torch_compile``, ``cueq``, ``gradient_checkpointing``,
 ``basis_grouping`` other than ``"point_type"``, SK and low-rank readouts,
 ``n_output_components``, losses other than ``elementwise_mse``,
 ``elementwise_mae``, ``block_type_mse`` and ``block_type_mae`` (without physical
@@ -392,14 +406,18 @@ weights) and, for ``spin_orbit_full``, ``symmetric_matrix=False``.
 server also for any processor with moments (its extrapolation path rebuilds
 the configurations without them); ``MatrixWriter`` still writes ``spin_h_only``
 predictions. ``PlotMatrixError`` plots the 8 channels as plain components.
+``readout_fp32`` is accepted: the double pass of the time reversal runs inside
+the readout that it keeps in fp32 under mixed precision (``bf16-mixed``), so
+the odd channels stay exactly negated.
 
 Limits. The code is tested on CPU with synthetic data (equivariance,
 exact time reversal, permutations, 3-step training, checkpoints) and has not
 been scientifically validated by training on a magnetic dataset. Building the
 full-spinor model for the Fe basis (``3x0e+2x1o+2x2e``) with the campaign hidden
-irreps (``16x0e+16x0o+16x1o+16x1e+16x2e+16x2o``) took 135 s on CPU, mostly
-e3nn's reduced tensor products; with these irreps no coefficient of the 8
-channels is structurally zero (on-site ``a`` includes ``4o``).
+irreps (``16x0e+16x0o+16x1o+16x1e+16x2e+16x2o``) took 135 s on CPU in float64
+(about 6 s in float32), mostly e3nn's reduced tensor products; with these
+irreps no coefficient of the 8 channels is structurally zero (on-site ``a``
+includes ``4o``).
 
 Optional training batches by declared cost
 --------------------------------------------
