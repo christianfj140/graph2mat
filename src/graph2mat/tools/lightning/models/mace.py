@@ -366,6 +366,12 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
             raise ValueError(
                 f"model edge_cutoff_padding={padding} disagrees with data edge_cutoff_padding={data_padding}."
             )
+        # The species order comes from separate basis listings (model: root_dir, data: maybe a
+        # temporary copy): types must match one to one, or a species would get another's weights.
+        model_table, data_table = getattr(self, "basis_table", None), getattr(module, "basis_table", None)
+        if model_table is not None and data_table is not None and list(model_table.types) != list(data_table.types):
+            raise ValueError(f"model basis types {list(model_table.types)} differ from data basis types "
+                             f"{list(data_table.types)}.")
         policy = getattr(module, "matrix_component_policy", None)
         # long_range reads S from the labels' last column: only h_and_overlap has it there.
         if self.hparams.get("long_range") and module is not None and policy != "h_and_overlap":

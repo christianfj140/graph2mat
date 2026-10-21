@@ -79,3 +79,31 @@ def test_invalid_validation_fraction_rejected_before_loading(fraction):
 def test_invalid_split_seed_rejected_before_loading(seed):
     with pytest.raises(ValueError, match="split_seed"):
         _module(split_seed=seed)
+
+
+def test_model_and_data_basis_types_must_match():
+    """Audit M17: model and data build their basis tables from separate listings; a different
+    species order would silently swap species weights."""
+    from types import SimpleNamespace
+
+    import pytest
+    import sisl
+
+    from graph2mat import AtomicTableWithEdges
+    from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+
+    H = sisl.Atom(1, orbitals=[sisl.AtomicOrbital("1s", R=1.0)])
+    C = sisl.Atom(6, orbitals=[sisl.AtomicOrbital("2s", R=1.5)])
+
+    def check(model_atoms, data_atoms):
+        fake = SimpleNamespace(
+            hparams={"spin_orbit": False, "magnetic_moments": None, "edge_cutoff_padding": 0.0},
+            basis_table=AtomicTableWithEdges(model_atoms),
+            trainer=SimpleNamespace(datamodule=SimpleNamespace(
+                basis_table=AtomicTableWithEdges(data_atoms), matrix_component_policy=None,
+                edge_cutoff_padding=0.0, magnetic_moments=None)))
+        LitMACEMatrixModel._check_data_agreement(fake)
+
+    check([H, C], [H, C])
+    with pytest.raises(ValueError, match="basis types"):
+        check([H, C], [C, H])

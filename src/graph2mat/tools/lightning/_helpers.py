@@ -185,11 +185,15 @@ def _glob_zipfile(path: zipfile.ZipFile, pattern: str):
 
 
 def glob(path, pattern: str):
-    """"""
+    """Paths under ``path`` (a directory or a ``zipfile.Path``) matching ``pattern``, sorted.
+
+    Sorted so that the result does not depend on how the filesystem or the archive lists
+    the files: the automatic train/val split shuffles it with a seed, and the basis table
+    takes the species order from it.
+    """
     if isinstance(path, zipfile.Path):
-        return _glob_zipfile(path, pattern)
-    else:
-        return Path(path).glob(pattern)
+        return sorted(_glob_zipfile(path, pattern), key=str)
+    return sorted(Path(path).glob(pattern), key=str)
 
 
 def maybe_zip_path(
