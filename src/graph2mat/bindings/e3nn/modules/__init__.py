@@ -11,6 +11,7 @@ right defaults and an extra argument to pass e3nn's irreps.
 from .graph2mat import *
 from .hamiltonian_context import *
 from .hamiltonian_readout import *
+from .magnetic import *
 from .matrixblock import *
 from .dense_readout import *
 from .edge_operations import *

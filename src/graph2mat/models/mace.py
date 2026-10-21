@@ -15,7 +15,10 @@ from graph2mat.bindings.e3nn.modules.edge_operations import E3nnLowRankEdgeBlock
 from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
     HamiltonianLocalContext,
 )
+from graph2mat.bindings.e3nn.modules.magnetic import MagneticMomentLayer
+from graph2mat.bindings.e3nn.modules.spin_orbit import E3nnSpinOrbitFullMatrixBlock
 from graph2mat.bindings.torch.data import TorchBasisMatrixData
+from graph2mat.core.data.spin_orbit import SOC_FULL_TIME_REVERSAL_PARITY
 from graph2mat.models.long_range import ewald_potentials, equilibrate_charges, label_element_atoms, neutralize
 
 
@@ -169,6 +172,18 @@ class MatrixMACE(torch.nn.Module):
         (``data.total_charge``, 0 if absent), so they respond to the whole structure.
     long_range_smearing :
         Width (Angstrom) of the Gaussian charges: the potential is that of erf(r/s)/r.
+    magnetic_moments :
+        ``None`` (default), ``"collinear"`` or ``"vector"`` (roadmap 8.1, magnetism): per-atom
+        magnetic moments (``data.magnetic_moments``) become an input. MACE still only sees the
+        geometry; a ``MagneticMomentLayer`` (linear in m, over the readout graph) adds features
+        to the node features of the readout. The readout runs with m and with -m and the two
+        outputs are combined so that time reversal is exact: ``"vector"`` (axial moments, with
+        ``matrix_block_cls=E3nnSpinOrbitFullMatrixBlock``) gives the even channels
+        ``(F(m) + F(-m)) / 2`` and the odd ones ``(F(m) - F(-m)) / 2``
+        (``SOC_FULL_TIME_REVERSAL_PARITY``); ``"collinear"`` (signed scalars,
+        ``n_matrix_components=2``: up, down) gives ``up = (u(m) + d(-m)) / 2`` and
+        ``down = (d(m) + u(-m)) / 2``. Only with a single readout and none of
+        return_coefficients, hamiltonian_local_context, long_range or matrix_targets.
     **kwargs :
         Additional keyword arguments to pass to ``graph2mat_cls`` for
         initialization.
@@ -195,9 +210,36 @@ class MatrixMACE(torch.nn.Module):
         long_range_smearing: float = 2.0,
         matrix_targets: Optional[list[str]] = None,
         matrix_target_spin: Optional[int] = None,
+        magnetic_moments: Optional[str] = None,
         **kwargs,
     ):
         super().__init__()
+        self.magnetic_moments = magnetic_moments
+        if magnetic_moments is not None:
+            if magnetic_moments not in ("collinear", "vector"):
+                raise ValueError(
+                    f"magnetic_moments must be None, 'collinear' or 'vector', got {magnetic_moments!r}."
+                )
+            bad = [name for name, value in (
+                ("readout_per_interaction", readout_per_interaction),
+                ("return_coefficients", return_coefficients),
+                ("hamiltonian_local_context", hamiltonian_local_context),
+                ("long_range", long_range),
+                ("matrix_targets", matrix_targets is not None),
+            ) if value]
+            if bad:
+                raise ValueError(f"magnetic_moments does not support: {', '.join(bad)}.")
+            if magnetic_moments == "vector" and not issubclass(
+                kwargs.get("matrix_block_cls", object), E3nnSpinOrbitFullMatrixBlock
+            ):
+                raise ValueError(
+                    "magnetic_moments='vector' needs matrix_block_cls=E3nnSpinOrbitFullMatrixBlock "
+                    "(policy spin_orbit_full)."
+                )
+            if magnetic_moments == "collinear" and kwargs.get("n_matrix_components", 1) != 2:
+                raise ValueError(
+                    "magnetic_moments='collinear' needs n_matrix_components=2 (policy spin_h_only: up, down)."
+                )
 
         self.matrix_target_layout = None
         if matrix_targets is not None:
@@ -250,6 +292,7 @@ class MatrixMACE(torch.nn.Module):
         edge_feats_irreps = self._with_edge_context_irreps(
             self.mace.interactions[0].edge_feats_irreps
         )
+        self.magnetic_layer = None
 
         if self.readout_per_interaction:
             self.mace_inter_irreps = [
@@ -287,12 +330,21 @@ class MatrixMACE(torch.nn.Module):
             else:
                 self.node_feats_index = None
 
+            node_feats_irreps = self._with_node_context_irreps(self.mace_inter_irreps)
+            if magnetic_moments is not None:
+                self.magnetic_layer = MagneticMomentLayer(
+                    magnetic_moments,
+                    node_feats_irreps=node_feats_irreps,
+                    edge_attrs_irreps=self.mace.interactions[0].edge_attrs_irreps,
+                    edge_feats_irreps=edge_feats_irreps,
+                    avg_num_neighbors=self.mace.interactions[0].avg_num_neighbors,
+                )
+                node_feats_irreps = node_feats_irreps + self.magnetic_layer.irreps_out
+
             self.matrix_readouts = graph2mat_cls(
                 irreps=dict(
                     node_attrs_irreps=self.mace.interactions[0].node_attrs_irreps,
-                    node_feats_irreps=self._with_node_context_irreps(
-                        self.mace_inter_irreps
-                    ),
+                    node_feats_irreps=node_feats_irreps,
                     edge_attrs_irreps=self.mace.interactions[0].edge_attrs_irreps,
                     edge_feats_irreps=edge_feats_irreps,
                     edge_hidden_irreps=edge_hidden_irreps,
@@ -459,6 +511,8 @@ class MatrixMACE(torch.nn.Module):
             validate_layout_signature(data, self.matrix_target_layout)
         if coefficients_only and (self.gradient_checkpointing or self.charge_readout is not None):
             raise ValueError("coefficients_only is unsupported with gradient_checkpointing or long_range; use matrix mode.")
+        if coefficients_only and self.magnetic_layer is not None:
+            raise ValueError("coefficients_only is unsupported with magnetic_moments; use matrix mode.")
         mp_data = self._message_passing_data(data)
         if self.lean_mace and not compute_force:
             mace_out = {"node_feats": mace_node_feats(self.mace, mp_data, self.gradient_checkpointing)}
@@ -582,6 +636,12 @@ class MatrixMACE(torch.nn.Module):
 
         # data._edge_attrs_keys = (*data._edge_attrs_keys, "edge_attrs", "edge_feats")
 
+        if self.magnetic_layer is not None:
+            node_labels, edge_labels = self._time_reversal_readout(
+                data, data_for_readout, node_feats, edge_attrs, edge_feats
+            )
+            return {**mace_out, "node_labels": node_labels, "edge_labels": edge_labels}
+
         # Apply the readouts.
         need_coefficients = self.return_coefficients or coefficients_only
         coefficient_kwargs = {"coefficients_only": True} if coefficients_only else {}
@@ -675,6 +735,26 @@ class MatrixMACE(torch.nn.Module):
             output = self._long_range(data, node_feats, output)
 
         return output
+
+    def _time_reversal_readout(self, data, data_for_readout, node_feats, edge_attrs, edge_feats):
+        """Labels from the readout with m and with -m (same MACE features), combined so that
+        time reversal is exact (see ``magnetic_moments``)."""
+        moments = data.get("magnetic_moments")
+        if moments is None:
+            raise ValueError(
+                f"MatrixMACE(magnetic_moments={self.magnetic_moments!r}) needs data with magnetic_moments "
+                "(MatrixDataProcessor(magnetic_moments=...))."
+            )
+        magnetic = self.magnetic_layer(node_feats, moments, data["edge_index"], edge_attrs, edge_feats)
+        # The layer is linear in m: -magnetic are the features of -m.
+        (node_plus, edge_plus), (node_minus, edge_minus) = (
+            self.matrix_readouts(data=data_for_readout, node_feats=torch.cat([node_feats, sign * magnetic], dim=-1))
+            for sign in (1, -1)
+        )
+        if self.magnetic_moments == "vector":
+            parity = node_plus.new_tensor(SOC_FULL_TIME_REVERSAL_PARITY)
+            return (node_plus + parity * node_minus) / 2, (edge_plus + parity * edge_minus) / 2
+        return (node_plus + node_minus.flip(-1)) / 2, (edge_plus + edge_minus.flip(-1)) / 2
 
     @torch.compiler.disable
     def _long_range(self, data: TorchBasisMatrixData, node_feats: torch.Tensor, output: dict) -> dict:
