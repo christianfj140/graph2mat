@@ -5,11 +5,15 @@ Most
 
 import copy
 import os
+from types import MethodType
+from typing import Optional
+
 from pytorch_lightning.cli import (
     LightningCLI,
     SaveConfigCallback,
     LightningArgumentParser,
     ArgsType,
+    instantiate_class,
 )
 import torch
 from jsonargparse import Namespace
@@ -181,6 +185,9 @@ class OrbitalMatrixCLI(LightningCLI):
     is the way raw pytorch_lightning works).
     """
 
+    #: Number of scheduler states in the checkpoint given with ``ckpt_path`` (None without one).
+    _ckpt_lr_schedulers: Optional[int] = None
+
     def add_arguments_to_parser(self, parser: LightningArgumentParser):
         parser.link_arguments("data.root_dir", "model.root_dir")
         parser.link_arguments("data.basis_files", "model.basis_files")
@@ -313,6 +320,35 @@ class OrbitalMatrixCLI(LightningCLI):
                 config_ns.multiprocessing_sharing_strategy
             )
 
+    def _add_configure_optimizers_method_to_model(self, subcommand: Optional[str]) -> None:
+        super()._add_configure_optimizers_method_to_model(subcommand)
+        # Lightning attaches ``lr_scheduler`` only to an ``optimizer`` given in the config, but the
+        # models build their own optimizer (MACE parameter groups): with ``optimizer: null`` the
+        # scheduler used to be dropped silently, so every run trained at a constant learning rate.
+        # Attach it to the model's optimizer instead.
+        if self._get(self.config_init, "optimizer") or not self._get(self.config_init, "lr_scheduler"):
+            return
+        scheduler_init = self._get(self.config_init, "lr_scheduler")
+        stages = self._get(self.config, "model").get("training_stages") or []
+        if any("optim_lr" in stage for stage in stages):
+            raise ValueError(
+                "lr_scheduler cannot be combined with training stages that set optim_lr: "
+                "the scheduler would overwrite the stage learning rates."
+            )
+        if subcommand == "fit" and self._ckpt_lr_schedulers == 0:
+            raise ValueError(
+                "The checkpoint was trained without a learning-rate scheduler (configs with "
+                "'optimizer: null' used to ignore 'lr_scheduler'). Remove lr_scheduler to resume "
+                "it as it was trained."
+            )
+        build_optimizer = self.model.configure_optimizers
+
+        def configure_optimizers(model):
+            optimizer = build_optimizer()
+            return self.configure_optimizers(model, optimizer, instantiate_class(optimizer, scheduler_init))
+
+        self.model.configure_optimizers = MethodType(configure_optimizers, self.model)
+
     def _config_from_ckpt(self, ckpt_path: str):
         # Load parameters from the checkpoint file.
         # We only need to load hyperparameters, not weights. Therefore, we don't care whether things were in
@@ -322,6 +358,7 @@ class OrbitalMatrixCLI(LightningCLI):
         checkpoint = torch.load(
             ckpt_path, map_location=torch.device("cpu"), weights_only=False
         )
+        self._ckpt_lr_schedulers = len(checkpoint.get("lr_schedulers", []))
         checkpoint = sanitize_checkpoint(checkpoint)
 
         config = {}

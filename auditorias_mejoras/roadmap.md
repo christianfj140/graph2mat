@@ -24,6 +24,18 @@ no contemporáneos, sin afirmación causal de aceleración/ahorro.33focales pasa
 general vigente2653/34skip/4dscribe históricos. [Auditoría, resultados y reproducción](campana_nullspace_h2oclu_20261017.md).
 Esta campaña queda cerrada; los estados de preparación/cola de abajo son historia.
 
+### Learning rate de todos los entrenamientos históricos: constante — 2026-10-21
+
+La auditoría de bugs ([informe](auditoria_bugs_20261021.md), G2) encontró que el CLI ignoraba `lr_scheduler` cuando
+la config tenía `optimizer: null`, que es como estaban todas las recetas: Lightning solo engancha el scheduler a un
+`optimizer` dado en la config, y `LitMACEMatrixModel` construye su propio Adam. Comprobado en checkpoints reales de
+6x6 (incluida la receta de 16000 pasos), w90 y H2O: ningún scheduler guardado y lr = 0,0018 en la última época.
+**Todos los resultados de este roadmap se midieron con learning rate constante** (el valor de `optim_lr`), aunque
+las recetas digan `CosineAnnealingLR`. Las comparaciones entre variantes siguen siendo válidas (todas compartían esa
+condición); las cifras absolutas no corresponden a un coseno. Corregido en el CLI: el scheduler se engancha al
+optimizador del modelo; reanudar un checkpoint entrenado sin scheduler con un `lr_scheduler` en la config, o
+combinarlo con etapas que fijan `optim_lr`, da un error explícito en lugar de cambiar el entrenamiento en silencio.
+
 ### Migración desde MD_vs_AtomicDisplacement — 2026-10-21
 
 Por petición del usuario, las funciones del roadmap que solo existían en MD_vs_AtomicDisplacement viven ahora en

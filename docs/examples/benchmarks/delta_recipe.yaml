@@ -4,6 +4,9 @@
 # The model learns H - H0: train_runs/val_runs point to delta samples written by
 # delta_workflow.py (or `graph2mat siesta delta label`), and H0 is added back to
 # the predictions. Paths are relative to the directory where training runs.
+# Note: graph2mat versions before 2026-10-21 ignored lr_scheduler when the config had
+# no optimizer, so the benchmark runs of this recipe trained at a constant learning
+# rate (optim_lr). Remove lr_scheduler to reproduce them; keep it to use the cosine.
 seed_everything: 0
 data:
   out_matrix: hamiltonian
