@@ -428,6 +428,12 @@ def nodes_and_edges_to_coo(
         opposite direction is then created as the transpose.
     """
 
+    if np.asarray(node_vals).ndim == 2 or np.asarray(edge_vals).ndim == 2:
+        raise ValueError(
+            "Multi-component node/edge values cannot be represented in scipy COO/CSR. "
+            "Convert directly to a sisl matrix format instead."
+        )
+
     def _init_coo(data, rows, cols, mask, shape):
         return coo_array((data[mask], (rows[mask], cols[mask])), shape)
 
