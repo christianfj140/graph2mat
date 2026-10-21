@@ -16,7 +16,7 @@ from graph2mat.bindings.e3nn.modules.hamiltonian_context import (
     HamiltonianLocalContext,
 )
 from graph2mat.bindings.e3nn.modules.magnetic import MagneticMomentLayer
-from graph2mat.bindings.e3nn.modules.spin_orbit import E3nnSpinOrbitFullMatrixBlock
+from graph2mat.bindings.e3nn.modules.spin_orbit import E3nnSpinOrbitFullMatrixBlock, E3nnSpinOrbitMatrixBlock
 from graph2mat.bindings.torch.data import TorchBasisMatrixData
 from graph2mat.core.data.spin_orbit import SOC_FULL_TIME_REVERSAL_PARITY
 from graph2mat.models.long_range import ewald_potentials, equilibrate_charges, label_element_atoms, neutralize
@@ -369,6 +369,8 @@ class MatrixMACE(torch.nn.Module):
         if self.long_range_mode:
             if self.readout_per_interaction or gradient_checkpointing:
                 raise ValueError("long_range needs a single readout and no gradient_checkpointing.")
+            if issubclass(kwargs.get("matrix_block_cls", object), (E3nnSpinOrbitMatrixBlock, E3nnSpinOrbitFullMatrixBlock)):
+                raise ValueError("long_range needs h_and_overlap labels (S last), not spin-orbit channels.")
             # charges: q; qeq: electronegativity and hardness (around QEQ_HARDNESS eV per e^2).
             n_out = 1 if self.long_range_mode == "charges" else 2
             self.charge_readout = o3.Linear(self._with_node_context_irreps(self.mace_inter_irreps), o3.Irreps(f"{n_out}x0e"))
@@ -785,6 +787,14 @@ class MatrixMACE(torch.nn.Module):
                 len(edge_out), self.matrix_readouts.basis_table))
         d_nodes = potential[node_atoms] * point_labels[:, -1]
         d_edges = 0.5 * (potential[edge_i] + potential[edge_j]) * edge_labels[:, -1]
-        add = lambda out, d: out + d if out.ndim == 1 else torch.cat([out[:, :1] + d[:, None], out[:, 1:]], dim=1)
+        # Labels are [H..., S] (h_and_overlap, one H column per spin): every H column of the
+        # output gets the shift; a predicted S column (the labels' last one) does not.
+        n_h = point_labels.shape[1] - 1
+
+        def add(out, d):
+            if out.ndim == 1:
+                return out + d
+            mask = (torch.arange(out.shape[1], device=out.device) < n_h).to(out.dtype)
+            return out + d[:, None] * mask
         return {**output, "node_labels": add(node_labels, d_nodes), "edge_labels": add(edge_out, d_edges),
                 "node_charges": charges, "node_potential": potential}

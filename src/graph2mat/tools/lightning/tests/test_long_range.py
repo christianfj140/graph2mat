@@ -25,7 +25,7 @@ def test_ewald_madelung_rocksalt():
     np.testing.assert_allclose(two.numpy(), np.tile(expected * q.numpy(), 2), rtol=1e-6)
 
 
-def _model_and_batch(long_range, n_components: int = 2):
+def _model_and_batch(long_range, n_components: int = 2, n_outputs: int = 1):
     mace_modules = pytest.importorskip("mace.modules")
     from torch_geometric.data import Batch
     from graph2mat.models.mace import MatrixMACE
@@ -59,7 +59,7 @@ def _model_and_batch(long_range, n_components: int = 2):
     )
     torch.manual_seed(1)
     model = MatrixMACE(mace=mace, unique_basis=table, symmetric=True, edge_hidden_irreps=o3.Irreps("2x0e+2x1o"),
-                       n_matrix_components=1, long_range=long_range, long_range_smearing=1.0)
+                       n_matrix_components=n_outputs, long_range=long_range, long_range_smearing=1.0)
     return model, batch, processor, table
 
 
@@ -142,3 +142,30 @@ def test_qeq_mode_starts_neutral_and_takes_the_total_charge():
     sums = torch.zeros(2).index_add(0, batch.batch, out["node_charges"].detach())
     np.testing.assert_allclose(sums.numpy(), [1.0, -2.0], atol=1e-5)
     assert (out["node_labels"] - base["node_labels"]).abs().max() > 1e-4
+
+
+def test_long_range_shifts_every_hamiltonian_column_and_not_the_overlap():
+    """Spin-polarized h_and_overlap labels [H_up, H_down, S]: both spin channels get the same
+    (V_i + V_j) / 2 * S_ij shift and a predicted S column none."""
+    plain, batch, _, _ = _model_and_batch(False, n_components=3, n_outputs=3)
+    model, _, _, _ = _model_and_batch(True, n_components=3, n_outputs=3)
+    torch.nn.init.normal_(model.charge_readout.weight)
+    base, out = plain(batch), model(batch)
+    for key in ("node_labels", "edge_labels"):
+        diff = (out[key] - base[key]).detach()
+        assert diff[:, 0].abs().max() > 1e-4
+        torch.testing.assert_close(diff[:, 1], diff[:, 0])
+        torch.testing.assert_close(diff[:, 2], torch.zeros_like(diff[:, 2]))
+
+
+def test_lightning_long_range_requires_h_and_overlap_data():
+    from types import SimpleNamespace
+    from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+
+    for policy in ("spin_h_only", "h_only"):
+        fake = SimpleNamespace(hparams={"long_range": True, "spin_orbit": False, "magnetic_moments": None,
+                                        "edge_cutoff_padding": 0.0},
+                               trainer=SimpleNamespace(datamodule=SimpleNamespace(
+                                   matrix_component_policy=policy, edge_cutoff_padding=0.0, magnetic_moments=None)))
+        with pytest.raises(ValueError, match="long_range"):
+            LitMACEMatrixModel._check_data_agreement(fake)

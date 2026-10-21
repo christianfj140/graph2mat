@@ -367,6 +367,9 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
                 f"model edge_cutoff_padding={padding} disagrees with data edge_cutoff_padding={data_padding}."
             )
         policy = getattr(module, "matrix_component_policy", None)
+        # long_range reads S from the labels' last column: only h_and_overlap has it there.
+        if self.hparams.get("long_range") and module is not None and policy != "h_and_overlap":
+            raise ValueError(f"long_range needs matrix_component_policy='h_and_overlap' data, not {policy!r}.")
         required = {(True, None): "spin_orbit", (True, "vector"): "spin_orbit_full",
                     (False, "collinear"): "spin_h_only"}.get((spin_orbit, moments))
         # A plain model only excludes the spin-orbit policies, whose channels it would misread.
