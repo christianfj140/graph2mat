@@ -36,6 +36,15 @@ condición); las cifras absolutas no corresponden a un coseno. Corregido en el C
 optimizador del modelo; reanudar un checkpoint entrenado sin scheduler con un `lr_scheduler` en la config, o
 combinarlo con etapas que fijan `optim_lr`, da un error explícito en lugar de cambiar el entrenamiento en silencio.
 
+**Sonda barata coseno frente a constante (2026-10-22, `run_lr_schedule_probe.py`):** receta histórica w90 `fp32_lin`
+(N=64, mismas muestras), 1000 épocas, 3 semillas por brazo, emparejadas; métrica: mejor `val_loss` (elementwise MSE,
+eV²), sin tocar test. Constante 1,18e-4 / 1,39e-4 / 1,12e-4; coseno (`T_max`=1000, `eta_min`=1e-5) 1,33e-4 /
+1,51e-4 / 1,56e-4. Razón coseno/constante 1,12 / 1,08 / 1,39: **el coseno empeora en las tres semillas** a este
+presupuesto. En los seis el mejor checkpoint está en las últimas 10 épocas: los modelos aún mejoran y el coseno,
+al bajar el lr, frena el final. No dice nada de presupuestos largos (4000–16000 épocas, donde el modelo sí
+converge) ni de otras recetas; no se promueve el coseno ni se cambian defaults. Coste ≈ 6 × 7 min de GPU vía
+`g2m_autorun` (ids `lrprobe:w90:*`).
+
 ### Migración desde MD_vs_AtomicDisplacement — 2026-10-21
 
 Por petición del usuario, las funciones del roadmap que solo existían en MD_vs_AtomicDisplacement viven ahora en
