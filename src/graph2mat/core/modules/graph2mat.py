@@ -1337,7 +1337,19 @@ class Graph2Mat(Generic[ArrayType]):
             This is only used when ``basis_grouping != "max"``.
         """
         if self.basis_grouping == "max":
-            indices = cast(np.ndarray, filters)[original_types].ravel()
+            filters = cast(np.ndarray, filters)
+            if self.symmetric:
+                mask = filters[original_types].ravel()
+            else:
+                abs_original_types = abs(original_types)
+                filts = filters[abs_original_types]
+                # We need to transpose the filters for the negative types.
+                filts = np.where(
+                    original_types[:, None, None] < 0, filts.transpose(0, 2, 1), filts
+                )
+                mask = filts.ravel()
+
+            return np.where(mask)[0]
         else:
             indices = get_labels_resorting_array(
                 types,

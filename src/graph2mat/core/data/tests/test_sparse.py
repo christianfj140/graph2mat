@@ -156,3 +156,19 @@ def test_nodes_and_edges_to_dm_direct(
 
     assert density_matrix.shape == new_dm.shape
     assert np.all(abs(new_dm - density_matrix)._csr.data < 1e-7)
+
+
+def test_nodes_and_edges_to_scipy_rejects_multicomponent_values():
+    import pytest
+
+    orbitals = np.array([1, 1])
+    edge_index = np.array([[0], [1]])
+    nodes_and_edges_to_coo = conversions.get_converter(
+        Formats.NODESEDGES, Formats.SCIPY_COO
+    )
+
+    # A single component still converts.
+    nodes_and_edges_to_coo(np.ones(2), np.ones(1), edge_index, orbitals)
+
+    with pytest.raises(ValueError, match="Multi-component"):
+        nodes_and_edges_to_coo(np.ones((2, 2)), np.ones((1, 2)), edge_index, orbitals)
