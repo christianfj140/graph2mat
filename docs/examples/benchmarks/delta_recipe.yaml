@@ -1,0 +1,53 @@
+# Best graphene recipe of the g2m-v2 benchmarks (6x6 supercell, roadmap
+# "fp32_lin_steps16k_gaugeh_kl_delta_compile"), as trained there with
+#   graph2mat models mace main fit -c delta_recipe.yaml
+# The model learns H - H0: train_runs/val_runs point to delta samples written by
+# delta_workflow.py (or `graph2mat siesta delta label`), and H0 is added back to
+# the predictions. Paths are relative to the directory where training runs.
+seed_everything: 0
+data:
+  out_matrix: hamiltonian
+  symmetric_matrix: true
+  sub_point_matrix: false
+  # (H, S) labels: S enters the gauge-invariant loss only; the model predicts H.
+  matrix_component_policy: h_and_overlap
+  n_matrix_components: 2
+  basis_files: basis/*.ion.xml
+  train_runs: delta/train/*/RUN.fdf
+  val_runs: delta/validation/*/RUN.fdf
+  batch_size: 16
+  store_in_memory: true
+  loader_threads: 4
+  # Roadmap 4.4 (optional): + first-order spectral loss in a +-3 eV window at Gamma.
+  # Needs spectral_window.npz next to every label (graph2mat.tools.spectral_targets)
+  # and model.loss_kwargs.spectral_weight > 0.
+  # spectral_window: true
+model:
+  num_interactions: 3
+  correlation: 3
+  max_ell: 3
+  hidden_irreps: 48x0e + 48x1o + 48x2e + 48x3o
+  loss: graph2mat.metrics.gauge_invariant_mse
+  optim_lr: 0.0018
+  node_block_readout: graph2mat.bindings.e3nn.modules.node_operations.E3nnLinearTSQNodeBlock
+  edge_block_readout: graph2mat.bindings.e3nn.modules.edge_operations.E3nnLinearEdgeBlock
+  n_output_components: 1
+  keep_last_layer_irreps: true
+  torch_compile: true
+trainer:
+  accelerator: auto
+  max_epochs: 16000
+  check_val_every_n_epoch: 8
+  precision: 32-true
+  callbacks:
+  - class_path: ModelCheckpoint
+    init_args:
+      monitor: val_loss
+      mode: min
+      save_top_k: 1
+      filename: best-epoch{epoch}-step{step}
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+  init_args:
+    T_max: 16000
+    eta_min: 1.0e-05

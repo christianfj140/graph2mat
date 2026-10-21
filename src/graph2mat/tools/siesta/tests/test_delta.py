@@ -118,3 +118,23 @@ def test_stage_h0_overlap(tmp_path):
     assert dest == structure / "frame.TSHS" and dest.exists()
     with pytest.raises(FileExistsError):
         stage_h0_overlap(tmp_path / "h0.TSHS", structure / "RUN.fdf")
+
+
+def test_delta_cli(tmp_path, fake_siesta, monkeypatch):
+    from typer.testing import CliRunner
+
+    from graph2mat.tools.cli.cli import app
+
+    H, H0, ref_dir = _sample(tmp_path)
+    monkeypatch.setenv("FAKE_SIESTA_TSHS", str(tmp_path / "h0.TSHS"))
+    runner = CliRunner()
+    result = runner.invoke(app, ["siesta", "delta", "h0", str(ref_dir), "--out-root", str(tmp_path / "h0s"), "--siesta", fake_siesta])
+    assert result.exit_code == 0, result.output
+    h0 = tmp_path / "h0s" / "sample" / "sample.TSHS"
+    assert h0.exists()
+    result = runner.invoke(app, ["siesta", "delta", "label", str(ref_dir), str(h0), str(tmp_path / "delta")])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(app, ["siesta", "delta", "add-h0", str(tmp_path / "delta" / "sample.TSHS"), str(h0),
+                                 "--out", str(tmp_path / "back.TSHS")])
+    assert result.exit_code == 0, result.output
+    np.testing.assert_allclose((_read(tmp_path / "back.TSHS").tocsr(0) - H.tocsr(0)).toarray(), 0, atol=1e-12)
