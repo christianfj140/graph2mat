@@ -130,7 +130,8 @@ def test_equilibrate_charges_solves_qeq():
 
 def test_qeq_mode_starts_neutral_and_takes_the_total_charge():
     """long_range='qeq': same output as without it for neutral structures at the start; a
-    total charge gives charges that add up to it (and change H)."""
+    total charge (SIESTA NetCharge, > 0 when electrons are removed) gives electronic charges
+    that add up to minus it (audit M18), and changes H."""
     plain, batch, _, _ = _model_and_batch(False)
     model, _, _, _ = _model_and_batch("qeq")
     base = plain(batch)
@@ -140,7 +141,7 @@ def test_qeq_mode_starts_neutral_and_takes_the_total_charge():
     batch.total_charge = torch.tensor([1.0, -2.0])
     out = model(batch)
     sums = torch.zeros(2).index_add(0, batch.batch, out["node_charges"].detach())
-    np.testing.assert_allclose(sums.numpy(), [1.0, -2.0], atol=1e-5)
+    np.testing.assert_allclose(sums.numpy(), [-1.0, 2.0], atol=1e-5)
     assert (out["node_labels"] - base["node_labels"]).abs().max() > 1e-4
 
 

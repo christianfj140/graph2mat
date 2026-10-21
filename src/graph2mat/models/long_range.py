@@ -2,9 +2,10 @@
 
 A local model cannot see the Madelung potential of distant charges: a LiF nanocube or a polar
 ZnO slab has bulk-like local environments in a different electrostatic potential (materials
-bench). Here every atom carries a learned charge q_i (neutral per structure), the potential
-V_i of the other charges is summed with Ewald, and the matrix gets, to first order in a slowly
-varying potential,
+bench). Here every atom carries a learned electronic charge q_i (an extra electron is +1;
+neutral per structure, or adding up to minus SIESTA's NetCharge in charge equilibration), the
+potential V_i of the other charges is summed with Ewald (the potential energy of an electron,
+with that sign convention), and the matrix gets, to first order in a slowly varying potential,
 
     dH_ij = (V_i + V_j) / 2 * S_ij,
 

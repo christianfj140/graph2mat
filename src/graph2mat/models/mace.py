@@ -167,9 +167,12 @@ class MatrixMACE(torch.nn.Module):
         per structure), the Ewald potential V of those charges is computed
         (``models.long_range``) and the output gets ``(V_i + V_j) / 2 * S_ij``, with S the
         labels' last component (so S must also be loaded for predictions). Starts at zero
-        (no charges). ``"qeq"``: the charges come from charge equilibration instead, with a
-        learned electronegativity and hardness per atom and the structure's total charge
-        (``data.total_charge``, 0 if absent), so they respond to the whole structure.
+        (no charges). The charges are electronic (an extra electron is +1), so that V is the
+        potential energy of an electron and ``+V S`` its shift. ``"qeq"``: the charges come
+        from charge equilibration instead, with a learned electronegativity and hardness per
+        atom and the structure's total charge (``data.total_charge``, SIESTA's NetCharge, 0 if
+        absent; positive when electrons are removed, so the electronic charges add up to
+        ``-total_charge``), so they respond to the whole structure.
     long_range_smearing :
         Width (Angstrom) of the Gaussian charges: the potential is that of erf(r/s)/r.
     magnetic_moments :
@@ -779,7 +782,8 @@ class MatrixMACE(torch.nn.Module):
         raw = self.charge_readout(node_feats)
         if self.long_range_mode == "qeq":
             total = data.get("total_charge")
-            total = raw.new_zeros(n_structures) if total is None else total.reshape(-1).to(raw.dtype)
+            # NetCharge > 0 means electrons removed: the electronic charges add up to -NetCharge.
+            total = raw.new_zeros(n_structures) if total is None else -total.reshape(-1).to(raw.dtype)
             hardness = torch.nn.functional.softplus(raw[:, 1] + QEQ_SOFTPLUS_SHIFT)
             charges = equilibrate_charges(raw[:, 0], hardness, data["positions"], data["cell"], batch, total,
                                           self.long_range_smearing)

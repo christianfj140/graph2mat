@@ -53,6 +53,11 @@ converge) ni de otras recetas; no se promueve el coseno ni se cambian defaults. 
   de gauge deja libre (H = c·S puro daba 0,08 eV² con c = 1 eV). Ahora c se ajusta contra G = CᵀSC con las
   etiquetas de S; para la ventana 4.4 (G = I) no cambia nada. **Los resultados de 4.7 de este roadmap se midieron
   con la versión no invariante** y podrían cambiar; no se han repetido.
+- **8.4 `long_range="qeq"` con carga neta:** las cargas sumaban `NetCharge` (positiva = electrones quitados, es
+  decir, cargas iónicas) mientras la matriz recibía `+V·S`, que solo es la energía del electrón si las cargas son
+  electrónicas; la parte de las cargas fijada por `NetCharge` tenía el signo cambiado (las estructuras neutras y el
+  modo `charges`, donde el aprendizaje absorbe el signo, no se ven afectados). Ahora las cargas son electrónicas y
+  suman −NetCharge. Solo cambian resultados de estructuras con carga neta en `qeq`.
 
 ### Migración desde MD_vs_AtomicDisplacement — 2026-10-21
 
