@@ -223,10 +223,14 @@ def _edge_module_for_unique_type(readout, edge_type: int):
     graph_edge_type = int(_map_types(readout.edge_types_to_graph2mat, [edge_type])[0])
     if readout.symmetric:
         graph_edge_type = abs(graph_edge_type)
-    for module_key, operation in readout.interactions.items():
-        _, _, op_edge_type = map(int, module_key[1:-1].split(","))
-        if op_edge_type == graph_edge_type:
-            return module_key, operation
+    # Non-symmetric: a pair that is same-type in the grouped basis has a single module, which
+    # also computes the reverse direction (-t).
+    candidates = [graph_edge_type] if graph_edge_type >= 0 else [graph_edge_type, -graph_edge_type]
+    for candidate in candidates:
+        for module_key, operation in readout.interactions.items():
+            _, _, op_edge_type = map(int, module_key[1:-1].split(","))
+            if op_edge_type == candidate:
+                return module_key, operation
     raise KeyError(f"No readout edge operation found for edge type {edge_type}")
 
 

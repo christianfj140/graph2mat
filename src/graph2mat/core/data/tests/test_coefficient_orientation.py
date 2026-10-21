@@ -1,5 +1,6 @@
 """Physical blocks retain their direction, component order and observation mask."""
 
+import numpy as np
 import pytest
 import torch
 from e3nn import o3
@@ -147,3 +148,41 @@ def test_max_grouping_without_padding_keeps_exact_targets():
     labels = metrics.coefficients_to_labels(readout, batch, readout.basis_table, target)
     torch.testing.assert_close(labels["node_labels"], nodes)
     torch.testing.assert_close(labels["edge_labels"], edges)
+
+
+@pytest.mark.parametrize("bases, types", [(["1x0e+1x1o", "1x1o+1x2e"], ["0", "1", "1"]),
+                                          (["1x0e+1x1o", "1x1o", "1x0e+1x1o"], ["0", "2", "0"])])
+@pytest.mark.parametrize("grouping", ["point_type", "basis_shape", "max"])
+@pytest.mark.parametrize("symmetric", [False, True])
+def test_coefficient_targets_with_same_species_edges(grouping, symmetric, bases, types):
+    """Audit M15: non-symmetric matrices give reverse same-species edges the type -t, for
+    which no projector spec (or, after grouping, no -t module) existed: KeyError."""
+    from torch_geometric.loader import DataLoader
+
+    from graph2mat import BasisConfiguration, MatrixDataProcessor
+    from graph2mat.bindings.torch import TorchBasisMatrixData
+    from graph2mat.bindings.torch.data.coefficient_targets import CoefficientMatrixMSEProjector, coefficient_matrix_mse
+    from graph2mat.core.data import metrics
+
+    readout = grouped_readout(bases, grouping, symmetric, 1)
+    proc = MatrixDataProcessor(basis_table=readout.basis_table, symmetric_matrix=symmetric, sub_point_matrix=False)
+    config = BasisConfiguration(point_types=types, positions=np.array([[0.0, 0, 0], [1.0, 0.2, 0], [2.0, 0, 0.1]]),
+                                basis=readout.basis_table, cell=np.diag([20.0, 20, 20]), pbc=(False, False, False))
+    data = TorchBasisMatrixData.from_config(config, data_processor=proc)
+    torch.manual_seed(0)
+    feats = torch.randn(3, FEATURES.dim, dtype=torch.float64)
+    nodes, edges = readout(data, node_feats=feats)
+    data.point_labels, data.edge_labels = torch.randn_like(nodes), torch.randn_like(edges)
+    batch = next(iter(DataLoader([data], batch_size=1)))
+    targets = CoefficientMatrixMSEProjector(readout)(batch, batch.point_labels, batch.edge_labels)
+    expected, _ = metrics.elementwise_mse()(nodes_pred=nodes, nodes_ref=batch.point_labels, edges_pred=edges,
+                                            edges_ref=batch.edge_labels, edge_weight=1.0)
+    actual, _ = coefficient_matrix_mse(readout(batch, node_feats=feats, coefficients_only=True), targets, 1.0)
+    torch.testing.assert_close(actual, expected)
+
+
+@pytest.mark.parametrize("bases", [["1x0e+1x1o", "1x0e+1x1o"], ["1x0e+1x1o", "1x1o", "1x0e+1x1o"]])
+def test_coefficient_projector_for_non_symmetric_basis_shape_groups(bases):
+    from graph2mat.bindings.torch.data.coefficient_targets import CoefficientMatrixMSEProjector
+
+    CoefficientMatrixMSEProjector(grouped_readout(bases, "basis_shape", False, 1))

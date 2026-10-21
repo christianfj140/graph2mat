@@ -118,7 +118,10 @@ class CoefficientMatrixMSEProjector:
                     np.outer(basis_filters[point_type], basis_filters[point_type]))
             self.node_specs[point_type] = self._spec(operation, mask, f"node:{graph_type}", False)
         edge_types = range(len(first.basis_table.edge_type_to_point_types))
-        reverse_types = [-t for t, (i, j) in enumerate(first.basis_table.edge_type_to_point_types) if i != j]
+        # Reverse edges carry -t: between different species, and between atoms of the same
+        # species too in non-symmetric matrices (both directions are stored).
+        reverse_types = [-t for t, (i, j) in enumerate(first.basis_table.edge_type_to_point_types)
+                         if t != 0 and (i != j or not self.symmetric)]
         for edge_type in [*edge_types, *reverse_types]:
             key, operation = _edge_module_for_unique_type(first, edge_type)
             if operation is None:
