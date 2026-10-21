@@ -41,6 +41,18 @@ def drop_last_mace_interaction(mace: MACE) -> MACE:
     mace.num_interactions.fill_(n)
     return mace
 
+def _reentrant_checkpoint(function, *args):
+    """``function(*args)`` through a reentrant checkpoint when some argument needs gradients.
+
+    A reentrant checkpoint only differentiates its output if an input requires gradients:
+    with frozen inputs (training stages that freeze MACE or its embedding) the parameters
+    inside ``function`` would get none. Those calls run without the checkpoint.
+    """
+    if torch.is_grad_enabled() and any(isinstance(a, torch.Tensor) and a.requires_grad for a in args):
+        return checkpoint(function, *args, use_reentrant=True)
+    return function(*args)
+
+
 def mace_node_feats(mace: MACE, data, gradient_checkpointing: bool = False) -> torch.Tensor:
     """Node features of all MACE interactions, as ``MACE.forward(data)["node_feats"]``.
 
@@ -73,11 +85,11 @@ def mace_node_feats(mace: MACE, data, gradient_checkpointing: bool = False) -> t
             return product(node_feats=node_feats, sc=sc, node_attrs=node_attrs)
 
         args = (node_feats, edge_attrs, edge_feats, cutoff)
-        if gradient_checkpointing and torch.is_grad_enabled():
+        if gradient_checkpointing:
             # Reentrant: e3nn's TorchScript modules do not recompute the exact same
             # saved tensors, which the non-reentrant checkpoint requires. Every tensor
             # is an explicit argument so that gradients reach whatever produced it.
-            node_feats = checkpoint(layer, *args, use_reentrant=True)
+            node_feats = _reentrant_checkpoint(layer, *args)
         else:
             node_feats = layer(*args)
         all_feats.append(node_feats)
@@ -574,7 +586,7 @@ class MatrixMACE(torch.nn.Module):
             out = self._readout(data, {**mace_out, "node_feats": node_feats})
             return out["node_labels"], out["edge_labels"]
 
-        node_labels, edge_labels = checkpoint(labels, mace_out["node_feats"], use_reentrant=True)
+        node_labels, edge_labels = _reentrant_checkpoint(labels, mace_out["node_feats"])
         return {**mace_out, "node_labels": node_labels, "edge_labels": edge_labels}
 
     def _message_passing_data(self, data: TorchBasisMatrixData):

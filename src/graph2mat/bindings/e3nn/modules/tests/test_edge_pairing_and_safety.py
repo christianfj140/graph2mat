@@ -210,10 +210,13 @@ def test_drop_last_mace_interaction_keeps_equivariant_features(n):
     assert all(o3.Irreps(i.hidden_irreps).lmax == 1 for i in kept.interactions)
 
 
+@pytest.mark.parametrize("frozen", [None, "mace.", "mace.node_embedding."])
 @pytest.mark.parametrize("options", [{"lean_mace": True}, {"gradient_checkpointing": True}])
-def test_lean_mace_matches_full_forward_and_gradients(options):
+def test_lean_mace_matches_full_forward_and_gradients(options, frozen):
     """The lean MACE path (no energies, no position gradients) and gradient
-    checkpointing must not change the matrix or the parameter gradients."""
+    checkpointing must not change the matrix or the parameter gradients, also with frozen
+    parts (training stages): a reentrant checkpoint whose inputs need no gradient used to
+    give its own parameters none (audit M12)."""
     mace_modules = pytest.importorskip("mace.modules")
     from torch_geometric.data import Batch
     from graph2mat.models.mace import MatrixMACE
@@ -237,6 +240,9 @@ def test_lean_mace_matches_full_forward_and_gradients(options):
         torch.manual_seed(1)
         model = MatrixMACE(mace=copy.deepcopy(mace), unique_basis=table, symmetric=True,
                            edge_hidden_irreps=o3.Irreps("2x0e+2x1o"), **kwargs)
+        for name, parameter in model.named_parameters():
+            if frozen and name.startswith(frozen):
+                parameter.requires_grad_(False)
         out = model(batch.clone())
         loss = (out["node_labels"] ** 2).sum() + (out["edge_labels"] ** 2).sum()
         loss.backward()
@@ -245,6 +251,7 @@ def test_lean_mace_matches_full_forward_and_gradients(options):
 
     full, full_grads = run()
     lean, lean_grads = run(**options)
+    assert full_grads
     assert torch.allclose(full["node_labels"], lean["node_labels"], atol=1e-6)
     assert torch.allclose(full["edge_labels"], lean["edge_labels"], atol=1e-6)
     assert full_grads.keys() == lean_grads.keys()
