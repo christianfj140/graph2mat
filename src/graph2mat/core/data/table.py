@@ -35,6 +35,11 @@ class IdentityTypeMap:
         return key
 
 
+def _shell_sequence(point_basis) -> tuple:
+    """(1, l, parity) for every shell of ``point_basis``, in order."""
+    return tuple((1, l, parity) for n, l, parity in point_basis.basis for _ in range(n))
+
+
 class BasisTableWithEdges:
     """Stores the unique types of points in the system, with their basis and the possible edges.
 
@@ -339,6 +344,15 @@ class BasisTableWithEdges:
             unique_sizes, unique_indices, pseudo_types = np.unique(
                 basis_sizes, axis=0, return_index=True, return_inverse=True
             )
+            pseudo_types = np.asarray(pseudo_types).reshape(-1)
+            # The group shares the operations of its first type: the shells must come in the
+            # same order too, not only in the same numbers (e.g. "1x0e+1x1o" vs "1x1o+1x0e").
+            for i, group in enumerate(pseudo_types):
+                if _shell_sequence(self.basis[i]) != _shell_sequence(self.basis[unique_indices[group]]):
+                    raise ValueError(
+                        f"basis_shape grouping: {self.basis[i].type} and {self.basis[unique_indices[group]].type} "
+                        "have the same shells in a different order."
+                    )
 
             # Create the new table with the unique basis sizes. Here we just
             # take the first point type that has that basis size, but perhaps
@@ -361,6 +375,11 @@ class BasisTableWithEdges:
                 [edge_type_conversion, -1 * np.flip(edge_type_conversion[1:])]
             )
         elif grouping == "max":
+            # The filters below select each type's shells assuming they come sorted by l.
+            for point_basis in self.basis:
+                ls = [l for _, l, _ in _shell_sequence(point_basis)]
+                if ls != sorted(ls):
+                    raise ValueError(f"max grouping needs shells sorted by l, but {point_basis.type} has l = {ls}.")
             # Get all basis sizes:
             basis_sizes = np.zeros((len(self.basis), 5), dtype=int)
             for i, point_type_basis in enumerate(self.basis):
@@ -377,8 +396,9 @@ class BasisTableWithEdges:
                 basis=[(int(n), l, (-1) ** l) for l, n in enumerate(max_sizes)],
                 basis_convention=self.basis_convention,
             )
-            # Create the new table with only one type.
-            new_table = self.__class__([max_basis])
+            # Create the new table with only one type (a plain table: subclasses such as
+            # AtomicTableWithEdges build their types from atoms, not from a PointBasis).
+            new_table = BasisTableWithEdges([max_basis])
 
             # For each original point type, compute a mask that allows us to
             # select the values of the new basis that correspond to that point type.
