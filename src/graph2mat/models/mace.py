@@ -611,11 +611,13 @@ class MatrixMACE(torch.nn.Module):
             # From MACE 0.3.14, the radial embedding returns a tuple, with the second
             # element being the cutoff.
             edge_feats = edge_feats[0]
+        envelope = None
         if self.pair_envelope_radii is not None:
             types = data["point_types"]
             sender, receiver = data["edge_index"]
             pair_range = self.pair_envelope_radii[types[sender]] + self.pair_envelope_radii[types[receiver]]
-            edge_feats = edge_feats * pair_envelope(lengths, pair_range[:, None], self.pair_envelope_p)
+            envelope = pair_envelope(lengths, pair_range[:, None], self.pair_envelope_p)
+            edge_feats = edge_feats * envelope
 
         node_feats = mace_out["node_feats"]
         if getattr(self, "node_feats_index", None) is not None:
@@ -628,7 +630,11 @@ class MatrixMACE(torch.nn.Module):
                 edge_lengths=lengths,
             )
             node_feats = torch.cat([node_feats, hamiltonian_context.node], dim=-1)
-            edge_feats = torch.cat([edge_feats, hamiltonian_context.edge], dim=-1)
+            edge_context = hamiltonian_context.edge
+            if envelope is not None:
+                # Scalar channels like the radial features: they must vanish at the pair range too.
+                edge_context = edge_context * envelope
+            edge_feats = torch.cat([edge_feats, edge_context], dim=-1)
 
         data_for_readout = copy(data)
 
