@@ -43,3 +43,6 @@ auditorias_mejoras/experimentos_*/
 auditorias_mejoras/piloto_*_v[0-9]*/
 auditorias_mejoras/campana_*_v[0-9]*/
 auditorias_mejoras/cierre_*_v[0-9]*/
+
+# Claude Code harness lock
+.claude/scheduled_tasks.lock
