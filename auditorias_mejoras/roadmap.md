@@ -45,6 +45,15 @@ al bajar el lr, frena el final. No dice nada de presupuestos largos (4000–1600
 converge) ni de otras recetas; no se promueve el coseno ni se cambian defaults. Coste ≈ 6 × 7 min de GPU vía
 `g2m_autorun` (ids `lrprobe:w90:*`).
 
+### Arreglos de la auditoría que afectan a medidas previas — 2026-10-22
+
+- **4.7 (pérdida en el espacio casi nulo de S):** no era invariante de gauge. El desplazamiento c·S se quitaba
+  como la media de la diagonal de CᵀdHC, exacto solo si CᵀSC = I; las columnas del espacio nulo
+  (u/√max(λ, 1e-3)) no lo cumplen para λ < 1e-3, así que la pérdida penalizaba el cero de energía que la pérdida
+  de gauge deja libre (H = c·S puro daba 0,08 eV² con c = 1 eV). Ahora c se ajusta contra G = CᵀSC con las
+  etiquetas de S; para la ventana 4.4 (G = I) no cambia nada. **Los resultados de 4.7 de este roadmap se midieron
+  con la versión no invariante** y podrían cambiar; no se han repetido.
+
 ### Migración desde MD_vs_AtomicDisplacement — 2026-10-21
 
 Por petición del usuario, las funciones del roadmap que solo existían en MD_vs_AtomicDisplacement viven ahora en

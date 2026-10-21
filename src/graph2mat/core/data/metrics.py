@@ -965,14 +965,19 @@ def spectral_window_layout(edges_ref, batch, basis_table) -> dict:
     }
 
 
-def _spectral_window_loss(d_nodes, d_edges, node_struct, edge_struct, n_structures, batch, edges_ref, basis_table):
-    """``|| C^T dH(Gamma) C - mean(diag) I ||^2`` per structure (roadmap 4.4, audit LOSS_TRAIN-15).
+def _spectral_window_loss(d_nodes, d_edges, node_struct, edge_struct, n_structures, batch, edges_ref, basis_table,
+                          s_nodes=None, s_edges=None):
+    """``|| C^T dH(Gamma) C - c G ||^2`` per structure (roadmap 4.4/4.7, audit LOSS_TRAIN-15).
 
-    ``C`` (``batch.spectral_C``): reference eigenvectors of a window around E_F at Gamma,
-    S-orthonormal, one row per orbital, zero columns as padding. The diagonal is the
-    first-order error of each eigenvalue and the off-diagonal the coupling inside the
-    window. ``C^T S C = I``, so the gauge shift ``c S`` is the mean of the diagonal and is
-    removed. It only needs dH = prediction - label, so it holds for Delta-learning too.
+    ``C`` (``batch.spectral_C``): one row per orbital, zero columns as padding. For the 4.4
+    window, reference eigenvectors around E_F at Gamma, S-orthonormal: the diagonal is the
+    first-order error of each eigenvalue and the off-diagonal the coupling inside the window.
+    For the 4.7 null space, scaled near-null directions of S. ``G = C^T S C`` is what the
+    gauge shift ``c S`` becomes, and ``c`` is fitted per structure as ``<M, G> / <G, G>``.
+    With the overlap labels (``s_nodes``, ``s_edges``) G is computed, so the loss ignores the
+    shift for any C; without them G is the identity on the window columns (``C^T S C = I``,
+    c = mean of the diagonal), which is only exact for S-orthonormal columns. It only needs
+    dH = prediction - label, so it holds for Delta-learning too.
     """
     from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
 
@@ -987,21 +992,29 @@ def _spectral_window_loss(d_nodes, d_edges, node_struct, edge_struct, n_structur
     dev = d_nodes.device
     get = lambda key: layout[key].to(dev)
     rows, cols = [get("node_row"), get("edge_row")], [get("node_col"), get("edge_col")]
-    structs, values = [node_struct, edge_struct], [d_nodes, d_edges]
+    structs = [node_struct, edge_struct]
     if layout["symmetric"]:
         rows.append(get("edge_col")); cols.append(get("edge_row"))
-        structs.append(edge_struct); values.append(d_edges)
+        structs.append(edge_struct)
     no = layout["no_max"]
-    d_h = d_nodes.new_zeros((n_structures, no, no)).index_put(
-        (torch.cat(structs), torch.cat(rows), torch.cat(cols)), torch.cat(values), accumulate=True
-    )
+    index = (torch.cat(structs), torch.cat(rows), torch.cat(cols))
+
+    def gamma(node_values, edge_values):
+        parts = [node_values, edge_values] + ([edge_values] if layout["symmetric"] else [])
+        return node_values.new_zeros((n_structures, no, no)).index_put(index, torch.cat(parts), accumulate=True)
+
+    d_h = gamma(d_nodes, d_edges)
     C = C.to(device=dev, dtype=d_nodes.dtype)
     c_pad = C.new_zeros((n_structures, no, C.shape[1])).index_put((get("orb_struct"), get("orb_local")), C)
     m = c_pad.transpose(1, 2) @ d_h @ c_pad
     mask = (c_pad.abs().sum(1) > 0).to(m.dtype)  # real (non-padding) window columns
     k = mask.sum(1)
-    shift = (torch.diagonal(m, dim1=1, dim2=2) * mask).sum(1) / k.clamp_min(1)
-    residual = m - shift[:, None, None] * torch.diag_embed(mask)
+    if s_nodes is None:
+        g = torch.diag_embed(mask)
+    else:
+        g = c_pad.transpose(1, 2) @ gamma(s_nodes.to(d_h.dtype), s_edges.to(d_h.dtype)) @ c_pad
+    shift = (m * g).sum((1, 2)) / (g * g).sum((1, 2)).clamp_min(1e-30)
+    residual = m - shift[:, None, None] * g
     count = (k**2).sum()
     return (residual**2).sum() / count.clamp_min(1), count
 
@@ -1964,7 +1977,8 @@ def gauge_invariant_mse(
         if n_h != 1:
             raise ValueError("spectral_weight supports a single H component.")
         spectral, count = _spectral_window_loss(
-            d_nodes[:, 0], d_edges[:, 0], node_struct, edge_struct, n_structures, batch, edges_ref, basis_table
+            d_nodes[:, 0], d_edges[:, 0], node_struct, edge_struct, n_structures, batch, edges_ref, basis_table,
+            s_nodes=s_nodes[:, 0], s_edges=s_edges[:, 0],
         )
         stats["spectral_rmse"] = spectral.detach() ** 0.5
         stats["spectral_elements"] = count.detach()

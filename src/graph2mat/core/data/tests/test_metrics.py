@@ -371,3 +371,46 @@ def test_pair_difference_mse_penalises_only_the_antisymmetric_error():
     assert torch.isclose(loss, plain) and "n_pairs" not in stats
     loss_train, _ = pair_difference_mse(nodes_pred=nodes.detach(), edges_pred=edges_ref, model=model.train(), **kwargs)
     assert loss_train > loss
+
+
+def test_spectral_loss_ignores_the_gauge_shift_with_null_space_columns():
+    """Roadmap 4.7: null-space columns u / sqrt(max(lambda, floor)) are not S-orthonormal
+    (C^T S C = lambda / floor < 1 below the floor), so a pure shift dH = c S is not a
+    multiple of the identity in C^T dH C. Fitting the shift against G = C^T S C removes it."""
+    from types import SimpleNamespace
+
+    import numpy as np
+    import torch
+
+    from graph2mat.core.data.metrics import _spectral_window_loss
+    from graph2mat.core.modules.graph2mat import LAYOUT_ATTR
+
+    rng = np.random.default_rng(0)
+    n = 4
+    u, _ = np.linalg.qr(rng.normal(size=(n, n)))
+    S = u @ np.diag([1.5, 1.0, 5e-3, 2e-4]) @ u.T
+    w, v = np.linalg.eigh(S)
+    keep = w < 1e-2
+    C = v[:, keep] / np.sqrt(np.maximum(w[keep], 1e-3))
+    assert not np.allclose(C.T @ S @ C, np.eye(keep.sum()))
+    rows, cols = np.divmod(np.arange(n * n), n)
+    batch = SimpleNamespace(spectral_C=torch.as_tensor(C))
+    setattr(batch, LAYOUT_ATTR, {
+        "node_row": torch.as_tensor(rows), "node_col": torch.as_tensor(cols),
+        "edge_row": torch.zeros(0, dtype=torch.long), "edge_col": torch.zeros(0, dtype=torch.long),
+        "orb_struct": torch.zeros(n, dtype=torch.long), "orb_local": torch.arange(n),
+        "no_max": n, "symmetric": False,
+    })
+    none = torch.zeros(0, dtype=torch.float64)
+    struct, no_struct = torch.zeros(n * n, dtype=torch.long), torch.zeros(0, dtype=torch.long)
+    s_nodes = torch.as_tensor(S.ravel())
+
+    def loss(d_h):
+        return _spectral_window_loss(torch.as_tensor(d_h.ravel()), none, struct, no_struct, 1, batch, None, None,
+                                     s_nodes=s_nodes, s_edges=none)[0].item()
+
+    error = rng.normal(size=(n, n))
+    error = (error + error.T) / 2
+    assert loss(1.0 * S) == pytest.approx(0, abs=1e-20)
+    assert loss(error + 0.7 * S) == pytest.approx(loss(error), rel=1e-10)
+    assert loss(error) > 0
