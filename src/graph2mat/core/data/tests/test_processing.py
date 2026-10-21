@@ -672,3 +672,22 @@ def test_from_config_rejects_shifts_beyond_nsc():
     assert BasisMatrixData.from_config(config, processor).n_edges > 0
     with pytest.raises(ValueError, match="nsc"):
         BasisMatrixData.from_config(config, processor, nsc=[1, 1, 1])
+
+
+def test_from_config_rejects_an_nsc_different_from_the_matrix():
+    """Audit M14: labels are read from the matrix's own images; another nsc would read
+    the blocks of other images."""
+    import sisl
+
+    from graph2mat import BasisMatrixData, MatrixDataProcessor, OrbitalConfiguration
+    from graph2mat.core.data.table import AtomicTableWithEdges
+
+    atom = sisl.Atom(6, orbitals=[sisl.AtomicOrbital("2s", R=1.6)])
+    H = sisl.Hamiltonian(sisl.geom.graphene(atoms=atom))
+    H.construct([(0.1, 1.6), (0.0, -2.7)])
+    processor = MatrixDataProcessor(basis_table=AtomicTableWithEdges([atom]), symmetric_matrix=True,
+                                    sub_point_matrix=False, out_matrix="hamiltonian")
+    config = OrbitalConfiguration.from_matrix(H, labels=True)
+    BasisMatrixData.from_config(config, processor, nsc=np.array(H.nsc))
+    with pytest.raises(ValueError, match="differs from the matrix nsc"):
+        BasisMatrixData.from_config(config, processor, nsc=np.array([5, 5, 1]))

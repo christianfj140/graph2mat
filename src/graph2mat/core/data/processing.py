@@ -2024,6 +2024,15 @@ class BasisMatrixDataBase(Generic[ArrayType]):
                 nsc = abs(sc_shifts).max(axis=1) * 2 + 1
             else:
                 nsc = np.array([1, 1, 1])
+        elif config.matrix is not None and not np.array_equal(
+            np.asarray(nsc).reshape(3), np.asarray(config.matrix.nsc).reshape(3)
+        ):
+            # The matrix blocks are indexed by the images of the matrix's own supercell: reading
+            # them with another nsc would take the block of a different image.
+            raise ValueError(
+                f"nsc={np.asarray(nsc).reshape(3)} differs from the matrix nsc "
+                f"{np.asarray(config.matrix.nsc).reshape(3)}; omit nsc to use the matrix's."
+            )
 
         # A shift beyond nsc//2 would be wrapped by numpy indexing into another image, silently
         # reading the block of a different neighbour (audit PHYS_H-16, DATA_PIPE-19).
