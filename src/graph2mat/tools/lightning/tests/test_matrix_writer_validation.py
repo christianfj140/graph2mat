@@ -254,3 +254,87 @@ def test_samplewise_metric_failure_warns_once_or_raises(tmp_path, fail_ok):
         assert all(math.isnan(float(row["BrokenMetric"])) for row in rows)
     else:
         assert not rows
+
+
+def _gauge_h_only_run(tmp_path, n_runs=3):
+    """h_and_overlap labels, a model that predicts H only (gauge recipe), trainer.test."""
+    import warnings
+
+    import pytorch_lightning as pl
+    import sisl
+
+    from graph2mat import AtomicTableWithEdges
+    from graph2mat.core.data import metrics as M
+    from graph2mat.tools.lightning import MatrixDataModule
+    from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+
+    atom = sisl.Atom("H", orbitals=[sisl.AtomicOrbital("1s", R=1.4)])
+    basis = AtomicTableWithEdges([atom])
+    for i in range(n_runs):
+        g = sisl.Geometry([[0.0, 0.0, 0.0], [1.0 + 0.05 * i, 0.0, 0.0], [0.0, 1.1, 0.0]], atoms=atom, lattice=[10.0] * 3)
+        H = sisl.Hamiltonian(g, orthogonal=False)
+        for a in range(3):
+            H[a, a] = (-1.0 - 0.1 * a, 1.0)
+        H[0, 1] = H[1, 0] = (-0.5, 0.2)
+        H[0, 2] = H[2, 0] = (-0.4, 0.15)
+        (tmp_path / f"run{i}").mkdir()
+        H.write(tmp_path / f"run{i}" / "sample.nc")
+    pl.seed_everything(0)
+    dm = MatrixDataModule(out_matrix="hamiltonian", root_dir=str(tmp_path), basis_table=basis,
+                          matrix_component_policy="h_and_overlap", n_matrix_components=2,
+                          sub_point_matrix=False, loader_threads=0, batch_size=3,
+                          train_runs="*/sample.nc", test_runs="*/sample.nc")
+    model = LitMACEMatrixModel(basis_table=basis, hidden_irreps="4x0e+2x1o", edge_hidden_irreps="2x0e+1x1o",
+                               max_ell=1, num_interactions=1, symmetric_matrix=True, n_matrix_components=2,
+                               n_output_components=1, loss=M.gauge_invariant_mse)
+    return dm, model, pl.Trainer(accelerator="cpu", logger=False, enable_checkpointing=False,
+                                 enable_progress_bar=False, enable_model_summary=False, callbacks=[])
+
+
+def test_matrix_writer_attaches_the_reference_overlap_to_h_only_predictions(tmp_path):
+    """Audit G4: a gauge H-only model (h_and_overlap labels) used to be written with S = I."""
+    import json
+
+    import sisl
+
+    from graph2mat.tools.lightning.callbacks import MatrixWriter
+
+    dm, model, trainer = _gauge_h_only_run(tmp_path)
+    trainer.callbacks.append(MatrixWriter("pred", splits=["test"]))
+    trainer.test(model, datamodule=dm, verbose=False)
+    written = sorted(p for p in tmp_path.glob("run*/pred/*") if not p.name.endswith(".json"))
+    assert written
+    for path in written:
+        run = path.parent.parent
+        m = sisl.get_sile(path).read_hamiltonian()
+        ref = sisl.get_sile(run / "sample.nc").read_hamiltonian()
+        assert not m.orthogonal
+        np.testing.assert_allclose(m.tocsr(m.S_idx).toarray(), ref.tocsr(ref.S_idx).toarray(), atol=1e-6)
+        metadata = json.loads(path.with_name(path.name + ".metadata.json").read_text())
+        assert metadata["overlap_source"] == "reference labels"
+
+
+def test_matrix_writer_refuses_to_overwrite_another_structure(tmp_path):
+    """Audit M7: several structures resolving to one output file used to overwrite each other."""
+    from graph2mat.tools.lightning.callbacks import MatrixWriter
+
+    dm, model, trainer = _gauge_h_only_run(tmp_path)
+    trainer.callbacks.append(MatrixWriter("../pred.HSX", splits=["test"]))  # one file for every run
+    with pytest.raises(ValueError, match="two structures"):
+        trainer.test(model, datamodule=dm, verbose=False)
+
+
+def test_samplewise_metrics_compare_h_only_predictions_with_the_h_labels(tmp_path):
+    """Audit M8: (H, S) labels against H-only predictions gave NaN for every metric."""
+    import csv
+
+    from graph2mat.tools.lightning.callbacks import SamplewiseMetricsLogger
+
+    dm, model, trainer = _gauge_h_only_run(tmp_path)
+    out = tmp_path / "metrics.csv"
+    trainer.callbacks.append(SamplewiseMetricsLogger(splits=["test"], output_file=str(out)))
+    trainer.test(model, datamodule=dm, verbose=False)
+    rows = list(csv.DictReader(out.open()))
+    assert rows
+    for name in ("block_type_mse", "elementwise_mse", "node_mse", "edge_mse"):
+        assert all(np.isfinite(float(row[name])) for row in rows), name

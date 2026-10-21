@@ -113,6 +113,18 @@ def check_magnetic_moments_option(
         )
 
 
+def reference_for_prediction(policy, prediction, reference, metric=None):
+    """Labels to compare with ``prediction``: with ``h_and_overlap`` labels and an H-only
+    prediction (one component fewer), the overlap column is dropped, unless ``metric`` uses
+    it (``overlap_prediction_optional``, e.g. the gauge-invariant loss)."""
+    n_pred = 1 if prediction.ndim == 1 else prediction.shape[1]
+    if (policy == "h_and_overlap"
+            and not getattr(metric, "overlap_prediction_optional", False)
+            and reference.ndim == 2 and n_pred == reference.shape[1] - 1):
+        return reference[:, 0] if prediction.ndim == 1 else reference[:, :-1]
+    return reference
+
+
 @dataclasses.dataclass(frozen=True)
 class MatrixDataProcessor:
     """Data structure that contains all the parameters to interface the real world with the ML models.
@@ -748,12 +760,7 @@ class MatrixDataProcessor:
         edges_pred = input.ensure_numpy(output["edge_labels"])
 
         def reference_for(prediction, reference, metric):
-            n_pred = 1 if prediction.ndim == 1 else prediction.shape[1]
-            if (self.matrix_component_policy == "h_and_overlap"
-                    and not getattr(metric, "overlap_prediction_optional", False)
-                    and reference.ndim == 2 and n_pred == reference.shape[1] - 1):
-                return reference[:, 0] if prediction.ndim == 1 else reference[:, :-1]
-            return reference
+            return reference_for_prediction(self.matrix_component_policy, prediction, reference, metric)
 
         metrics_values = [
             cast(Callable[..., Tuple[Any, dict]], metric)(

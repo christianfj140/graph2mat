@@ -22,7 +22,27 @@ from pytorch_lightning.callbacks import BasePredictionWriter, Callback
 
 from graph2mat import AtomicTableWithEdges, BasisMatrixData, MatrixDataProcessor
 from graph2mat.core.data.metrics import OrbitalMatrixMetric, _valid_label_rows
+from graph2mat.core.data.processing import reference_for_prediction
 from graph2mat.tools.viz import plot_basis_matrix
+
+
+def _n_columns(labels) -> int:
+    """Number of label components (1 for flat labels, 0 for no labels)."""
+    if labels is None:
+        return 0
+    return 1 if labels.ndim == 1 else int(labels.shape[1])
+
+
+def _with_overlap(matrix, reference):
+    """``matrix`` (an orthogonal sisl H) with the overlap of ``reference``."""
+    if not matrix.orthogonal:
+        return matrix
+    n_spin = matrix.spin.size(matrix.dtype)
+    values = [matrix.tocsr(i) for i in range(n_spin)]
+    return sisl.Hamiltonian.fromsp(
+        matrix.geometry, values[0] if n_spin == 1 else values,
+        S=reference.tocsr(reference.S_idx), **({} if n_spin == 1 else {"spin": matrix.spin}),
+    )
 
 
 class MatrixWriter(Callback):
@@ -124,17 +144,48 @@ class MatrixWriter(Callback):
                 f"dataloader_idx={dataloader_idx}): {exc}"
             ) from exc
 
+        # A model that predicts H only from (H, S) labels (the gauge recipe) gives one
+        # component fewer than the labels: the written H takes the reference S, not S = 1.
+        overlap_items = None
+        overlap_source = None
+        if policy == "h_and_overlap" and _n_columns(prediction["node_labels"]) < getattr(
+            data_processor, "n_matrix_components", 1
+        ):
+            overlap_source = "not available (H-only prediction without overlap labels)"
+            labels = getattr(batch, "point_labels", None)
+            if (labels is not None and _n_columns(labels) > 1
+                    and bool(np.isfinite(np.asarray(labels.detach().cpu())[:, -1]).all())):
+                overlap_items = list(data_processor.yield_from_batch(batch))
+                overlap_source = "reference labels"
+
         write_items = []
-        for matrix_data in matrix_data_items:
+        for index, matrix_data in enumerate(matrix_data_items):
             sparse_orbital_matrix = matrix_data.convert_to(
                 data_processor.default_out_format,
-                matrix_component_policy=getattr(
-                    data_processor, "matrix_component_policy", None
-                ),
+                matrix_component_policy=policy,
             )
+            if overlap_items is not None:
+                reference = overlap_items[index].convert_to(
+                    data_processor.default_out_format, matrix_component_policy=policy
+                )
+                sparse_orbital_matrix = _with_overlap(sparse_orbital_matrix, reference)
 
             out_file = self._get_out_file(matrix_data, trainer)
             write_items.append((sparse_orbital_matrix, out_file))
+
+        # Several structures resolving to one file would silently overwrite each other (e.g.
+        # several run files in one directory, named after the directory).
+        key = (split, getattr(trainer, "current_epoch", None), dataloader_idx)
+        if getattr(self, "_written_key", None) != key:
+            self._written_key, self._written = key, set()
+        for _, out_file in write_items:
+            resolved = out_file.resolve()
+            if resolved in self._written:
+                raise ValueError(
+                    f"MatrixWriter would write two structures to {out_file}: put each structure in "
+                    "its own directory or use an output_file pattern that tells them apart."
+                )
+            self._written.add(resolved)
 
         # Loop through structures in the batch
         for sparse_orbital_matrix, out_file in write_items:
@@ -148,6 +199,7 @@ class MatrixWriter(Callback):
                 sparse_orbital_matrix=sparse_orbital_matrix,
                 data_processor=data_processor,
                 trainer=trainer,
+                overlap_source=overlap_source,
             )
 
     def _write_multitarget(self, processor, trainer, prediction, batch):
@@ -188,6 +240,7 @@ class MatrixWriter(Callback):
         sparse_orbital_matrix,
         data_processor: MatrixDataProcessor,
         trainer: "pl.Trainer",
+        overlap_source: Optional[str] = None,
     ) -> None:
         if getattr(trainer.datamodule, "out_matrix", None) != "hamiltonian":
             return
@@ -205,7 +258,9 @@ class MatrixWriter(Callback):
             "serialized_spin_polarized": is_polarized,
             "serialized_orthogonal": is_orthogonal,
         }
-        if policy in ("h_only", "spin_h_only") and is_orthogonal:
+        if overlap_source is not None:
+            metadata["overlap_source"] = overlap_source
+        if (policy in ("h_only", "spin_h_only") or overlap_source is not None) and is_orthogonal:
             metadata["note"] = (
                 "Hamiltonian-only prediction written without an overlap matrix. "
                 "For non-orthogonal reference data this output is not a "
@@ -364,14 +419,23 @@ class SamplewiseMetricsLogger(Callback):
             ):
                 metrics.append(np.full(len(batch), np.nan))
                 continue
+            policy = getattr(processor, "matrix_component_policy", None)
+            nodes_ref = reference_for_prediction(policy, outputs["node_labels"], batch.point_labels, metric)
+            edges_ref = reference_for_prediction(policy, outputs["edge_labels"], batch.edge_labels, metric)
+            metric_batch = batch
+            if nodes_ref is not batch.point_labels:
+                # H-only predictions of (H, S) labels: per-structure metrics read the labels
+                # from the batch, so give them a batch with the H labels only.
+                metric_batch = batch.clone()
+                metric_batch.point_labels, metric_batch.edge_labels = nodes_ref, edges_ref
             try:
                 metrics.append(
                     metric(
                         nodes_pred=outputs["node_labels"],
-                        nodes_ref=batch.point_labels,
+                        nodes_ref=nodes_ref,
                         edges_pred=outputs["edge_labels"],
-                        edges_ref=batch.edge_labels,
-                        batch=batch,
+                        edges_ref=edges_ref,
+                        batch=metric_batch,
                         basis_table=basis_table,
                         config_resolved=True,
                         symmetric_matrix=trainer.datamodule.symmetric_matrix,
