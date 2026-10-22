@@ -146,3 +146,19 @@ código original de MD_vs_AtomicDisplacement sobre datos reales: sin cambios par
 | Texto del roadmap (2.8, 1.12, 4.2, 8.2, tablas, primera línea suelta) | arreglado | commit de este informe |
 | Casillas sin marcar en los planes (6.7, 7.6, 8.1, 8.2, migración) | **no cambiado**: los planes son historia; el estado vigente está en el roadmap | — |
 | Pérdidas por estructura promedian estructuras sin etiquetas | **no cambiado**: es un diseño coherente y probado en el paso, la época y DDP (tests explícitos); cambiarlo exige rehacer la agregación por época. Limitación conocida: un lote con estructuras sin ninguna etiqueta diluye la pérdida. | — |
+
+## Revisión independiente de Codex (2026-10-22)
+
+Codex revisó estos arreglos (`auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/`) y corrigió
+lo que quedaba mal; revisado por Claude y commiteado en `1c5229d`, `0a83cd2` y `86eb980`:
+
+- El gauge de la pérdida usaba un desplazamiento por canal de espín y ocultaba errores rígidos del desdoblamiento;
+  ahora es común (no afecta a cifras registradas).
+- Los hooks de `2248f52` imponían la pérdida de la última etapa; ahora se restaura la etapa guardada en el checkpoint.
+- «Todos los entrenamientos con LR constante» era exagerado: los runners de 6.4/4.7 y 7.6 instalaban su scheduler.
+- Huecos adicionales: capas de la base, valores complejos, `load_labels=False`, métrica de selección obsoleta,
+  recibos de caché SIESTA, includes fdf, imágenes periódicas, imagen mínima general y presupuesto de pasos.
+- `aligned_error` del piloto DM cambia de normalización (nota en la fila 7.7 del roadmap).
+
+Comprobado: los originales de MD_vs siguen dando lo mismo en datos reales (G1–G8), salvo G9 por ese cambio de
+normalización.
