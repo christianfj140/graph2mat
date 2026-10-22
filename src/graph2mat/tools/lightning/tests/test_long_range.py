@@ -170,3 +170,18 @@ def test_lightning_long_range_requires_h_and_overlap_data():
                                    matrix_component_policy=policy, edge_cutoff_padding=0.0, magnetic_moments=None)))
         with pytest.raises(ValueError, match="long_range"):
             LitMACEMatrixModel._check_data_agreement(fake)
+
+
+def test_kvectors_include_every_vector_within_kmax_for_skewed_cells():
+    """Audit: the bound ceil(kmax / |b_i|) missed k vectors of skewed (triclinic) cells."""
+    import itertools
+    import math
+
+    from graph2mat.models.long_range import _kvectors
+
+    cell = torch.tensor([[4.0, 0.0, 0.0], [3.5, 2.0, 0.0], [1.0, 1.5, 3.0]], dtype=torch.float64)
+    kmax = 6.0
+    recip = 2 * math.pi * torch.linalg.inv(cell).T
+    brute = [torch.tensor(n, dtype=torch.float64) @ recip for n in itertools.product(range(-12, 13), repeat=3)]
+    expected = sum(1 for k in brute if 0 < float((k ** 2).sum()) <= kmax ** 2)
+    assert len(_kvectors(cell, kmax)) == expected

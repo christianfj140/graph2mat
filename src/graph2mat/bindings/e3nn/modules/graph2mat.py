@@ -235,6 +235,12 @@ class E3nnGraph2Mat(TorchGraph2Mat):
         node_operation_kwargs = {"irreps": irreps, **node_operation_kwargs}
         edge_operation_kwargs = {"irreps": irreps, **edge_operation_kwargs}
 
+        message_options = [k for k in ("edge_message_mid_irreps", "edge_update_layers") if irreps.get(k)]
+        if message_options and not (
+            isinstance(preprocessing_edges, type) and issubclass(preprocessing_edges, E3nnEdgeMessageBlock)
+        ):
+            raise ValueError(f"{', '.join(message_options)} only apply to E3nnEdgeMessageBlock edge "
+                             f"preprocessing, not {getattr(preprocessing_edges, '__name__', preprocessing_edges)}.")
         if (
             preprocessing_edges == E3nnEdgeMessageBlock
             and "edge_attrs_irreps" not in irreps

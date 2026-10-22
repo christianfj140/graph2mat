@@ -579,3 +579,29 @@ def test_edge_blocks_are_equivariant(edge_block, reuse_nodes):
         np.testing.assert_allclose(matrices[1], D @ matrices[0] @ D.T, atol=1e-9)
     finally:
         torch.set_default_dtype(torch.float32)
+
+
+def test_options_that_would_be_ignored_are_rejected():
+    """Audit: edge_update_layers / edge_message_mid_irreps without E3nnEdgeMessageBlock,
+    mp_cutoff without a readout radial embedding and simplify_node_irreps with per-interaction
+    readouts were silently ignored (or gave zero blocks)."""
+    from graph2mat.models.mace import MatrixMACE
+
+    table, _, _ = _two_species_data(True, ["A", "B"], [[0, 0, 0], [1.0, 0.2, 0]])
+    with pytest.raises(ValueError, match="only apply to E3nnEdgeMessageBlock"):
+        E3nnGraph2Mat(unique_basis=table, irreps={"node_feats_irreps": NODE_IRREPS, "edge_update_layers": 1},
+                      preprocessing_edges=None, symmetric=True)
+    mace_modules = pytest.importorskip("mace.modules")
+    mace = mace_modules.MACE(
+        r_max=5.0, num_bessel=4, num_polynomial_cutoff=6, max_ell=2,
+        interaction_cls=mace_modules.RealAgnosticResidualInteractionBlock,
+        interaction_cls_first=mace_modules.RealAgnosticResidualInteractionBlock,
+        num_interactions=2, num_elements=2, hidden_irreps=o3.Irreps("4x0e+4x1o"),
+        MLP_irreps=o3.Irreps("1x0e"), atomic_energies=torch.zeros(2), avg_num_neighbors=3.0,
+        atomic_numbers=torch.arange(2), correlation=2, gate=None,
+    )
+    with pytest.raises(ValueError, match="readout_radial_embedding"):
+        MatrixMACE(mace=mace, unique_basis=table, symmetric=True, mp_cutoff=2.5)
+    with pytest.raises(ValueError, match="readout_per_interaction"):
+        MatrixMACE(mace=mace, unique_basis=table, symmetric=True, simplify_node_irreps=True,
+                   readout_per_interaction=True)

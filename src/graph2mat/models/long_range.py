@@ -27,7 +27,9 @@ COULOMB = 14.399645
 def _kvectors(cell: torch.Tensor, kmax: float) -> torch.Tensor:
     """Reciprocal lattice vectors 0 < |k| <= kmax of ``cell`` (rows are lattice vectors)."""
     recip = 2 * math.pi * torch.linalg.inv(cell).T
-    n_max = [int(math.ceil(kmax / float(torch.linalg.norm(b)))) for b in recip]
+    # k = n @ recip gives n_i = k . a_i / (2 pi), so |n_i| <= kmax |a_i| / (2 pi) (exact for
+    # skewed cells, unlike kmax / |b_i|).
+    n_max = [int(math.ceil(kmax * float(torch.linalg.norm(a)) / (2 * math.pi))) for a in cell]
     ranges = [torch.arange(-n, n + 1, device=cell.device, dtype=cell.dtype) for n in n_max]
     n = torch.stack(torch.meshgrid(*ranges, indexing="ij"), dim=-1).reshape(-1, 3)
     k = n @ recip

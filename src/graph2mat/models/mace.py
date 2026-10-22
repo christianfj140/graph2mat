@@ -296,6 +296,11 @@ class MatrixMACE(torch.nn.Module):
         # Radial features of the matrix edges. With mp_cutoff, MACE's own radial
         # embedding only reaches mp_cutoff, so the readout needs one up to the full cutoff.
         self.readout_radial_embedding = readout_radial_embedding
+        if mp_cutoff is not None and readout_radial_embedding is None:
+            raise ValueError("mp_cutoff needs readout_radial_embedding: MACE's radial embedding stops at "
+                             "mp_cutoff, so every matrix edge beyond it would get a zero block.")
+        if simplify_node_irreps and readout_per_interaction:
+            raise ValueError("simplify_node_irreps is not supported with readout_per_interaction.")
         self.hamiltonian_local_context = self._init_hamiltonian_local_context(
             hamiltonian_local_context,
             hamiltonian_local_context_kwargs or {},
