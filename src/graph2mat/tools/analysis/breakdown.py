@@ -62,17 +62,16 @@ def orbital_info(geometry, species_z: np.ndarray, basis_files: BasisFiles) -> Tu
 
 def min_image_distances(geometry) -> np.ndarray:
     """Atom-atom distance to the nearest periodic image, over the periodic directions."""
+    from ase.geometry.geometry import general_find_mic
+
     xyz = geometry.xyz
-    offsets = [
-        np.array([i, j, k])
-        for i in (-1, 0, 1)
-        for j in (-1, 0, 1)
-        for k in (-1, 0, 1)
-        if all(n == 0 or geometry.lattice.pbc[d] for d, n in enumerate((i, j, k)))
-    ]
-    shifts = np.array([o @ geometry.cell for o in offsets])
-    diff = xyz[None, :, None, :] + shifts[None, None] - xyz[:, None, None, :]
-    return np.linalg.norm(diff, axis=-1).min(axis=-1)
+    diff = xyz[None, :, :] - xyz[:, None, :]
+    pbc = np.asarray(geometry.lattice.pbc, dtype=bool)
+    if not pbc.any():
+        return np.linalg.norm(diff, axis=-1)
+    # The public shortcut may assume a reduced cell even for equivalent skewed bases.
+    _, distances = general_find_mic(diff.reshape(-1, 3), geometry.cell, pbc=pbc)
+    return distances.reshape(len(xyz), len(xyz))
 
 
 def structure_breakdown(
@@ -131,7 +130,7 @@ def summarize_breakdown(rows: Sequence[Dict[str, float]]) -> Dict:
         "gauge_c_meV_mean_abs": float(np.mean([abs(p["gauge_c_meV"]) for p in rows])),
         "categories": {
             k: {
-                "share_of_error": round(sum(p[f"{k}_sum"] for p in rows) / total, 4),
+                "share_of_error": round(sum(p[f"{k}_sum"] for p in rows) / total, 4) if total else 0.0,
                 "share_of_elements": round(sum(p[f"{k}_n"] for p in rows) / n_total, 4),
                 "mean_error_meV": round(
                     1e3 * sum(p[f"{k}_sum"] for p in rows) / max(1, sum(p[f"{k}_n"] for p in rows)), 4

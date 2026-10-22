@@ -40,3 +40,25 @@ model side is in graph2mat:
 SIESTA is taken from `--siesta`, the `SIESTA` environment variable or `siesta` on the
 `PATH`. H0 must be computed with the same SIESTA version, basis and pseudopotentials as the
 labels; `compute_h0` checks that the geometry matches the label's.
+
+H0, density-matrix pilot and label-noise results are reused only when their
+`.graph2mat-siesta.json` receipt matches the rewritten FDF, pseudopotentials, extra
+input files (including the initial DM), and output bytes. A changed or legacy cache
+without a receipt raises an error and is left intact; choose a new output directory.
+Failed runs and H0/DM outputs that fail matrix or geometry validation stay in a hidden
+partial directory and are never published as completed results. The receipt does not
+certify the SIESTA executable version or independently recover species/basis identity
+from TSHS, which does not store those labels. Keep the same SIESTA build and input basis.
+
+`system_label` resolves FDF includes through the FDF reader. Text-only H0, DM and
+label-noise rewrites require self-contained FDF input: `%include` and `<` redirections
+are rejected explicitly, since an included setting could override the rewritten keys
+and its file would not be staged. Resolve those external settings before using these
+tools. Coordinate shifts in `noise_fdf` require coordinates in Angstrom, as before.
+
+The DM pilot's `aligned_error` supports unpolarized matrices. Its gauge uses the full
+reference overlap; RMS uses the union of stored positions in H, H_ref and S, including
+positions whose error is exactly zero. Delta arithmetic matches periodic images by
+their lattice translations and retains the larger supercell. Matching pseudopotentials,
+basis identities and orbital ordering remain caller requirements; geometry and orbital
+counts reject obvious layout mismatches but cannot identify an undocumented basis.

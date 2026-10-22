@@ -17,7 +17,7 @@ from typing import Dict, Mapping, Optional, Tuple
 import numpy as np
 
 from ..analysis.metrics import gamma_hk
-from .runner import find_pseudos, run_siesta_into, system_label
+from .runner import _fdf_label, _require_inline_fdf, find_pseudos, run_siesta_into, system_label
 
 __all__ = ["VARIANTS", "SHIFT_ANG", "noise_fdf", "run_label_noise", "gamma_mae_mev"]
 
@@ -35,16 +35,15 @@ def noise_fdf(text: str, shift: bool, tolerance: str, shift_ang: np.ndarray = SH
     (Ang coordinates) if ``shift``, and ``DM.Tolerance`` set to ``tolerance`` (any spelling of
     the label replaced, appended at the end). Blank and comment lines of the block are kept;
     coordinates included from another file are refused."""
-    block = r"atomic[._-]?coordinates[._-]?and[._-]?atomic[._-]?species"
+    _require_inline_fdf(text)
     lines = text.splitlines()
     inside = False
     for i, line in enumerate(lines):
-        if re.match(rf"\s*%block\s+{block}", line, re.I):
-            if "<" in line:
-                raise ValueError("noise_fdf cannot shift coordinates read from another file (%block ... <).")
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].lower() == "%block" and _fdf_label(parts[1]) == "atomiccoordinatesandatomicspecies":
             inside = True
             continue
-        if re.match(rf"\s*%endblock\s+{block}", line, re.I):
+        if parts and parts[0].lower() == "%endblock":
             inside = False
         elif inside and shift:
             parts = line.split()

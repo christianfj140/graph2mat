@@ -4,13 +4,15 @@ The executable is the ``siesta`` argument, else the ``SIESTA`` environment varia
 (split like a shell command, e.g. ``"mpirun -np 1 siesta"``), else ``siesta`` on the
 ``PATH``.
 """
+import hashlib
+import json
 import os
 import re
 import shlex
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Mapping, Optional, Sequence
+from typing import Callable, List, Mapping, Optional, Sequence
 
 __all__ = [
     "replace_fdf_keys",
@@ -29,6 +31,7 @@ def _fdf_label(key: str) -> str:
 
 def replace_fdf_keys(text: str, keys: Mapping[str, str]) -> str:
     """Drop the lines that set any of ``keys`` and append ``key  value`` for each of them."""
+    _require_inline_fdf(text)
     labels = {_fdf_label(k) for k in keys}
     kept = [
         line
@@ -40,11 +43,45 @@ def replace_fdf_keys(text: str, keys: Mapping[str, str]) -> str:
 
 def system_label(fdf: Path) -> str:
     """``SystemLabel`` of an fdf file (``"siesta"``, SIESTA's default, if not set)."""
-    for line in Path(fdf).read_text().splitlines():
-        parts = line.split()
-        if len(parts) >= 2 and _fdf_label(parts[0]) == "systemlabel":
-            return parts[1]
-    return "siesta"
+    import sisl
+
+    return sisl.get_sile(str(fdf)).get("SystemLabel", "siesta")
+
+
+def _require_inline_fdf(text: str) -> None:
+    """Text-only rewrites cannot resolve or stage external FDF settings safely."""
+    for line in text.splitlines():
+        setting = re.split(r"[#!]", line, maxsplit=1)[0]
+        if re.match(r"\s*%include\b", setting, re.I) or "<" in setting:
+            raise ValueError("Cannot rewrite external FDF settings from another file; resolve includes first")
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _validate_hamiltonian(path, geometry, *, orbital_counts=None, spin=None, geometry_tol=1e-4):
+    """Check readable, finite output and the structure/basis layout known by the caller."""
+    import numpy as np
+    import sisl
+
+    result = sisl.get_sile(str(path)).read_hamiltonian()
+    actual = result.geometry
+    if (actual.na != geometry.na
+            or not np.allclose(actual.xyz, geometry.xyz, rtol=0, atol=geometry_tol)
+            or not np.allclose(actual.cell, geometry.cell, rtol=0, atol=geometry_tol)):
+        raise RuntimeError("SIESTA output geometry differs from the requested geometry")
+    if orbital_counts is not None and not np.array_equal(actual.orbitals, orbital_counts):
+        raise RuntimeError("SIESTA output orbital layout differs from the requested basis")
+    if spin is not None and result.spin.kind != spin.kind:
+        raise RuntimeError("SIESTA output spin differs from the requested spin")
+    for component in range(result.dim):
+        if not np.isfinite(result.tocsr(component).data).all():
+            raise ValueError("SIESTA output matrix contains non-finite values")
 
 
 def find_pseudos(directory: Path) -> List[Path]:
@@ -118,17 +155,31 @@ def run_siesta_into(
     siesta: Optional[str] = None,
     extra_files: Mapping[str, Path] = {},
     nice: int = 10,
+    validate: Optional[Callable[[Path], None]] = None,
 ) -> Path:
     """``final_dir / expect`` from a SIESTA run that only lands in ``final_dir`` if it succeeds.
 
-    An existing ``final_dir / expect`` is returned as is. Otherwise SIESTA runs in a hidden
+    An existing result is reused only with a matching input/output hash receipt. Legacy
+    or changed caches are rejected without deleting them. Otherwise SIESTA runs in a hidden
     sibling directory, which is renamed to ``final_dir`` only after SIESTA exits cleanly and
-    wrote ``expect``: a failed or interrupted run never leaves a result to be reused. A
+    wrote ``expect`` and passed ``validate``: a failed or interrupted run never leaves a result to be reused. A
     ``final_dir`` without ``expect`` is not touched (error).
     """
     final_dir = Path(final_dir)
     out = final_dir / expect
+    request = {"fdf_sha256": hashlib.sha256(fdf_text.encode()).hexdigest(),
+               "pseudos": {Path(p).name: _sha256(p) for p in pseudos},
+               "extra_files": {name: _sha256(p) for name, p in extra_files.items()}}
+    receipt_name = ".graph2mat-siesta.json"
     if out.exists():
+        if validate is not None:
+            validate(out)
+        try:
+            receipt = json.loads((final_dir / receipt_name).read_text())
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"Unverified SIESTA cache at {final_dir}; use a new directory") from exc
+        if receipt != {"inputs": request, "output_sha256": _sha256(out)}:
+            raise ValueError(f"Stale SIESTA cache at {final_dir}; inputs or output changed; use a new directory")
         return out
     if final_dir.exists():
         raise FileExistsError(f"{final_dir} exists without {expect}: remove it to run SIESTA there")
@@ -136,5 +187,9 @@ def run_siesta_into(
     run_siesta(partial, fdf_text, pseudos, siesta=siesta, extra_files=extra_files, nice=nice)
     if not (partial / expect).exists():
         raise RuntimeError(f"SIESTA wrote no {expect} in {partial}")
+    if validate is not None:
+        validate(partial / expect)
+    (partial / receipt_name).write_text(json.dumps({"inputs": request, "output_sha256": _sha256(partial / expect)},
+                                                 sort_keys=True) + "\n")
     os.replace(partial, final_dir)
     return out

@@ -273,6 +273,8 @@ def canonical_bands(h, s, path_k: Sequence, threshold: float) -> np.ndarray:
         return np.array([_eig(h, k, channels, s.Sk(k=k, format="array")) for k in path_k])
     decomposed = [np.linalg.eigh(s.Sk(k=k, format="array")) for k in path_k]
     n_keep = min(int((w > threshold).sum()) for w, _ in decomposed)
+    if n_keep == 0:
+        raise ValueError("Canonical overlap subspace is empty at this threshold")
     out = []
     for k, (w, u) in zip(path_k, decomposed):
         keep = np.argsort(w)[-n_keep:]

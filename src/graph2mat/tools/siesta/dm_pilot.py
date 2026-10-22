@@ -20,8 +20,8 @@ from typing import Dict, Optional, Sequence
 import numpy as np
 import scipy.sparse as sp
 
-from .delta import H0_KEYS, _read
-from .runner import find_pseudos, replace_fdf_keys, run_siesta_into, system_label
+from .delta import H0_KEYS, _aligned_csr, _read, combine_hamiltonians
+from .runner import _validate_hamiltonian, find_pseudos, replace_fdf_keys, run_siesta_into, system_label
 
 __all__ = [
     "DM_KEYS",
@@ -44,32 +44,52 @@ LEVELS: Dict[str, Sequence[float]] = {
 
 def run_from_dm(reference_dir: Path, work_dir: Path, dm=None, siesta: Optional[str] = None) -> Path:
     """SIESTA in ``work_dir`` with the ``RUN.fdf`` of ``reference_dir`` and ``DM_KEYS``;
-    ``dm`` (sisl DensityMatrix) is the initial density. Returns the TSHS (reused if present)."""
+    ``dm`` (sisl DensityMatrix) is the initial density. Reuses TSHS only with a matching
+    FDF/pseudopotential/DM/output receipt; validates geometry and known orbital/spin layout.
+    """
+    import sisl
+
     reference_dir, work_dir = Path(reference_dir), Path(work_dir)
     label = system_label(reference_dir / "RUN.fdf")
-    if (work_dir / f"{label}.TSHS").exists():
-        return work_dir / f"{label}.TSHS"
     fdf = replace_fdf_keys((reference_dir / "RUN.fdf").read_text(), DM_KEYS)
+    geometry = dm.geometry if dm is not None else sisl.get_sile(str(reference_dir / "RUN.fdf")).read_geometry()
+
+    def validate(path):
+        _validate_hamiltonian(path, geometry, orbital_counts=None if dm is None else geometry.orbitals,
+                              spin=None if dm is None else dm.spin)
+
     with tempfile.TemporaryDirectory() as tmp:
         extra = {}
         if dm is not None:
             dm.write(str(Path(tmp) / f"{label}.DM"))
             extra[f"{label}.DM"] = Path(tmp) / f"{label}.DM"
         return run_siesta_into(work_dir, fdf, find_pseudos(reference_dir), f"{label}.TSHS",
-                               siesta=siesta, extra_files=extra)
+                               siesta=siesta, extra_files=extra, validate=validate)
 
 
 def aligned_error(H, ref) -> float:
-    """rms of H - H_ref over the stored elements after removing the best c*S (the gauge)."""
-    h, r = H.tocsr(0), ref.tocsr(0)
-    s = ref.tocsr(ref.S_idx)
-    diff = (h - r).tocoo()
-    if diff.nnz == 0:
-        return 0.0
-    s_vals = np.asarray(s[diff.row, diff.col]).ravel()
-    c = (diff.data @ s_vals) / (s_vals @ s_vals)
-    full = h - r - c * s
-    return float(np.sqrt((full.data**2).mean())) if full.nnz else 0.0
+    """Gauge-aligned RMS on the union of stored H, H_ref and reference S positions.
+
+    Supports unpolarized matrices; the gauge uses the full reference overlap, including
+    positions with an exactly zero H error. Periodic images are matched physically.
+    """
+    if not H.spin.is_unpolarized or not ref.spin.is_unpolarized:
+        raise NotImplementedError("DM pilot aligned_error supports unpolarized matrices only")
+    difference = combine_hamiltonians(ref, H, -1.)
+    diff = difference.tocsr(0)
+    s = (sp.eye(difference.no, difference.geometry.no_s, format="csr") if ref.orthogonal
+         else difference.tocsr(difference.S_idx))
+    denominator = float(np.real(s.conjugate().multiply(s).sum()))
+    if denominator <= 0:
+        raise ValueError("Cannot align with zero overlap norm")
+    c = float(np.real(s.conjugate().multiply(diff).sum())) / denominator
+    full = diff - c * s
+    support = sp.csr_matrix(diff.shape)
+    for values in (_aligned_csr(ref, difference.geometry, 0), _aligned_csr(H, difference.geometry, 0), s):
+        pattern = values.copy()
+        pattern.data = np.ones(pattern.nnz)
+        support = support + pattern
+    return float(np.sqrt(np.abs(full).power(2).sum() / support.nnz))
 
 
 def _rms(csr) -> float:

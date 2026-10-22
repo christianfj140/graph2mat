@@ -26,7 +26,7 @@ from typing import Any, Optional, Tuple
 
 import numpy as np
 
-from .runner import find_pseudos, replace_fdf_keys, run_siesta_into, system_label
+from .runner import _fdf_label, _validate_hamiltonian, find_pseudos, replace_fdf_keys, run_siesta_into, system_label
 
 __all__ = [
     "H0_KEYS",
@@ -63,7 +63,7 @@ def _fdf_value(text: str, key: str) -> Optional[str]:
     for line in text.splitlines():
         parts = line.split(None, 1)
         if len(parts) == 2 and re.sub(r"[._-]", "", parts[0]).lower() == wanted:
-            return parts[1].split("#")[0].strip()
+            return re.split(r"[#!]", parts[1], maxsplit=1)[0].strip()
     return None
 
 
@@ -88,7 +88,16 @@ def h0_fdf(text: str, n_atoms: Optional[int] = None) -> str:
     if _non_collinear(text):
         if n_atoms is None:
             raise ValueError("h0_fdf needs n_atoms for a non-collinear or spin-orbit fdf.")
-        out = re.sub(r"(?ims)^\s*%block\s+dm[._-]?init[._-]?spin\b.*?^\s*%endblock[^\n]*\n?", "", out)
+        kept, inside = [], False
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and parts[0].lower() == "%block" and _fdf_label(parts[1]) == "dminitspin":
+                inside = True
+            elif inside and parts and parts[0].lower() == "%endblock":
+                inside = False
+            elif not inside:
+                kept.append(line)
+        out = "\n".join(kept) + "\n"
         out += "%block DM.InitSpin\n" + "".join(f" {i + 1} 0.0\n" for i in range(n_atoms)) + "%endblock DM.InitSpin\n"
     return out
 
@@ -110,11 +119,11 @@ def compute_h0(
     """H0 of the calculation in ``reference_dir`` (its ``RUN.fdf`` and pseudopotentials).
 
     The result, ``out_dir / <SystemLabel>.TSHS``, is returned; an existing one is reused
-    without running SIESTA. ``out_dir`` only appears when SIESTA succeeds (see
-    ``runner.run_siesta_into``). The geometry of H0, also a reused one, is checked against
+    without running SIESTA if its input/output receipt matches. ``out_dir`` only appears
+    when SIESTA succeeds and validation passes (see ``runner.run_siesta_into``).
+    The geometry of H0, also a reused one, is checked against
     ``reference_matrix`` (default: ``<SystemLabel>.TSHS`` of the reference, if it exists):
-    if any atom moved more than ``geometry_tol`` Ang a ``RuntimeError`` is raised (and a
-    freshly computed ``out_dir`` removed).
+    if any atom moved more than ``geometry_tol`` Ang a ``RuntimeError`` is raised.
     """
     import sisl
 
@@ -122,27 +131,22 @@ def compute_h0(
     label = system_label(reference_dir / "RUN.fdf")
     if reference_matrix is None and (reference_dir / f"{label}.TSHS").exists():
         reference_matrix = reference_dir / f"{label}.TSHS"
-    cached = (out_dir / f"{label}.TSHS").exists()
-    n_atoms = sisl.get_sile(str(reference_dir / "RUN.fdf")).read_geometry().na
-    out = run_siesta_into(
+    geometry = sisl.get_sile(str(reference_dir / "RUN.fdf")).read_geometry()
+    reference = _read(reference_matrix) if reference_matrix is not None else None
+
+    def validate(path):
+        _validate_hamiltonian(path, geometry if reference is None else reference.geometry,
+                              orbital_counts=None if reference is None else reference.geometry.orbitals,
+                              spin=None if reference is None else reference.spin, geometry_tol=geometry_tol)
+
+    return run_siesta_into(
         out_dir,
-        h0_fdf((reference_dir / "RUN.fdf").read_text(), n_atoms),
+        h0_fdf((reference_dir / "RUN.fdf").read_text(), geometry.na),
         find_pseudos(reference_dir),
         f"{label}.TSHS",
         siesta=siesta,
+        validate=validate,
     )
-    if reference_matrix is not None:
-        moved = np.abs(
-            sisl.get_sile(str(out)).read_geometry().xyz
-            - sisl.get_sile(str(reference_matrix)).read_geometry().xyz
-        ).max()
-        if moved > geometry_tol:
-            if not cached:  # only remove what this call created
-                shutil.rmtree(out_dir)
-            raise RuntimeError(
-                f"H0 geometry differs from the label's by {moved:.4f} Ang in {out_dir}"
-            )
-    return out
 
 
 def combine_hamiltonians(a, b, sign: float):
@@ -156,17 +160,39 @@ def combine_hamiltonians(a, b, sign: float):
 
     if a.spin.kind != b.spin.kind:
         raise ValueError(f"cannot combine Hamiltonians with spin {a.spin} and {b.spin}")
+    # sisl packs SOC's 8 real components into 4 complex ones. Match that storage
+    # convention before adding components; casting each CSR separately loses it.
+    dtype = np.result_type(a.dtype, b.dtype)
+    a, b = a.astype(dtype, copy=False), b.astype(dtype, copy=False)
+    if (a.geometry.na != b.geometry.na or a.no != b.no
+            or not np.array_equal(a.geometry.orbitals, b.geometry.orbitals)
+            or not np.allclose(a.geometry.xyz, b.geometry.xyz, rtol=0, atol=1e-6)
+            or not np.allclose(a.geometry.cell, b.geometry.cell, rtol=0, atol=1e-6)):
+        raise ValueError("Hamiltonian geometry or orbital layout differs")
     if not np.array_equal(b.nsc, a.nsc):
         nsc = np.maximum(a.nsc, b.nsc)
         a, b = a.copy(), b.copy()
         a.set_nsc(nsc)
         b.set_nsc(nsc)
     n_spin = a.spin.size(a.dtype)
-    h = [a.tocsr(i) + sign * b.tocsr(i) for i in range(n_spin)]
+    h = [a.tocsr(i) + sign * _aligned_csr(b, a.geometry, i) for i in range(n_spin)]
     S = None if a.orthogonal else a.tocsr(a.S_idx)
     if n_spin == 1:
         return sisl.Hamiltonian.fromsp(a.geometry, h[0], S=S)
     return sisl.Hamiltonian.fromsp(a.geometry, h, S=S, spin=a.spin)
+
+
+def _aligned_csr(matrix, geometry, component):
+    """One component with columns indexed by the target's physical periodic images."""
+    from scipy.sparse import csr_matrix
+
+    csr = matrix.tocsr(component)
+    if np.array_equal(matrix.geometry.sc_off, geometry.sc_off):
+        return csr
+    coo = csr.tocoo()
+    images = geometry.sc_index(matrix.geometry.sc_off[coo.col // matrix.no])
+    return csr_matrix((coo.data, (coo.row, images * matrix.no + coo.col % matrix.no)),
+                      shape=(matrix.no, geometry.no_s))
 
 
 def project_time_reversal(h) -> Tuple[Any, float]:
@@ -184,6 +210,10 @@ def project_time_reversal(h) -> Tuple[Any, float]:
 
     if not h.spin.is_spinorbit:
         raise ValueError(f"time-reversal projection needs a spin-orbit H, not {h.spin}")
+    if np.issubdtype(h.dtype, np.complexfloating):
+        if not h.orthogonal and np.any(h.tocsr(h.S_idx).data.imag != 0):
+            raise ValueError("Time-reversal projection requires a real overlap")
+        h = h.astype(np.float64)
     stacked = np.stack([h.tocsr(i).toarray() for i in range(8)], -1)
     residual = float(soc_trs_residual(stacked))
     projected = soc_channels_to_siesta(siesta_to_soc_full_channels(stacked)[..., :4])
@@ -231,7 +261,8 @@ def add_h0(predicted: Path, h0: Path, out: Optional[Path] = None) -> Path:
         overlap = base.copy()
         overlap.set_nsc(result.nsc)
         result = sisl.Hamiltonian.fromsp(
-            result.geometry, values[0] if n_spin == 1 else values, S=overlap.tocsr(overlap.S_idx),
+            result.geometry, values[0] if n_spin == 1 else values,
+            S=_aligned_csr(overlap, result.geometry, overlap.S_idx),
             **({} if n_spin == 1 else {"spin": result.spin}),
         )
     tmp = out.with_name(f".{out.stem}.tmp-{os.getpid()}{out.suffix}")
