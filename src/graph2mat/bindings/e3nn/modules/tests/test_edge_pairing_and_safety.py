@@ -535,3 +535,47 @@ def test_compile_rejects_the_reduce_overhead_mode():
 
     with pytest.raises(ValueError, match="reduce-overhead"):
         MatrixMACE.compile_submodules(None, mode="reduce-overhead")
+
+
+@pytest.mark.parametrize("edge_block, reuse_nodes", [("E3nnSimpleEdgeBlock", False),
+                                                      ("E3nnLinearEdgeBlock", False),
+                                                      ("E3nnEdgeBlockNodeMix", True)])
+def test_edge_blocks_are_equivariant(edge_block, reuse_nodes):
+    """Rotating the structure (and the node features) rotates every orbital block:
+    M(R x) = D M D^T, D block-diagonal with 1 for s and R for the cartesian p orbitals.
+    Roadmap 1.9: the node-mix edge block had no test at all."""
+    import graph2mat.bindings.e3nn as g2m_e3nn
+
+    torch.manual_seed(0)
+    positions = np.array([[0, 0, 0], [1.0, 0.2, 0], [0.1, 1.1, 0.3], [1.2, 1.0, -0.2]])
+    types = ["A", "B", "A", "B"]
+    node_irreps = o3.Irreps("2x0e + 2x1o")
+    feats = torch.randn(len(positions), node_irreps.dim, dtype=torch.float64)
+    torch.set_default_dtype(torch.float64)
+    try:
+        g2m = None
+        rot = o3.rand_matrix(dtype=torch.float64)
+        matrices = []
+        for coords, node_feats in ((positions, feats), (positions @ rot.numpy().T, feats @ node_irreps.D_from_matrix(rot).T)):
+            table, processor, data = _two_species_data(True, types, coords)
+            sender, receiver = data.edge_index
+            vectors = data.positions[receiver] - data.positions[sender]
+            data.edge_attrs = o3.spherical_harmonics("0e + 1o", vectors, normalize=True)
+            data.edge_feats = torch.stack([vectors.norm(dim=-1), vectors.norm(dim=-1) ** 2], dim=-1)
+            if g2m is None:
+                g2m = E3nnGraph2Mat(
+                    unique_basis=table,
+                    irreps={"node_feats_irreps": node_irreps, "edge_attrs_irreps": o3.Irreps("0e+1o"),
+                            "edge_feats_irreps": o3.Irreps("2x0e"), "edge_hidden_irreps": o3.Irreps("2x0e+2x1o")},
+                    preprocessing_edges=E3nnEdgeMessageBlock, preprocessing_edges_reuse_nodes=reuse_nodes,
+                    edge_operation=getattr(g2m_e3nn, edge_block), symmetric=True,
+                )
+            matrices.append(_dense(g2m, processor, data, node_feats))
+        blocks = {"A": [np.eye(1), rot.numpy()], "B": [np.eye(2), rot.numpy()]}
+        import scipy.linalg
+
+        D = scipy.linalg.block_diag(*[b for t in types for b in blocks[t]])
+        assert np.abs(matrices[0]).max() > 1e-3
+        np.testing.assert_allclose(matrices[1], D @ matrices[0] @ D.T, atol=1e-9)
+    finally:
+        torch.set_default_dtype(torch.float32)

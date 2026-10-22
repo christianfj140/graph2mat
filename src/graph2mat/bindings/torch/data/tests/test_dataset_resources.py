@@ -102,14 +102,18 @@ def test_fork_reopens_every_zip_without_mutating_source(tmp_path, read_before_fo
             archive.close()
 
 
-def test_zip_fdf_loads_charge_and_spectral_sidecar(tmp_path):
+@pytest.mark.parametrize("spectral_window, name", [(True, "spectral_window.npz"),
+                                                    ("spectral_null.npz", "spectral_null.npz")])
+def test_zip_fdf_loads_charge_and_spectral_sidecar(tmp_path, spectral_window, name):
+    """The spectral sidecar: the default window file, or another file by name (the 4.7
+    null-space projection, spectral_window="spectral_null.npz")."""
     filename = tmp_path / "data.zip"
     columns = np.array([[1., 0.], [0., 1.]])
     buffer = io.BytesIO()
     np.savez(buffer, C=columns)
     with zipfile.ZipFile(filename, "w") as archive:
         archive.writestr("run/sample.fdf", "NetCharge -1.5\n")
-        archive.writestr("run/spectral_window.npz", buffer.getvalue())
+        archive.writestr(f"run/{name}", buffer.getvalue())
     processor = MatrixDataProcessor(
         basis_table=BasisTableWithEdges([PointBasis("A", R=2, basis=[1])]),
         sub_point_matrix=False,
@@ -117,7 +121,7 @@ def test_zip_fdf_loads_charge_and_spectral_sidecar(tmp_path):
     with zipfile.ZipFile(filename) as archive:
         dataset = TorchBasisMatrixDataset(
             [zipfile.Path(archive, "run/sample.fdf")], processor,
-            data_cls=_TextSample, spectral_window=True,
+            data_cls=_TextSample, spectral_window=spectral_window,
         )
         sample = dataset[0]
         assert sample.total_charge.item() == -1.5
