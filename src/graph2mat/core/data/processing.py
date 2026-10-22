@@ -252,6 +252,8 @@ class MatrixDataProcessor:
             return None
         from .multitarget import MatrixTargetLayout
 
+        if self.matrix_target_spin is None:
+            raise ValueError("matrix_targets requires matrix_target_spin (1 or 2)")
         return MatrixTargetLayout(tuple(self.matrix_targets), self.matrix_target_spin)
 
     def copy(self, **kwargs):

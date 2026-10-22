@@ -332,12 +332,15 @@ def _read_reference_bundle(path, *, need_density, need_hamiltonian,
             channels = _physical_channels(matrix, name)
             return type(matrix).fromsp(matrix.geometry, [matrix.tocsr(c) for c in range(channels)])
 
-        density = (physical_channels(reader.read_density_matrix(geometry=overlap.geometry.copy()), "density")
-                   if need_density else None)
+        density = None
+        if need_density:
+            assert reader is not None  # "density" is in sources whenever a density is needed
+            density = physical_channels(reader.read_density_matrix(geometry=overlap.geometry.copy()), "density")
         hamiltonian = (fdf.read_hamiltonian(order=["TSHS"], geometry=overlap.geometry.copy())
                        if need_hamiltonian else None)
         energy_density = None
         if need_energy_density:
+            assert reader is not None
             tshs_fermi = sisl.get_sile(sources["overlap"]).read_fermi_level()
             tsde_fermi = reader.read_fermi_level()
             if not (np.isfinite(tshs_fermi) and np.isfinite(tsde_fermi)

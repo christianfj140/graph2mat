@@ -562,7 +562,7 @@ def nodes_and_edges_to_sparse_orbital(
     node_components = node_vals.shape[1] if node_vals.ndim == 2 else 1
     edge_components = edge_vals.shape[1] if edge_vals.ndim == 2 else 1
     n_components = max(node_components, edge_components)
-    transpose_sign = _TRANSPOSE_SIGN_BY_POLICY.get(matrix_component_policy)
+    transpose_sign = _TRANSPOSE_SIGN_BY_POLICY.get(matrix_component_policy or "")
 
     if n_components == 1 and transpose_sign is None:
         new_csr = conversions.get_converter(Formats.NODESEDGES, Formats.SCIPY_CSR)(

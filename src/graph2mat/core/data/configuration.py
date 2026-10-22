@@ -529,7 +529,7 @@ def _sisl_to_orbital_configuration(
             component_transform={
                 "spin_orbit": siesta_to_soc_channels,
                 "spin_orbit_full": siesta_to_soc_full_channels,
-            }.get(matrix_component_policy),
+            }.get(matrix_component_policy or ""),
         )
         # Block keys index images in the matrix's own sc_off order, but the graph uses a
         # default-ordered Lattice (roadmap 3.11, CRIT-04): remap or images get swapped silently.
@@ -737,9 +737,10 @@ def _read_magnetic_moments(
     """
     path = runfilepath if isinstance(runfilepath, zipfile.Path) else Path(runfilepath)
     name = Path(path.name)
-    candidates = [path.parent / f"{name.stem}.{MAGNETIC_MOMENTS_FILE}"]
+    parent: Any = path.parent  # Path or zipfile.Path: both support "/" and is_file()
+    candidates = [parent / f"{name.stem}.{MAGNETIC_MOMENTS_FILE}"]
     if name.suffix.lower() == ".fdf":
-        candidates.append(path.parent / MAGNETIC_MOMENTS_FILE)
+        candidates.append(parent / MAGNETIC_MOMENTS_FILE)
     side_file = next((file for file in candidates if file.is_file()), None)
     if side_file is None:
         return None
