@@ -250,6 +250,7 @@ def test_runtime_autocast_falls_back_once():
     rows = []
     hook = block.operation.tensor_products[0].register_forward_pre_hook(lambda module, args: rows.append(args[0].shape[0]))
     with warnings.catch_warnings(record=True) as caught, torch.autocast("cpu", dtype=torch.bfloat16):
+        warnings.simplefilter("always")  # "once per block" is the block's own flag, not the registry's
         block(node_feats=pair)
         block(node_feats=pair)
     hook.remove()
