@@ -109,8 +109,8 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         simplify_node_irreps: bool = False,
         cueq: bool = False,
         torch_compile: bool = False,
-        # torch.compile mode (roadmap 6.8): None (default), "reduce-overhead" (CUDA graphs,
-        # for batches of constant shape) or "max-autotune-no-cudagraphs".
+        # torch.compile mode (roadmap 6.8): None (default) or "max-autotune-no-cudagraphs".
+        # "reduce-overhead" (CUDA graphs) is rejected: it crashed (segfault) with torch 2.11.
         torch_compile_mode: Optional[str] = None,
         output_scaleshift: bool = False,
         n_matrix_components: int = 1,

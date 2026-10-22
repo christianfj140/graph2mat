@@ -552,10 +552,9 @@ class MatrixMACE(torch.nn.Module):
     def compile_submodules(self, mode: Optional[str] = None) -> None:
         """torch.compile, in place, the MACE layers and every readout operation.
 
-        ``mode`` is torch.compile's (roadmap 6.8): "reduce-overhead" replays CUDA graphs,
-        which removes the launch cost of the many small kernels but records one graph per
-        input shape (worth it when batches keep their shape, e.g. a fixed training set that
-        fits in one batch); "max-autotune-no-cudagraphs" autotunes the kernels.
+        ``mode`` is torch.compile's (roadmap 6.8): None or "max-autotune-no-cudagraphs"
+        (autotunes the kernels). "reduce-overhead" (CUDA graphs) is rejected: in the 6.8
+        measurements it crashed with a segmentation fault (torch 2.11).
 
         In place (``Module.compile``) keeps the state_dict keys, so checkpoints are the
         same as without compiling. The model should have been built with e3nn's
@@ -567,6 +566,9 @@ class MatrixMACE(torch.nn.Module):
         the compilation fail with ``PermissionError: 'nvcc'``. Triton's bundled binaries
         (``triton/backends/nvidia/bin``) must also be executable.
         """
+        if mode == "reduce-overhead":
+            raise ValueError('torch_compile mode "reduce-overhead" is not supported: it crashed with a '
+                             "segmentation fault in the roadmap 6.8 measurements (torch 2.11).")
         modules = [*self.mace.interactions, *self.mace.products]
         readouts = self.matrix_readouts
         for readout in readouts if isinstance(readouts, torch.nn.ModuleList) else [readouts]:

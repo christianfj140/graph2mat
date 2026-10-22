@@ -527,3 +527,11 @@ def test_pair_envelope_also_applies_to_the_hamiltonian_context():
     d = 3.0 * (1 - 0.04)  # 4 % inside the B-B range R_B + R_B = 3
     plain, enveloped = _pair_matrix(d, **context), _pair_matrix(d, pair_envelope_radii=[2.5, 1.5], **context)
     assert plain > 0 and enveloped < 1e-3 * plain
+
+
+def test_compile_rejects_the_reduce_overhead_mode():
+    """Roadmap 6.8: CUDA graphs ('reduce-overhead') crashed; the docstrings still offered it."""
+    from graph2mat.models.mace import MatrixMACE
+
+    with pytest.raises(ValueError, match="reduce-overhead"):
+        MatrixMACE.compile_submodules(None, mode="reduce-overhead")
