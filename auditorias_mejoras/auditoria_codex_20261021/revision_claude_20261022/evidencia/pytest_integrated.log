@@ -1,0 +1,1479 @@
+........................................................................ [  1%]
+........................................................................ [  3%]
+...s.................................................................... [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+............ss.......................................................... [ 55%]
+........................................sssssssss....................... [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+..................................sssssssss............................. [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+..........................s............................................. [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+.................ss..................................................... [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+.......................                                                  [100%]
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: 7 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_coefficient_only_block.py: 3299 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_diagnostic_dense_readout.py: 32 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_e3nngraph2mat.py: 246 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_edge_pairing_and_safety.py: 953 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_hamiltonian_readout.py: 62 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py: 920 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_low_rank_edge_readout.py: 221 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py: 310 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_block.py: 153 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py: 986 warnings
+src/graph2mat/bindings/e3nn/tests/test_rtps.py: 2389 warnings
+src/graph2mat/core/data/tests/test_coefficient_compatibility.py: 60 warnings
+src/graph2mat/core/data/tests/test_coefficient_matrix_mse.py: 68 warnings
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 114 warnings
+src/graph2mat/core/data/tests/test_irreps_from_data_rtps.py: 133 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 108 warnings
+src/graph2mat/core/data/tests/test_physical_losses.py: 27 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 114 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 324 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 2561 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_target_collate.py: 62 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 278 warnings
+src/graph2mat/tools/lightning/tests/test_edge_cutoff_padding_model.py: 351 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 1414 warnings
+src/graph2mat/tools/lightning/tests/test_lightning.py: 94 warnings
+src/graph2mat/tools/lightning/tests/test_long_range.py: 228 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1107 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 141 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 41 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 35 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 18 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+src/graph2mat/bindings/e3nn/modules/tests/test_coefficient_only_block.py: 1926 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_diagnostic_dense_readout.py: 19 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_e3nngraph2mat.py: 129 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_edge_pairing_and_safety.py: 623 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_hamiltonian_readout.py: 43 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py: 781 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_low_rank_edge_readout.py: 155 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py: 245 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_block.py: 81 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py: 512 warnings
+src/graph2mat/bindings/e3nn/tests/test_rtps.py: 1263 warnings
+src/graph2mat/core/data/tests/test_coefficient_compatibility.py: 34 warnings
+src/graph2mat/core/data/tests/test_coefficient_matrix_mse.py: 40 warnings
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 84 warnings
+src/graph2mat/core/data/tests/test_irreps_from_data_rtps.py: 75 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 80 warnings
+src/graph2mat/core/data/tests/test_physical_losses.py: 20 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 84 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 240 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 1772 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_target_collate.py: 37 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 191 warnings
+src/graph2mat/tools/lightning/tests/test_edge_cutoff_padding_model.py: 248 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 986 warnings
+src/graph2mat/tools/lightning/tests/test_lightning.py: 65 warnings
+src/graph2mat/tools/lightning/tests/test_long_range.py: 158 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 856 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 104 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 29 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 1 warning
+  /usr/lib/python3.12/ast.py:407: UserWarning: The TorchScript type system doesn't support instance-level annotations on empty non-base types in `__init__`. Instead, either 1) use a type annotation in the class body, or 2) wrap the type in `torch.jit.Attribute`.
+    return visitor(node)
+
+src/graph2mat/bindings/e3nn/modules/tests/test_diagnostic_dense_readout.py::test_dense_node_readout_inside_irreps_matrix_block
+src/graph2mat/bindings/e3nn/modules/tests/test_diagnostic_dense_readout.py::test_irreps_matrix_block_coefficient_roundtrip
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+1x1o) x (2x0e+1x1o): output irreps 2x1o+1x2e (11/15 coefficients) cannot be produced from the readout inputs ['6x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_e3nngraph2mat.py: 2 warnings
+src/graph2mat/bindings/torch/data/tests/test_dataset_resources.py: 2 warnings
+src/graph2mat/bindings/torch/data/tests/test_physical_dataset.py: 2 warnings
+src/graph2mat/bindings/torch/data/tests/test_rotating_pool_lifecycle.py: 9 warnings
+src/graph2mat/bindings/torch/data/tests/test_tensor_cache.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_datamodule_temporary_roots.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_split_guardrail.py: 2 warnings
+tests/test_readout_comparison_campaign.py: 2 warnings
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2590781) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+src/graph2mat/bindings/e3nn/modules/tests/test_edge_pairing_and_safety.py: 288 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py: 39 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 35 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 18 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 35 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 18 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_serialization.py:89: DeprecationWarning: `torch.jit.save` is deprecated. Please switch to `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_edge_pairing_and_safety.py: 288 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py: 39 warnings
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 35 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 18 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 35 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 18 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_edge_pairing_and_safety.py: 18 warnings
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 4 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 4 warnings
+src/graph2mat/core/data/tests/test_physical_losses.py: 1 warning
+src/graph2mat/models/tests/test_magnetic_mace.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 57 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_edge_cutoff_padding_model.py: 9 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 33 warnings
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_long_range.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 18 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 34 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_models.py: 94 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 33 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 26 warnings
+src/graph2mat/tools/lightning/tests/test_review_model_regressions.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_shared_readout_max.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 49 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 4 warnings
+src/graph2mat/tools/server/tests/test_server_app.py: 6 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/models.py:85: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    "atomic_numbers", torch.tensor(atomic_numbers, dtype=torch.int64)
+
+src/graph2mat/bindings/e3nn/modules/tests/test_edge_pairing_and_safety.py: 18 warnings
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 4 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 4 warnings
+src/graph2mat/core/data/tests/test_physical_losses.py: 1 warning
+src/graph2mat/models/tests/test_magnetic_mace.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 57 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_edge_cutoff_padding_model.py: 9 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 33 warnings
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_long_range.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 18 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 34 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_models.py: 94 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 33 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 26 warnings
+src/graph2mat/tools/lightning/tests/test_review_model_regressions.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_shared_readout_max.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 49 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 4 warnings
+src/graph2mat/tools/server/tests/test_server_app.py: 6 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/blocks.py:316: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    torch.tensor(atomic_energies, dtype=torch.get_default_dtype()),
+
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py::test_scaled_q_preserves_combined_api_by_fallback
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:380: UserWarning: Homonuclear fusion disabled: requires orthonormal Q for the combined coefficient API.
+    module._configure_homonuclear_fusion()
+
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py::test_mismatched_endpoint_rows_preserve_legacy_values[forward]
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py::test_mismatched_source_rows_preserve_legacy_error[forward]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:190: UserWarning: Homonuclear fusion disabled: requires compatible 2D input shapes with a common row count.
+    coefficients = self._fused_homonuclear_coefficients(args, kwargs)
+
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py::test_mismatched_endpoint_rows_preserve_legacy_values[forward_coefficients]
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py::test_mismatched_source_rows_preserve_legacy_error[forward_coefficients]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:303: UserWarning: Homonuclear fusion disabled: requires compatible 2D input shapes with a common row count.
+    coefficients = self._fused_homonuclear_coefficients(args, kwargs)
+
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py::test_mismatched_endpoint_rows_preserve_legacy_values[forward_with_coefficients]
+src/graph2mat/bindings/e3nn/modules/tests/test_homonuclear_fusion.py::test_mismatched_source_rows_preserve_legacy_error[forward_with_coefficients]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:342: UserWarning: Homonuclear fusion disabled: requires compatible 2D input shapes with a common row count.
+    coefficients = self._fused_homonuclear_coefficients(args, kwargs)
+
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py::test_full_readout_o3_and_keyword_order[1]
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py::test_full_readout_o3_and_keyword_order[-1]
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py::test_transverse_frame_gauge_and_pole_continuity[2-3]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x2e) x (1x3o): output irreps 1x2o+1x4o+1x2o+1x4o (28/70 coefficients) cannot be produced from the readout inputs ['2x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py::test_transverse_frame_gauge_and_pole_continuity[1-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x1o) x (1x2e): output irreps 2x2o (10/30 coefficients) cannot be produced from the readout inputs ['2x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_slater_koster_readout.py::test_transverse_frame_gauge_and_pole_continuity[3-3]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x3o) x (1x3o): output irreps 1x3e+1x5e+1x3e+1x5e (36/98 coefficients) cannot be produced from the readout inputs ['2x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_block.py::test_onsite_symmetry_by_construction
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+1x1o) x (2x0e+1x1o): output irreps 2x0o+2x2o (12/45 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_block.py::test_homonuclear_edge_signed_transpose
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+1x1o) x (2x0e+1x1o): output irreps 4x0o+4x2o+1x3e (31/100 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_block.py::test_ls_coupling_spectrum[cartesian-d]
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_block.py::test_ls_coupling_spectrum[siesta_spherical-d]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x2e) x (1x2e): output irreps 1x4e+1x3e+1x4e (25/45 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_block.py::test_rejected_options
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_block.py::test_block_to_coefficients_raises
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 1x0o+1x2o (6/28 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_onsite_blocks_are_hermitian_spinors[sp]
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_block_equivariance[sp-onsite-cartesian]
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_block_equivariance[sp-onsite-siesta_spherical]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+1x1o) x (2x0e+1x1o): output irreps 2x0o+2x2o+2x0o+2x2o+1x3e (31/100 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_onsite_blocks_are_hermitian_spinors[pd]
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_block_equivariance[pd-onsite-cartesian]
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_block_equivariance[pd-onsite-siesta_spherical]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x1o+1x2e) x (1x1o+1x2e): output irreps 1x2o+1x3o+1x4e+1x0o+3x2o+2x3o+1x3e+1x4o+1x4e+1x2o+1x3o+1x3e+1x0o+3x2o+2x3o+3x3e+1x4o+1x4e+1x5e (175/256 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_homonuclear_edge_pair_is_hermitian_conjugate
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+1x1o) x (2x0e+1x1o): output irreps 4x0o+4x2o+1x3e+4x0o+4x2o+1x3e (62/200 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_block_equivariance[pd-sp-edge-cartesian]
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_block_equivariance[pd-sp-edge-siesta_spherical]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x1o+1x2e) x (2x0e+1x1o): output irreps 1x2o+1x3o+3x0o+5x2o+2x3o+3x3e+1x4o+1x2o+1x3o+3x0o+5x2o+2x3o+3x3e+1x4o (168/320 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_rejected_options
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 1x0o+1x2o+1x0o+1x2o+1x3e (19/64 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_graph2mat_reconstructed_hk_is_hermitian
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 1x3e (7/64 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o+1x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_graph2mat_reconstructed_hk_is_hermitian
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x2e) x (1x0e+1x2e): output irreps 1x4e+2x3e+1x4e+4x3e+1x4e+1x5e (80/144 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o+1x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_graph2mat_reconstructed_hk_is_hermitian
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 2x3e (14/128 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o+1x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_graph2mat_reconstructed_hk_is_hermitian
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x2e): output irreps 3x3o+1x3e+1x4o+3x3o+1x3e+1x4o (74/192 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o+1x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/tests/test_spin_orbit_full_block.py::test_graph2mat_reconstructed_hk_is_hermitian
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x2e) x (1x0e+1x2e): output irreps 1x3e+1x4e+5x3e+2x4e+1x5e+1x3e+1x4e+5x3e+2x4e+1x5e (160/288 coefficients) cannot be produced from the readout inputs ['1x0e+1x1o+1x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/bindings/torch/data/tests/test_torch_sparse_vectorization.py::test_torch_coo_rectangular_images_values_and_gradients[None-False-dtype0]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/torch/data/formats.py:95: UserWarning: Sparse invariant checks are implicitly disabled. Memory errors (e.g. SEGFAULT) will occur when operating on a sparse tensor which violates the invariants, but checks incur performance overhead. To silence this warning, explicitly opt in or out. See `torch.sparse.check_sparse_tensor_invariants.__doc__` for guidance.  (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:760.)
+    return torch.sparse_coo_tensor(
+
+src/graph2mat/bindings/torch/tests/test_multitarget_loss.py::test_component_mask_preserves_other_spin
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/torch/tests/test_multitarget_loss.py:90: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+    assert float(value) == pytest.approx((2*1. + 2*4. + 9.) / 5, abs=1e-14)
+
+src/graph2mat/core/data/tests/test_configuration_zip.py::test_zip_run_without_native_sisl_zip_support[False-True]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70225a31a000> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_configuration_zip.py::test_zip_run_without_native_sisl_zip_support[False-True]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70225a28a720> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_configuration_zip.py::test_zip_run_without_native_sisl_zip_support[True-True]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70225a289880> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 2 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_epoch_metrics.py: 28 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_density_epoch_metrics.py: 16 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 64 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 44 warnings
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 41 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 13 warnings
+src/graph2mat/tools/lightning/tests/test_relative_epoch_metrics.py: 45 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 6 warnings
+src/graph2mat/tools/server/tests/test_server_app.py: 3 warnings
+tests/test_campaign_launch_contracts.py: 6 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 2 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_epoch_metrics.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 10 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_relative_epoch_metrics.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 2 warnings
+src/graph2mat/tools/server/tests/test_server_app.py: 3 warnings
+tests/test_campaign_launch_contracts.py: 6 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 2 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_epoch_metrics.py: 22 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_density_epoch_metrics.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 39 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 25 warnings
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 29 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 10 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_relative_epoch_metrics.py: 29 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 5 warnings
+src/graph2mat/tools/server/tests/test_server_app.py: 3 warnings
+tests/test_campaign_launch_contracts.py: 6 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py::test_checkpoint_loader_keeps_padding[False-0.5]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:378: You have overridden `transfer_batch_to_device` in `LightningModule` but have passed in a `LightningDataModule`. It will use the implementation from `LightningModule` instance.
+
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 2 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_epoch_metrics.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 11 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 9 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_relative_epoch_metrics.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 2 warnings
+src/graph2mat/tools/server/tests/test_server_app.py: 3 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('train_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 2 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_epoch_metrics.py: 22 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_density_epoch_metrics.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 39 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 25 warnings
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 29 warnings
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 11 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_relative_epoch_metrics.py: 29 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 5 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('val_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/core/data/tests/test_edge_cutoff_padding.py: 2 warnings
+src/graph2mat/core/data/tests/test_magnetic_moments.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_cli.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 10 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 2 warnings
+src/graph2mat/tools/server/tests/test_server_app.py: 3 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/lightning_fabric/utilities/cloud_io.py:73: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+
+src/graph2mat/core/data/tests/test_magnetic_moments.py::test_from_run_reads_nominal_moments_next_to_fdf[nominal0-True]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x702264f122a0> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_magnetic_moments.py::test_from_run_reads_nominal_moments_next_to_fdf[nominal1-True]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70226451a3f0> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_magnetic_moments.py::test_from_run_without_json_has_no_moments[True]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70225bc2ae10> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_magnetic_moments.py::test_from_run_reads_moments_inside_zip[True-False-magnetic_moments.json]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70225bc2b290> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_magnetic_moments.py::test_from_run_reads_moments_inside_zip[True-False-sample.magnetic_moments.json]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70225be946b0> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_magnetic_moments.py::test_from_run_reads_moments_inside_zip[True-True-magnetic_moments.json]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70225bd063f0> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_magnetic_moments.py::test_from_run_reads_moments_inside_zip[True-True-sample.magnetic_moments.json]
+  warn:0: SislWarning: <sisl.io.siesta.fdfSileSiesta object at 0x70226431b6e0> could not succesfully read the overlap matrix in _r_density_matrix_dm.
+
+src/graph2mat/core/data/tests/test_spin_orbit.py::test_spin_orbit_processor_validation
+src/graph2mat/core/data/tests/test_spin_orbit_full.py::test_full_policy_processor_validation
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/core/data/processing.py:240: UserWarning: sub_point_matrix is only supported for density_matrix targets. Disabling it for out_matrix='hamiltonian'.
+    warnings.warn(
+
+src/graph2mat/models/tests/test_magnetic_mace.py::test_joint_equivariance_of_positions_and_axial_moments[molecule]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x2e) x (1x0e+1x2e): output irreps 1x3e+1x4e+5x3e+2x4e+1x5e+1x3e+1x4e+5x3e+2x4e+1x5e (160/288 coefficients) cannot be produced from the readout inputs ['2x0e+2x0o+2x1o+2x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/models/tests/test_magnetic_mace.py::test_joint_equivariance_of_positions_and_axial_moments[molecule]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x2e) x (1x0e+1x1o): output irreps 3x3o+1x3e+1x4o+3x3o+1x3e+1x4o (74/192 coefficients) cannot be produced from the readout inputs ['2x0e+2x0o+2x1o+2x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/models/tests/test_magnetic_mace.py::test_joint_equivariance_of_positions_and_axial_moments[molecule]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 2x3e (14/128 coefficients) cannot be produced from the readout inputs ['2x0e+2x0o+2x1o+2x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/models/tests/test_magnetic_mace.py::test_collinear_spin_flip_swaps_up_and_down
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x2e) x (1x0e+1x2e): output irreps 1x3e+1x4e+1x3e+1x4e (32/72 coefficients) cannot be produced from the readout inputs ['2x0e+2x0o+2x1o+2x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/models/tests/test_magnetic_mace.py::test_collinear_spin_flip_swaps_up_and_down
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x2e) x (1x0e+1x1o): output irreps 2x3o (14/48 coefficients) cannot be produced from the readout inputs ['2x0e+2x0o+2x1o+2x1e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/analysis/metrics.py:208: RuntimeWarning: Mean of empty slice
+    "H_MAE_inter_meV": 1e3 * float(error[:, inter].mean()),
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/numpy/_core/_methods.py:142: RuntimeWarning: invalid value encountered in scalar divide
+    ret = ret.dtype.type(ret / rcount)
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/analysis/metrics.py:211: RuntimeWarning: Mean of empty slice
+    "H_MAE_gauge_inter_meV": 1e3 * float(aligned[:, inter].mean()),
+
+src/graph2mat/tools/analysis/tests/test_breakdown_attribution.py::test_attribution_shares_add_up
+src/graph2mat/tools/analysis/tests/test_breakdown_attribution.py::test_without_kb_tail_cuts_only_far_pairs
+src/graph2mat/tools/analysis/tests/test_breakdown_attribution.py::test_attribution_keeps_prediction_couplings_beyond_the_reference_supercell
+  warn:0: SislWarning: Geometry.close_sc has been passed an 'atoms' argument together with an R value larger than the orbital ranges. If used together with 'sparse-matrix.construct' this can result in wrong couplings.
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_cli_parses_callback_split_string_or_sequence[test-MatrixWriter]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/lightning/tests/test_cli.py:69: 
+      By default only one JsonargparseDeprecationWarning per type is shown. To see all warnings set environment
+      variable JSONARGPARSE_DEPRECATION_WARNINGS=all and to disable the warnings set
+      JSONARGPARSE_DEPRECATION_WARNINGS=off.
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_cli_parses_callback_split_string_or_sequence[test-MatrixWriter]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/lightning/tests/test_cli.py:69: 
+      ``instantiate_classes`` was deprecated in v4.49.0 and will be removed in v5.0.0. Instead use ``instantiate``.
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-validate]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['validate', '--ckpt_path', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_0/model.ckpt', '--seed_everything=0', '--trainer.accelerator=cpu', '--trainer.devices=1', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks', '[]', '--data.batch_size=1', '--model.optim_lr=0.002', '--data.train_runs=null', '--data.runs_json', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_0/runs.json'].
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-validate]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:596: 
+      ``ArgumentParser.add_instantiator`` was deprecated in v4.49.0 and will be removed in v5.0.0. Use the global
+      function ``jsonargparse.add_instantiator`` instead.
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-validate]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:590: 
+      skip_none parameter was deprecated in v4.49.0 and will be removed in v5.0.0. Instead use skip_unset.
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-validate]
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-test]
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-predict]
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[True-validate]
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[True-test]
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[True-predict]
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_resuming_a_checkpoint_trained_without_scheduler_is_rejected
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/jsonargparse/_typehints.py:3011: JsonargparseWarning: 
+      Unable to serialize instance    - Type: 1. Basis: ((1, 0, 1),). MaxR: 1.400.
+  
+    warning(val)
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-test]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['test', '--ckpt_path', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_1/model.ckpt', '--seed_everything=0', '--trainer.accelerator=cpu', '--trainer.devices=1', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks', '[]', '--data.batch_size=1', '--model.optim_lr=0.002', '--data.train_runs=null', '--data.runs_json', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_1/runs.json'].
+
+src/graph2mat/tools/lightning/tests/test_cli.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_epoch_metrics.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_density_epoch_metrics.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 23 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_relative_epoch_metrics.py: 16 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 3 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'test_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_cli.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_coefficient_epoch_metrics.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_density_epoch_metrics.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 23 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_lightning.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_relative_epoch_metrics.py: 16 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 3 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('test_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-predict]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['predict', '--ckpt_path', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_2/model.ckpt', '--seed_everything=0', '--trainer.accelerator=cpu', '--trainer.devices=1', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks', '[{"class_path": "graph2mat.tools.lightning.callbacks.MatrixWriter", "init_args": {"output_file": "/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_2/prediction.DM", "splits": ["predict"]}}]', '--data.batch_size=1', '--model.optim_lr=0.002', '--data.train_runs=null', '--data.runs_json', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_2/runs.json'].
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[False-predict]
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[True-predict]
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py::test_ckpt_path_restores_the_derived_normalisation_into_a_default_model[vector]
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py::test_ckpt_path_restores_the_derived_normalisation_into_a_default_model[collinear]
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py::test_real_cli_multitarget_checkpoint_predict_without_labels
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'predict_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[True-validate]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['validate', '--ckpt_path', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_3/model.ckpt', '--seed_everything=0', '--trainer.accelerator=cpu', '--trainer.devices=1', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks', '[]', '--data.batch_size=1', '--model.optim_lr=0.002', '--data.train_runs=null', '--data.runs_json', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_3/runs.json'].
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[True-test]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['test', '--ckpt_path', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_4/model.ckpt', '--seed_everything=0', '--trainer.accelerator=cpu', '--trainer.devices=1', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks', '[]', '--data.batch_size=1', '--model.optim_lr=0.002', '--data.train_runs=null', '--data.runs_json', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_4/runs.json'].
+
+src/graph2mat/tools/lightning/tests/test_cli.py::test_real_cli_checkpoint_runs_preserve_weights_predictions_and_overrides[True-predict]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['predict', '--ckpt_path', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_5/model.ckpt', '--seed_everything=0', '--trainer.accelerator=cpu', '--trainer.devices=1', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks', '[{"class_path": "graph2mat.tools.lightning.callbacks.MatrixWriter", "init_args": {"output_file": "/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_5/prediction.DM", "splits": ["predict"]}}]', '--data.batch_size=1', '--model.optim_lr=0.002', '--data.train_runs=null', '--data.runs_json', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_checkpoint_runs_5/runs.json'].
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype0-point_type-single-1]
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype1-point_type-single-1]
+src/graph2mat/tools/lightning/tests/test_cost_batching.py::test_cost_partitions_preserve_real_mace_predictions[False-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 23 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 11 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 11 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 2 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o+1x5o (20/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 10 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o+1x5o (20/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 29 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 11 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 2 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 68 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 36 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 1 warning
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:451: You are trying to `self.log()` but the `self.trainer` reference is not registered on the model yet. This is most likely because the model hasn't been passed to the `Trainer`
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype0-point_type-single-2]
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype1-point_type-single-2]
+src/graph2mat/tools/lightning/tests/test_cost_batching.py::test_cost_partitions_preserve_real_mace_predictions[False-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e+1x5e+1x6e (48/242 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 20 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 10 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o+1x5o+1x4o+1x5o (40/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 10 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o+1x5o+1x4o+1x5o (40/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 26 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 14 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e+1x5e+1x6e (48/242 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 14 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_models.py: 6 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+2x5o+1x5e+1x6e (64/256 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype0-max-sum-1]
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype1-max-sum-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 6x1o+3x1e+4x2o+7x2e+6x3o+4x3e+2x4o+4x4e+2x5o+1x5e+1x6e (252/256 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 14 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 8 warnings
+src/graph2mat/tools/lightning/tests/test_models.py: 6 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+2x5o+1x5e+1x6e+2x4o+2x5o+1x5e+1x6e (128/512 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype0-max-sum-2]
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype1-max-sum-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 6x1o+3x1e+4x2o+7x2e+6x3o+4x3e+2x4o+4x4e+2x5o+1x5e+1x6e+6x1o+3x1e+4x2o+7x2e+6x3o+4x3e+2x4o+4x4e+2x5o+1x5e+1x6e (504/512 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype0-basis_shape-mean-1]
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype1-basis_shape-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 2x1o+2x1e+4x2e+2x3o+3x3e+3x4e+1x5e+1x6e (118/121 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype0-basis_shape-mean-1]
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype1-basis_shape-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x2e): output irreps 4x1o+2x1e+2x2o+4x2e+2x3o+1x3e+1x4e (78/81 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype0-basis_shape-mean-2]
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype1-basis_shape-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 2x1o+2x1e+4x2e+2x3o+3x3e+3x4e+1x5e+1x6e+2x1o+2x1e+4x2e+2x3o+3x3e+3x4e+1x5e+1x6e (236/242 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype0-basis_shape-mean-2]
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py::test_coefficient_matrix_training_matches_dense_loss_and_parameter_gradients[False-dtype1-basis_shape-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x2e): output irreps 4x1o+2x1e+2x2o+4x2e+2x3o+1x3e+1x4e+4x1o+2x1e+2x2o+4x2e+2x3o+1x3e+1x4e (156/162 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 17 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 11 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 12 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x6e (13/66 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 14 warnings
+src/graph2mat/tools/lightning/tests/test_cost_batching.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 6 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 2x6e (26/132 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_models.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 4 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 1x4o+1x5o+1x6e (33/136 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_models.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 4 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 3x1o+2x2o+5x2e+3x3o+1x3e+1x4o+3x4e+1x5o+1x6e (132/136 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_models.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 4 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 1x4o+1x5o+1x6e+1x4o+1x5o+1x6e (66/272 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_models.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 4 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 3x1o+2x2o+5x2e+3x3o+1x3e+1x4o+3x4e+1x5o+1x6e+3x1o+2x2o+5x2e+3x3o+1x3e+1x4o+3x4e+1x5o+1x6e (264/272 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 8 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x6e (13/66 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 8 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x1o+3x2e+1x3o+1x3e+2x4e+1x6e (63/66 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 8 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x2e): output irreps 2x1o+1x2o+3x2e+1x3o+1x4e (42/45 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 8 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 2x6e (26/132 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 8 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x1o+3x2e+1x3o+1x3e+2x4e+1x6e+1x1o+3x2e+1x3o+1x3e+2x4e+1x6e (126/132 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 8 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x2e): output irreps 2x1o+1x2o+3x2e+1x3o+1x4e+2x1o+1x2o+3x2e+1x3o+1x4e (84/90 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_coefficient_matrix_training.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 10 warnings
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 1 warning
+src/graph2mat/tools/server/tests/test_server_app.py: 3 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/data.py:106: Total length of `DataLoader` across ranks is zero. Please make sure this was your intention.
+
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 17 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/configuration_validator.py:70: You defined a `validation_step` but have no `val_dataloader`. Skipping val loop.
+
+src/graph2mat/tools/lightning/tests/test_lightning.py::test_lightning_tools_python[density_matrix]
+src/graph2mat/tools/lightning/tests/test_lightning.py::test_lightning_tools_python[hamiltonian]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/lightning/callbacks.py:386: Metric block_type_mse_per_domain failed; recording NaN. ValueError: block_type_mse_per_domain requires domain_threshold_atoms (pass it via loss_kwargs).
+
+src/graph2mat/tools/lightning/tests/test_lightning.py::test_lightning_tools_python[density_matrix]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/lightning/callbacks.py:386: Metric normalized_density_error failed; recording NaN. ValueError: normalized_density_error requires a positive finite electron count.
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[False-single]
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-single]
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_direct_matrix_mace_rejects_context_with_custom_low_rank_readout
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x6e (13/66 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+16x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[False-sum]
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-sum]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x6e (13/66 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+14x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[False-sum]
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-sum]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x2e): output irreps 2x1o+1x2o+3x2e+1x3o+1x4e (42/45 coefficients) cannot be produced from the readout inputs ['16x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[False-sum]
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-sum]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x1o+3x2e+1x3o+1x3e+2x4e+1x6e (63/66 coefficients) cannot be produced from the readout inputs ['16x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-single]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o+1x5o (20/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+16x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-single]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+16x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-sum]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o+1x5o (20/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+14x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-sum]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+14x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-sum]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o+1x5o (20/99 coefficients) cannot be produced from the readout inputs ['16x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_rejects_unenveloped_hamiltonian_context[True-sum]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['16x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_direct_matrix_mace_rejects_context_with_custom_low_rank_readout
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_custom_readout_cannot_bypass_context_guard
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+16x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[point_type-single-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o+1x5o (20/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[point_type-single-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[point_type-single-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o+1x5o+1x4o+1x5o (40/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[point_type-single-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e+1x5e+1x6e (48/242 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[max-sum-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+2x5o+1x5e+1x6e (64/256 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[max-sum-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+2x5o+1x5e+1x6e (64/256 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[max-sum-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+2x5o+1x5e+1x6e+2x4o+2x5o+1x5e+1x6e (128/512 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[max-sum-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+2x5o+1x5e+1x6e+2x4o+2x5o+1x5e+1x6e (128/512 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[basis_shape-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[basis_shape-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o+1x5o (20/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[basis_shape-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e (24/121 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[basis_shape-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o+1x5o (20/99 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[basis_shape-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e+1x5e+1x6e (48/242 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[basis_shape-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o+1x5o+1x4o+1x5o (40/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[basis_shape-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e+1x6e+1x5e+1x6e (48/242 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_low_rank_edge_model.py::test_low_rank_full_mace_coefficients_loss_and_layout[basis_shape-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o+1x5o+1x4o+1x5o (40/198 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_scheduler_without_optimizer_is_attached
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['fit', '--data.root_dir=/tmp/pytest-of-christian/pytest-1311/test_scheduler_without_optimiz0', '--data.train_runs=sample.nc', '--data.val_runs=sample.nc', '--data.out_matrix=density_matrix', '--data.symmetric_matrix=true', '--data.sub_point_matrix=false', '--data.loader_threads=0', '--model.hidden_irreps=2x0e+2x1o', '--model.edge_hidden_irreps=2x0e+2x1o', '--model.num_bessel=2', '--model.max_ell=1', '--trainer.max_epochs=4', '--trainer.accelerator=cpu', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]', '--lr_scheduler', '{"class_path": "torch.optim.lr_scheduler.CosineAnnealingLR", "init_args": {"T_max": 4, "eta_min": 0.0}}'].
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_without_scheduler_the_learning_rate_is_constant
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['fit', '--data.root_dir=/tmp/pytest-of-christian/pytest-1311/test_without_scheduler_the_lea0', '--data.train_runs=sample.nc', '--data.val_runs=sample.nc', '--data.out_matrix=density_matrix', '--data.symmetric_matrix=true', '--data.sub_point_matrix=false', '--data.loader_threads=0', '--model.hidden_irreps=2x0e+2x1o', '--model.edge_hidden_irreps=2x0e+2x1o', '--model.num_bessel=2', '--model.max_ell=1', '--trainer.max_epochs=4', '--trainer.accelerator=cpu', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]'].
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_scheduler_with_stage_learning_rates_is_rejected
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['fit', '--data.root_dir=/tmp/pytest-of-christian/pytest-1311/test_scheduler_with_stage_lear0', '--data.train_runs=sample.nc', '--data.val_runs=sample.nc', '--data.out_matrix=density_matrix', '--data.symmetric_matrix=true', '--data.sub_point_matrix=false', '--data.loader_threads=0', '--model.hidden_irreps=2x0e+2x1o', '--model.edge_hidden_irreps=2x0e+2x1o', '--model.num_bessel=2', '--model.max_ell=1', '--trainer.max_epochs=4', '--trainer.accelerator=cpu', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]', '--lr_scheduler', '{"class_path": "torch.optim.lr_scheduler.CosineAnnealingLR", "init_args": {"T_max": 4, "eta_min": 0.0}}', '--model.training_stages=[{"name": "a", "max_epochs": 2, "optim_lr": 0.001}, {"name": "b", "max_epochs": 2, "optim_lr": 0.0001}]'].
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_resuming_a_checkpoint_trained_without_scheduler_is_rejected
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['fit', '--data.root_dir=/tmp/pytest-of-christian/pytest-1311/test_resuming_a_checkpoint_tra0', '--data.train_runs=sample.nc', '--data.val_runs=sample.nc', '--data.out_matrix=density_matrix', '--data.symmetric_matrix=true', '--data.sub_point_matrix=false', '--data.loader_threads=0', '--model.hidden_irreps=2x0e+2x1o', '--model.edge_hidden_irreps=2x0e+2x1o', '--model.num_bessel=2', '--model.max_ell=1', '--trainer.max_epochs=4', '--trainer.accelerator=cpu', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]', '--ckpt_path', '/tmp/pytest-of-christian/pytest-1311/test_resuming_a_checkpoint_tra0/model.ckpt', '--lr_scheduler', '{"class_path": "torch.optim.lr_scheduler.CosineAnnealingLR", "init_args": {"T_max": 4, "eta_min": 0.0}}'].
+
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 11 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 1x0o (1/28 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 12 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 2x0o (2/64 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 8 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e): output irreps 1x0o (1/16 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 13 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 4x0o (4/128 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 13 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e): output irreps 2x0o (2/32 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py::test_per_interaction_readout_stays_allowed_without_moments
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 1x0o (1/28 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py::test_per_interaction_readout_stays_allowed_without_moments
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 1x1o+1x2e+1x0o+1x1o+1x1e+1x2o+1x2e (25/28 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_magnetic_model.py: 22 warnings
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py: 3 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/loops/utilities.py:73: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py::test_samplewise_metrics_compare_h_only_predictions_with_the_h_labels
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/lightning/callbacks.py:394: Metric block_type_mse_per_domain failed; recording NaN. ValueError: block_type_mse_per_domain requires domain_threshold_atoms (pass it via loss_kwargs).
+
+src/graph2mat/tools/lightning/tests/test_models.py: 24 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 1x1o+1x2e (8/10 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py: 24 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o): output irreps 1x1o+1x2e+1x1o+1x2e (16/20 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[same_basis-bimolecule-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[same_basis-square-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[same_basis-chain-sum-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+0x2e+0x3o+0x4e) x (1x0e+1x1o+0x2e+0x3o+0x4e): output irreps 1x1o+1x2e (8/10 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[same_basis-bimolecule-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[same_basis-square-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[same_basis-chain-sum-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+0x2e+0x3o+0x4e) x (1x0e+1x1o+0x2e+0x3o+0x4e): output irreps 1x1o+1x2e+1x1o+1x2e (16/20 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-square-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-square-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-square-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-bimolecule-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-bimolecule-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-bimolecule-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-chain-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-chain-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-chain-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+2x1o) x (2x0e+2x1o): output irreps 4x1o+1x1e+3x2e (30/36 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-square-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-square-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-square-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-bimolecule-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-bimolecule-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-bimolecule-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-chain-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-chain-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-chain-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+2x1o+1x2e) x (2x0e+2x1o+1x2e): output irreps 6x1o+1x1e+2x2o+6x2e+2x3o+1x4e (84/91 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-square-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-square-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-square-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-bimolecule-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-bimolecule-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-bimolecule-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-chain-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-chain-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-chain-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+2x1o) x (2x0e+2x1o): output irreps 4x1o+1x1e+3x2e+4x1o+1x1e+3x2e (60/72 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-square-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-square-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-square-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-bimolecule-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-bimolecule-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-bimolecule-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-chain-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[DZP-chain-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-chain-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+2x1o+1x2e) x (2x0e+2x1o+1x2e): output irreps 6x1o+1x1e+2x2o+6x2e+2x3o+1x4e+6x1o+1x1e+2x2o+6x2e+2x3o+1x4e (168/182 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-square-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-bimolecule-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-chain-sum-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+2x1o+1x2e+0x3o+0x4e) x (2x0e+2x1o+1x2e+0x3o+0x4e): output irreps 6x1o+1x1e+2x2o+6x2e+2x3o+1x4e (84/91 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-square-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-bimolecule-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[DZP-chain-sum-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (2x0e+2x1o+1x2e+0x3o+0x4e) x (2x0e+2x1o+1x2e+0x3o+0x4e): output irreps 6x1o+1x1e+2x2o+6x2e+2x3o+1x4e+6x1o+1x1e+2x2o+6x2e+2x3o+1x4e (168/182 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_mace_radial_embedding_matches_interaction_contract[f_shells-chain]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-chain-single-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-square-single-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-bimolecule-single-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o) x (1x0e+1x1o+1x2e+1x3o): output irreps 1x4o+1x5o+1x6e (33/136 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py: 22 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o) x (1x0e+1x1o+1x2e+1x3o): output irreps 2x4o+2x5o+1x5e+1x6e (64/256 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-chain-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-chain-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-chain-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-square-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-square-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-square-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-bimolecule-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-bimolecule-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-bimolecule-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o) x (1x0e+1x1o+1x2e+1x3o): output irreps 1x4o+1x5o+1x6e (33/136 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-chain-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-chain-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-chain-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-square-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-square-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-square-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-bimolecule-sum-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-bimolecule-mean-1]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-bimolecule-mean-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o) x (1x0e+1x1o+1x2e+1x3o): output irreps 3x1o+2x2o+5x2e+3x3o+1x3e+1x4o+3x4e+1x5o+1x6e (132/136 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-chain-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-chain-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-chain-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-square-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-square-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-square-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-bimolecule-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-bimolecule-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-bimolecule-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o) x (1x0e+1x1o+1x2e+1x3o): output irreps 1x4o+1x5o+1x6e+1x4o+1x5o+1x6e (66/272 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py: 21 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o) x (1x0e+1x1o+1x2e+1x3o): output irreps 2x4o+2x5o+1x5e+1x6e+2x4o+2x5o+1x5e+1x6e (128/512 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-chain-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-chain-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-chain-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-square-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-square-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-square-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-bimolecule-sum-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_interaction_coefficients_match_matrix_targets[f_shells-bimolecule-mean-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-bimolecule-mean-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o) x (1x0e+1x1o+1x2e+1x3o): output irreps 3x1o+2x2o+5x2e+3x3o+1x3e+1x4o+3x4e+1x5o+1x6e+3x1o+2x2o+5x2e+3x3o+1x3e+1x4o+3x4e+1x5o+1x6e (264/272 coefficients) cannot be produced from the readout inputs ['2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-chain-single-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-square-single-2]
+src/graph2mat/tools/lightning/tests/test_models.py::test_full_mace_coefficient_only_matches_matrix_mse[f_shells-bimolecule-single-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o) x (1x0e+1x1o+1x2e+1x3o): output irreps 1x4o+1x5o+1x6e+1x4o+1x5o+1x6e (66/272 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py::test_legacy_numerics_keys_and_checkpoint_without_new_fields
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/lightning/model.py:1205: Unable to determine version that created checkpoint file
+
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py::test_real_cli_multitarget_checkpoint_predict_without_labels
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src', 'tests', '-q', '-ra', '--junitxml=/home/christian/repositorios/graph2mat/auditorias_mejoras/auditoria_codex_20261021/revision_claude_20261022/evidencia/pytest_integrated.xml'], args=['predict', '--config', '/tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/docs/examples/multitarget_predict.yaml', '--ckpt_path', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_multitarget_chec0/joint.ckpt', '--data.root_dir', '/tmp/pytest-of-christian/pytest-1311/test_real_cli_multitarget_chec0', '--data.predict_structs', 'geometry.xyz', '--trainer.accelerator=cpu', '--trainer.devices=1', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]'].
+
+src/graph2mat/tools/lightning/tests/test_multitarget_training.py::test_real_cli_multitarget_checkpoint_predict_without_labels
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/jsonargparse/_typehints.py:3011: JsonargparseWarning: 
+      Unable to serialize instance    - Type: 1. Basis: ((1, 0, 1),). MaxR: 2.800.         - Type: 2. Basis: ((1, 0,
+      1),). MaxR: 2.800.
+  
+    warning(val)
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_datamodule_two_steps_preserve_default_and_physical_contract[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs[False]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/lightning/model.py:397: coefficient_training uses matrix fallback: physical objectives require matrix predictions
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs[False]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/tools/lightning/model.py:1070: coefficient_training uses matrix fallback: MatrixDataModule is required to prepare CPU targets
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/loops/fit_loop.py:534: Found 125 module(s) in eval mode at the start of training. This may lead to unexpected behavior during training. If this is intentional, you can ignore this warning.
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 12 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o (9/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 17 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e (11/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-single-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_two_steps_strict_checkpoint_and_trainable_branches[2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_two_steps_strict_checkpoint_and_trainable_branches[2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 2x4o (18/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py: 12 warnings
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 2x5e (22/242 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-single-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_custom_readout_cannot_bypass_context_guard
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o (9/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-single-basis_shape-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-basis_shape-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-basis_shape-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-basis_shape-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-basis_shape-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 2x4o (18/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-single-max-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-max-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 1x4o+1x5o+1x6e (33/136 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-single-max-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-max-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-max-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-max-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-max-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+1x5e (29/256 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-single-max-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-max-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 1x4o+1x5o+1x6e+1x4o+1x5o+1x6e (66/272 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-single-max-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-max-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-sum-max-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-max-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[False-mean-max-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+1x5e+2x4o+1x5e (58/512 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-point_type-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o (9/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-point_type-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-basis_shape-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e (11/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-point_type-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 2x4o (18/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-basis_shape-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 2x5e (22/242 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-basis_shape-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o (9/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-basis_shape-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 2x4o (18/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-max-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+1x5e (29/256 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-single-max-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+1x5e+2x4o+1x5e (58/512 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-point_type-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-point_type-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o (9/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-point_type-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-point_type-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-basis_shape-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e (11/121 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-point_type-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-point_type-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 1x4o (9/99 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-point_type-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-point_type-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-basis_shape-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 1x5e (11/121 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-point_type-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 2x4o (18/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-basis_shape-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-basis_shape-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 2x5e (22/242 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-point_type-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x3o): output irreps 2x4o (18/198 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-basis_shape-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-point_type-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-basis_shape-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x3o): output irreps 2x5e (22/242 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-basis_shape-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o (9/99 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-basis_shape-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-basis_shape-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 1x4o (9/99 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-basis_shape-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-basis_shape-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 2x4o (18/198 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-basis_shape-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-basis_shape-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x3o) x (1x0e+1x1o+1x2e): output irreps 2x4o (18/198 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-max-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-max-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+1x5e (29/256 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-max-1]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-max-1]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+1x5e (29/256 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-max-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-max-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+1x5e+2x4o+1x5e (58/512 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-sum-max-2]
+src/graph2mat/tools/lightning/tests/test_slater_koster_model.py::test_full_mace_loss_gradients_layout_and_absent_type[True-mean-max-2]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e+1x3o+0x4e) x (1x0e+1x1o+1x2e+1x3o+0x4e): output irreps 2x4o+1x5e+2x4o+1x5e (58/512 coefficients) cannot be produced from the readout inputs ['2x0e', '2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py::test_mace_spin_orbit_equivariance[spd-bimolecule]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x2e): output irreps 2x0o+1x4o (11/153 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e+2x0e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py::test_mace_spin_orbit_equivariance[spd-bimolecule]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o) x (1x0e+1x1o+1x2e): output irreps 3x0o+1x4o (12/144 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/lightning/tests/test_spin_orbit_model.py::test_mace_spin_orbit_equivariance[spd-bimolecule]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/bindings/e3nn/modules/matrixblock.py:97: UserWarning: Block (1x0e+1x1o+1x2e) x (1x0e+1x1o+1x2e): output irreps 4x0o+2x4o+1x5e (33/324 coefficients) cannot be produced from the readout inputs ['2x0e+2x1o+2x2e'] and will always be zero. Increase the lmax of hidden_irreps / edge_hidden_irreps (with MACE, num_interactions=1 leaves only scalar node features).
+    warnings.warn(
+
+src/graph2mat/tools/siesta/tests/test_delta.py::test_spin_orbit_delta_label_is_time_reversal_projected
+  warn:0: SislWarning: Hamiltonian.create_construct got a non-Hermitian on-site term elements ([0.+0.0602j 0.+0.04j   0.+0.04j   0.-0.06j  ]). The code will continue like nothing happened...
+
+src/graph2mat/tools/siesta/tests/test_delta.py::test_spin_orbit_delta_label_is_time_reversal_projected
+src/graph2mat/tools/siesta/tests/test_delta.py::test_add_h0_takes_the_overlap_of_h0_when_the_prediction_has_none
+  warn:0: SislWarning: Hamiltonian.create_construct got a non-Hermitian on-site term elements ([0.+0.054j 0.+0.036j 0.+0.036j 0.-0.054j]). The code will continue like nothing happened...
+
+src/graph2mat/tools/siesta/tests/test_delta.py::test_add_h0_takes_the_overlap_of_h0_when_the_prediction_has_none
+  warn:0: SislWarning: Hamiltonian.create_construct got a non-Hermitian on-site term elements ([0.+0.02j 0.+0.02j 0.+0.02j 0.+0.02j]). The code will continue like nothing happened...
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] src/graph2mat/core/data/tests/test_h_dimension.py:13: local example file not available: results/hamiltonian_reconstructed/predicted_matrices/4.HSX
+SKIPPED [1] src/graph2mat/bindings/e3nn/modules/tests/test_edge_pairing_and_safety.py:362: torch.compile (inductor) test needs a GPU
+SKIPPED [1] src/graph2mat/core/data/tests/test_spin_orbit_full.py:361: SIESTA runs not available in /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/auditorias_mejoras/experimentos_magnetismo_f0_fe_20261021
+SKIPPED [1] src/graph2mat/core/data/tests/test_spin_orbit_full.py:375: SIESTA runs not available in /tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/auditorias_mejoras/experimentos_magnetismo_f0_fe_20261021
+SKIPPED [3] src/graph2mat/tools/lightning/tests/test_coefficient_cuda_training.py:35: CUDA unavailable
+SKIPPED [3] src/graph2mat/tools/lightning/tests/test_coefficient_cuda_training.py:74: CUDA unavailable
+SKIPPED [3] src/graph2mat/tools/lightning/tests/test_coefficient_cuda_training.py:146: CUDA unavailable
+SKIPPED [3] src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py:175: requires the opt-in GPU supervisor
+SKIPPED [3] src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py:211: requires the opt-in GPU supervisor
+SKIPPED [2] src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py:223: requires the opt-in GPU supervisor
+SKIPPED [1] src/graph2mat/tools/lightning/tests/test_homonuclear_fusion_model.py:237: requires the opt-in GPU supervisor
+SKIPPED [1] src/graph2mat/tools/lightning/tests/test_model_guards.py:29: cuequivariance-torch is not installed
+SKIPPED [2] src/graph2mat/tools/lightning/tests/test_selection_metric.py:65: block_normalized_huber accepts single-component H labels only
+3599 passed, 25 skipped, 32089 warnings in 971.28s (0:16:11)

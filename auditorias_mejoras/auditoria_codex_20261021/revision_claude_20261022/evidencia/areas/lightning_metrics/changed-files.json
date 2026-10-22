@@ -1,0 +1,38 @@
+{
+  "src/graph2mat/core/data/metrics.py": {
+    "before": "5001db9523dbb49f56ccdc9660e0b8207db7948f52b66d004b38e87581dcbc0f",
+    "after": "5799c0b253b3b41dfe9654c023a8ee4ce24a7c9af763e17816bfccd41fa91b47"
+  },
+  "src/graph2mat/tools/lightning/model.py": {
+    "before": "7d984f1c8b0795432f52aec5155763bba0b70ea2accf8241719e07e282a30dc0",
+    "after": "ed88bc1d5db1685c7b87744ae45d9fb8b48b7402af27a54e2e1d4d223c29a835"
+  },
+  "src/graph2mat/tools/lightning/tests/test_ddp_cpu.py": {
+    "before": "d68bdb3e0a0eed700da2982460f148d550e63fe3bd983af8f6eae004fcdf264b",
+    "after": "7f651e02dc628c07c0786f6880a35cb26a6e4847ffc8364a886593dfc94f3aeb"
+  },
+  "src/graph2mat/tools/lightning/tests/test_physical_training.py": {
+    "before": "b428fc8872777d78393fb60c28cbc06d8351ee14e149a28877135b027662825f",
+    "after": "daad7f121862750aa238ddcf79dd022bb3e3a9379dd2352a72b881107c8ce311"
+  },
+  "src/graph2mat/tools/lightning/tests/test_selection_metric.py": {
+    "before": "0791c10ce14a0f164ad655a7d70f5f0f77c15e94290d6ef31b189f528700b8a6",
+    "after": "ffac4c6fa2302f33062df0c1dbeefd3143f330eb9649ce913a694e8860c93f7e"
+  },
+  "src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py": {
+    "before": "fcb5946838aef4b2714975ec2696f8a2b2d781b3d44f810d31cad952aa674c49",
+    "after": "6baa4570edaae2942a769b22271a0f44a5a2c8700e68f18911177609b8b97d1a"
+  },
+  "src/graph2mat/tools/lightning/tests/test_training_stages.py": {
+    "before": "63bd4c3967d0118ee58c55c08806a7bd57ffd2a4675f35d2e226d56ef73d216b",
+    "after": "403c19a24a2e1f9069c457c221b644131ff6f402d3f7953273cd80f162228c41"
+  },
+  "src/graph2mat/core/data/tests/test_metrics.py": {
+    "before": "dbbd6e8f58d7fc2547a83fbb6df9e7a0e77c75cbc612b666441bf69276c68276",
+    "after": "0318f79dbefdae7344d06032cbb30104126686630d652333b1196f1422dd7710"
+  },
+  "src/graph2mat/bindings/torch/tests/test_multitarget_loss.py": {
+    "before": "f8bf9a3907f1d0dd0a9bd427b83726177137802b6639d8ea98dd6c5833f95980",
+    "after": "bc697112f494629779de2ffe71893401bfe90d0c43c30631c17c33b9edf745eb"
+  }
+}

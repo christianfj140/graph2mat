@@ -1,0 +1,24 @@
+f819bae618476ae73bf171c25a2249e222ccedc6	2026-10-21T20:39:22+02:00	docs(audit): bug and roadmap-vs-code audit of g2m-v2 after the upstream merge
+81b18ca5c4b550888a901257fc40b8f5ac494cfc	2026-10-21T21:13:34+02:00	fix(cli): attach lr_scheduler to the model's optimizer when the config has none
+69af9aacffd4e9765ec9b3a180e38869746e965c	2026-10-21T21:15:36+02:00	bench: constant vs cosine learning-rate probe on the w90 fp32_lin recipe
+ba9b4403740b6488940ce702dc7538f4731404db	2026-10-21T21:16:24+02:00	fix(data): subtract the point reference from every component of multi-component blocks
+5a4d900684a3d281f06596526ffaaed780d186a4	2026-10-21T21:25:35+02:00	fix(long_range): shift every H column and require h_and_overlap data
+2c3b84086f295858005020e4c603bc6df9600132	2026-10-21T21:29:02+02:00	fix(tools): spin-polarized matrices in the analysis tools; keep every H0 image
+d2082af3d603f763362b548a6779288237e7043f	2026-10-22T01:22:28+02:00	docs(roadmap): cheap constant vs cosine learning-rate probe on w90
+4b5194bb92eb0f8ab2d135d19a13498d2ed96eb5	2026-10-22T01:24:32+02:00	fix(mace): apply the pair envelope to the Hamiltonian-context edge channels
+75e75d2a0f15f5a26e6613c3ab4228563f609991	2026-10-22T01:25:53+02:00	fix(metrics): gauge-invariant spectral loss for non-orthonormal columns (4.7)
+2caeb6969981f015a3df6dd24a7db79ee0a1d2d8	2026-10-22T01:30:58+02:00	fix(lightning): sorted globs; model and data basis types must match
+6509fada3d47c8e9b7e25b46336246c2505ed261	2026-10-22T01:35:03+02:00	fix(callbacks): H-only predictions of (H, S) labels in MatrixWriter and SamplewiseMetricsLogger
+f4fe6f74d91a9af29a454bbc2a8ae6fad24f6e9b	2026-10-22T01:38:00+02:00	fix(data): reject an explicit nsc different from the matrix's in from_config
+eca05a884230f1038055556b51ddda8b5cc42ece	2026-10-22T01:39:50+02:00	fix(siesta): SIESTA results only land when the run succeeds; safe H0 keys
+fb236ca5ff1be730ca721e7d46daf3b16f1c371c	2026-10-22T01:40:41+02:00	fix(data): read NetCharge with fdf label rules and %include
+a492fbf706cb7fe88276a32e90516ad684f010b2	2026-10-22T01:41:35+02:00	fix(long_range): electronic charges in qeq add up to -NetCharge
+624101e65f866bdb5b04d0469dfc5661ebe71b11	2026-10-22T01:44:14+02:00	fix(mace): gradient checkpointing with frozen parts
+4dd8f9c3bac48e02c40430b95a564dae498fc629	2026-10-22T01:46:40+02:00	fix(table): basis grouping checks shell order; max grouping of atomic tables
+67aa8e09a3a3acf24d0ad783153fe081b439ad5e	2026-10-22T01:51:39+02:00	fix(coefficients): reverse same-species edges of non-symmetric matrices
+b52c73baa719ddee551f1aceb2cc008eb84a07e6	2026-10-22T01:56:21+02:00	fix(callbacks): per-sample metrics under DDP cover every rank
+1e12f10725996ec93b9ecf1167492f4bc9dadc1c	2026-10-22T01:57:10+02:00	fix(server): HistoryCopy pairs each label with the previous step's matrix
+c6c48507ad579c3147dc74b62fef90a84f3dc5c3	2026-10-22T02:03:33+02:00	feat(siesta): spin-orbit Delta-learning without MD_vs_AtomicDisplacement (8.1)
+55dbbde5ca2b05d01841297dc0ab48bb1f5b121a	2026-10-22T02:03:58+02:00	fix(mace): reject torch.compile mode reduce-overhead (6.8)
+f3b4d295d146a100b65f8f18efb2363695d4e3a4	2026-10-22T02:06:19+02:00	test: cover roadmap options that had no test
+17e246f318174b8a6c743b6c31ea01c4b740ed4b	2026-10-22T02:08:36+02:00	fix(tools): fdf label rules, robust noise fdf, client geometry, attribution supercell

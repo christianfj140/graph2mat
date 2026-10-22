@@ -1,0 +1,12 @@
+{
+  "live": {
+    "val_loss": 4.054138978322347,
+    "test_loss": 4.054138978322347,
+    "loss_fn": "elementwise_mae"
+  },
+  "restored": {
+    "val_loss": 17.018317178497075,
+    "test_loss": 17.018317178497075,
+    "loss_fn": "elementwise_mse"
+  }
+}

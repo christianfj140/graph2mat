@@ -1,0 +1,14 @@
+{
+  "run_soc_campaign.py": {
+    "requested_updates": 7,
+    "recorded_updates": 7,
+    "training_epochs": 1,
+    "actual_updates": 5
+  },
+  "run_magnetic_campaign.py": {
+    "requested_updates": 7,
+    "recorded_updates": 7,
+    "training_epochs": 1,
+    "actual_updates": 5
+  }
+}

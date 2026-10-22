@@ -1,0 +1,18 @@
+{
+  "source_base": "17e246f plus original dirty",
+  "files": {
+    "src/graph2mat/core/data/processing.py": "2745d73e0a2a77c29285051de6bc383dbbd9a9e57f0383814f8e9f2c796fc530",
+    "src/graph2mat/core/data/_sparse.py": "70240c2a28de1c500e2f68eb0682fb83ea226b319d1c39732b5da7c518cc45fb",
+    "src/graph2mat/tools/lightning/models/mace.py": "185687135970c2fb19802c76a5fc65a197ef817b894ebc93fc67f279d77c1f7a",
+    "src/graph2mat/core/data/tests/test_review_data_models_regressions.py": "5f60a23b54179d5a963853a824405f34478a8d21864c0c01366c701ebf990fd9",
+    "src/graph2mat/tools/lightning/tests/test_review_model_regressions.py": "63a5e6144b39444757fc8a2c756cd291f048ca94277bd631c2984fbeec867e16"
+  },
+  "compiled_sparse_sha256": "72b722b7691564c88d635aee40fd9c3b17047188816e5e0472de3b1aae09064b",
+  "controls": {
+    "regressions_final": "15 passed",
+    "data_neighbors_final2": "239 passed",
+    "model_agreement_green": "28 passed",
+    "claude_models_controls": "104 passed, 2 skipped"
+  },
+  "parse_and_whitespace": "passed"
+}

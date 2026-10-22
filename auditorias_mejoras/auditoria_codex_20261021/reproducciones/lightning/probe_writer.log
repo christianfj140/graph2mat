@@ -1,0 +1,14 @@
+/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+  """Extension of `TorchGraph2Mat` to deal with irreps.
+TRY h_only .nc
+WROTE /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/lightning/writer_h_only.nc H [[1.   0.25]
+ [0.25 2.  ]]
+TRY h_only .HSX
+WROTE /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/lightning/writer_h_only.HSX H [[1.   0.25]
+ [0.25 2.  ]]
+TRY h_and_overlap .nc
+WROTE /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/lightning/writer_h_and_overlap.nc H [[1.   0.25]
+ [0.25 2.  ]]
+TRY h_and_overlap .HSX
+WROTE /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/lightning/writer_h_and_overlap.HSX H [[1.   0.25]
+ [0.25 2.  ]]

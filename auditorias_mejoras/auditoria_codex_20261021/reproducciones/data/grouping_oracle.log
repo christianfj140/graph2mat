@@ -1,0 +1,61 @@
+('H', 'C', 'O') nonsym point_type  OK
+('H', 'C', 'O') nonsym point_type pol OK
+('H', 'C', 'O') nonsym basis_shape  OK
+('H', 'C', 'O') nonsym basis_shape pol OK
+('H', 'C', 'O') nonsym max  OK
+('H', 'C', 'O') nonsym max pol OK
+('H', 'C', 'O') sym point_type  OK
+('H', 'C', 'O') sym point_type pol OK
+('H', 'C', 'O') sym basis_shape  OK
+('H', 'C', 'O') sym basis_shape pol OK
+('H', 'C', 'O') sym max  OK
+('H', 'C', 'O') sym max pol OK
+('C', 'H', 'N') nonsym point_type  OK
+('C', 'H', 'N') nonsym point_type pol OK
+('C', 'H', 'N') nonsym basis_shape  OK
+('C', 'H', 'N') nonsym basis_shape pol OK
+('C', 'H', 'N') nonsym max  OK
+('C', 'H', 'N') nonsym max pol OK
+('C', 'H', 'N') sym point_type  OK
+('C', 'H', 'N') sym point_type pol OK
+('C', 'H', 'N') sym basis_shape  OK
+('C', 'H', 'N') sym basis_shape pol OK
+('C', 'H', 'N') sym max  OK
+('C', 'H', 'N') sym max pol OK
+('O', 'C', 'H') nonsym point_type  OK
+('O', 'C', 'H') nonsym point_type pol OK
+('O', 'C', 'H') nonsym basis_shape  OK
+('O', 'C', 'H') nonsym basis_shape pol OK
+('O', 'C', 'H') nonsym max  OK
+('O', 'C', 'H') nonsym max pol OK
+('O', 'C', 'H') sym point_type  OK
+('O', 'C', 'H') sym point_type pol OK
+('O', 'C', 'H') sym basis_shape  OK
+('O', 'C', 'H') sym basis_shape pol OK
+('O', 'C', 'H') sym max  OK
+('O', 'C', 'H') sym max pol OK
+('C', 'H', 'N', 'O') nonsym point_type  OK
+('C', 'H', 'N', 'O') nonsym point_type pol OK
+('C', 'H', 'N', 'O') nonsym basis_shape  OK
+('C', 'H', 'N', 'O') nonsym basis_shape pol OK
+('C', 'H', 'N', 'O') nonsym max  OK
+('C', 'H', 'N', 'O') nonsym max pol OK
+('C', 'H', 'N', 'O') sym point_type  OK
+('C', 'H', 'N', 'O') sym point_type pol OK
+('C', 'H', 'N', 'O') sym basis_shape  OK
+('C', 'H', 'N', 'O') sym basis_shape pol OK
+('C', 'H', 'N', 'O') sym max  OK
+('C', 'H', 'N', 'O') sym max pol OK
+('N', 'O', 'H', 'C') nonsym point_type  OK
+('N', 'O', 'H', 'C') nonsym point_type pol OK
+('N', 'O', 'H', 'C') nonsym basis_shape  OK
+('N', 'O', 'H', 'C') nonsym basis_shape pol OK
+('N', 'O', 'H', 'C') nonsym max  OK
+('N', 'O', 'H', 'C') nonsym max pol OK
+('N', 'O', 'H', 'C') sym point_type  OK
+('N', 'O', 'H', 'C') sym point_type pol OK
+('N', 'O', 'H', 'C') sym basis_shape  OK
+('N', 'O', 'H', 'C') sym basis_shape pol OK
+('N', 'O', 'H', 'C') sym max  OK
+('N', 'O', 'H', 'C') sym max pol OK
+fails 0

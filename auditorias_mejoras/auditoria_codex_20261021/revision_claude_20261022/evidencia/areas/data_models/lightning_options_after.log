@@ -1,0 +1,10 @@
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+LitMACEMatrixModel accepted long_range=True, n_matrix_components3, n_output_components2, gauge loss
+S diagonal ones, offdiagonal zero; expected same electrostatic correction on both H spins
+up_correction_max = 2.2411062717437744 down_correction_max = 2.2411062717437744
+up_error_vs_VS = 1.1920928955078125e-07 down_error_vs_VS = 1.1920928955078125e-07
+Traceback (most recent call last):
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/e3nn/repro_lightning_options.py", line 33, in <module>
+    assert expected.abs().max()>1e-4 and difference[:,1].abs().max()==0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

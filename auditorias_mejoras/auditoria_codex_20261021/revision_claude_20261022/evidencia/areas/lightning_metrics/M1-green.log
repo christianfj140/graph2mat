@@ -1,0 +1,200 @@
+........................................................................ [ 29%]
+........................................................................ [ 58%]
+....F.F................................................................. [ 87%]
+..............................                                           [100%]
+=================================== FAILURES ===================================
+_ test_gauge_missing_rows_are_masked_before_alignment_and_backward[node-False-2] _
+
+components = 2, predicts_overlap = False, missing = 'node'
+
+    @pytest.mark.parametrize("components", [1, 2])
+    @pytest.mark.parametrize("predicts_overlap", [False, True])
+    @pytest.mark.parametrize("missing", ["node", "edge", "all"])
+    def test_gauge_missing_rows_are_masked_before_alignment_and_backward(components, predicts_overlap, missing):
+        samples = gauge_samples(components, predicts_overlap)
+        if missing == "all":
+            for sample in samples:
+                sample.point_labels.fill_(float("nan"))
+                sample.edge_labels.fill_(float("nan"))
+        else:
+            samples[0]["point_labels" if missing == "node" else "edge_labels"][0, -1] = float("nan")
+        batch = Batch.from_data_list(samples)
+        nodes = batch.node_prediction.clone().requires_grad_()
+        edges = batch.edge_prediction.clone().requires_grad_()
+        model = gauge_model(overlap_weight=.3)
+        loss, stats = model.loss_fn(nodes_pred=nodes, nodes_ref=batch.point_labels, edges_pred=edges,
+                                    edges_ref=batch.edge_labels, batch=batch, basis_table=model.basis_table)
+        h_mean = 0. if missing == "all" else (36. if missing == "node" else 38.) / 7 * (1 if components == 1 else 2.5)
+        s_mean = 8.5 / 7 if predicts_overlap and missing != "all" else 0.
+>       assert float(loss) == pytest.approx(h_mean + .3 * s_mean)
+E       assert 12.892857142857142 == 12.857142857142858 ± 1.3e-05
+E         
+E         comparison failed
+E         Obtained: 12.892857142857142
+E         Expected: 12.857142857142858 ± 1.3e-05
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py:92: AssertionError
+_ test_gauge_missing_rows_are_masked_before_alignment_and_backward[node-True-2] _
+
+components = 2, predicts_overlap = True, missing = 'node'
+
+    @pytest.mark.parametrize("components", [1, 2])
+    @pytest.mark.parametrize("predicts_overlap", [False, True])
+    @pytest.mark.parametrize("missing", ["node", "edge", "all"])
+    def test_gauge_missing_rows_are_masked_before_alignment_and_backward(components, predicts_overlap, missing):
+        samples = gauge_samples(components, predicts_overlap)
+        if missing == "all":
+            for sample in samples:
+                sample.point_labels.fill_(float("nan"))
+                sample.edge_labels.fill_(float("nan"))
+        else:
+            samples[0]["point_labels" if missing == "node" else "edge_labels"][0, -1] = float("nan")
+        batch = Batch.from_data_list(samples)
+        nodes = batch.node_prediction.clone().requires_grad_()
+        edges = batch.edge_prediction.clone().requires_grad_()
+        model = gauge_model(overlap_weight=.3)
+        loss, stats = model.loss_fn(nodes_pred=nodes, nodes_ref=batch.point_labels, edges_pred=edges,
+                                    edges_ref=batch.edge_labels, batch=batch, basis_table=model.basis_table)
+        h_mean = 0. if missing == "all" else (36. if missing == "node" else 38.) / 7 * (1 if components == 1 else 2.5)
+        s_mean = 8.5 / 7 if predicts_overlap and missing != "all" else 0.
+>       assert float(loss) == pytest.approx(h_mean + .3 * s_mean)
+E       assert 13.257142857142856 == 13.221428571428572 ± 1.3e-05
+E         
+E         comparison failed
+E         Obtained: 13.257142857142856
+E         Expected: 13.221428571428572 ± 1.3e-05
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py:92: AssertionError
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/bindings/torch/tests/test_multitarget_loss.py::test_component_mask_preserves_other_spin
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/torch/tests/test_multitarget_loss.py:90: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+    assert float(value) == pytest.approx((2*1. + 2*4. + 9.) / 5, abs=1e-14)
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 39 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 44 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 27 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 25 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 27 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 25 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('val_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 19 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'test_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 19 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('test_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py::test_gauge_spectral_training_resets_epoch_and_split_state[False]
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py::test_gauge_spectral_training_resets_epoch_and_split_state[True]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_type_mse_threshold-18.0]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_type_mse_sigmoid_thresh-18.0]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_type_mae_sigmoid_thresh-6.0]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_type_mse_per_domain-1.8]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_normalized_huber-1.0]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[hamiltonian_composite_loss-1.0]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py::test_gauge_spectral_training_resets_epoch_and_split_state[False]
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py::test_gauge_spectral_training_resets_epoch_and_split_state[True]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_type_mse_threshold-18.0]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_type_mse_sigmoid_thresh-18.0]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_type_mae_sigmoid_thresh-6.0]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_type_mse_per_domain-1.8]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[block_normalized_huber-1.0]
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py::test_special_training_metrics_reset_without_changing_step_gradients[hamiltonian_composite_loss-1.0]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('train_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py::test_gauge_missing_rows_are_masked_before_alignment_and_backward[node-False-2]
+FAILED src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py::test_gauge_missing_rows_are_masked_before_alignment_and_backward[node-True-2]
+2 failed, 244 passed, 318 warnings in 5.94s

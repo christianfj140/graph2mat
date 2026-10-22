@@ -1,0 +1,34 @@
+{
+  "graph2mat": {
+    "version": "0.0.13",
+    "file": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/__init__.py"
+  },
+  "graph2mat.core.modules._labels_resort": {
+    "version": "?",
+    "file": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/modules/_labels_resort.cpython-312-x86_64-linux-gnu.so"
+  },
+  "graph2mat.core.data._sparse": {
+    "version": "?",
+    "file": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/_sparse.cpython-312-x86_64-linux-gnu.so"
+  },
+  "pytest": {
+    "version": "9.0.3",
+    "file": "/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/pytest/__init__.py"
+  },
+  "torch": {
+    "version": "2.11.0+cu130",
+    "file": "/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch/__init__.py"
+  },
+  "sisl": {
+    "version": "0.16.4",
+    "file": "/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/__init__.py"
+  },
+  "e3nn": {
+    "version": "0.4.4",
+    "file": "/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/e3nn/__init__.py"
+  },
+  "mace": {
+    "version": "0.3.15",
+    "file": "/home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/mace/__init__.py"
+  }
+}

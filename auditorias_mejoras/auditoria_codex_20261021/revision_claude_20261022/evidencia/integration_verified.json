@@ -1,0 +1,10 @@
+{
+  "upstream_head_preserved": "e1e7e4b9f4c516a5e9011b2273a4f6a7e829ac27",
+  "applied_files": 31,
+  "files_equal_tested_source": true,
+  "tested_source_unchanged": true,
+  "patch_sha256": "ce56616b29012f7d10f7980dba928db79db88edb2394aac774be7c5ee206ac69",
+  "backup": "/tmp/graph2mat-codex-review-20261022-f80m50ec/upstream-before-integration",
+  "commits_created": 0,
+  "pushes": 0
+}

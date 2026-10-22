@@ -1,0 +1,77 @@
+{
+  "delta_sc_off": {
+    "expected_max": 0.0,
+    "actual_max": 3.9684588052579115,
+    "actual_hermiticity": 0.0
+  },
+  "aligned_error_offdiagonal": {
+    "actual": "nan",
+    "expected_dense_rms": 0.07071067811865475
+  },
+  "metrics_ignore_spin_down": {
+    "reported": {
+      "H_MAE_meV": 0.0,
+      "H_RMSE_meV": 0.0,
+      "H_MAE_gauge_meV": 0.0,
+      "rel_Frob": 0.0,
+      "hermiticity_eV": 0.0,
+      "spectral_err_meV": 0.0
+    },
+    "actual_down_max_eV": 1.0
+  },
+  "canonical_zero_kept": {
+    "all_S_eigenvalues": [
+      1.0,
+      1.0
+    ],
+    "threshold": 2.0,
+    "actual_bands": [
+      [
+        0.9614835192865496,
+        2.0385164807134504
+      ]
+    ]
+  },
+  "system_label_normalization": {
+    "runner": "siesta",
+    "sisl": "sample"
+  },
+  "h0_failed_cache": {
+    "first_exit": 7,
+    "second_returns": "sample.TSHS",
+    "accepted_geometry_error_Ang": 0.5,
+    "geometry_tol_Ang": 0.0001
+  },
+  "client_dm_geometry_path": {
+    "object_geometry": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        1.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "path_result": {
+      "geometry": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.0,
+          0.0
+        ]
+      ]
+    }
+  },
+  "perfect_breakdown": {
+    "exception": "ZeroDivisionError",
+    "message": "float division by zero"
+  }
+}

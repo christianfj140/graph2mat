@@ -1,0 +1,183 @@
+diff --git a/src/graph2mat/bindings/torch/data/coefficient_targets.py b/src/graph2mat/bindings/torch/data/coefficient_targets.py
+index 78a7d83..5071f66 100644
+--- a/src/graph2mat/bindings/torch/data/coefficient_targets.py
++++ b/src/graph2mat/bindings/torch/data/coefficient_targets.py
+@@ -118,7 +118,10 @@ class CoefficientMatrixMSEProjector:
+                     np.outer(basis_filters[point_type], basis_filters[point_type]))
+             self.node_specs[point_type] = self._spec(operation, mask, f"node:{graph_type}", False)
+         edge_types = range(len(first.basis_table.edge_type_to_point_types))
+-        reverse_types = [-t for t, (i, j) in enumerate(first.basis_table.edge_type_to_point_types) if i != j]
++        # Reverse edges carry -t: between different species, and between atoms of the same
++        # species too in non-symmetric matrices (both directions are stored).
++        reverse_types = [-t for t, (i, j) in enumerate(first.basis_table.edge_type_to_point_types)
++                         if t != 0 and (i != j or not self.symmetric)]
+         for edge_type in [*edge_types, *reverse_types]:
+             key, operation = _edge_module_for_unique_type(first, edge_type)
+             if operation is None:
+diff --git a/src/graph2mat/bindings/torch/data/dataset.py b/src/graph2mat/bindings/torch/data/dataset.py
+index 6ad2fcf..886c6d2 100644
+--- a/src/graph2mat/bindings/torch/data/dataset.py
++++ b/src/graph2mat/bindings/torch/data/dataset.py
+@@ -24,6 +24,16 @@ __all__ = ["TorchBasisMatrixDataset", "InMemoryData", "RotatingPoolData"]
+ reading = False
+ 
+ 
++def _net_charge(item) -> float:
++    """SIESTA NetCharge of an fdf (0 if unset). sisl applies the fdf label rules (case,
++    '.', '_', '-') and follows %include; inside a zip only the file itself is searched."""
++    if isinstance(item, zipfile.Path):
++        labels = (re.match(r"\s*(\S+)\s+(\S+)", line) for line in item.read_text(errors="ignore").splitlines())
++        values = [m.group(2) for m in labels if m and re.sub(r"[._-]", "", m.group(1)).lower() == "netcharge"]
++        return float(values[0]) if values else 0.0
++    return float(sisl.get_sile(str(item)).get("NetCharge", 0.0))
++
++
+ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
+     """Stores all configuration info of a dataset.
+ 
+@@ -174,9 +184,7 @@ class TorchBasisMatrixDataset(torch.utils.data.Dataset):
+         if isinstance(item, (str, os.PathLike, zipfile.Path)) and str(item).endswith(".fdf"):
+             # Total charge of the structure (SIESTA NetCharge, 0 by default), for models whose
+             # charges depend on it (long_range="qeq", roadmap 8.4).
+-            path = item if isinstance(item, zipfile.Path) else Path(item)
+-            match = re.search(r"(?im)^\s*NetCharge\s+(\S+)", path.read_text(errors="ignore"))
+-            data.total_charge = torch.tensor([float(match.group(1)) if match else 0.0], dtype=torch.get_default_dtype())
++            data.total_charge = torch.tensor([_net_charge(item)], dtype=torch.get_default_dtype())
+         if self.spectral_window:
+             # Projection columns of the spectral loss (MatrixDataModule.spectral_window).
+             name = self.spectral_window if isinstance(self.spectral_window, str) else "spectral_window.npz"
+diff --git a/src/graph2mat/core/data/matrices/basis_matrix.py b/src/graph2mat/core/data/matrices/basis_matrix.py
+index e08516a..6d0c22e 100644
+--- a/src/graph2mat/core/data/matrices/basis_matrix.py
++++ b/src/graph2mat/core/data/matrices/basis_matrix.py
+@@ -100,10 +100,18 @@ class BasisMatrix:
+         if sub_point_matrix:
+             assert basis_table is not None and point_types is not None
+             point_matrices = self.get_point_matrices(basis_table)
++
++            def _sub_point(i):
++                block = self._get_block(i, i, 0)
++                reference = point_matrices[point_types[i]]
++                # Multi-component blocks are (rows, cols, components): subtract the reference
++                # from every component, as MatrixDataProcessor adds it back.
++                if block.ndim == 3:
++                    reference = reference[..., None]
++                return block - reference
++
+             blocks = [
+-                self._flatten_block(
+-                    self._get_block(i, i, 0) - point_matrices[point_types[i]]
+-                )
++                self._flatten_block(_sub_point(i))
+                 for i in order
+                 if self.basis_count[i] > 0
+             ]
+diff --git a/src/graph2mat/core/data/processing.py b/src/graph2mat/core/data/processing.py
+index ae7a757..5f3cf8e 100644
+--- a/src/graph2mat/core/data/processing.py
++++ b/src/graph2mat/core/data/processing.py
+@@ -113,6 +113,18 @@ def check_magnetic_moments_option(
+         )
+ 
+ 
++def reference_for_prediction(policy, prediction, reference, metric=None):
++    """Labels to compare with ``prediction``: with ``h_and_overlap`` labels and an H-only
++    prediction (one component fewer), the overlap column is dropped, unless ``metric`` uses
++    it (``overlap_prediction_optional``, e.g. the gauge-invariant loss)."""
++    n_pred = 1 if prediction.ndim == 1 else prediction.shape[1]
++    if (policy == "h_and_overlap"
++            and not getattr(metric, "overlap_prediction_optional", False)
++            and reference.ndim == 2 and n_pred == reference.shape[1] - 1):
++        return reference[:, 0] if prediction.ndim == 1 else reference[:, :-1]
++    return reference
++
++
+ @dataclasses.dataclass(frozen=True)
+ class MatrixDataProcessor:
+     """Data structure that contains all the parameters to interface the real world with the ML models.
+@@ -748,12 +760,7 @@ class MatrixDataProcessor:
+         edges_pred = input.ensure_numpy(output["edge_labels"])
+ 
+         def reference_for(prediction, reference, metric):
+-            n_pred = 1 if prediction.ndim == 1 else prediction.shape[1]
+-            if (self.matrix_component_policy == "h_and_overlap"
+-                    and not getattr(metric, "overlap_prediction_optional", False)
+-                    and reference.ndim == 2 and n_pred == reference.shape[1] - 1):
+-                return reference[:, 0] if prediction.ndim == 1 else reference[:, :-1]
+-            return reference
++            return reference_for_prediction(self.matrix_component_policy, prediction, reference, metric)
+ 
+         metrics_values = [
+             cast(Callable[..., Tuple[Any, dict]], metric)(
+@@ -2017,6 +2024,15 @@ class BasisMatrixDataBase(Generic[ArrayType]):
+                 nsc = abs(sc_shifts).max(axis=1) * 2 + 1
+             else:
+                 nsc = np.array([1, 1, 1])
++        elif config.matrix is not None and not np.array_equal(
++            np.asarray(nsc).reshape(3), np.asarray(config.matrix.nsc).reshape(3)
++        ):
++            # The matrix blocks are indexed by the images of the matrix's own supercell: reading
++            # them with another nsc would take the block of a different image.
++            raise ValueError(
++                f"nsc={np.asarray(nsc).reshape(3)} differs from the matrix nsc "
++                f"{np.asarray(config.matrix.nsc).reshape(3)}; omit nsc to use the matrix's."
++            )
+ 
+         # A shift beyond nsc//2 would be wrapped by numpy indexing into another image, silently
+         # reading the block of a different neighbour (audit PHYS_H-16, DATA_PIPE-19).
+diff --git a/src/graph2mat/core/data/table.py b/src/graph2mat/core/data/table.py
+index 3ef99fd..62f2ded 100644
+--- a/src/graph2mat/core/data/table.py
++++ b/src/graph2mat/core/data/table.py
+@@ -35,6 +35,11 @@ class IdentityTypeMap:
+         return key
+ 
+ 
++def _shell_sequence(point_basis) -> tuple:
++    """(1, l, parity) for every shell of ``point_basis``, in order."""
++    return tuple((1, l, parity) for n, l, parity in point_basis.basis for _ in range(n))
++
++
+ class BasisTableWithEdges:
+     """Stores the unique types of points in the system, with their basis and the possible edges.
+ 
+@@ -339,6 +344,15 @@ class BasisTableWithEdges:
+             unique_sizes, unique_indices, pseudo_types = np.unique(
+                 basis_sizes, axis=0, return_index=True, return_inverse=True
+             )
++            pseudo_types = np.asarray(pseudo_types).reshape(-1)
++            # The group shares the operations of its first type: the shells must come in the
++            # same order too, not only in the same numbers (e.g. "1x0e+1x1o" vs "1x1o+1x0e").
++            for i, group in enumerate(pseudo_types):
++                if _shell_sequence(self.basis[i]) != _shell_sequence(self.basis[unique_indices[group]]):
++                    raise ValueError(
++                        f"basis_shape grouping: {self.basis[i].type} and {self.basis[unique_indices[group]].type} "
++                        "have the same shells in a different order."
++                    )
+ 
+             # Create the new table with the unique basis sizes. Here we just
+             # take the first point type that has that basis size, but perhaps
+@@ -361,6 +375,11 @@ class BasisTableWithEdges:
+                 [edge_type_conversion, -1 * np.flip(edge_type_conversion[1:])]
+             )
+         elif grouping == "max":
++            # The filters below select each type's shells assuming they come sorted by l.
++            for point_basis in self.basis:
++                ls = [l for _, l, _ in _shell_sequence(point_basis)]
++                if ls != sorted(ls):
++                    raise ValueError(f"max grouping needs shells sorted by l, but {point_basis.type} has l = {ls}.")
+             # Get all basis sizes:
+             basis_sizes = np.zeros((len(self.basis), 5), dtype=int)
+             for i, point_type_basis in enumerate(self.basis):
+@@ -377,8 +396,9 @@ class BasisTableWithEdges:
+                 basis=[(int(n), l, (-1) ** l) for l, n in enumerate(max_sizes)],
+                 basis_convention=self.basis_convention,
+             )
+-            # Create the new table with only one type.
+-            new_table = self.__class__([max_basis])
++            # Create the new table with only one type (a plain table: subclasses such as
++            # AtomicTableWithEdges build their types from atoms, not from a PointBasis).
++            new_table = BasisTableWithEdges([max_basis])
+ 
+             # For each original point type, compute a mask that allows us to
+             # select the values of the new basis that correspond to that point type.

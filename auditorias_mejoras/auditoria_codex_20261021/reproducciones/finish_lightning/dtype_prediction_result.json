@@ -1,0 +1,9 @@
+{
+  "node_labels": 1.4600481890170158e-07,
+  "edge_labels": 6.214526027115141e-08,
+  "saved_floating_dtypes": [
+    "torch.float64"
+  ],
+  "all_float64_reload_matches_saved_state": true,
+  "rounded_then_double_matches_saved_state": false
+}

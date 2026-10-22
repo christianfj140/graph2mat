@@ -1,0 +1,109 @@
+........................................................................ [ 44%]
+........................................................................ [ 89%]
+...............ss                                                        [100%]
+=============================== warnings summary ===============================
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch_geometric/llm/utils/backend_utils.py:26
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch_geometric/llm/utils/backend_utils.py:26: DeprecationWarning: `torch_geometric.distributed` has been deprecated since 2.7.0 and will no longer be maintained. For distributed training, refer to our tutorials on distributed training at https://pytorch-geometric.readthedocs.io/en/latest/tutorial/distributed.html or cuGraph examples at https://github.com/rapidsai/cugraph-gnn/tree/main/python/cugraph-pyg/cugraph_pyg/examples
+    from torch_geometric.distributed import (
+
+../MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: 7 warnings
+src/graph2mat/core/data/tests/test_physical_losses.py: 33 warnings
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+../../../../tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/core/data/tests/test_physical_losses.py::test_dm_terms_have_literal_loss_and_gradient[False]
+  /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/tests/test_physical_losses.py:34: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+    assert float(value) == pytest.approx(7/300, abs=1e-14)
+
+src/graph2mat/core/data/tests/test_physical_losses.py::test_energy_model_parameter_gradient_matches_central_finite_difference
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/mace/modules/models.py:85: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    "atomic_numbers", torch.tensor(atomic_numbers, dtype=torch.int64)
+
+src/graph2mat/core/data/tests/test_physical_losses.py: 24 warnings
+  /usr/lib/python3.12/ast.py:407: UserWarning: The TorchScript type system doesn't support instance-level annotations on empty non-base types in `__init__`. Instead, either 1) use a type annotation in the class body, or 2) wrap the type in `torch.jit.Attribute`.
+    return visitor(node)
+
+src/graph2mat/core/data/tests/test_physical_losses.py::test_energy_model_parameter_gradient_matches_central_finite_difference
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/mace/modules/blocks.py:316: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    torch.tensor(atomic_energies, dtype=torch.get_default_dtype()),
+
+src/graph2mat/core/data/tests/test_spin_orbit.py::test_spin_orbit_processor_validation
+src/graph2mat/core/data/tests/test_spin_orbit_full.py::test_full_policy_processor_validation
+  /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/processing.py:227: UserWarning: sub_point_matrix is only supported for density_matrix targets. Disabling it for out_matrix='hamiltonian'.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+159 passed, 2 skipped, 115 warnings in 2.68s

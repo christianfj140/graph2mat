@@ -1,0 +1,11 @@
+PARALLEL 3
+{
+  "room_would_allow": false,
+  "room_calls": [],
+  "starts": [
+    {
+      "arm": "control",
+      "seed": 0
+    }
+  ]
+}

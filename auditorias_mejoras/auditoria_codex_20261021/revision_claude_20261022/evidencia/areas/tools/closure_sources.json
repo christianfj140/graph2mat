@@ -1,0 +1,16 @@
+{
+  "source_base": "17e246f318174b8a6c743b6c31ea01c4b740ed4b",
+  "files": {
+    "src/graph2mat/tools/analysis/breakdown.py": "5a15da5870ee005fc17f083be36c24771394e43c29b33c46cff6d1161de5db3c",
+    "src/graph2mat/tools/analysis/metrics.py": "313b6dd4a1150b00cde4669639dd1bcbf364ac5c4ae1c0a5e2a352c57c0b32aa",
+    "src/graph2mat/tools/analysis/tests/test_audit_regressions.py": "7ad6eeb201dbd7a3c238704fc09c76aa20557f7c695d71952cbfce14ea310786",
+    "src/graph2mat/tools/siesta/delta.py": "c458ae031d89fd37b506edd61dfd578143bb24d70cd4f226674536c8c5b30da4",
+    "src/graph2mat/tools/siesta/dm_pilot.py": "8c8b5858a420f0a17681d5c30a0bd6208c039053a55d55e221968e6b1542efda",
+    "src/graph2mat/tools/siesta/label_noise.py": "ac517f9f13323d0603a9980c5ee52b26387f4f8ef898c003aeb584ca6202da0a",
+    "src/graph2mat/tools/siesta/runner.py": "afab2fb1c0ee019b03ef24711d0626301bdae780cc86d501aaab2bca6353999e",
+    "src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py": "3580e370c145bd0318bf04ed5ea22a2ebe0150f48e24e054525df6f03923d061",
+    "src/graph2mat/tools/siesta/tests/test_audit_soc_physics.py": "ec8dde1bb16643f7fb2735e61c1a98089991ef577a208f77baa95d4e6ab249c5",
+    "src/graph2mat/tools/server/tests/test_server_app.py": "3041e64963839555636955daacf15b4c93d7bc1440451b7df633c4a7545fc23c",
+    "docs/examples/benchmarks/README.md": "0fb1f28c7879c1bb32cefd046a16511d0c688a6d0d5897e925d5f9fb2c40843e"
+  }
+}

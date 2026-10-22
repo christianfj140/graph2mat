@@ -1,0 +1,17 @@
+{
+  "frozen_git": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/frozen-git",
+  "head": "a66b46cb0955ca344693d50737c5e9952fc257fc",
+  "python": "/tmp/g2m-python312-full.LHyni1/venv/bin/python",
+  "wrapper": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/audit-python-full",
+  "env": {
+    "CUDA_VISIBLE_DEVICES": "",
+    "OMP_NUM_THREADS": "2",
+    "OPENBLAS_NUM_THREADS": "2",
+    "MKL_NUM_THREADS": "2",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONNOUSERSITE": "1",
+    "PYTHONPATH": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/bootstrap:/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src",
+    "MPLCONFIGDIR": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/mpl-full",
+    "NUMBA_CACHE_DIR": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/numba-full"
+  }
+}

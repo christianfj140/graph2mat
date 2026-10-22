@@ -1,0 +1,7 @@
+/tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+  """Extension of `TorchGraph2Mat` to deal with irreps.
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+identity current_vectors 1356 complete_vectors 1356 matrix_error_eV 0.0 potential_eV [-5.782316365157627, 5.782316365157627] potential_error_eV 1.7763568394002505e-15
+moderate_shear current_vectors 1356 complete_vectors 1356 matrix_error_eV 0.0 potential_eV [-5.782316365157626, 5.782316365157627] potential_error_eV 8.881784197001252e-16
+strong_shear current_vectors 1356 complete_vectors 1356 matrix_error_eV 0.0 potential_eV [-5.782316365157636, 5.782316365157636] potential_error_eV 1.7763568394002505e-15
+oracle_passed: same lattice, same full reciprocal sphere, same analytic matrix

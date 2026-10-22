@@ -1,0 +1,276 @@
+........................................................................ [  9%]
+........................................................................ [ 18%]
+........................................................................ [ 27%]
+........................................................................ [ 36%]
+........................................................................ [ 45%]
+........................................................................ [ 54%]
+........................................................................ [ 63%]
+........................................................................ [ 72%]
+........................................................................ [ 81%]
+.......................................ss............................... [ 90%]
+........................................................................ [ 99%]
+........                                                                 [100%]
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: 7 warnings
+src/graph2mat/core/data/tests/test_physical_losses.py: 33 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 108 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 108 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 135 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 54 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 708 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/core/data/tests/test_metrics_valid_labels.py::test_basic_losses_ignore_nan_label_rows[block_type_mse-5.0-12.5-1.0-1-torch]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/core/data/tests/test_metrics_valid_labels.py:65: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+    assert all(np.isfinite(float(value)) for value in stats.values())
+
+src/graph2mat/core/data/tests/test_physical_losses.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 26 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/models.py:85: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    "atomic_numbers", torch.tensor(atomic_numbers, dtype=torch.int64)
+
+src/graph2mat/core/data/tests/test_physical_losses.py: 24 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 80 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 80 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 100 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 39 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 524 warnings
+  /usr/lib/python3.12/ast.py:407: UserWarning: The TorchScript type system doesn't support instance-level annotations on empty non-base types in `__init__`. Instead, either 1) use a type annotation in the class body, or 2) wrap the type in `torch.jit.Attribute`.
+    return visitor(node)
+
+src/graph2mat/core/data/tests/test_physical_losses.py: 1 warning
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 26 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/blocks.py:316: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    torch.tensor(atomic_energies, dtype=torch.get_default_dtype()),
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 41 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 44 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 64 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 13 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 29 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 25 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 39 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 4 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 29 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 25 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 39 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 11 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 4 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('val_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 23 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 2 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'test_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 12 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 23 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 7 warnings
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 2 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('test_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 7 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py: 9 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 7 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('train_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_epoch_metrics.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 17 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/configuration_validator.py:70: You defined a `validation_step` but have no `val_dataloader`. Skipping val loop.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:378: You have overridden `transfer_batch_to_device` in `LightningModule` but have passed in a `LightningDataModule`. It will use the implementation from `LightningModule` instance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py::test_real_mace_checkpoint_roundtrip_preserves_predictions_on_cpu[False]
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py::test_real_mace_checkpoint_roundtrip_preserves_predictions_on_cpu[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/lightning_fabric/utilities/cloud_io.py:73: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_scheduler_without_optimizer_is_attached
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src/graph2mat/core/data/tests/test_metrics.py', 'src/graph2mat/core/data/tests/test_metrics_valid_labels.py', 'src/graph2mat/core/data/tests/test_hamiltonian_training_losses.py', 'src/graph2mat/core/data/tests/test_per_structure_losses.py', 'src/graph2mat/core/data/tests/test_physical_losses.py', 'src/graph2mat/bindings/torch/tests/test_multitarget_loss.py', 'src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py', 'src/graph2mat/tools/lightning/tests/test_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_training_stages.py', 'src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py', 'src/graph2mat/tools/lightning/tests/test_selection_metric.py', 'src/graph2mat/tools/lightning/tests/test_lr_scheduler.py', 'src/graph2mat/tools/lightning/tests/test_helpers.py', 'src/graph2mat/tools/lightning/tests/test_datamodule_split.py', 'src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py', 'src/graph2mat/tools/lightning/tests/test_multitarget_callbacks.py', 'src/graph2mat/tools/lightning/tests/test_physical_training.py', '-q', '-p', 'no:cacheprovider', '--basetemp=/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified'], args=['fit', '--data.root_dir=/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified/test_scheduler_without_optimiz0', '--data.train_runs=sample.nc', '--data.val_runs=sample.nc', '--data.out_matrix=density_matrix', '--data.symmetric_matrix=true', '--data.sub_point_matrix=false', '--data.loader_threads=0', '--model.hidden_irreps=2x0e+2x1o', '--model.edge_hidden_irreps=2x0e+2x1o', '--model.num_bessel=2', '--model.max_ell=1', '--trainer.max_epochs=4', '--trainer.accelerator=cpu', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]', '--lr_scheduler', '{"class_path": "torch.optim.lr_scheduler.CosineAnnealingLR", "init_args": {"T_max": 4, "eta_min": 0.0}}'].
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_scheduler_without_optimizer_is_attached
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:596: 
+      By default only one JsonargparseDeprecationWarning per type is shown. To see all warnings set environment
+      variable JSONARGPARSE_DEPRECATION_WARNINGS=all and to disable the warnings set
+      JSONARGPARSE_DEPRECATION_WARNINGS=off.
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_scheduler_without_optimizer_is_attached
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:596: 
+      ``ArgumentParser.add_instantiator`` was deprecated in v4.49.0 and will be removed in v5.0.0. Use the global
+      function ``jsonargparse.add_instantiator`` instead.
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_scheduler_without_optimizer_is_attached
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:612: 
+      ``instantiate_classes`` was deprecated in v4.49.0 and will be removed in v5.0.0. Instead use ``instantiate``.
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_scheduler_without_optimizer_is_attached
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:590: 
+      skip_none parameter was deprecated in v4.49.0 and will be removed in v5.0.0. Instead use skip_unset.
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_without_scheduler_the_learning_rate_is_constant
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src/graph2mat/core/data/tests/test_metrics.py', 'src/graph2mat/core/data/tests/test_metrics_valid_labels.py', 'src/graph2mat/core/data/tests/test_hamiltonian_training_losses.py', 'src/graph2mat/core/data/tests/test_per_structure_losses.py', 'src/graph2mat/core/data/tests/test_physical_losses.py', 'src/graph2mat/bindings/torch/tests/test_multitarget_loss.py', 'src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py', 'src/graph2mat/tools/lightning/tests/test_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_training_stages.py', 'src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py', 'src/graph2mat/tools/lightning/tests/test_selection_metric.py', 'src/graph2mat/tools/lightning/tests/test_lr_scheduler.py', 'src/graph2mat/tools/lightning/tests/test_helpers.py', 'src/graph2mat/tools/lightning/tests/test_datamodule_split.py', 'src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py', 'src/graph2mat/tools/lightning/tests/test_multitarget_callbacks.py', 'src/graph2mat/tools/lightning/tests/test_physical_training.py', '-q', '-p', 'no:cacheprovider', '--basetemp=/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified'], args=['fit', '--data.root_dir=/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified/test_without_scheduler_the_lea0', '--data.train_runs=sample.nc', '--data.val_runs=sample.nc', '--data.out_matrix=density_matrix', '--data.symmetric_matrix=true', '--data.sub_point_matrix=false', '--data.loader_threads=0', '--model.hidden_irreps=2x0e+2x1o', '--model.edge_hidden_irreps=2x0e+2x1o', '--model.num_bessel=2', '--model.max_ell=1', '--trainer.max_epochs=4', '--trainer.accelerator=cpu', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]'].
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_scheduler_with_stage_learning_rates_is_rejected
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src/graph2mat/core/data/tests/test_metrics.py', 'src/graph2mat/core/data/tests/test_metrics_valid_labels.py', 'src/graph2mat/core/data/tests/test_hamiltonian_training_losses.py', 'src/graph2mat/core/data/tests/test_per_structure_losses.py', 'src/graph2mat/core/data/tests/test_physical_losses.py', 'src/graph2mat/bindings/torch/tests/test_multitarget_loss.py', 'src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py', 'src/graph2mat/tools/lightning/tests/test_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_training_stages.py', 'src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py', 'src/graph2mat/tools/lightning/tests/test_selection_metric.py', 'src/graph2mat/tools/lightning/tests/test_lr_scheduler.py', 'src/graph2mat/tools/lightning/tests/test_helpers.py', 'src/graph2mat/tools/lightning/tests/test_datamodule_split.py', 'src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py', 'src/graph2mat/tools/lightning/tests/test_multitarget_callbacks.py', 'src/graph2mat/tools/lightning/tests/test_physical_training.py', '-q', '-p', 'no:cacheprovider', '--basetemp=/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified'], args=['fit', '--data.root_dir=/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified/test_scheduler_with_stage_lear0', '--data.train_runs=sample.nc', '--data.val_runs=sample.nc', '--data.out_matrix=density_matrix', '--data.symmetric_matrix=true', '--data.sub_point_matrix=false', '--data.loader_threads=0', '--model.hidden_irreps=2x0e+2x1o', '--model.edge_hidden_irreps=2x0e+2x1o', '--model.num_bessel=2', '--model.max_ell=1', '--trainer.max_epochs=4', '--trainer.accelerator=cpu', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]', '--lr_scheduler', '{"class_path": "torch.optim.lr_scheduler.CosineAnnealingLR", "init_args": {"T_max": 4, "eta_min": 0.0}}', '--model.training_stages=[{"name": "a", "max_epochs": 2, "optim_lr": 0.001}, {"name": "b", "max_epochs": 2, "optim_lr": 0.0001}]'].
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_resuming_a_checkpoint_trained_without_scheduler_is_rejected
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/cli.py:553: LightningCLI's args parameter is intended to run from within Python like if it were from the command line. To prevent mistakes it is not recommended to provide both args and command line arguments, got: sys.argv[1:]=['src/graph2mat/core/data/tests/test_metrics.py', 'src/graph2mat/core/data/tests/test_metrics_valid_labels.py', 'src/graph2mat/core/data/tests/test_hamiltonian_training_losses.py', 'src/graph2mat/core/data/tests/test_per_structure_losses.py', 'src/graph2mat/core/data/tests/test_physical_losses.py', 'src/graph2mat/bindings/torch/tests/test_multitarget_loss.py', 'src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_pair_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_epoch_special_metrics.py', 'src/graph2mat/tools/lightning/tests/test_epoch_metrics.py', 'src/graph2mat/tools/lightning/tests/test_training_stages.py', 'src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py', 'src/graph2mat/tools/lightning/tests/test_selection_metric.py', 'src/graph2mat/tools/lightning/tests/test_lr_scheduler.py', 'src/graph2mat/tools/lightning/tests/test_helpers.py', 'src/graph2mat/tools/lightning/tests/test_datamodule_split.py', 'src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py', 'src/graph2mat/tools/lightning/tests/test_multitarget_callbacks.py', 'src/graph2mat/tools/lightning/tests/test_physical_training.py', '-q', '-p', 'no:cacheprovider', '--basetemp=/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified'], args=['fit', '--data.root_dir=/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified/test_resuming_a_checkpoint_tra0', '--data.train_runs=sample.nc', '--data.val_runs=sample.nc', '--data.out_matrix=density_matrix', '--data.symmetric_matrix=true', '--data.sub_point_matrix=false', '--data.loader_threads=0', '--model.hidden_irreps=2x0e+2x1o', '--model.edge_hidden_irreps=2x0e+2x1o', '--model.num_bessel=2', '--model.max_ell=1', '--trainer.max_epochs=4', '--trainer.accelerator=cpu', '--trainer.logger=false', '--trainer.enable_checkpointing=false', '--trainer.enable_progress_bar=false', '--trainer.enable_model_summary=false', '--trainer.callbacks=[]', '--ckpt_path', '/tmp/graph2mat-codex-review-20261022-f80m50ec/lightning_metrics/pytest-focal-verified/test_resuming_a_checkpoint_tra0/model.ckpt', '--lr_scheduler', '{"class_path": "torch.optim.lr_scheduler.CosineAnnealingLR", "init_args": {"T_max": 4, "eta_min": 0.0}}'].
+
+src/graph2mat/tools/lightning/tests/test_lr_scheduler.py::test_resuming_a_checkpoint_trained_without_scheduler_is_rejected
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/jsonargparse/_typehints.py:3011: JsonargparseWarning: 
+      Unable to serialize instance    - Type: 1. Basis: ((1, 0, 1),). MaxR: 1.400.
+  
+    warning(val)
+
+src/graph2mat/tools/lightning/tests/test_matrix_writer_validation.py::test_samplewise_metrics_compare_h_only_predictions_with_the_h_labels
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/lightning/callbacks.py:394: Metric block_type_mse_per_domain failed; recording NaN. ValueError: block_type_mse_per_domain requires domain_threshold_atoms (pass it via loss_kwargs).
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_zero_weights_keep_coefficient_certificate
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:451: You are trying to `self.log()` but the `self.trainer` reference is not registered on the model yet. This is most likely because the model hasn't been passed to the `Trainer`
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_datamodule_two_steps_preserve_default_and_physical_contract[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs[False]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/lightning/model.py:397: coefficient_training uses matrix fallback: physical objectives require matrix predictions
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs[False]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_preflight_accepts_actual_collinear_and_h_only_gauge_outputs[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/lightning/model.py:1070: coefficient_training uses matrix fallback: MatrixDataModule is required to prepare CPU targets
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/loops/fit_loop.py:534: Found 125 module(s) in eval mode at the start of training. This may lead to unexpected behavior during training. If this is intentional, you can ignore this warning.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+798 passed, 2 skipped, 2835 warnings in 38.39s

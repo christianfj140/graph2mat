@@ -1,0 +1,157 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_node_rmse] _
+
+name = 'val_node_rmse'
+
+    @pytest.mark.parametrize("name", ["val_node_rmse", "val_edge_rmse"])
+    def test_selection_rejects_a_metric_that_disappears_after_a_stage_change(name):
+        model = _model(selection_metric=name, training_stages=[
+            {"name": "mse", "max_epochs": 1},
+            {"name": "mae", "max_epochs": 1, "loss": "block_type_mae"},
+        ])
+        model._apply_training_stage_for_epoch(0)
+        result = _evaluate(model, _samples(1))
+        assert result["hp_metric"] == pytest.approx(result[name])
+        model._apply_training_stage_for_epoch(1)
+>       with pytest.raises(ValueError, match=f"selection_metric '{name}'.*current validation"):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/lightning/tests/test_selection_metric.py:114: Failed
+------------------------------ Captured log call -------------------------------
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+_ test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_edge_rmse] _
+
+name = 'val_edge_rmse'
+
+    @pytest.mark.parametrize("name", ["val_node_rmse", "val_edge_rmse"])
+    def test_selection_rejects_a_metric_that_disappears_after_a_stage_change(name):
+        model = _model(selection_metric=name, training_stages=[
+            {"name": "mse", "max_epochs": 1},
+            {"name": "mae", "max_epochs": 1, "loss": "block_type_mae"},
+        ])
+        model._apply_training_stage_for_epoch(0)
+        result = _evaluate(model, _samples(1))
+        assert result["hp_metric"] == pytest.approx(result[name])
+        model._apply_training_stage_for_epoch(1)
+>       with pytest.raises(ValueError, match=f"selection_metric '{name}'.*current validation"):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/lightning/tests/test_selection_metric.py:114: Failed
+------------------------------ Captured log call -------------------------------
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_node_rmse]
+src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_edge_rmse]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_node_rmse]
+src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_edge_rmse]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_node_rmse]
+src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_edge_rmse]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('val_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_node_rmse]
+src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_edge_rmse]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: The ``compute`` method of metric _EpochRMSE was called before the ``update`` method which may lead to errors, as metric states have not yet been updated.
+    warnings.warn(*args, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_node_rmse]
+FAILED src/graph2mat/tools/lightning/tests/test_selection_metric.py::test_selection_rejects_a_metric_that_disappears_after_a_stage_change[val_edge_rmse]
+2 failed, 20 deselected, 60 warnings in 0.72s

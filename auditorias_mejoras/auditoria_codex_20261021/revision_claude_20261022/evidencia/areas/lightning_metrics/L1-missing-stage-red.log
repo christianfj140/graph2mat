@@ -1,0 +1,103 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_checkpoint_rejects_active_stage_without_matching_recipe _________
+
+    def test_checkpoint_rejects_active_stage_without_matching_recipe():
+        checkpoint = {"hyper_parameters": {}, "active_training_stage": "missing"}
+>       with pytest.raises(ValueError, match="active training stage 'missing'.*missing or ambiguous"):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py:160: Failed
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_rejects_active_stage_without_matching_recipe
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/lightning/model.py:1197: Failed to load basis_table from checkpoint: Key does not exist.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_rejects_active_stage_without_matching_recipe
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/lightning/model.py:1205: Unable to determine version that created checkpoint file
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_rejects_active_stage_without_matching_recipe
+1 failed, 54 warnings in 0.63s

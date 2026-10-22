@@ -1,0 +1,36 @@
+{
+  "files": [
+    "ddp_samples.rank0.csv",
+    "ddp_samples.rank1.csv"
+  ],
+  "rows": [
+    {
+      "sample_name": "sample_0",
+      "elementwise_mse": "1.0",
+      "split": "val",
+      "epoch": "0",
+      "rank": 0
+    },
+    {
+      "sample_name": "sample_2",
+      "elementwise_mse": "9.0",
+      "split": "val",
+      "epoch": "0",
+      "rank": 0
+    },
+    {
+      "sample_name": "sample_1",
+      "elementwise_mse": "4.0",
+      "split": "val",
+      "epoch": "0",
+      "rank": 1
+    },
+    {
+      "sample_name": "sample_3",
+      "elementwise_mse": "16.0",
+      "split": "val",
+      "epoch": "0",
+      "rank": 1
+    }
+  ]
+}

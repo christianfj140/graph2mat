@@ -1,0 +1,188 @@
+.......FF............................................................... [ 30%]
+........................................................................ [ 60%]
+........................................................................ [ 90%]
+.......................                                                  [100%]
+=================================== FAILURES ===================================
+____ test_dataset_labels_false_omits_targets_without_mutating_source[False] ____
+
+prepared = False
+
+    @pytest.mark.parametrize("prepared", [False, True])
+    def test_dataset_labels_false_omits_targets_without_mutating_source(prepared):
+        config, processor = _labeled_configuration()
+        source = TorchBasisMatrixData.new(config, processor) if prepared else config
+        source_matrix = config.matrix
+        if prepared:
+            source.total_charge = torch.tensor([2.0])
+            source.extra_marker = torch.tensor([9.0])
+            source.metadata["case"] = "kept"
+            before_nodes, before_edges = source.point_labels.clone(), source.edge_labels.clone()
+        result = TorchBasisMatrixDataset([source], processor, load_labels=False)[0]
+        assert result is not source
+>       assert result.point_labels is None and result.edge_labels is None
+               ^^^^^^^^^^^^^^^^^^^
+
+src/graph2mat/core/data/tests/test_review_data_models_regressions.py:100: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch_geometric/data/data.py:562: in __getattr__
+    return getattr(self._store, key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = {'edge_index': tensor([[0, 1],
+        [1, 0]]), 'num_nodes': 2, 'neigh_isc': tensor([0, 0], dtype=torch.int32), 'n_ed..., node_attr_getters=[], matrix_targets=None, matrix_target_spin=None, edge_cutoff_padding=0.0, magnetic_moments=None)}}
+key = 'point_labels'
+
+    def __getattr__(self, key: str) -> Any:
+        if key == '_mapping':
+            self._mapping = {}
+            return self._mapping
+        try:
+            return self[key]
+        except KeyError:
+>           raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{key}'"
+            ) from None
+E           AttributeError: 'GlobalStorage' object has no attribute 'point_labels'
+
+/tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch_geometric/data/storage.py:96: AttributeError
+____ test_dataset_labels_false_omits_targets_without_mutating_source[True] _____
+
+prepared = True
+
+    @pytest.mark.parametrize("prepared", [False, True])
+    def test_dataset_labels_false_omits_targets_without_mutating_source(prepared):
+        config, processor = _labeled_configuration()
+        source = TorchBasisMatrixData.new(config, processor) if prepared else config
+        source_matrix = config.matrix
+        if prepared:
+            source.total_charge = torch.tensor([2.0])
+            source.extra_marker = torch.tensor([9.0])
+            source.metadata["case"] = "kept"
+            before_nodes, before_edges = source.point_labels.clone(), source.edge_labels.clone()
+        result = TorchBasisMatrixDataset([source], processor, load_labels=False)[0]
+        assert result is not source
+>       assert result.point_labels is None and result.edge_labels is None
+               ^^^^^^^^^^^^^^^^^^^
+
+src/graph2mat/core/data/tests/test_review_data_models_regressions.py:100: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch_geometric/data/data.py:562: in __getattr__
+    return getattr(self._store, key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = {'edge_index': tensor([[0, 1],
+        [1, 0]]), 'num_nodes': 2, 'neigh_isc': tensor([0, 0], dtype=torch.int32), 'n_ed...utoff_padding=0.0, magnetic_moments=None), 'case': 'kept'}, 'total_charge': tensor([2.]), 'extra_marker': tensor([9.])}
+key = 'point_labels'
+
+    def __getattr__(self, key: str) -> Any:
+        if key == '_mapping':
+            self._mapping = {}
+            return self._mapping
+        try:
+            return self[key]
+        except KeyError:
+>           raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{key}'"
+            ) from None
+E           AttributeError: 'GlobalStorage' object has no attribute 'point_labels'
+
+/tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch_geometric/data/storage.py:96: AttributeError
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: 7 warnings
+src/graph2mat/core/data/tests/test_processing.py: 6 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/core/data/tests/test_processing.py::test_irreps_from_data_uses_label_count_for_symmetric_edge_representatives
+src/graph2mat/core/data/tests/test_processing.py::test_irreps_from_data_uses_label_count_for_symmetric_edge_representatives
+src/graph2mat/core/data/tests/test_processing.py::test_irreps_from_data_uses_label_count_for_symmetric_edge_representatives
+src/graph2mat/core/data/tests/test_processing.py::test_irreps_from_data_uses_label_count_for_symmetric_edge_representatives
+  /usr/lib/python3.12/ast.py:407: UserWarning: The TorchScript type system doesn't support instance-level annotations on empty non-base types in `__init__`. Instead, either 1) use a type annotation in the class body, or 2) wrap the type in `torch.jit.Attribute`.
+    return visitor(node)
+
+src/graph2mat/bindings/torch/data/tests/test_dataset_resources.py::test_fork_reopens_every_zip_without_mutating_source[False]
+src/graph2mat/bindings/torch/data/tests/test_dataset_resources.py::test_fork_reopens_every_zip_without_mutating_source[True]
+src/graph2mat/bindings/torch/data/tests/test_physical_dataset.py::test_opt_in_fdf_dataset_and_workers_preserve_references
+src/graph2mat/bindings/torch/data/tests/test_physical_dataset.py::test_opt_in_fdf_dataset_and_workers_preserve_references
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2170324) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/core/data/tests/test_review_data_models_regressions.py::test_dataset_labels_false_omits_targets_without_mutating_source[False]
+FAILED src/graph2mat/core/data/tests/test_review_data_models_regressions.py::test_dataset_labels_false_omits_targets_without_mutating_source[True]
+2 failed, 237 passed, 66 warnings in 2.22s

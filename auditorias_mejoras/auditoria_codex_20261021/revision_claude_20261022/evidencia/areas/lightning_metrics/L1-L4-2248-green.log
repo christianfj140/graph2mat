@@ -1,0 +1,166 @@
+....................................ss.......                            [100%]
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: 7 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 114 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 108 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 87 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 3 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/models.py:85: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    "atomic_numbers", torch.tensor(atomic_numbers, dtype=torch.int64)
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 84 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 80 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 64 warnings
+  /usr/lib/python3.12/ast.py:407: UserWarning: The TorchScript type system doesn't support instance-level annotations on empty non-base types in `__init__`. Instead, either 1) use a type annotation in the class body, or 2) wrap the type in `torch.jit.Attribute`.
+    return visitor(node)
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 4 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 3 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/blocks.py:316: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    torch.tensor(atomic_energies, dtype=torch.get_default_dtype()),
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 6 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 19 warnings
+src/graph2mat/tools/lightning/tests/test_physical_training.py: 2 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py::test_real_mace_checkpoint_roundtrip_preserves_predictions_on_cpu[False]
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py::test_real_mace_checkpoint_roundtrip_preserves_predictions_on_cpu[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 12 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:378: You have overridden `transfer_batch_to_device` in `LightningModule` but have passed in a `LightningDataModule`. It will use the implementation from `LightningModule` instance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py::test_real_mace_checkpoint_roundtrip_preserves_predictions_on_cpu[False]
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py::test_real_mace_checkpoint_roundtrip_preserves_predictions_on_cpu[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('train_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 5 warnings
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py: 2 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 12 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('val_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py::test_real_mace_checkpoint_roundtrip_preserves_predictions_on_cpu[False]
+src/graph2mat/tools/lightning/tests/test_checkpoint_provenance.py::test_real_mace_checkpoint_roundtrip_preserves_predictions_on_cpu[True]
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/lightning_fabric/utilities/cloud_io.py:73: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 7 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'test_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 3 warnings
+src/graph2mat/tools/lightning/tests/test_selection_metric.py: 7 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('test_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/configuration_validator.py:70: You defined a `validation_step` but have no `val_dataloader`. Skipping val loop.
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/lightning/model.py:1070: coefficient_training uses matrix fallback: MatrixDataModule is required to prepare CPU targets
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/lightning/model.py:397: coefficient_training uses matrix fallback: physical objectives require matrix predictions
+
+src/graph2mat/tools/lightning/tests/test_physical_training.py::test_two_steps_checkpoint_and_future_stage
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/loops/fit_loop.py:534: Found 125 module(s) in eval mode at the start of training. This may lead to unexpected behavior during training. If this is intentional, you can ignore this warning.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+43 passed, 2 skipped, 723 warnings in 7.35s

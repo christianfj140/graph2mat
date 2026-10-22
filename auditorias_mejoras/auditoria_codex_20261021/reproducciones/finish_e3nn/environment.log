@@ -1,0 +1,6 @@
+graph2mat /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/__init__.py
+torch 2.11.0+cu130
+e3nn 0.4.4
+mace /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/mace/__init__.py
+cuda_available False
+python 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]

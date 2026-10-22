@@ -1,0 +1,9 @@
+src/graph2mat/core/data/sparse.py:565: error: Argument 1 to "get" of "dict" has incompatible type "Optional[str]"; expected "str"  [arg-type]
+src/graph2mat/core/data/configuration.py:532: error: Argument 1 to "get" of "dict" has incompatible type "Optional[Literal['h_only', 'spin_h_only', 'raw_components', 'h_and_overlap', 'spin_orbit', 'spin_orbit_full']]"; expected "str"  [arg-type]
+src/graph2mat/core/data/configuration.py:740: error: Unsupported left operand type for / ("PathLike[str]")  [operator]
+src/graph2mat/core/data/configuration.py:742: error: Unsupported left operand type for / ("PathLike[str]")  [operator]
+src/graph2mat/core/data/processing.py:254: error: Argument 2 to "MatrixTargetLayout" has incompatible type "Optional[int]"; expected "int"  [arg-type]
+src/graph2mat/core/data/physical.py:335: error: Item "None" of "Optional[Any]" has no attribute "read_density_matrix"  [union-attr]
+src/graph2mat/core/data/physical.py:342: error: Item "None" of "Optional[Any]" has no attribute "read_fermi_level"  [union-attr]
+src/graph2mat/core/data/physical.py:346: error: Item "None" of "Optional[Any]" has no attribute "read_energy_density_matrix"  [union-attr]
+Found 8 errors in 4 files (checked 25 source files)

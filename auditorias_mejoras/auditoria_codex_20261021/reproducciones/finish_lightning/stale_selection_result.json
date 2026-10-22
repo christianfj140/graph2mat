@@ -1,0 +1,26 @@
+[
+  {
+    "epoch": 0,
+    "loss_fn": "elementwise_mse",
+    "actual_edge_rmse": 2.3665695190429688,
+    "edge_count": 1.0,
+    "metrics": {
+      "val_loss": 62.9682022542523,
+      "val_edge_rmse": 2.3665695190429688,
+      "val_matrix_rmse": 7.935250227679627,
+      "hp_metric": 2.3665695190429688
+    }
+  },
+  {
+    "epoch": 1,
+    "loss_fn": "block_type_mae",
+    "actual_edge_rmse": 2.025273084640503,
+    "edge_count": 0.0,
+    "metrics": {
+      "val_loss": 10.436772108078003,
+      "val_edge_rmse": 2.3665695190429688,
+      "val_matrix_rmse": 6.978738442148886,
+      "hp_metric": 0.0
+    }
+  }
+]

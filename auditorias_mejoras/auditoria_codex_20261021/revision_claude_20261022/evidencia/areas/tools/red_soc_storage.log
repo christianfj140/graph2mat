@@ -1,0 +1,203 @@
+.FF...                                                                   [100%]
+=================================== FAILURES ===================================
+___________ test_soc_projection_preserves_hermitian_trs_oracle[True] ___________
+
+complex_storage = True
+
+    @pytest.mark.parametrize('complex_storage', [False, True])
+    def test_soc_projection_preserves_hermitian_trs_oracle(complex_storage):
+        h = _soc(magnetic=1e-4)
+        if complex_storage:
+            h = h.astype(np.complex128)
+>       projected, residual = project_time_reversal(h)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/graph2mat/tools/siesta/tests/test_audit_soc_physics.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/graph2mat/tools/siesta/delta.py:209: in project_time_reversal
+    stacked = np.stack([h.tocsr(i).toarray() for i in range(8)], -1)
+                        ^^^^^^^^^^
+/tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/_core/sparse_geometry.py:1040: in tocsr
+    return self._csr.tocsr(dim, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <sisl.SparseCSR shape=(2, np.int32(6), 5), kind=c, nnz=6>, dim = 5
+kwargs = {}
+
+    def tocsr(self, dim: int = 0, **kwargs) -> csr_matrix:
+        """Convert dimension `dim` into a :class:`~scipy.sparse.csr_matrix` format
+    
+        Parameters
+        ----------
+        dim :
+           dimension of the data returned in a scipy sparse matrix format
+        **kwargs:
+           arguments passed to the :class:`~scipy.sparse.csr_matrix` routine
+        """
+        shape = self.shape[:2]
+        if self.finalized:
+            # Easy case...
+            return csr_matrix(
+                (
+                    self._D[:, dim].copy(),
+                    self.col.astype(int32, copy=True),
+                    self.ptr.astype(int32, copy=True),
+                ),
+                shape=shape,
+                **kwargs,
+            )
+    
+        # Use array_arange
+        idx = array_arange(self.ptr[:-1], n=self.ncol)
+        # create new pointer
+        ptr = _ncol_to_indptr(self.ncol)
+    
+        return csr_matrix(
+>           (self._D[idx, dim].copy(), self.col[idx], ptr.astype(int32, copy=False)),
+             ^^^^^^^^^^^^^^^^^
+            shape=shape,
+            **kwargs,
+        )
+E       IndexError: index 5 is out of bounds for axis 1 with size 5
+
+/tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/_core/sparse.py:1594: IndexError
+__________ test_combine_same_soc_in_real_and_complex_storage_is_zero ___________
+
+    def test_combine_same_soc_in_real_and_complex_storage_is_zero():
+        h = _soc()
+>       result = combine_hamiltonians(h, h.astype(np.complex128), -1.)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/graph2mat/tools/siesta/tests/test_audit_soc_physics.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/graph2mat/tools/siesta/delta.py:174: in combine_hamiltonians
+    h = [a.tocsr(i) + sign * _aligned_csr(b, a.geometry, i) for i in range(n_spin)]
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/graph2mat/tools/siesta/delta.py:185: in _aligned_csr
+    csr = matrix.tocsr(component)
+          ^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/_core/sparse_geometry.py:1040: in tocsr
+    return self._csr.tocsr(dim, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <sisl.SparseCSR shape=(2, np.int32(6), 5), kind=c, nnz=6>, dim = 5
+kwargs = {}
+
+    def tocsr(self, dim: int = 0, **kwargs) -> csr_matrix:
+        """Convert dimension `dim` into a :class:`~scipy.sparse.csr_matrix` format
+    
+        Parameters
+        ----------
+        dim :
+           dimension of the data returned in a scipy sparse matrix format
+        **kwargs:
+           arguments passed to the :class:`~scipy.sparse.csr_matrix` routine
+        """
+        shape = self.shape[:2]
+        if self.finalized:
+            # Easy case...
+            return csr_matrix(
+                (
+                    self._D[:, dim].copy(),
+                    self.col.astype(int32, copy=True),
+                    self.ptr.astype(int32, copy=True),
+                ),
+                shape=shape,
+                **kwargs,
+            )
+    
+        # Use array_arange
+        idx = array_arange(self.ptr[:-1], n=self.ncol)
+        # create new pointer
+        ptr = _ncol_to_indptr(self.ncol)
+    
+        return csr_matrix(
+>           (self._D[idx, dim].copy(), self.col[idx], ptr.astype(int32, copy=False)),
+             ^^^^^^^^^^^^^^^^^
+            shape=shape,
+            **kwargs,
+        )
+E       IndexError: index 5 is out of bounds for axis 1 with size 5
+
+/tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/_core/sparse.py:1594: IndexError
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/siesta/tests/test_audit_soc_physics.py::test_soc_projection_preserves_hermitian_trs_oracle[True]
+FAILED src/graph2mat/tools/siesta/tests/test_audit_soc_physics.py::test_combine_same_soc_in_real_and_complex_storage_is_zero
+2 failed, 4 passed, 46 warnings in 0.17s

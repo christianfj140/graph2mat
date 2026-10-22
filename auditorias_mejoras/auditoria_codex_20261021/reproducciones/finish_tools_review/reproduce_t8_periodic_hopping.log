@@ -1,0 +1,17 @@
+{
+  "physical_hopping_image": [
+    -3,
+    0,
+    0
+  ],
+  "physical_hopping_distance_Ang": 1.0,
+  "actual_distance_Ang": 21.0,
+  "orbital_R_Ang": 2.0,
+  "cutoff_sum_Ang": 4.0,
+  "classification": {
+    "total_sum": 0.19999999999999996,
+    "beyond_range_sum": 0.19999999999999996,
+    "shell_6.0-99.0_sum": 0.19999999999999996,
+    "shell_0.1-1.6_sum": 0.0
+  }
+}

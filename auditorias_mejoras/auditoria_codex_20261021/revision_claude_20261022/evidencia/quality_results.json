@@ -1,0 +1,6 @@
+{
+  "ruff": "passed: src tests",
+  "mypy": "8 existing errors; normalized diagnostic output identical to foundation",
+  "mypy_no_new_errors": true,
+  "diff_check": "passed"
+}

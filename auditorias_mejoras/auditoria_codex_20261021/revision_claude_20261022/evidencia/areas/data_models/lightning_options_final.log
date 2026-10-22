@@ -1,0 +1,10 @@
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+LitMACEMatrixModel accepted long_range=True, n_matrix_components3, n_output_components2, gauge loss
+S diagonal ones, offdiagonal zero; expected same electrostatic correction on both H spins
+up_correction_max = 2.2411062717437744 down_correction_max = 2.2411062717437744
+up_error_vs_VS = 1.1920928955078125e-07 down_error_vs_VS = 1.1920928955078125e-07
+Lightning training stage accepted; all MACE frozen = True
+checkpoint = False loss = 0.0007639014511369169 loss_requires_grad = True
+readout_nonzero_gradient_tensors = 14
+checkpoint = True loss = 0.0007639014511369169 loss_requires_grad = True
+readout_nonzero_gradient_tensors = 14

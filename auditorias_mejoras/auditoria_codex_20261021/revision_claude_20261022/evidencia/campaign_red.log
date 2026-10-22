@@ -1,0 +1,489 @@
+FFFFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+_______ test_requested_update_budget_is_enforced[0-run_soc_campaign.py] ________
+
+filename = 'run_soc_campaign.py', updates = 0
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i0')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+>           with pytest.raises(ValueError, match="positive"):
+E           Failed: DID NOT RAISE ValueError
+
+tests/test_campaign_launch_contracts.py:59: Failed
+_____ test_requested_update_budget_is_enforced[0-run_magnetic_campaign.py] _____
+
+filename = 'run_magnetic_campaign.py', updates = 0
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i1')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+>           with pytest.raises(ValueError, match="positive"):
+E           Failed: DID NOT RAISE ValueError
+
+tests/test_campaign_launch_contracts.py:59: Failed
+_______ test_requested_update_budget_is_enforced[-1-run_soc_campaign.py] _______
+
+filename = 'run_soc_campaign.py', updates = -1
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i2')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+>           with pytest.raises(ValueError, match="positive"):
+E           Failed: DID NOT RAISE ValueError
+
+tests/test_campaign_launch_contracts.py:59: Failed
+____ test_requested_update_budget_is_enforced[-1-run_magnetic_campaign.py] _____
+
+filename = 'run_magnetic_campaign.py', updates = -1
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i3')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+>           with pytest.raises(ValueError, match="positive"):
+E           Failed: DID NOT RAISE ValueError
+
+tests/test_campaign_launch_contracts.py:59: Failed
+_______ test_requested_update_budget_is_enforced[2-run_soc_campaign.py] ________
+
+filename = 'run_soc_campaign.py', updates = 2
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i4')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+            with pytest.raises(ValueError, match="positive"):
+                run(*args)
+            assert not configs
+            return
+        run(*args)
+        trainer = configs[0]["trainer"]
+>       assert trainer["max_steps"] == updates
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'max_steps'
+
+tests/test_campaign_launch_contracts.py:65: KeyError
+_____ test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py] _____
+
+filename = 'run_magnetic_campaign.py', updates = 2
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i5')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+            with pytest.raises(ValueError, match="positive"):
+                run(*args)
+            assert not configs
+            return
+        run(*args)
+        trainer = configs[0]["trainer"]
+>       assert trainer["max_steps"] == updates
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'max_steps'
+
+tests/test_campaign_launch_contracts.py:65: KeyError
+_______ test_requested_update_budget_is_enforced[7-run_soc_campaign.py] ________
+
+filename = 'run_soc_campaign.py', updates = 7
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i6')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+            with pytest.raises(ValueError, match="positive"):
+                run(*args)
+            assert not configs
+            return
+        run(*args)
+        trainer = configs[0]["trainer"]
+>       assert trainer["max_steps"] == updates
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'max_steps'
+
+tests/test_campaign_launch_contracts.py:65: KeyError
+_____ test_requested_update_budget_is_enforced[7-run_magnetic_campaign.py] _____
+
+filename = 'run_magnetic_campaign.py', updates = 7
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i7')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+            with pytest.raises(ValueError, match="positive"):
+                run(*args)
+            assert not configs
+            return
+        run(*args)
+        trainer = configs[0]["trainer"]
+>       assert trainer["max_steps"] == updates
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'max_steps'
+
+tests/test_campaign_launch_contracts.py:65: KeyError
+_______ test_requested_update_budget_is_enforced[10-run_soc_campaign.py] _______
+
+filename = 'run_soc_campaign.py', updates = 10
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i8')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+            with pytest.raises(ValueError, match="positive"):
+                run(*args)
+            assert not configs
+            return
+        run(*args)
+        trainer = configs[0]["trainer"]
+>       assert trainer["max_steps"] == updates
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'max_steps'
+
+tests/test_campaign_launch_contracts.py:65: KeyError
+____ test_requested_update_budget_is_enforced[10-run_magnetic_campaign.py] _____
+
+filename = 'run_magnetic_campaign.py', updates = 10
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_requested_update_budget_i9')
+
+    @pytest.mark.parametrize("filename", ["run_soc_campaign.py", "run_magnetic_campaign.py"])
+    @pytest.mark.parametrize("updates", [0, -1, 2, 7, 10])
+    def test_requested_update_budget_is_enforced(filename, updates, tmp_path):
+        samples = [SimpleNamespace(sample_id=str(i)) for i in range(10)]
+        configs, records = [], {}
+    
+        def train(config, directory):
+            configs.append(config)
+            directory.mkdir(parents=True)
+            return directory / "selected.ckpt", 0., 0.
+    
+        build = lambda *args, **kw: {"trainer": {"max_epochs": kw["max_epochs"]}}
+        c = SimpleNamespace(TRAIN_KW={}, apply_config_patch=_patch_config,
+                            _cosine=lambda epochs: {}, run_training=train,
+                            write_json=lambda path, value: records.update({path.name: value}))
+        s4 = SimpleNamespace(build_graph2mat_config=build,
+                             torch_backend_preflight=lambda: {"effective_backend": "cpu"})
+        bench = SimpleNamespace(samples=lambda *args: samples, BASIS=tmp_path, WORK=tmp_path)
+        (tmp_path / "fe").mkdir()
+        (tmp_path / "fe/moment_audit.json").write_text("{}")
+        ns = dict(Path=Path, c=c, s4=s4, bench=bench, shutil=shutil, MATERIAL="synthetic",
+                  RUNS=tmp_path / "runs", BASIS_GLOB="unused", MODEL={}, HIDDEN="2x0e",
+                  EDGE_HIDDEN="2x0e", UPDATES=8000, BATCH=2, ARMS={"fe": ["delta"]},
+                  runs_dir=lambda material: tmp_path / "runs",
+                  delta_sample=lambda sample, delta: (sample, 0.),
+                  arm_sample=lambda material, sample, arm: sample,
+                  samples=lambda *args, **kwargs: samples, evaluate=lambda *args, **kwargs: {})
+        run = _function(filename, "run", ns)
+        args = ("delta", 0, updates) if filename == "run_soc_campaign.py" else ("fe", "delta", 0, updates)
+        if updates <= 0:
+            with pytest.raises(ValueError, match="positive"):
+                run(*args)
+            assert not configs
+            return
+        run(*args)
+        trainer = configs[0]["trainer"]
+>       assert trainer["max_steps"] == updates
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'max_steps'
+
+tests/test_campaign_launch_contracts.py:65: KeyError
+__________________ test_first_energy_training_waits_for_room ___________________
+
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1288/test_first_energy_training_wai0')
+
+    def test_first_energy_training_waits_for_room(tmp_path):
+        class StopBeforeSleep(Exception):
+            pass
+    
+        calls = []
+    
+        def room(n_running, parallel):
+            calls.append((n_running, parallel))
+            return False
+    
+        def start(*args):
+            pytest.fail("A training started despite the temperature/VRAM gate rejecting it")
+    
+        def sleep(seconds):
+            raise StopBeforeSleep
+    
+        ns = dict(Path=Path, json=json, _parallel=lambda root: 3, _room=room,
+                  start=start, time=SimpleNamespace(sleep=sleep))
+        train_all = _function("run_energy_loss_experiment.py", "train_all", ns)
+        with pytest.raises(StopBeforeSleep):
+>           train_all(tmp_path, [{"arm": "control", "seed": 0}])
+
+tests/test_campaign_launch_contracts.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+auditorias_mejoras/run_energy_loss_experiment.py:119: in train_all
+    proc, run = start(root, startable)
+                ^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (PosixPath('/tmp/pytest-of-christian/pytest-1288/test_first_energy_training_wai0'), {'arm': 'control', 'seed': 0})
+
+    def start(*args):
+>       pytest.fail("A training started despite the temperature/VRAM gate rejecting it")
+E       Failed: A training started despite the temperature/VRAM gate rejecting it
+
+tests/test_campaign_launch_contracts.py:81: Failed
+----------------------------- Captured stdout call -----------------------------
+PARALLEL 3
+=========================== short test summary info ============================
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[0-run_soc_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[0-run_magnetic_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[-1-run_soc_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[-1-run_magnetic_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_soc_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_magnetic_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_soc_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_magnetic_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_first_energy_training_waits_for_room
+11 failed in 0.06s

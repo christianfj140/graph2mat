@@ -1,0 +1,189 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_checkpoint_restores_stage_loss_without_freezing_before_fit ________
+
+    def test_checkpoint_restores_stage_loss_without_freezing_before_fit():
+        stages = [{"name": "warmup", "freeze": ["mace"], "max_epochs": 2,
+                   "loss": "block_type_huber", "loss_kwargs": {"beta": .2}}]
+        original = _lit_model(stages)
+        original._apply_training_stage_for_epoch(0)
+        checkpoint = {"hyper_parameters": {}}
+        original.on_save_checkpoint(checkpoint)
+    
+        restored = _lit_model(stages)
+        restored.on_load_checkpoint(checkpoint)
+>       assert isinstance(restored.loss_fn, block_type_huber)
+E       assert False
+E        +  where False = isinstance(<graph2mat.core.data.metrics.block_type_mse object at 0x7e5952bf07a0>, block_type_huber)
+E        +    where <graph2mat.core.data.metrics.block_type_mse object at 0x7e5952bf07a0> = LitBasisMatrixModel(\n  (_epoch_rmse): ModuleDict()\n  (_epoch_errors): ModuleDict()\n  (_epoch_losses): ModuleDict()\n  (...1, out_features=1, bias=False)\n    (hamiltonian_local_context): Linear(in_features=1, out_features=1, bias=False)\n  )\n).loss_fn
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py:133: AssertionError
+__________ test_checkpoint_stage_loss_matches_live_validate_and_test ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1292/test_checkpoint_stage_loss_mat0')
+
+    def test_checkpoint_stage_loss_matches_live_validate_and_test(tmp_path):
+        import numpy as np
+        import pytorch_lightning as pl
+        from graph2mat import BasisConfiguration
+        from graph2mat.bindings.torch.load import load_from_lit_ckpt
+        from graph2mat.tools.lightning import MatrixDataModule
+        from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+    
+        table = _basis_table()
+        config = BasisConfiguration(
+            point_types=["H", "H"], positions=np.array([[0., 0., 0.], [.7, 0., 0.]]),
+            basis=table, cell=np.eye(3) * 10, pbc=(False, False, False), matrix=np.array([[4., 3.], [3., 5.]]),
+        )
+        data = MatrixDataModule(basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+            train_runs=[config], val_runs=[config], test_runs=[config], loader_threads=0)
+        model = LitMACEMatrixModel(basis_table=table, symmetric_matrix=True,
+            hidden_irreps="2x0e+2x1o", edge_hidden_irreps="2x0e+2x1o", num_bessel=2, max_ell=1,
+            optim_lr=0., training_stages=[{"name": "mae", "max_epochs": 1, "loss": "elementwise_mae"}])
+    
+        def trainer():
+            return pl.Trainer(accelerator="cpu", devices=1, max_steps=1, max_epochs=1, logger=False,
+                enable_checkpointing=False, enable_progress_bar=False, enable_model_summary=False,
+                num_sanity_val_steps=0, default_root_dir=tmp_path)
+    
+        fit = trainer()
+        fit.fit(model, datamodule=data)
+        path = tmp_path / "stage.ckpt"
+        fit.save_checkpoint(path)
+        restored, _ = load_from_lit_ckpt(path)
+>       assert type(restored.loss_fn) is type(model.loss_fn)
+E       AssertionError: assert <class 'graph2mat.core.data.metrics.elementwise_mse'> is <class 'graph2mat.core.data.metrics.elementwise_mae'>
+E        +  where <class 'graph2mat.core.data.metrics.elementwise_mse'> = type(<graph2mat.core.data.metrics.elementwise_mse object at 0x7e593f2e5f40>)
+E        +    where <graph2mat.core.data.metrics.elementwise_mse object at 0x7e593f2e5f40> = LitMACEMatrixModel(\n  (_epoch_rmse): ModuleDict()\n  (_epoch_errors): ModuleDict()\n  (_epoch_losses): ModuleDict()\n  (m...eList(\n              (0): Linear(2x0e+2x1o -> 1x0e | 2 weights)\n            )\n          )\n        )\n      )\n    )\n  )\n).loss_fn
+E        +  and   <class 'graph2mat.core.data.metrics.elementwise_mae'> = type(<graph2mat.core.data.metrics.elementwise_mae object at 0x7e593f328a70>)
+E        +    where <graph2mat.core.data.metrics.elementwise_mae object at 0x7e593f328a70> = LitMACEMatrixModel(\n  (_epoch_rmse): ModuleDict(\n    (train_node_rmse): _EpochRMSE()\n    (train_edge_rmse): _EpochRMSE...eList(\n              (0): Linear(2x0e+2x1o -> 1x0e | 2 weights)\n            )\n          )\n        )\n      )\n    )\n  )\n).loss_fn
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py:171: AssertionError
+----------------------------- Captured stdout call -----------------------------
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+------------------------------ Captured log call -------------------------------
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+WARNING  root:split_guardrail.py:142 Split guardrail: shared source between train/val (1 shared identities; examples ['<same in-memory input>']). Alarm only; partitions unchanged.
+WARNING  root:split_guardrail.py:148 Split guardrail: independence not evaluable from available group metadata (coverage {'train': {'known': 0, 'total': 1}, 'val': {'known': 0, 'total': 1}}; metadata issues 0; unavailable splits []). This is not proof of leakage; no geometric similarity threshold is applied. Partitions unchanged.
+INFO     pytorch_lightning.utilities.rank_zero:fit_loop.py:182 `Trainer.fit` stopped: `max_steps=1` reached.
+INFO     pytorch_lightning.trainer.connectors.checkpoint_connector:checkpoint_connector.py:455 `weights_only` was not set, defaulting to `False`.
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: 7 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 60 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/models.py:85: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    "atomic_numbers", torch.tensor(atomic_numbers, dtype=torch.int64)
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 44 warnings
+  /usr/lib/python3.12/ast.py:407: UserWarning: The TorchScript type system doesn't support instance-level annotations on empty non-base types in `__init__`. Instead, either 1) use a type annotation in the class body, or 2) wrap the type in `torch.jit.Attribute`.
+    return visitor(node)
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/blocks.py:316: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    torch.tensor(atomic_energies, dtype=torch.get_default_dtype()),
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:378: You have overridden `transfer_batch_to_device` in `LightningModule` but have passed in a `LightningDataModule`. It will use the implementation from `LightningModule` instance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('train_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('val_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/lightning_fabric/utilities/cloud_io.py:73: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_restores_stage_loss_without_freezing_before_fit
+FAILED src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test
+2 failed, 7 deselected, 167 warnings in 1.69s

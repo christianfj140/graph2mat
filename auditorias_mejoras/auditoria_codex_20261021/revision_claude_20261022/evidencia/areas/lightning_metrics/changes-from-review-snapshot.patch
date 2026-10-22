@@ -1,0 +1,380 @@
+--- a/src/graph2mat/core/data/metrics.py
++++ b/src/graph2mat/core/data/metrics.py
+@@ -1812,8 +1812,10 @@
+             if cell is not None and np.allclose(cell[a], cell[b]):
+                 periodic = np.abs(np.linalg.det(cell[a])) > 1e-12
+                 if periodic:
+-                    frac = np.linalg.solve(cell[a].T, delta.T).T
+-                    delta = (frac - np.round(frac)) @ cell[a]
++                    from ase.geometry.geometry import general_find_mic
++
++                    # Avoid the naive shortcut, which assumes a reduced cell.
++                    delta, _ = general_find_mic(delta, cell[a], pbc=(True, True, True))
+             moved = np.linalg.norm(delta, axis=1).max()
+             if max(min_displacement, 0.0) < moved <= max_displacement:
+                 if a in used or b in used:
+@@ -1915,8 +1917,9 @@
+     The energy zero of a structure (E_F, mean electrostatic potential) cannot be
+     inferred by a local model (roadmap 4.2, audit PHYS_H-03). Labels must carry the
+     overlap as their last component (``matrix_component_policy="h_and_overlap"``).
+-    For each structure and H component, ``c = sum(w dH S) / sum(w S^2)`` (closed form,
+-    differentiable) and the H loss is the MSE of ``dH - c S``. The model may predict
++    Each structure has one common shift for all H spin components:
++    ``c = sum(w dH S) / (n_h sum(w S^2))`` (closed form, differentiable).
++    The H loss is the MSE of ``dH - c S``, preserving physical spin splitting. The model may predict
+     (H, S), and then the predicted overlap is fitted with a plain MSE weighted by
+     ``overlap_weight``, or only H (one component fewer than the labels): S is then just
+     the label that defines the shift, and the readout is half the size.
+@@ -1958,7 +1961,7 @@
+         d_edges * s_edges, edge_struct
+     )
+     den = per_structure(s_nodes**2, node_struct) + edge_weight * per_structure(s_edges**2, edge_struct)
+-    shift = num / den.clamp_min(1e-12)  # (n_structures, n_h)
++    shift = num.sum(dim=1, keepdim=True) / (n_h * den).clamp_min(1e-12)
+ 
+     aligned_nodes = d_nodes - shift[node_struct] * s_nodes
+     aligned_edges = d_edges - shift[edge_struct] * s_edges
+--- a/src/graph2mat/tools/lightning/model.py
++++ b/src/graph2mat/tools/lightning/model.py
+@@ -651,12 +651,13 @@
+                   "_epoch_errors": self._epoch_errors}
+         for key in (name, "multitarget_" + name.replace("/", "__")):
+             for attribute, store in stores.items():
+-                if key in store:
++                if key in store and store[key].update_called:
+                     self.log("hp_metric", store[key], batch_size=batch.num_graphs,
+                              metric_attribute=f"{attribute}.{key}")
+                     return
+-        available = sorted(key for store in stores.values() for key in store if key.startswith("val"))
+-        raise ValueError(f"selection_metric {name!r} is not an epoch-aggregated validation metric; "
++        available = sorted(key for store in stores.values() for key in store
++                           if key.startswith("val") and store[key].update_called)
++        raise ValueError(f"selection_metric {name!r} is not an epoch-aggregated metric in the current validation; "
+                          f"available: {available}")
+ 
+     def _physical_epoch_loss(self, key, batch, stats):
+@@ -847,7 +848,7 @@
+                 if key not in self._epoch_losses:
+                     self._epoch_losses[key] = _EpochWeightedLoss(1).to(self.device)
+                 value = self._epoch_losses[key]
+-                value(stats[name].reshape(1), [batch.num_graphs * (batch.point_labels.shape[1] - 1)], (1.,))
++                value(stats[name].reshape(1), [batch.num_graphs], (1.,))
+                 attribute = f"_epoch_losses.{key}"
+             elif (type(self.loss_fn) is metrics_module.normalized_density_error
+                     and name in ("avg_per_config_error_percent", "avg_error_percent")):
+@@ -1081,7 +1082,11 @@
+             return
+         if bool(readout.output_scaleshift_fitted):
+             return  # e.g. resuming from a checkpoint
+-        loader = self.trainer.datamodule.train_dataloader()
++        datamodule = getattr(self.trainer, "datamodule", None)
++        if datamodule is None:
++            raise ValueError("output_scaleshift fits its scale/shift on the training data: fit with a "
++                             "datamodule (Trainer.fit(model, datamodule=...)), not bare dataloaders.")
++        loader = datamodule.train_dataloader()
+         readout.fit_output_scaleshift(
+             (batch.to(self.device) for batch in loader), self.basis_table
+         )
+@@ -1160,6 +1165,17 @@
+         "Objects to retrieve from checkpoint file"
+         san_checkpoint = sanitize_checkpoint(checkpoint)
+         checkpoint.update(san_checkpoint)
++
++        active_stage = checkpoint.get("active_training_stage")
++        if active_stage is not None:
++            stages = [stage for stage in self._validated_training_stages if stage["name"] == active_stage]
++            if len(stages) != 1:
++                raise ValueError(f"checkpoint active training stage {active_stage!r} is missing or ambiguous")
++            # Evaluation needs the saved loss; parameter/optimizer policies belong to fit,
++            # after DDP registers parameters. Leave the active index unset for that hook.
++            self._apply_stage_loss(stages[0])
++            self._active_training_stage_name = active_stage
++            self._active_training_stage_index = None
+ 
+         descriptor = checkpoint.get("matrix_target_descriptor")
+         layout = getattr(self, "matrix_target_layout", None)
+--- a/src/graph2mat/tools/lightning/tests/test_ddp_cpu.py
++++ b/src/graph2mat/tools/lightning/tests/test_ddp_cpu.py
+@@ -562,7 +562,7 @@
+         assert result["world_size"] == 2
+         expected = {"val_loss": loss, "hp_metric": loss, "val_gauge_h_rmse": h ** .5,
+                     "val_overlap_rmse": s ** .5,
+-                    "val_gauge_shift_mean_abs": 10. if gauge == "missing_rank" else 22.5 if gauge == "spin" else 15.}
++                    "val_gauge_shift_mean_abs": 10. if gauge == "missing_rank" else 15.}
+         if gauge in ("h_only", "h_s"):
+             expected.update(val_spectral_rmse=(19 / 10) ** .5, val_spectral_elements=20)
+         for name, value in expected.items():
+--- a/src/graph2mat/tools/lightning/tests/test_physical_training.py
++++ b/src/graph2mat/tools/lightning/tests/test_physical_training.py
+@@ -416,6 +416,7 @@
+     checkpoint = torch.load(path, weights_only=False)
+     checkpoint["hyper_parameters"].pop("loss_kwargs", None)
+     checkpoint["hyper_parameters"].pop("training_stages", None)
++    checkpoint.pop("active_training_stage", None)
+     legacy_path = tmp_path / "legacy.ckpt"
+     torch.save(checkpoint, legacy_path)
+     legacy = LitMACEMatrixModel.load_from_checkpoint(legacy_path, weights_only=False).double().eval()
+--- a/src/graph2mat/tools/lightning/tests/test_selection_metric.py
++++ b/src/graph2mat/tools/lightning/tests/test_selection_metric.py
+@@ -101,6 +101,20 @@
+         _evaluate(_model(selection_metric="val_nope"), _samples(1))
+ 
+ 
++@pytest.mark.parametrize("name", ["val_node_rmse", "val_edge_rmse"])
++def test_selection_rejects_a_metric_that_disappears_after_a_stage_change(name):
++    model = _model(selection_metric=name, training_stages=[
++        {"name": "mse", "max_epochs": 1},
++        {"name": "mae", "max_epochs": 1, "loss": "block_type_mae"},
++    ])
++    model._apply_training_stage_for_epoch(0)
++    result = _evaluate(model, _samples(1))
++    assert result["hp_metric"] == pytest.approx(result[name])
++    model._apply_training_stage_for_epoch(1)
++    with pytest.raises(ValueError, match=f"selection_metric '{name}'.*current validation"):
++        _evaluate(model, _samples(1))
++
++
+ def test_cli_moves_only_the_default_best_checkpoint_monitor():
+     def checkpoint(monitor):
+         return Namespace(class_path="ModelCheckpoint", init_args=Namespace(monitor=monitor))
+--- a/src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py
++++ b/src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py
+@@ -18,7 +18,7 @@
+         h = torch.tensor(errors, dtype=torch.float64)
+         ref = torch.zeros(n, components + 1, dtype=torch.float64)
+         ref[:, -1] = 1.
+-        pred = torch.stack([(i + 1) * (h + shift) for i in range(components)], dim=1)
++        pred = torch.stack([(i + 1) * h + shift for i in range(components)], dim=1)
+         edge_ref = torch.zeros(int(n == 2), components + 1, dtype=torch.float64)
+         edge_pred = torch.zeros(len(edge_ref), components, dtype=torch.float64)
+         if predicts_overlap:
+@@ -62,7 +62,7 @@
+         assert result[f"{split}_loss"] == pytest.approx(want)
+         assert result[f"{split}_gauge_h_rmse"] == pytest.approx(h_mean ** .5)
+         assert result[f"{split}_overlap_rmse"] == pytest.approx(s_mean ** .5)
+-        assert result[f"{split}_gauge_shift_mean_abs"] == pytest.approx(20. if components == 1 else 30.)
++        assert result[f"{split}_gauge_shift_mean_abs"] == pytest.approx(20.)
+         if spectral_weight:
+             assert result[f"{split}_spectral_rmse"] == pytest.approx((38 / 21) ** .5)
+             assert result[f"{split}_spectral_elements"] == 21
+@@ -88,6 +88,9 @@
+     loss, stats = model.loss_fn(nodes_pred=nodes, nodes_ref=batch.point_labels, edges_pred=edges,
+                                 edges_ref=batch.edge_labels, batch=batch, basis_table=model.basis_table)
+     h_mean = 0. if missing == "all" else (36. if missing == "node" else 38.) / 7 * (1 if components == 1 else 2.5)
++    if missing == "node" and components == 2:
++        # The remaining spin errors [1, 2] align to [-.5, .5] with one common shift.
++        h_mean += .5 / 14
+     s_mean = 8.5 / 7 if predicts_overlap and missing != "all" else 0.
+     assert float(loss) == pytest.approx(h_mean + .3 * s_mean)
+     assert float(stats["gauge_h_rmse"]) == pytest.approx(h_mean ** .5)
+--- a/src/graph2mat/tools/lightning/tests/test_training_stages.py
++++ b/src/graph2mat/tools/lightning/tests/test_training_stages.py
+@@ -118,3 +118,123 @@
+     check(freezing, {"find_unused_parameters": True})
+     check(freezing, {}, world_size=1)
+     check([{"name": "a", "freeze": [], "train": None}], {})
++
++
++def test_checkpoint_restores_stage_loss_without_freezing_before_fit():
++    stages = [{"name": "warmup", "freeze": ["mace"], "max_epochs": 2,
++               "loss": "block_type_huber", "loss_kwargs": {"beta": .2}}]
++    original = _lit_model(stages)
++    original._apply_training_stage_for_epoch(0)
++    checkpoint = {"hyper_parameters": {}}
++    original.on_save_checkpoint(checkpoint)
++
++    restored = _lit_model(stages)
++    restored.on_load_checkpoint(checkpoint)
++    assert isinstance(restored.loss_fn, block_type_huber)
++    assert restored.loss_fn.beta == .2
++    # DDP must register all parameters before a stage changes requires_grad.
++    assert all(_requires_grad(restored.model.mace))
++    # Restoring the loss must not make the fit hook skip the parameter policy.
++    restored._apply_training_stage_for_epoch(0)
++    assert not any(_requires_grad(restored.model.mace))
++
++
++def test_loading_into_a_used_model_reapplies_the_resumed_stage_policy():
++    stages = [{"name": "warmup", "max_epochs": 1, "freeze": ["mace"], "loss": "block_type_huber"},
++              {"name": "finetune", "max_epochs": 2}]
++    original = _lit_model(stages)
++    original._apply_training_stage_for_epoch(0)
++    checkpoint = {"hyper_parameters": {}}
++    original.on_save_checkpoint(checkpoint)
++    restored = _lit_model(stages)
++    restored._apply_training_stage_for_epoch(1)
++    restored.on_load_checkpoint(checkpoint)
++    assert isinstance(restored.loss_fn, block_type_huber)
++    restored._apply_training_stage_for_epoch(1)
++    assert isinstance(restored.loss_fn, block_type_mse)
++    assert all(_requires_grad(restored.model.mace))
++
++
++def test_checkpoint_rejects_active_stage_without_matching_recipe():
++    checkpoint = {"hyper_parameters": {}, "active_training_stage": "missing"}
++    with pytest.raises(ValueError, match="active training stage 'missing'.*missing or ambiguous"):
++        _lit_model().on_load_checkpoint(checkpoint)
++
++
++@pytest.mark.parametrize("checkpoint_stage", ["early", "last"])
++def test_checkpoint_stage_loss_matches_live_validate_and_test(tmp_path, checkpoint_stage):
++    import numpy as np
++    import pytorch_lightning as pl
++    from graph2mat import BasisConfiguration
++    from graph2mat.bindings.torch.load import load_from_lit_ckpt
++    from graph2mat.tools.lightning import MatrixDataModule
++    from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
++
++    table = _basis_table()
++    config = BasisConfiguration(
++        point_types=["H", "H"], positions=np.array([[0., 0., 0.], [.7, 0., 0.]]),
++        basis=table, cell=np.eye(3) * 10, pbc=(False, False, False), matrix=np.array([[4., 3.], [3., 5.]]),
++    )
++    data = MatrixDataModule(basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
++        train_runs=[config], val_runs=[config], test_runs=[config], loader_threads=0)
++    model = LitMACEMatrixModel(basis_table=table, symmetric_matrix=True,
++        hidden_irreps="2x0e+2x1o", edge_hidden_irreps="2x0e+2x1o", num_bessel=2, max_ell=1,
++        optim_lr=0., training_stages=[{"name": "mae", "max_epochs": 1, "loss": "elementwise_mae"},
++                                   {"name": "mse", "max_epochs": 1, "loss": "elementwise_mse"}])
++    steps = 1 if checkpoint_stage == "early" else 2
++
++    def trainer():
++        return pl.Trainer(accelerator="cpu", devices=1, max_steps=steps, max_epochs=steps, logger=False,
++            enable_checkpointing=False, enable_progress_bar=False, enable_model_summary=False,
++            num_sanity_val_steps=0, default_root_dir=tmp_path)
++
++    fit = trainer()
++    fit.fit(model, datamodule=data)
++    path = tmp_path / "stage.ckpt"
++    fit.save_checkpoint(path)
++    restored, _ = load_from_lit_ckpt(path)
++    assert type(restored.loss_fn) is type(model.loss_fn)
++    for key, value in model.state_dict().items():
++        torch.testing.assert_close(restored.state_dict()[key], value, rtol=0, atol=0)
++    model.eval()
++    batch = next(iter(data.val_dataloader()))
++    with torch.no_grad():
++        prediction = model(batch)
++        error = torch.cat((prediction["node_labels"] - batch.point_labels,
++                           prediction["edge_labels"] - batch.edge_labels))
++        expected = float(error.abs().mean() if checkpoint_stage == "early" else error.square().mean())
++    for method, key in (("validate", "val_loss"), ("test", "test_loss")):
++        live = getattr(trainer(), method)(model, datamodule=data, verbose=False)[0][key]
++        reloaded = getattr(trainer(), method)(restored, datamodule=data, verbose=False)[0][key]
++        assert live == pytest.approx(expected)
++        assert reloaded == pytest.approx(expected)
++    data.teardown(None)
++
++
++@pytest.mark.parametrize("method,key", [("validate", "val_loss"), ("test", "test_loss")])
++def test_evaluation_before_fit_preserves_the_default_loss(method, key):
++    import pytorch_lightning as pl
++    from torch_geometric.data import Data
++    from torch_geometric.loader import DataLoader
++
++    model = _lit_model([{"name": "future", "max_epochs": 1, "loss": "block_type_huber"}])
++    with torch.no_grad():
++        model.model.matrix_readouts.weight.fill_(2.)
++        model.model.mace.weight.fill_(3.)
++    data = Data(num_nodes=1, x=torch.ones(1, 1), point_types=torch.tensor([0]),
++        point_labels=torch.zeros(1), edge_labels=torch.zeros(1), edge_types=torch.tensor([0]),
++        edge_index=torch.zeros(2, 1, dtype=torch.long))
++    trainer = pl.Trainer(accelerator="cpu", devices=1, logger=False, enable_checkpointing=False,
++        enable_progress_bar=False, enable_model_summary=False)
++    result = getattr(trainer, method)(model, dataloaders=DataLoader([data]), verbose=False)[0]
++    assert result[key] == pytest.approx(13.)  # default block MSE: 2**2 + 3**2
++    assert isinstance(model.loss_fn, block_type_mse)
++
++
++def test_output_scaleshift_without_datamodule_has_a_clear_error():
++    from types import SimpleNamespace
++
++    readout = SimpleNamespace(output_scaleshift=True, output_scaleshift_fitted=False)
++    fake = SimpleNamespace(model=SimpleNamespace(matrix_readouts=readout), trainer=SimpleNamespace(datamodule=None))
++    with pytest.raises(ValueError, match="datamodule"):
++        LitBasisMatrixModel._fit_output_scaleshift(fake)
+--- a/src/graph2mat/core/data/tests/test_metrics.py
++++ b/src/graph2mat/core/data/tests/test_metrics.py
+@@ -174,6 +174,31 @@
+     assert torch.isclose(gauge_invariant_mse(**wrong)[0],
+                          gauge_invariant_mse(**dict(kwargs, nodes_pred=torch.stack(
+                              [wrong["nodes_pred"], nodes_ref[:, 1]], dim=1)))[0])
++
++
++def test_collinear_gauge_preserves_spin_splitting():
++    """Only a common energy zero is free: (+S, -S) must retain loss and gradient."""
++    import torch
++    from torch_geometric.data import Batch, Data
++    from graph2mat import BasisTableWithEdges, PointBasis
++    from graph2mat.core.data.metrics import gauge_invariant_mse
++
++    table = BasisTableWithEdges([PointBasis("A", R=1, basis=[1])])
++    batch = Batch.from_data_list([Data(
++        num_nodes=1, point_types=torch.tensor([0]), point_labels=torch.tensor([[0., 0., 1.]]),
++        edge_labels=torch.empty(0, 3), edge_types=torch.empty(0, dtype=torch.long),
++        edge_index=torch.empty(2, 0, dtype=torch.long),
++    )])
++    for values, expected, shift in (([1., -1.], 1., 0.), ([3., -1.], 4., 1.), ([2., 2.], 0., 2.)):
++        prediction = torch.tensor([values], requires_grad=True)
++        loss, stats = gauge_invariant_mse(
++            nodes_pred=prediction, nodes_ref=batch.point_labels,
++            edges_pred=torch.empty(0, 2), edges_ref=batch.edge_labels, batch=batch, basis_table=table,
++        )
++        torch.testing.assert_close(loss, prediction.new_tensor(expected))
++        torch.testing.assert_close(stats["gauge_shift_mean_abs"], prediction.new_tensor(shift))
++        gradient, = torch.autograd.grad(loss, prediction)
++        torch.testing.assert_close(gradient, prediction.new_tensor([[values[0] - shift, values[1] - shift]]))
+ 
+ 
+ def test_spectral_window_loss_matches_gamma_point_matrices():
+@@ -318,6 +343,21 @@
+     assert find_displacement_pairs(batch, 0.05, 0.045) == []
+ 
+ 
++def test_find_displacement_pairs_is_invariant_under_a_lattice_basis_change():
++    import numpy as np
++    from graph2mat.core.data.metrics import find_displacement_pairs
++
++    cell = np.diag([1., 1., 10.])
++    # Unimodular integer change: the lattice and Cartesian positions stay identical.
++    basis_change = np.array([[100, 1, 0], [99, 1, 0], [0, 0, 1]])
++    batch = {"point_types": np.zeros(2, dtype=int), "batch": np.array([0, 1]),
++             "positions": np.array([[0., .02, 0.], [0., -.02, 0.]])}
++    for equivalent_cell in (cell, basis_change @ cell):
++        batch["cell"] = np.repeat(equivalent_cell[None], 2, axis=0)
++        assert find_displacement_pairs(batch, .05) == [(0, 1)]
++        assert find_displacement_pairs(batch, .03) == []
++
++
+ def test_pair_difference_mse_penalises_only_the_antisymmetric_error():
+     import pytest
+     import torch
+--- a/src/graph2mat/bindings/torch/tests/test_multitarget_loss.py
++++ b/src/graph2mat/bindings/torch/tests/test_multitarget_loss.py
+@@ -120,6 +120,26 @@
+     assert float(value) > 0.
+ 
+ 
++def test_spin_gauge_keeps_opposite_spin_shifts_in_multitarget_loss():
++    data, p = sample(spin=2)
++    nodes, edges = data.point_labels.clone(), data.edge_labels.clone()
++    h = p.matrix_target_layout.slices["hamiltonian"]
++    s = p.matrix_target_layout.slices["overlap"]
++    signs = nodes.new_tensor([1., -1.])
++    nodes[:, h] += nodes[:, s] * signs
++    edges[:, h] += edges[:, s] * signs
++    nodes.requires_grad_()
++    edges.requires_grad_()
++    weights = {target: float(target == "hamiltonian") for target in TARGETS}
++    value, stats = evaluate(objective(p, "gauge_invariant_mse", weights=weights), data, p, nodes, edges)
++    expected = (data.point_labels[:, s].square().sum() + data.edge_labels[:, s].square().sum()
++                ) / (len(nodes) + len(edges))
++    torch.testing.assert_close(value, expected)
++    assert float(stats["target/hamiltonian/gauge_shift_mean_abs"]) < 1e-14
++    gradients = torch.autograd.grad(value, (nodes, edges))
++    assert any(gradient[:, h].abs().max() > 0 for gradient in gradients)
++
++
+ @pytest.mark.parametrize("weights", [[0., 0., 0., 0.], [-1., 1., 1., 1.],
+                                     [float("nan"), 1., 1., 1.], [1., float("inf"), 1., 1.]])
+ def test_invalid_weights_rejected(weights):

@@ -1,0 +1,7 @@
+{
+  "graph2mat": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/__init__.py",
+  "torch": "2.11.0+cu130",
+  "lightning": "2.6.1",
+  "cuda_visible": "",
+  "omp_threads": "2"
+}

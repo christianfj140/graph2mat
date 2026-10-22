@@ -1,0 +1,13 @@
+{
+  "refs": {
+    "HEAD": "a66b46cb0955ca344693d50737c5e9952fc257fc",
+    "origin/g2m-v2": "a5e81345c8494d6cc1c7f9c917b46467507d3b97",
+    "main": "a9b011c06f2a335865912e5954b13908b6ed4ce2",
+    "hamiltonian-spin-colineal-support": "40ea5be26060b16b2c75cf569aa9a36421f757f7"
+  },
+  "scope": "origin/g2m-v2..HEAD",
+  "scope_count": 267,
+  "vs_main_count": 271,
+  "scratch": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d",
+  "initial_status": ""
+}

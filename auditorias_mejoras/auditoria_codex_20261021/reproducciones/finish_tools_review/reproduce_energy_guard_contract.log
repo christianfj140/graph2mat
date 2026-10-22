@@ -1,0 +1,38 @@
+PARALLEL 3
+PARALLEL 3
+PARALLEL 3
+[
+  {
+    "case": "gpu_temperature",
+    "room_would_allow": false,
+    "room_calls": [],
+    "starts": [
+      {
+        "arm": "control",
+        "seed": 0
+      }
+    ]
+  },
+  {
+    "case": "cpu_temperature",
+    "room_would_allow": false,
+    "room_calls": [],
+    "starts": [
+      {
+        "arm": "control",
+        "seed": 0
+      }
+    ]
+  },
+  {
+    "case": "insufficient_vram",
+    "room_would_allow": false,
+    "room_calls": [],
+    "starts": [
+      {
+        "arm": "control",
+        "seed": 0
+      }
+    ]
+  }
+]

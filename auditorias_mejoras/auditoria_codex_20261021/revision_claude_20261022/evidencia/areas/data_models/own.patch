@@ -1,0 +1,336 @@
+diff --git a/src/graph2mat/core/data/_sparse.py b/src/graph2mat/core/data/_sparse.py
+index 69e363a..49c8ce7 100644
+--- a/src/graph2mat/core/data/_sparse.py
++++ b/src/graph2mat/core/data/_sparse.py
+@@ -24,6 +24,7 @@ def _csr_to_block_dict(
+ ):
+     # Match Cython's argument coercion: an integer fill must not truncate labels.
+     fill_value = float(fill_value)
++    block_dtype = np.result_type(np.asarray(data).dtype, np.float64)
+     # --- Cython annotations for increased performance (ignored if not compiled with cython)
+     atom_i: cython.int
+     atomi_firsto: cython.int
+@@ -89,7 +90,7 @@ def _csr_to_block_dict(
+                     block_dict[atom_i, atom_j, i_sc][orbital_i, orbital_j] = val
+                 except KeyError:
+                     block_dict[atom_i, atom_j, i_sc] = np.full(
+-                        (orbitals[atom_i], orbitals[atom_j]), fill_value
++                        (orbitals[atom_i], orbitals[atom_j]), fill_value, dtype=block_dtype
+                     )
+                     block_dict[atom_i, atom_j, i_sc][orbital_i, orbital_j] = val
+ 
+diff --git a/src/graph2mat/core/data/processing.py b/src/graph2mat/core/data/processing.py
+index 5f3cf8e..4ae1666 100644
+--- a/src/graph2mat/core/data/processing.py
++++ b/src/graph2mat/core/data/processing.py
+@@ -24,7 +24,7 @@ from __future__ import annotations
+ import dataclasses
+ import warnings
+ import zipfile
+-from copy import copy
++from copy import copy, deepcopy
+ from functools import cached_property, lru_cache
+ from pathlib import Path
+ from typing import (
+@@ -77,10 +77,11 @@ from .configuration import (
+     OrbitalConfiguration,
+     PhysicsMatrixType,
+ )
++from .basis import PointBasis
+ from .formats import Formats, conversions
+ from .neighborhood import get_neighborhood
+ from .node_feats import OneHotZ
+-from .table import AtomicTableWithEdges, BasisTableWithEdges
++from .table import AtomicTableWithEdges, BasisTableWithEdges, _shell_sequence
+ 
+ __all__ = ["MatrixDataProcessor", "BasisMatrixData"]
+ 
+@@ -1951,9 +1952,17 @@ class BasisMatrixDataBase(Generic[ArrayType]):
+             The method called to initialize the basis matrix data object.
+         """
+         if isinstance(obj, cls):
++            if not labels:
++                data = deepcopy(obj)
++                for key in ("point_labels", "edge_labels", "labels_point_filter", "labels_edge_filter"):
++                    setattr(data, key, None)
++                    data._data[key] = None
++                return data
+             return obj
+         elif isinstance(obj, BasisConfiguration):
+-            config = obj
++            config = obj if labels else copy(obj)
++            if not labels:
++                config.matrix = None
+         else:
+             config_kwargs = data_processor.get_config_kwargs(obj)
+             config_kwargs.update(kwargs)
+@@ -1992,6 +2001,21 @@ class BasisMatrixDataBase(Generic[ArrayType]):
+                     f"matrix but the basis table gives {expected[wrong[:5]].tolist()} for their type: "
+                     "species with the same Z and different basis are not supported."
+                 )
++            actual_bases = (
++                (PointBasis.from_sisl_atom(atom) for atom in config.basis.atom)
++                if isinstance(config.basis, sisl.Atoms) else config.basis
++            )
++            expected_bases = dict(zip(data_processor.basis_table.types, data_processor.basis_table.basis))
++            active_types = set(config.point_types)
++            for actual in actual_bases:
++                if actual.basis_size and actual.type in active_types:
++                    expected_basis = expected_bases[actual.type]
++                    if _shell_sequence(actual) != _shell_sequence(expected_basis):
++                        raise ValueError(
++                            f"Type {actual.type!r} has angular shells {actual.basis} but the basis table "
++                            f"gives {expected_basis.basis}: species with the same Z and different basis "
++                            "or shell order are not supported."
++                        )
+ 
+         # Search for the neighbors. We use the max radius of each atom as cutoff for looking over neighbors.
+         # This means that two atoms ij are neighbors if they have some overlap between their orbitals. That is
+diff --git a/src/graph2mat/tools/lightning/models/mace.py b/src/graph2mat/tools/lightning/models/mace.py
+index 0f9c41c..7c4a66e 100644
+--- a/src/graph2mat/tools/lightning/models/mace.py
++++ b/src/graph2mat/tools/lightning/models/mace.py
+@@ -10,6 +10,7 @@ from mace.modules.blocks import RadialEmbeddingBlock
+ from mace.tools.compile import disable_e3nn_codegen
+ 
+ from graph2mat import BasisTableWithEdges
++from graph2mat.core.data.table import _shell_sequence
+ from graph2mat.bindings.e3nn import (
+     E3nnEdgeMessageBlock,
+     E3nnLinearEdgeBlock,
+@@ -372,6 +373,11 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
+         if model_table is not None and data_table is not None and list(model_table.types) != list(data_table.types):
+             raise ValueError(f"model basis types {list(model_table.types)} differ from data basis types "
+                              f"{list(data_table.types)}.")
++        if model_table is not None and data_table is not None:
++            if (any(_shell_sequence(model_basis) != _shell_sequence(data_basis)
++                    for model_basis, data_basis in zip(model_table.basis, data_table.basis))
++                    or not np.array_equal(model_table.change_of_basis, data_table.change_of_basis)):
++                raise ValueError("model and data basis angular shells, shell order or conventions differ.")
+         policy = getattr(module, "matrix_component_policy", None)
+         # long_range reads S from the labels' last column: only h_and_overlap has it there.
+         if self.hparams.get("long_range") and module is not None and policy != "h_and_overlap":
+diff --git a/src/graph2mat/core/data/tests/test_review_data_models_regressions.py b/src/graph2mat/core/data/tests/test_review_data_models_regressions.py
+new file mode 100644
+index 0000000..19bf07e
+--- /dev/null
++++ b/src/graph2mat/core/data/tests/test_review_data_models_regressions.py
+@@ -0,0 +1,125 @@
++"""Remaining data-contract regressions found while reviewing the audit fixes."""
++
++import importlib.util
++from pathlib import Path
++
++import numpy as np
++import pytest
++import sisl
++import torch
++
++from graph2mat import (
++    AtomicTableWithEdges,
++    BasisConfiguration,
++    BasisMatrixData,
++    BasisTableWithEdges,
++    MatrixDataProcessor,
++    OrbitalConfiguration,
++    PointBasis,
++)
++from graph2mat.bindings.torch import TorchBasisMatrixData, TorchBasisMatrixDataset
++from graph2mat.core.data import _sparse
++
++
++def test_same_z_equal_dimension_different_angular_shells_are_rejected():
++    three_s = sisl.Atom(6, orbitals=[sisl.AtomicOrbital(n=n, l=0, m=0, R=0.8) for n in (2, 3, 4)])
++    one_p = sisl.Atom(6, orbitals=[sisl.AtomicOrbital(n=2, l=1, m=m, R=0.8) for m in (-1, 0, 1)])
++    geometry = sisl.Geometry([[0, 0, 0], [1, 0, 0]], atoms=[three_s, one_p], lattice=[10] * 3)
++    matrix = sisl.Hamiltonian(geometry)
++    for orbital in range(6):
++        matrix[orbital, orbital] = orbital + 1
++    processor = MatrixDataProcessor(BasisTableWithEdges([PointBasis.from_sisl_atom(three_s)]), sub_point_matrix=False)
++    with pytest.raises(ValueError, match="same Z.*different basis"):
++        BasisMatrixData.from_config(OrbitalConfiguration.from_matrix(matrix), processor)
++
++
++def test_configuration_shell_order_must_match_the_table():
++    actual = PointBasis(6, R=1.0, basis="1x1o+1x0e")
++    expected = PointBasis(6, R=1.0, basis="1x0e+1x1o")
++    config = BasisConfiguration(point_types=[6], positions=np.zeros((1, 3)), basis=[actual],
++                                cell=np.eye(3) * 10, pbc=(False,) * 3, matrix=np.eye(4))
++    processor = MatrixDataProcessor(BasisTableWithEdges([expected]), sub_point_matrix=False)
++    with pytest.raises(ValueError, match="same Z.*different basis"):
++        BasisMatrixData.from_config(config, processor)
++
++
++@pytest.mark.parametrize("compiled", [False, True])
++@pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
++def test_scalar_csr_blocks_preserve_complex_values(compiled, dtype):
++    module = _sparse
++    if not compiled:
++        spec = importlib.util.spec_from_file_location("review_sparse_python", Path(_sparse.__file__).with_name("_sparse.py"))
++        module = importlib.util.module_from_spec(spec)
++        spec.loader.exec_module(module)
++    blocks = module._csr_to_block_dict(
++        data=np.array([0.25 + 0.5j, -0.75 - 1j], dtype=dtype),
++        ptr=np.array([0, 1, 2], dtype=np.int32), cols=np.array([0, 1], dtype=np.int32),
++        atom_first_orb=np.array([0, 2], dtype=np.int32), orbitals=np.array([2], dtype=np.int32),
++        n_atoms=1, fill_value=0,
++    )
++    np.testing.assert_array_equal(blocks[0, 0, 0], [[0.25 + 0.5j, 0], [0, -0.75 - 1j]])
++    assert blocks[0, 0, 0].dtype.kind == "c"
++
++
++def test_complex_scalar_hamiltonian_conversion_roundtrip():
++    atom = sisl.Atom(1, orbitals=[sisl.AtomicOrbital("1s", R=0.8)])
++    geometry = sisl.Geometry([[0, 0, 0], [1, 0, 0]], atoms=atom, lattice=[10] * 3)
++    matrix = sisl.Hamiltonian(geometry, dtype=np.complex128)
++    matrix[0, 0], matrix[1, 1] = 1, 2
++    matrix[0, 1], matrix[1, 0] = 0.25 + 0.5j, 0.25 - 0.5j
++    processor = MatrixDataProcessor(AtomicTableWithEdges([atom]), sub_point_matrix=False, out_matrix="hamiltonian")
++    data = BasisMatrixData.new(matrix, processor)
++    result = data.convert_to("sisl_H").tocsr(0).toarray()
++    np.testing.assert_array_equal(result, [[1, 0.25 + 0.5j], [0.25 - 0.5j, 2]])
++
++
++def _labeled_configuration():
++    atom = sisl.Atom(1, orbitals=[sisl.AtomicOrbital("1s", R=0.8)])
++    geometry = sisl.Geometry([[0, 0, 0], [1, 0, 0]], atoms=atom, lattice=[10] * 3)
++    matrix = sisl.Hamiltonian(geometry, orthogonal=False)
++    matrix[0, 0, :], matrix[1, 1, :] = [42, 1], [43, 1]
++    matrix[0, 1, :], matrix[1, 0, :] = [0.2, 0.1], [0.2, 0.1]
++    processor = MatrixDataProcessor(AtomicTableWithEdges([atom]), sub_point_matrix=False, symmetric_matrix=True,
++                                    out_matrix="hamiltonian", matrix_component_policy="h_and_overlap",
++                                    n_matrix_components=2)
++    return OrbitalConfiguration.from_matrix(matrix, matrix_component_policy="h_and_overlap"), processor
++
++
++@pytest.mark.parametrize("prepared", [False, True])
++def test_dataset_labels_false_omits_targets_without_mutating_source(prepared):
++    config, processor = _labeled_configuration()
++    source = TorchBasisMatrixData.new(config, processor) if prepared else config
++    source_matrix = config.matrix
++    if prepared:
++        source.total_charge = torch.tensor([2.0])
++        source.extra_marker = torch.tensor([9.0])
++        source.metadata["case"] = "kept"
++        before_nodes, before_edges = source.point_labels.clone(), source.edge_labels.clone()
++    result = TorchBasisMatrixDataset([source], processor, load_labels=False)[0]
++    assert result is not source
++    assert getattr(result, "point_labels", None) is None and getattr(result, "edge_labels", None) is None
++    assert result._data.get("point_labels") is None and result._data.get("edge_labels") is None
++    assert config.matrix is source_matrix
++    if prepared:
++        torch.testing.assert_close(source.point_labels, before_nodes)
++        torch.testing.assert_close(source.edge_labels, before_edges)
++        torch.testing.assert_close(result.total_charge, torch.tensor([2.0]))
++        torch.testing.assert_close(result.extra_marker, torch.tensor([9.0]))
++        assert result.metadata["case"] == "kept"
++        torch.testing.assert_close(result["node_attrs"], source["node_attrs"])
++    labeled = TorchBasisMatrixDataset([source], processor, load_labels=True)[0]
++    torch.testing.assert_close(labeled.point_labels, torch.tensor([[42.0, 1.0], [43.0, 1.0]]))
++    torch.testing.assert_close(labeled.edge_labels, torch.tensor([[0.2, 0.1]]))
++
++
++def test_numpy_prepared_labels_false_omits_targets_without_mutation():
++    config, processor = _labeled_configuration()
++    source = BasisMatrixData.new(config, processor)
++    nodes = source.point_labels.copy()
++    source.extra_marker = np.array([9.0])
++    result = BasisMatrixData.new(source, processor, labels=False)
++    assert result is not source
++    assert result.point_labels is None and result.edge_labels is None
++    assert result._data.get("point_labels") is None and result._data.get("edge_labels") is None
++    np.testing.assert_array_equal(source.point_labels, nodes)
++    np.testing.assert_array_equal(result.extra_marker, [9.0])
+diff --git a/src/graph2mat/tools/lightning/tests/test_review_model_regressions.py b/src/graph2mat/tools/lightning/tests/test_review_model_regressions.py
+new file mode 100644
+index 0000000..b5a41f7
+--- /dev/null
++++ b/src/graph2mat/tools/lightning/tests/test_review_model_regressions.py
+@@ -0,0 +1,87 @@
++"""Model/data representation checks missing from the audit fix."""
++
++from types import SimpleNamespace
++
++import numpy as np
++import pytest
++import sisl
++import torch
++
++from graph2mat import AtomicTableWithEdges, BasisTableWithEdges, MatrixDataProcessor, PointBasis
++from graph2mat.bindings.torch import TorchBasisMatrixData
++from graph2mat.models.long_range import label_element_atoms
++from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
++
++
++def _check_agreement(model_table, data_table):
++    model = SimpleNamespace(
++        basis_table=model_table, hparams={},
++        trainer=SimpleNamespace(datamodule=SimpleNamespace(
++            basis_table=data_table, matrix_component_policy="h_only", magnetic_moments=None,
++            edge_cutoff_padding=0.0,
++        )),
++    )
++    LitMACEMatrixModel._check_data_agreement(model)
++
++
++@pytest.mark.parametrize("model_basis,data_basis", [("3x0e", "1x1o"),
++                                                    ("1x0e+1x1o", "1x1o+1x0e")])
++def test_model_data_agreement_rejects_equal_size_different_shells(model_basis, data_basis):
++    model = BasisTableWithEdges([PointBasis(6, R=1.0, basis=model_basis)])
++    data = BasisTableWithEdges([PointBasis(6, R=1.0, basis=data_basis)])
++    with pytest.raises(ValueError, match="basis"):
++        _check_agreement(model, data)
++
++
++def test_model_data_agreement_rejects_different_basis_conventions():
++    model = BasisTableWithEdges([PointBasis(6, R=1.0, basis="1x0e+1x1o", basis_convention="cartesian")])
++    data = BasisTableWithEdges([PointBasis(6, R=1.0, basis="1x0e+1x1o", basis_convention="siesta_spherical")])
++    with pytest.raises(ValueError, match="basis"):
++        _check_agreement(model, data)
++
++
++def test_model_data_agreement_accepts_equivalent_explicit_bases():
++    model = BasisTableWithEdges([PointBasis(6, R=1.0, basis="2x0e+1x1o", basis_convention="spherical")])
++    data = BasisTableWithEdges([PointBasis(6, R=1.0, basis="1x0e+1x0e+1x1o", basis_convention="yzx")])
++    _check_agreement(model, data)
++
++
++def test_long_range_common_spin_shift_with_real_h_and_overlap_input():
++    atoms = [sisl.Atom(1, orbitals=[sisl.AtomicOrbital("1s", R=1.0)]),
++             sisl.Atom(6, orbitals=[sisl.AtomicOrbital("2s", R=1.0)])]
++    table = AtomicTableWithEdges(atoms)
++    geometry = sisl.Geometry([[0, 0, 0], [1, 0.1, 0], [1.6, 1.3, 0]],
++                             atoms=[atoms[0], atoms[1], atoms[0]], lattice=[10] * 3)
++    matrix = sisl.Hamiltonian(geometry, spin="polarized", orthogonal=False)
++    for orbital in range(3):
++        matrix[orbital, orbital, :] = [0, 0, 1]
++    for i, j in ((0, 1), (1, 0), (1, 2), (2, 1)):
++        matrix[i, j, :] = [0, 0, 0.1]
++    processor = MatrixDataProcessor(table, out_matrix="hamiltonian", sub_point_matrix=False,
++                                    symmetric_matrix=True, matrix_component_policy="h_and_overlap",
++                                    n_matrix_components=3)
++    data = TorchBasisMatrixData.new(matrix, processor)
++    torch.manual_seed(3)
++    lit = LitMACEMatrixModel(basis_table=table, symmetric_matrix=True, hidden_irreps="2x0e+1x1o",
++                            edge_hidden_irreps="2x0e+1x1o", num_bessel=3, max_ell=1,
++                            num_interactions=1, correlation=1, lean_mace=True,
++                            n_matrix_components=3, n_output_components=2, long_range=True,
++                            long_range_smearing=1.0).eval()
++    torch.nn.init.normal_(lit.model.charge_readout.weight)
++    with torch.no_grad():
++        output = lit(data)
++        head = lit.model.charge_readout
++        lit.model.charge_readout = None
++        base = lit(data)
++        lit.model.charge_readout = head
++    owners, senders, receivers = label_element_atoms(
++        np.asarray(data.point_types), np.asarray(data.edge_types), np.asarray(data.edge_index),
++        len(data.edge_labels), table,
++    )
++    potential = output["node_potential"]
++    expected_nodes = potential[owners] * data.point_labels[:, -1]
++    expected_edges = (potential[senders] + potential[receivers]) / 2 * data.edge_labels[:, -1]
++    assert expected_nodes.abs().max() > 1e-4
++    for column in (0, 1):
++        torch.testing.assert_close(output["node_labels"][:, column] - base["node_labels"][:, column], expected_nodes)
++        torch.testing.assert_close(output["edge_labels"][:, column] - base["edge_labels"][:, column], expected_edges)

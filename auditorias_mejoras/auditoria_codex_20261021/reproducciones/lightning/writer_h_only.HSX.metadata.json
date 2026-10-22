@@ -1,0 +1,8 @@
+{
+  "matrix_component_policy": "h_only",
+  "n_matrix_components": 1,
+  "note": "Hamiltonian-only prediction written without an overlap matrix. For non-orthogonal reference data this output is not a self-contained generalized-eigenproblem Hamiltonian+S file.",
+  "out_matrix": "hamiltonian",
+  "serialized_orthogonal": true,
+  "serialized_spin_polarized": false
+}

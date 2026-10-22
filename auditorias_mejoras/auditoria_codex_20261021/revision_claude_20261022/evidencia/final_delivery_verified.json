@@ -1,0 +1,13 @@
+{
+  "junit": {
+    "tests": 3624,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 25,
+    "passed": 3599
+  },
+  "source_files_match_tested": 31,
+  "historical_symlinks_preserved": 5,
+  "broken_report_links": [],
+  "head": "e1e7e4b9f4c516a5e9011b2273a4f6a7e829ac27"
+}

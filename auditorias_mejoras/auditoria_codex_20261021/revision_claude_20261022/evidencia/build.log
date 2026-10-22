@@ -1,0 +1,4 @@
+/tmp/g2m-python312-full.LHyni1/venv/bin/cython /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/core/data/_sparse.py --output-file /tmp/graph2mat-codex-review-20261022-f80m50ec/build/_sparse.c
+gcc -shared -fPIC -O3 -I/usr/include/python3.12 /tmp/graph2mat-codex-review-20261022-f80m50ec/build/_sparse.c -o /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/core/data/_sparse.cpython-312-x86_64-linux-gnu.so
+/tmp/g2m-python312-full.LHyni1/venv/bin/cython /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/core/modules/_labels_resort.py --output-file /tmp/graph2mat-codex-review-20261022-f80m50ec/build/_labels_resort.c
+gcc -shared -fPIC -O3 -I/usr/include/python3.12 /tmp/graph2mat-codex-review-20261022-f80m50ec/build/_labels_resort.c -o /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/core/modules/_labels_resort.cpython-312-x86_64-linux-gnu.so

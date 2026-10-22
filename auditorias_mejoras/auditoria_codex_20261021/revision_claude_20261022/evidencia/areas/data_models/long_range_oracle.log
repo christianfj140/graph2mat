@@ -1,0 +1,6 @@
+/tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+  """Extension of `TorchGraph2Mat` to deal with irreps.
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+cubic returned 1356 candidates 3375 enumeration_seconds 0.0007307729683816433 potential_eV [-5.782316365157627, 5.782316365157627] charge_gradient [66.87036509353939, -66.87036509353942] qeq_charges [0.04456395380278686, -0.04456395380278686]
+same_lattice_skew returned 1356 candidates 260625 enumeration_seconds 0.0054916031658649445 potential_eV [-5.782316365157636, 5.782316365157636] charge_gradient [66.87036509353962, -66.87036509353963] qeq_charges [0.04456395380278689, -0.04456395380278689]
+PASS: potential, charge gradients, Qeq charges and chi/hardness gradients are lattice-invariant

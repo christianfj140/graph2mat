@@ -1,0 +1,48 @@
+Traceback (most recent call last):
+  File "graph2mat/core/data/_sparse.py", line 89, in graph2mat.core.data._sparse._csr_to_block_dict
+KeyError: (0, 0, 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/data/probe.py", line 13, in run
+    try: f()
+         ^^^
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/data/probe.py", line 23, in complex_single
+    cfg=OrbitalConfiguration.from_matrix(h)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/configuration.py", line 267, in from_matrix
+    return converter(matrix, geometry=geometry, labels=labels, cls=cls, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/configuration.py", line 519, in _sisl_to_orbital_configuration
+    matrix_block = csr_to_block_dict(
+                   ^^^^^^^^^^^^^^^^^^
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/sparse.py", line 141, in csr_to_block_dict
+    block_dict = _csr_to_block_dict(
+                 ^^^^^^^^^^^^^^^^^^^
+  File "graph2mat/core/data/_sparse.py", line 94, in graph2mat.core.data._sparse._csr_to_block_dict
+TypeError: float() argument must be a string or a real number, not 'complex'
+EXTENSIONS /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/_sparse.cpython-312-x86_64-linux-gnu.so /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/modules/_labels_resort.cpython-312-x86_64-linux-gnu.so
+
+PROBE complex_single
+reference [[1.  +0.j  0.25+0.5j]
+ [0.25-0.5j 2.  +0.j ]]
+
+PROBE nsc_override
+override None isc [2 1] shifts [[ 0.  0. -2.]
+ [ 0.  0.  2.]] labels [7. 3.]
+override [5, 1, 1] isc [3 2] shifts [[ 0.  0. -2.]
+ [ 0.  0.  2.]] labels [0. 7.]
+
+PROBE same_size_basis
+actual bases [((3, 0, 1),), ((1, 1, -1),)]
+interpreted type ids [0 0] table basis ((3, 0, 1),) accepted labels [1. 0. 0. 0. 2. 0. 0. 0. 3. 4. 0. 0. 0. 5. 0. 0. 0. 6.]
+roundtrip atom bases [((3, 0, 1),)]
+
+PROBE labels_off
+OrbitalConfiguration load_labels=False labels tensor([42.]) alias False
+TorchBasisMatrixData load_labels=False labels tensor([42.]) alias True
+
+PROBE included_charge
+sisl NetCharge 2.0
+dataset total_charge tensor([0.])

@@ -1,0 +1,28 @@
+............                                                             [100%]
+=============================== warnings summary ===============================
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_magnetic_campaign.py]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_magnetic_campaign.py]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_magnetic_campaign.py]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+12 passed, 18 warnings in 1.68s

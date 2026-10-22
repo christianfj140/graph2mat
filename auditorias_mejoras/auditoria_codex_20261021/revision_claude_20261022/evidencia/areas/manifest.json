@@ -1,0 +1,352 @@
+[
+  {
+    "path": "data_models/committed.diff",
+    "bytes": 10382,
+    "sha256": "1e36045de0179faa2036ae5db3ada5c9f11108f5114bcb2fbb9ee29137a2da44"
+  },
+  {
+    "path": "data_models/check_long_range_oracle.py",
+    "bytes": 2036,
+    "sha256": "5efe03b2774f44f5efe419020b031e1e0e8fad3d9c174464b4480f5c449dabff"
+  },
+  {
+    "path": "data_models/lightning_options_final.log",
+    "bytes": 736,
+    "sha256": "340a9b8666a41ec777612fed7f4f18b3f11d9cd1cf07f3cc613922737fb65871"
+  },
+  {
+    "path": "data_models/complex_green.log",
+    "bytes": 6241,
+    "sha256": "23bac8e2538b53c23e6b74f9a05655a79ae16c23909de4879f8f6710e1a4a2ec"
+  },
+  {
+    "path": "data_models/baseline_after.log",
+    "bytes": 1078,
+    "sha256": "f41d31b23e4cd761d6ab14162cfcd6328aa8f4c8b33149cd728017343839defc"
+  },
+  {
+    "path": "data_models/data_neighbors_final.log",
+    "bytes": 12369,
+    "sha256": "8792cb03c6e941439ffd53c1e958351c8fb3eac379328720e2631d88f098a693"
+  },
+  {
+    "path": "data_models/verify_lightning_options.py",
+    "bytes": 3210,
+    "sha256": "b837053c507f8590851653091205335c77079bb03668bd07daa955432e1c0f5e"
+  },
+  {
+    "path": "data_models/basis_green.log",
+    "bytes": 6239,
+    "sha256": "577e77c625623ee1048550f04c4a2794765aa1f571e45dd52abaa4f0c0204f3c"
+  },
+  {
+    "path": "data_models/verification.json",
+    "bytes": 1029,
+    "sha256": "709be6bde0ff10d013b58a2de384a53c7a1c27fa0c99c0c298f86fb03cb358f0"
+  },
+  {
+    "path": "data_models/claude_models_controls.log",
+    "bytes": 8871,
+    "sha256": "c76a50d1a7e4a78e1838b4fbbdd7a13a5003bef4e965e0140185ae1aff28fad2"
+  },
+  {
+    "path": "data_models/lightning_options_after.log",
+    "bytes": 757,
+    "sha256": "2e078bea9dafee6a17488a75e59e51d24d67b2fcaa5c76616c3aaf15e922dde9"
+  },
+  {
+    "path": "data_models/ruff.log",
+    "bytes": 69,
+    "sha256": "f8e727c7becdeda827f680ec7beab34efa5a033ba2d04012887db8d7c4b7903e"
+  },
+  {
+    "path": "data_models/before_data_probe.log",
+    "bytes": 2919,
+    "sha256": "5e35dda57851bf2f241e13286e42f980b925f97ab4883b381fbc6c794b0a578f"
+  },
+  {
+    "path": "data_models/complete_reciprocal_oracle.log",
+    "bytes": 898,
+    "sha256": "f0c5738196ccca5469a2e80d2bdeb776ff3965c5a92c51ba73c2d2db70609640"
+  },
+  {
+    "path": "data_models/model_agreement_green.log",
+    "bytes": 12455,
+    "sha256": "98ba4f4f324a6318fcf9c7fa31228a246daa19401e7b54a3c1431bf010db7789"
+  },
+  {
+    "path": "data_models/long_range_oracle.log",
+    "bytes": 905,
+    "sha256": "a1e5e9638b0a7dd626b8032866362f635a150786bc0cf9791db93014620f9c93"
+  },
+  {
+    "path": "data_models/data_neighbors.log",
+    "bytes": 12963,
+    "sha256": "097bac229f3e559cb65850140b52fc2dca67a66c8eb24460864791f54922fdb6"
+  },
+  {
+    "path": "data_models/own.patch",
+    "bytes": 17479,
+    "sha256": "01a4222a4ba83bfd4e3c12fd95158ad499076c4166853bb5d1ed6bd658f06555"
+  },
+  {
+    "path": "data_models/cython_build.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "data_models/regressions_final.log",
+    "bytes": 7852,
+    "sha256": "4b8e3a18a3bdf303ec6967a43cc35235a3172c4ba4a25e1ea35d6ffe7d27b5ff"
+  },
+  {
+    "path": "data_models/gcc_build.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "data_models/data_red.log",
+    "bytes": 22145,
+    "sha256": "668285fa99865786081065670f799547a9362186ecfcca115df0c420b13d2b0f"
+  },
+  {
+    "path": "data_models/labels_green.log",
+    "bytes": 11013,
+    "sha256": "4fe5ae02498268d09a937d5f6d5a59523d608970bdcf6046701d6505d8d75cf8"
+  },
+  {
+    "path": "data_models/model_agreement_red.log",
+    "bytes": 9567,
+    "sha256": "595a7f608d6e5b05372fc1ba0563ed94376f27eeb6692340ddb183b5fed23223"
+  },
+  {
+    "path": "data_models/data_neighbors_final2.log",
+    "bytes": 8189,
+    "sha256": "f88deecf6ae60393f99c716fb70fd1ee66c1fd13beb3db4d4535f726cc82db26"
+  },
+  {
+    "path": "lightning_metrics/focal-final.log",
+    "bytes": 38658,
+    "sha256": "c440dd0ad4a3c9cf196fb1ac29a3fdad355ff346850ef3ecc3fa7beb6c9717e0"
+  },
+  {
+    "path": "lightning_metrics/L1-L4-final.log",
+    "bytes": 15765,
+    "sha256": "7e3f5f8080793a334895a6c9e8e473bd31005e9393069b67b85b2dda48659f37"
+  },
+  {
+    "path": "lightning_metrics/probe_spectral_pipeline.py",
+    "bytes": 2032,
+    "sha256": "5d0682a5ecd89f7d7ca4e9cf8b9136528f3e490320fc39cad6345e071f69cf96"
+  },
+  {
+    "path": "lightning_metrics/L1-L4-2248-green.log",
+    "bytes": 15765,
+    "sha256": "e478dcd3287bdc1d7cbcfc69b3645a3d01598e36a0afd331b8596fe32102df19"
+  },
+  {
+    "path": "lightning_metrics/M3-red.log",
+    "bytes": 7537,
+    "sha256": "18d5369538506dc839bed38980426573ba55e54c4255ba65752f197b07fe240f"
+  },
+  {
+    "path": "lightning_metrics/probe_ddp_callbacks.py",
+    "bytes": 2162,
+    "sha256": "4eecdf1d83e00114814be77c8d0de95b5916daad964846c459a50a7ff09ed7ac"
+  },
+  {
+    "path": "lightning_metrics/ddp_samples.rank1.csv",
+    "bytes": 82,
+    "sha256": "3e0720c2193ccd299eca73b5093a8f99c001a1eb60941a3bee409aac25705edf"
+  },
+  {
+    "path": "lightning_metrics/M1-green.log",
+    "bytes": 16980,
+    "sha256": "7bcfe673ea90b46c3811b51d7ce152bc40513b477cef28f2ad2c6870bde8438e"
+  },
+  {
+    "path": "lightning_metrics/verification.json",
+    "bytes": 1568,
+    "sha256": "286f7c095a9d126dde852f0dd8e06704da34292ade1ed22d3616b2dc339f03fe"
+  },
+  {
+    "path": "lightning_metrics/L1-reuse-red.log",
+    "bytes": 8637,
+    "sha256": "22284edaa20081c6a17aee7dc393dcdabb5c764e9fb645aa4c491ac9a4691b54"
+  },
+  {
+    "path": "lightning_metrics/ruff.log",
+    "bytes": 69,
+    "sha256": "f8e727c7becdeda827f680ec7beab34efa5a033ba2d04012887db8d7c4b7903e"
+  },
+  {
+    "path": "lightning_metrics/M3-L1-green.log",
+    "bytes": 17456,
+    "sha256": "f45b3eab78bac01dfa327e4de2d5839b115c445849b0b8a7db7e5d05a706503f"
+  },
+  {
+    "path": "lightning_metrics/DDP-gauge-final.log",
+    "bytes": 7151,
+    "sha256": "bebfc1dfae27dcc10c608d033a61b9aba3f0fb5c5afed096c7cc16ee9ac76e19"
+  },
+  {
+    "path": "lightning_metrics/L4-red.log",
+    "bytes": 13634,
+    "sha256": "740baeedc362849d1dff0666e82cb104966e33b56559d9d4aa89087b64089498"
+  },
+  {
+    "path": "lightning_metrics/ddp_callback_rank0.json",
+    "bytes": 31,
+    "sha256": "7d0d5300ca7da3ef939a2b9a5cb3d0d4c4106bf7950fa2aa260f6d8ac021dd35"
+  },
+  {
+    "path": "lightning_metrics/spectral_pipeline.log",
+    "bytes": 247,
+    "sha256": "e4ac4fa159feb51ed0aa924cd4d6a5c3afe5f57b9df533bb05c78a3069ea7d38"
+  },
+  {
+    "path": "lightning_metrics/before_hashes.json",
+    "bytes": 6687,
+    "sha256": "6d4ab470fc84653f55c6f396b1bad1ea96c4df4a8bcd3c570aeb1d11de4b6391"
+  },
+  {
+    "path": "lightning_metrics/M1-red.log",
+    "bytes": 10167,
+    "sha256": "c71158e67089d80b4a008ff77ec353b3bb32546f2842ef2ee6bbc6bcfb1ae179"
+  },
+  {
+    "path": "lightning_metrics/ddp_callbacks.log",
+    "bytes": 2948,
+    "sha256": "7b7ee65a16c838a32596c8b33e50793da9201daa512a246fcbec0528cfdf1837"
+  },
+  {
+    "path": "lightning_metrics/focal-verified.log",
+    "bytes": 33692,
+    "sha256": "4974b45fd1df184fa4465b8241f5c52b2536df28b1f49841dc28f9895fc21478"
+  },
+  {
+    "path": "lightning_metrics/changes-from-review-snapshot.patch",
+    "bytes": 20827,
+    "sha256": "5c0bae96c564328c4d75206c1e8dc80e69a70aa7e6a9f59a3cda1b9b54a91361"
+  },
+  {
+    "path": "lightning_metrics/ddp_callback_result.json",
+    "bytes": 638,
+    "sha256": "1452d8ad5e59e21d19e36a7ad05a6ea6e28b850c815ce3e3c78b2223ca85bb70"
+  },
+  {
+    "path": "lightning_metrics/L1-missing-stage-red.log",
+    "bytes": 8259,
+    "sha256": "21a718258bb15454ea6057877d4870b6fb7cef03b2da15c098da0db7160ad13f"
+  },
+  {
+    "path": "lightning_metrics/ddp_callback_rank1.json",
+    "bytes": 31,
+    "sha256": "5d62dd5a5798ad9f7262f102d481f49288edddda97f3bd7e8b126e68f70164e8"
+  },
+  {
+    "path": "lightning_metrics/2248-evaluation-red.log",
+    "bytes": 25178,
+    "sha256": "c7e0aec1d69de3dbb9bc4c5ce71454816912f8b562877692ba5ddf6ace470c14"
+  },
+  {
+    "path": "lightning_metrics/M1-M3-green.log",
+    "bytes": 12626,
+    "sha256": "c3fab9c7943e38fa5f7a36c2752c5859e46b604bfea85f8c076967bc85005532"
+  },
+  {
+    "path": "lightning_metrics/L1-red.log",
+    "bytes": 17126,
+    "sha256": "6aaf63a131b27d6e4a5e9b0bae4f13d113025d87f77cf82fac6dd545f5e18181"
+  },
+  {
+    "path": "lightning_metrics/ddp_samples.rank0.csv",
+    "bytes": 81,
+    "sha256": "d575f2405ff131d72beeb5e3ce2a617ecd2285204943f63def07db2807961d17"
+  },
+  {
+    "path": "lightning_metrics/changed-files.json",
+    "bytes": 2047,
+    "sha256": "8440ae264f17fa414e617182be26a646847fde7bc5cb3dc3e4247b4e3ab22097"
+  },
+  {
+    "path": "lightning_metrics/L1-L4-green.log",
+    "bytes": 16156,
+    "sha256": "174db4660ea328f83da398a3b91130a49e3ffec4290e6f5f5a0859bd4f9dbf2e"
+  },
+  {
+    "path": "tools/green_soc_storage.log",
+    "bytes": 6225,
+    "sha256": "1f712ce0dcc375623f4734a37fbe814131e277ddabb08db879346cfa2758369c"
+  },
+  {
+    "path": "tools/red_hash_python39.log",
+    "bytes": 7860,
+    "sha256": "656a2d626f485a3cfae344d5215221e675f15fbc7a776c18372f1e880bc09ad8"
+  },
+  {
+    "path": "tools/ruff.log",
+    "bytes": 69,
+    "sha256": "f8e727c7becdeda827f680ec7beab34efa5a033ba2d04012887db8d7c4b7903e"
+  },
+  {
+    "path": "tools/red_soc_storage.log",
+    "bytes": 11518,
+    "sha256": "632a2491eb0fbadebb3bd9e9634c6ff4429c5d217983bddd0ad758c1b2021c0f"
+  },
+  {
+    "path": "tools/gate_tools.log",
+    "bytes": 16832,
+    "sha256": "68ba061aeddc8d762e556f8a5896838768b15f6d39917846512964e4dfd00774"
+  },
+  {
+    "path": "tools/red_noise_endblock.log",
+    "bytes": 7514,
+    "sha256": "efb79cd4caa5bd3d9d0f59a074721375da3792574207b8fe07ba2a6d153776be"
+  },
+  {
+    "path": "tools/green_core.log",
+    "bytes": 8938,
+    "sha256": "7f70e411eb17bf8da2e7de6cf93c7f5db6e6e7e6cbeb10f93116e96cf5d5fb14"
+  },
+  {
+    "path": "tools/red_soc_complex_overlap.log",
+    "bytes": 8832,
+    "sha256": "bbc5ecff13e8e2789ac499b3270f2bd403f27ddaee75e15e1c34f94e35682af2"
+  },
+  {
+    "path": "tools/gate_spectral.log",
+    "bytes": 6225,
+    "sha256": "1adc6c73f196bbe33952a78114996e69146a158fbe792092a0c079f826acd455"
+  },
+  {
+    "path": "tools/green_final_focal.log",
+    "bytes": 6226,
+    "sha256": "90f29ef3b62dd89219842f393ae405477e8c74412c9b17b99395416a2320ae25"
+  },
+  {
+    "path": "tools/green_cache_fdf_d1.log",
+    "bytes": 8047,
+    "sha256": "3d668eb3ca601994debe4a9e75c53e40e359b5224a14abbc2c71b346ea4a211a"
+  },
+  {
+    "path": "tools/green_legacy_preserved.log",
+    "bytes": 6225,
+    "sha256": "169ea8d1f0d5736da28df510aefc01a15044e6f2520203c9c18478f0e615910a"
+  },
+  {
+    "path": "tools/red_cache_fdf_d1.log",
+    "bytes": 31089,
+    "sha256": "e22c0ef18e5b1163f0e695a503bcaba78f4ed3ebb8638db78d0dd8f5a847dadf"
+  },
+  {
+    "path": "tools/closure_sources.json",
+    "bytes": 1406,
+    "sha256": "991060758d2adbad69ef35ba10ec53005cb90843fb7cb5b0453e1fc9299bf008"
+  },
+  {
+    "path": "tools/red_core.log",
+    "bytes": 14306,
+    "sha256": "267e763ae9eb599ac6f1c09ae2b905bef070962b838ec94b62bc38b4c298810f"
+  }
+]

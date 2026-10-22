@@ -1,0 +1,267 @@
+c94a1dacedfc0835d68f725d8d8a5e4a7d23a83c	2026-07-01T15:48:43+02:00	Fix max basis grouping for non-symmetric matrices
+40d9c7a3fe150c98c9e1472f6f666a0efe804e02	2026-07-06T16:37:43+02:00	Faster max grouping and added profiling
+453ba3ccd19989501e794e4ca42f925121477514	2026-07-09T16:24:14+02:00	Corrected bug - batching for non-symetric matrices
+447e23eef0280fe516d6bd5ee46419c59575afa5	2026-07-09T16:39:01+02:00	Merge pull request #30 from saru1799/main
+a973a9f7391514105d4359f94b3af35a35791f36	2026-09-07T20:37:38+02:00	Avoid np warning and fix cython compilation
+f7bb2ec5ba59e93e64f76e37e1a13bc73188eb7e	2026-09-25T00:07:58+02:00	Make nodes_and_edges_to_coo work on GPU
+3dafa368b2c53fc5c58703e197edaa28e1c48666	2026-09-25T00:22:00+02:00	Remove double tensor construct
+a0f6d188d4561ad4d4c2af7625e585eb09fde9d6	2026-09-28T00:59:14+02:00	Readout blocks with a linear term; projected node tensor square; edge inputs by name
+bd1d64d3b5128d71591e523bc306350c8d2f2e4f	2026-09-28T00:59:14+02:00	MACE backbone and readout options for speed and VRAM
+b7c612dea9ba4dfccca71989a3af797095ae4448	2026-09-28T00:59:14+02:00	Losses, metric logging and training utilities (roadmap 1.8, 3.1-3.3, 3.6)
+764895171c1c2dfad65888989bf312a1f87bc2cf	2026-09-28T00:59:14+02:00	Data validation: orbital shells, basis parity, supercell reach; torch_predict batch
+44becc1ffd7a11c61369b2b92906bde1f361e604	2026-09-28T00:59:15+02:00	Roadmap covering every audit proposal, with the results so far
+35d01722c56890e1732bb74c05aea589fe74b3d5	2026-09-28T01:10:55+02:00	Option torch_compile: compile MACE layers and readout operations when fitting (roadmap 6.8)
+7b97b7a595dfcf74d8c48693cb0476d1b17a7bd8	2026-09-28T03:10:48+02:00	gauge_invariant_mse: H loss that ignores a per-structure shift H -> H + c S (roadmap 4.2, audit PHYS_H-03)
+239fbc8c357e8b0c80c89db71bfc313b81983fc2	2026-09-28T04:39:14+02:00	Roadmap: overnight results (block 2)
+2afaa3230af4638c18f20fcb59392953e50b4380	2026-09-28T05:54:03+02:00	Roadmap: bilayer -> moire benchmark (fp32 + lin: -67% on unseen registries), compile and projected-node results
+aa4cde94cde2c6e518cd7985ae38682dded3ca39	2026-09-28T07:07:00+02:00	Roadmap: summary of the overnight results and recommended recipes; 5-seed 6x6 confirmation, lin 16k steps, bilayer eh16
+44be1cfbc2c980c4346a12cf293e352e860ca555	2026-09-28T07:51:35+02:00	Roadmap: bilayer -> moire with lin in bf16 (8.42 meV; fp32 + lin is the bilayer recipe) and w90 fp32 + lin on poly3
+6cb4c23fac9354a0f96cbff94ee107c59eb56553	2026-09-28T08:36:39+02:00	Roadmap: torch_compile in bf16 (same precision, -28% peak memory); projected node block loses precision in bf16
+1a748d75a818889a70e8599a1664650f787b0cde	2026-09-28T09:16:25+02:00	Roadmap: removing EarlyStopping alone gives -13% on 6x6; checkpointing VRAM probe (-24% fp32, -34% bf16)
+71bd54c2eb3c5112aa519caca766a5278ff38fdf	2026-09-28T12:19:52+02:00	Roadmap: poly6 hurts extrapolation in every setting (bilayer -> moire +39%/+42%); projected node and no-EarlyStopping with poly6
+7f93d4d08fe69a0f32cfe593eb04b947e1e9249d	2026-09-28T14:13:34+02:00	Roadmap: w90 lin + kl (keep_last_layer_irreps) is the new best (4.32 meV, bands 10.5); lin on edges only 4.52, nodes only 13.67
+174efca40c7f3d71c78ccb712ecbbf9205fb9568	2026-09-28T14:54:44+02:00	Roadmap: w90 extra capacity (mp3/mp4/mid16) buys nothing; in bilayer poly6 is what hurts extrapolation, not the lack of lin
+8db90e885d66fc693ea783f8ea50cd0c05300e99	2026-09-28T15:15:26+02:00	Roadmap: bilayer mp4 trades intra- for inter-layer error and worsens bands; queue finished (137/138)
+650259cacf93a2cab625b1d568f44a8a0823bb48	2026-09-28T17:16:58+02:00	Roadmap: fix the wording of kl (keep_last_layer_irreps), mp4 (mp_cutoff = 4 A) and the fp32 contribution in bilayer
+a39439a54f690c8d6ba1aad221b9d50e8b3f138a	2026-09-28T17:22:16+02:00	LitMACEMatrixModel: E3nnLinearEdgeBlock as the default edge block (roadmap 1.7)
+e77b83695c15fe611c7b20e22caaf60ba181cd7d	2026-09-28T21:45:11+02:00	Roadmap: final 6x6 recipes with 5 seeds, and the H2O benchmark
+72b468c4efc6ad4d7e1b59d12700aca70e74e851	2026-09-29T08:36:00+02:00	Fix the 14 test failures inherited from the fork and the (H, S) writer
+11169887e7e8c061ac1dfcfb944d049214978c4a	2026-09-29T08:51:20+02:00	Roadmap: gauge-invariant loss cuts H2O errors 4-10x; where the 6x6 error lives
+adf8092afc547da7db2c96f5f3e6165fc6cd2425	2026-09-29T11:01:11+02:00	Roadmap: gauge-invariant loss on graphene (-21% in 6x6); drop dead version branch
+71c1afa19090f9e1841de2ac88dc885aa73918fa	2026-09-29T15:47:44+02:00	Gauge-invariant loss with S only as its label: 6x6 -35%, H2O -81%, no extra VRAM
+31d7bcc7ec1a4144ea299a57296770f1464effe8	2026-09-29T20:31:29+02:00	Roadmap: gauge loss with S as label confirmed (6x6 -33%, 5/5 seeds; bilayer->moire bands -50%)
+fe4916871050f98e6d1931e473ca3e88facbc2bb	2026-09-29T23:55:47+02:00	Roadmap: gauge loss + keep_last_layer_irreps is the best 6x6 recipe (5 seeds)
+4ef0d25b2f9d40880857fe3784a01c8f718aedaf	2026-09-30T21:36:48+02:00	Roadmap: night batch - gauge loss also helps w90 (-31%); fp32 + kl best inside 6x6
+6449ddc26fa18651377a0e9c1ebde87ed2c3ac51	2026-10-01T04:14:28+02:00	Roadmap: delta-learning on SIESTA H0 cuts 6x6, bilayer and H2O errors by 80-90%
+08881071228045ad0bb84192a81f6791cefc4f3b	2026-10-01T07:08:43+02:00	Roadmap: delta-learning confirmed (5 seeds) and in bilayer -> moire (0.96 meV, bands 2.0)
+58b8df3c50985868d5b486bcd064df8af0cc4b42	2026-10-01T11:03:03+02:00	Roadmap: with delta-learning the 2-atom cell (w90) extrapolates to bilayer (4.5 meV)
+6df452ace8fb704febc00c0914f252d954173276	2026-10-01T14:47:09+02:00	Roadmap: real twisted-bilayer moire test - with delta-learning, <1 meV from the 2-atom cell
+e05475ee95e68e7ef066bc61d13dcdead37a1456	2026-10-01T20:15:52+02:00	Roadmap: fp32 version of the best 6x6 recipe - same H, bands 10-30% better out of distribution
+a7b48b09c64f7e734056077627c46516d1688cee	2026-10-01T22:47:50+02:00	Roadmap: torch_compile on the best recipe - same precision, ~2.8x faster training
+19057a4139d335ee09baaf809b923bb8cb3d0745	2026-10-01T23:17:41+02:00	Batches carry a per-type layout: no host syncs in the forward or the loss (roadmap 6.3)
+fe65bfe802495cd4c371cc238bf352211abcb775	2026-10-01T23:52:16+02:00	torch_compile_mode option (roadmap 6.8): max-autotune -5.5% per step, CUDA graphs crash
+f1d8ca5f1599412ca556b4418ba5fe4c176f50ef	2026-10-02T02:24:52+02:00	Roadmap 6.3: full training on the best recipe - same validation, OOD within seed noise
+9136495033907a79a614d80095a3cdfa2822ce18	2026-10-02T08:24:50+02:00	Roadmap: 6x6 learning curve with delta-learning - flat from 1 to 8 structures
+f2287246b2bb325fe0beeedb0564a7e7dabc3c7d	2026-10-02T09:28:28+02:00	Roadmap: graphene/hBN - delta-learning -79% in validation; moire bands invalid (training layers at 5.0 A, moire at 3.35 A)
+496d792e5ed2622e80b64374d83d0afbc26c9a9e	2026-10-02T09:38:45+02:00	First-order spectral loss in a window around E_F at Gamma (roadmap 4.4)
+cc261fbc19742bb052fa60484e6ef2c2813c9f4b	2026-10-02T10:37:07+02:00	Edge update layers in E3nnEdgeMessageBlock (roadmap 7.2)
+ec9ca14cb3e22e2f5ced68325b1a85e4f34160b2	2026-10-03T00:02:31+02:00	Roadmap: correct the graphene/hBN result - trilayer training vs bilayer moire, not a 5.0 A spacing
+6c44eac5def9c70f21d10faa722f3dbd7dab6f87	2026-10-03T00:07:27+02:00	pair_difference_mse: elementwise MSE plus the error of +/- finite-difference pair differences at Gamma
+762217c1e4b2d302e48ea76433b17622f23fe169	2026-10-03T00:08:59+02:00	Per-pair radial envelope for the readout (roadmap 7.3)
+fe219a060082499fb4afd9f67233129024dab7b6	2026-10-03T00:37:38+02:00	pair_difference_mse: training-only term (plain MSE in eval mode)
+8aa6a43525570ca006f4e074ca8fbd8aab51d03a	2026-10-03T01:19:34+02:00	Roadmap 4.4: the spectral loss does not lower the out-of-distribution bands; learning curve OOD values per N
+26e48b9c88179d2756a70515e58a162209124eaf	2026-10-03T03:19:13+02:00	Roadmap 7.2: edge update layers lower the interlayer error 9-16% but raise the intralayer one; no overall gain
+15f98d0f32bcace396f03c36fc4b909274f37148	2026-10-03T03:21:28+02:00	output_scaleshift with (H, S) labels and an H-only model: fit on H (roadmap 5.2)
+846dc00d1524b1f5633b4e16bbfc209e927ca7ea	2026-10-03T04:33:24+02:00	Roadmap: valid graphene/hBN test - bilayer MD to 22 deg moire with delta-learning, 1.3 meV H and 20 meV bands
+0c9b235c16a23d47d59e192f6ae4e10c6f700b06	2026-10-03T05:33:13+02:00	Roadmap 7.3: per-pair envelope neutral on graphene/hBN (validation +12%, moire within noise)
+6b2b6196422ac8be18440a4abed8732061106bcd	2026-10-03T10:17:48+02:00	pair_difference_mse: displacement window (pair_min_displacement); expected_pairs also rejects zero pairs in training
+63e7608b15cd18dfb828337139d311168681ee58	2026-10-03T12:13:22+02:00	Roadmap 5.2: output_scaleshift on the best 6x6 recipe - validation 0.136 -> 0.117 meV (3/3 seeds), OOD bands +17-27%
+ae4fda1a6916a27f71a2ef7aa04913976a8c1bbf	2026-10-03T13:13:43+02:00	Roadmap: best recipe on graphene/hBN (-22% validation, moire 0.99 meV) and w90 + delta on the phonon chat's sets (S6R2 -14% on thermal MD, +9% cartesian)
+364fe9ce2be27c884982be22ad56dbfc5d11b800	2026-10-03T15:26:52+02:00	Roadmap: 6x6 + 2 bilayer MD frames - OOD H -38 to -42%, bands -57 to -78%; extrapolation is data-limited
+e3b32093e22d2ef981b17ac3b6869a5b5baed2b9	2026-10-03T16:08:11+02:00	Roadmap: graphene-only discards become neutral-in-what-was-measured (⚪); materials bench section with the physical axes each modification needs
+8b4112180e0cb837cc7d82d7ed0ac058640cc73e	2026-10-03T20:21:38+02:00	Roadmap: materials bench, final list and phase 1 setup (pseudopotentials, basis, pilots, convergence, structures)
+c22d73de4809a21fedcf5285af2cf638205acdb3	2026-10-03T22:27:02+02:00	Roadmap bench: LiF labels done and checked twice; the F-centre charge state changes H by 10 meV on average at fixed geometry
+4f0f01fcea25913ed4241582f24b4aa4c7c33f01	2026-10-04T02:32:18+02:00	Roadmap bench: phase 1 labelled and checked twice (H2O 39, LiF 45, BaTiO3 42)
+8340e63cdf43fd9e207ed239a055894cdec23c5a	2026-10-04T02:58:16+02:00	Roadmap bench: label audit (KB elements beyond the graph reach 50 meV in BaTiO3 O-O; S poorly conditioned with diffuse bases) and the bench runner
+7ce970e87513dc5cf37489d08d83a9f6d4294b4b	2026-10-04T04:47:15+02:00	Roadmap bench: H2O clusters - delta -79% val / -74% on (H2O)32; the gap closes through the near-null space of S, recovered by canonical orthogonalization; new item 4.7 (loss in the S metric)
+08619f07f985b0bd177af078c3db7fc5fe61c2ae	2026-10-04T08:28:45+02:00	Roadmap bench: LiF - delta -91% val; errors live in Li-Li pairs; the nanocube is 3.7x worse with a 3 eV gap error (long-range signal for 8.4); defect levels and charge state not captured
+09a7cefae1cef0b210cc08ee82d29984eec2b8e5	2026-10-04T09:28:39+02:00	Roadmap bench: BaTiO3 - delta -83% val / -89% on the domain wall and q-modulated polar mode (gap within 50 meV); 7.3 and 5.2 neutral on H2O clusters
+68afc7214a837b8e4479ea3c2712f6d686e8106f	2026-10-04T10:28:33+02:00	Roadmap bench: 7.2 gains on H2O clusters (-17% val, -7% on (H2O)32); 7.3 neutral on LiF
+f89c44a4a331fdfd47c97b48ccddef077bc982c6	2026-10-04T11:28:33+02:00	Roadmap bench: 5.2 worse on LiF (validation +25%, nanocube gap error +5.2 eV)
+47fdbe0f29fc330bf705820bdc81303796b3ea9c	2026-10-04T12:28:18+02:00	Roadmap bench: 7.2 neutral on LiF overall; better neutral F centre, worse +1 (same geometry: charge must be an input)
+b1a4969f26cbb4bca74f24b7c972941034ed0ed1	2026-10-04T14:28:17+02:00	Roadmap bench: 7.3 neutral on BaTiO3 too (neutral on all three bench materials)
+37e6093aa5b3c7a5bb484992b8dbb07940122f63	2026-10-04T14:28:24+02:00	Roadmap 7.3: discarded after the bench (neutral on five systems)
+2c09c0b9f580e88212ec541ad79e925bbc70dc31	2026-10-04T15:28:17+02:00	Roadmap bench: 5.2 gains on BaTiO3 (-17% val, -19% tests), neutral on H2O, worse on LiF: material-dependent
+f0a84d8f9d3a7e1f117fe62dbe007b95a972f54a	2026-10-04T16:28:24+02:00	Roadmap bench: phase 1 complete - delta wins everywhere, 7.3 neutral, 5.2 and 7.2 material-dependent; missing physics: long range, charge state, defect levels, S metric
+46bc9370347df25f703c6ba44f57cfde764a3531	2026-10-05T08:34:14+02:00	Roadmap bench: defects as data (LiF), 4.7 null-space loss (H2O), ZnO phase 2; spectral_window accepts a file name
+6834407fe1ab7387a54e00d7f8d7c59b81bde559	2026-10-05T13:45:47+02:00	Long-range electrostatics (roadmap 8.4): learned neutral charges, Ewald potential, (V_i + V_j)/2 * S_ij added to H
+0dc3a2d5eafc33dbc453a51321a5112c22f55d9b	2026-10-05T16:03:33+02:00	Roadmap ZnO: non-polar slabs in training fix the polar gaps; long range (8.4) makes polar slabs 2-3x worse
+fe0ffeb99fc7861d29630d4e5994d4c43167f576	2026-10-05T16:29:43+02:00	Roadmap LiF: long range helps charged defects, hurts the 300 K nanocube
+4a428e065c61d5b2b3ca838d57fef321e4768a3b	2026-10-05T17:24:37+02:00	Roadmap: 8.4 across the three materials - mild win in BaTiO3, mixed in LiF, broken on ZnO polar slabs
+88b3beecfb5c9b456a4f580b353614610f9eacdf	2026-10-05T17:57:39+02:00	8.4 with charge equilibration (long_range='qeq') and the total charge as input; roadmap: 8.4, ZnO non-polar slabs, 4.7 small weights
+c26254bdca64d18750e70947916dfefa47291d09	2026-10-05T18:17:22+02:00	Roadmap: drop my duplicate 8.4 write-ups, the consolidated 8.4 section (88b3bee) covers all three materials plus Qeq
+56ac339f119dcbbddc1790b112bf10e8528a33c6	2026-10-06T11:24:49+02:00	docs: record charged-defect and Qeq benchmarks
+cae995501305d62404c6db7fffdc67d55b4c8e77	2026-10-06T11:30:50+02:00	fix: load checkpoint defaults safely
+e0a88d6ae1ab1971aecebc2cd9d6b366f48fc81b	2026-10-06T11:31:00+02:00	docs: close checkpoint loading roadmap item
+ca22a500de5d7aafe3a080c57c73e3f1092f5474	2026-10-06T17:02:13+02:00	docs: record phase 2 material controls
+d106410466597ca7aed386b2e1223cc2adbdacff	2026-10-07T16:42:57+02:00	fix: accumulate matrix RMSE across epoch batches
+f84d29af56ff433ea84998498e730fe87592bd85	2026-10-07T16:43:36+02:00	fix: repair server matrix evaluation and local writes
+be20d9c44e66b7ebf5afb4eaef4a16f8ddf6dc45	2026-10-07T16:44:09+02:00	docs: record roadmap fixes and delta KB controls
+d7c87f4cc560cb0d0e9c4c780295777e83a5de9c	2026-10-07T17:14:56+02:00	fix: keep numpy core usable without torch
+d7ddf67c4a9967a3a87d53749c4feeb6ee481068	2026-10-07T17:54:30+02:00	fix: preserve data filters and load only requested splits
+6227edfbd346584d0d9e4efe7a7b87aede3fea86	2026-10-07T20:53:34+02:00	fix: isolate temporary data and close loading resources
+7fe54b50836cb4f3f3e16a4b436ac248a3d3b174	2026-10-07T21:26:16+02:00	feat: make data splits configurable and record checkpoint provenance
+d35f1a6e4e7c4a7bd9c258f1c89df8cc93d04267	2026-10-07T21:31:21+02:00	test: make matrix fixtures deterministic and verify round trips
+aaa5eb8324d401759dce553b20a896a70d5b083b	2026-10-07T21:59:35+02:00	fix: preserve RTP precision and support missing types in DDP
+0f3529fb9899b2fd866c17b8290c8d8c3871ea2b	2026-10-07T22:26:13+02:00	fix: aggregate basic epoch objectives and report metric failures
+35585f7ff394f7ff1d10e0f5219a742b8391bce5	2026-10-07T23:04:38+02:00	fix: preserve valid label masks and empty loss reductions
+6cf523f7f2abe3a16ad09bb16b68174d5898225c	2026-10-07T23:13:47+02:00	fix: retain sparse missing-block label semantics
+234102b107e7942c0a4ab88b2ae5920e2da30f05	2026-10-08T01:29:45+02:00	fix: aggregate Huber epoch losses by valid elements
+024fecb31070743e86190429837695f04d60b0e7	2026-10-08T01:42:33+02:00	fix(cli): allow base help without optional command dependencies
+69a8f08860a0f97892a496f98cf9fd7617b71fa1	2026-10-08T01:58:20+02:00	fix(data): apply NumPy prediction labels without mutating references
+015fc986da25ac75eea35d7827b757b9f3cf06fc	2026-10-08T01:58:29+02:00	fix(diagnostics): preserve periodic error maps and isolate HTTP client
+187402e246658636fb5708187d0041e8bcd97d66	2026-10-08T02:22:24+02:00	fix(extrapolation): preserve matrix channels and periodic SOAP history
+75e4080b7e733caff6f3cb448f61b6e32de79ba3	2026-10-08T02:33:20+02:00	fix: resolve static names and preserve optional server errors
+2ca32dc73491691b4101601a3cbdb54d168720e2	2026-10-08T02:41:09+02:00	fix(server): serialize processor metadata and preserve route identities
+d4ad82bcd302a99686debc6ac1b7b0a1d9171b00	2026-10-08T03:08:53+02:00	fix(core): preserve array contracts and enforce semantic quality gates
+0cdf7231dcbf03e41c2006b6a53de3dde497c647	2026-10-08T03:19:45+02:00	fix(metrics): aggregate physical Huber blocks and ordered DDP diagnostics
+ee337e9c17c84d833a978ac59f484124214c2435	2026-10-08T10:45:43+02:00	fix(packaging): verify reproducible CPU profiles and Python 3.9 ZIP ownership
+3172bc9de0bb8cd10fdd5b87bc6439aeba7f913a	2026-10-08T11:22:04+02:00	fix(extrapolation): align incomplete histories and ignore unknown observations
+dd2fccf1b880d3f7e76001ded0d6ec286dbbbec8	2026-10-08T11:52:18+02:00	fix(server): preserve physical matrix formats and safe reference arithmetic
+4c294f6d38f269adace19cf632392f037f26a06d	2026-10-08T12:36:53+02:00	fix(checkpoints): preserve real CLI loading and orbital cutoffs
+ac74c7fdd5ba725ed3d7a8f59b35d0d81979abce	2026-10-08T14:19:43+02:00	fix(metrics): aggregate coefficient operations and full composite by epoch
+0437bc90d860912291d377414bfcc44cbaf3d313	2026-10-08T14:38:29+02:00	fix(metrics): reduce size domains and threshold selections globally
+2f08fa68359120a551c683e9df568d3f91c78185	2026-10-08T14:55:56+02:00	test(symmetry): verify periodic spin overlap and f-shell oracles
+b13ca5f45765c73b884a31df005984fa300bbd17	2026-10-08T15:10:12+02:00	fix(metrics): aggregate gauge and spectral objectives with valid denominators
+4920a55474c6d7532d6bb96651e0463d1a092d56	2026-10-08T15:24:27+02:00	fix(metrics): reduce observed pair objectives and diagnostics globally
+bbde2161c57fd18e7030a42ca8a9615823236e87	2026-10-08T15:41:07+02:00	fix(metrics): aggregate relative selections and mixed objective moments globally
+e664d0200d9ee0c0cbe76b2cfda9b7cddc6bdeb6	2026-10-08T16:09:04+02:00	fix(metrics): normalize density epochs and verify physical orbital conventions
+30ee1a73d5716214438a7a0cb0c7e3df5c9c46c5	2026-10-08T20:07:21+02:00	fix(metrics): preserve empty graph cardinality in epoch diagnostics
+ae7d6f90849722ea6dfcf536e9556022a31cedb7	2026-10-08T20:07:21+02:00	fix(data): infer active splits and propagate loading failures
+c51be0481b17df8cab8c0e6acb27ee78961413d7	2026-10-08T20:07:21+02:00	fix(server): close permissions history and runtime regressions
+d338d1a62113af6f0fa1e04df08802ad32abcbf8	2026-10-08T20:17:38+02:00	docs(engineering): record verified closure of five roadmap fronts
+f1bb6472867d16cc8cff04760c5ce600f4cdb09e	2026-10-08T20:57:14+02:00	docs(roadmap): launch precision speed and VRAM goal
+bb01435990bb6954e30020c5b6f2a7cf1c15c911	2026-10-08T21:28:26+02:00	fix(data): preserve fractional values in Python CSR blocks
+bf1096763ace02751a62e8b14bd895d3cc94809b	2026-10-08T21:29:22+02:00	fix(metrics): support coefficient components and interaction readouts
+e2a906afe35712faa2ead980eb7f0a6b093e3153	2026-10-08T21:33:34+02:00	docs(goal): record verified coefficient compatibility gates
+89c52ca3dfbb876efe67430ea5be5b57c8d7f01e	2026-10-08T21:59:47+02:00	fix(metrics): preserve grouped coefficient orientation and observed labels
+2869ef005fd691032c2e8236054ccad3f493f9e9	2026-10-08T22:01:12+02:00	docs(goal): record orientation proof and coefficient-only kernel plan
+41a03f4be1588a448afd66bdfe6b596f71f5810e	2026-10-09T00:45:27+02:00	perf(e3nn): symmetrize coefficients without dense blocks
+48a9f0ffead056685d45f3e5f0e7557a85600259	2026-10-09T01:04:53+02:00	feat(torch): prepare CPU targets for equivalent coefficient matrix MSE
+a5e6b632a11042fd81b507d8a2a6f26349865be7	2026-10-09T01:05:55+02:00	docs: record equivalent MSE proof and coefficient-only integration plan
+ed975eb52a1a713d145a9c1577093c14fba24252	2026-10-09T01:21:52+02:00	feat: expose coefficient-only Graph2Mat and MACE forwards
+6b40f2caa4e729af68709cbd22bc74be504bf933	2026-10-09T01:23:16+02:00	docs: record coefficient-only forward completion gates
+599912002af584d2daf74c6c530a80564dbda2ad	2026-10-09T01:36:31+02:00	feat: prepare coefficient matrix MSE targets in CPU training collate
+274d7b06b9ed64a9b039d680b72f372b4dfd2876	2026-10-09T01:37:36+02:00	docs: close CPU collate proof and plan Lightning irreps training
+beb00988702c6543baeba7260daa220f28a8941b	2026-10-09T02:09:03+02:00	feat: train certified matrix MSE directly from irreducible coefficients
+9e594556fd08f7d2a63af615e48d2bc1acfdaff4	2026-10-09T02:11:34+02:00	docs: record verified Lightning irreps training closure
+bc54e91f29f2498f6d31b6cec08ec08c8927622b	2026-10-09T09:09:14+02:00	fix: isolate CPU dataset snapshots and preserve runtime atomic tables
+cc334f0c5b3936a42c3a2baedb0aad0a0d5e0427	2026-10-09T09:09:45+02:00	docs: record verified CPU snapshot closure and copy cost
+22029ca4306f8b35b167550a00a036c8618711a6	2026-10-09T09:31:45+02:00	perf: vectorize sparse coordinates and component CSR blocks
+903a132a4d41d70e2fc34d0f1de52027fca39fcb	2026-10-09T09:32:18+02:00	docs: close sparse CPU verification and prepare cost batching plan
+3a0af156e19561c1880ba2d5dc945b82f7c2c6ca	2026-10-09T11:12:28+02:00	feat(lightning): add opt-in cost-aware training batches
+7225ca453eb05d883e23271950dc3efdef0b368f	2026-10-09T11:13:25+02:00	docs: record verified cost batching closure
+5d607b30a440ee0196cf177acd5f50da80c5e79e	2026-10-09T14:24:31+02:00	feat: add opt-in low-rank edge readout
+b5a4d26132b353e12b9c49b23558b0a5bbeea35b	2026-10-09T14:27:18+02:00	docs: record 7.1 CPU verification and evaluation protocol
+61ed2949a3ea7c14e97787d0f9e825cc0e37ae2b	2026-10-09T15:24:29+02:00	docs: record physical-loss label inventory and applicability
+7c97803fa30dc35f3ae6b0bb9ee548e11c3153c3	2026-10-09T15:40:11+02:00	docs: specify optional physical objectives for roadmap 4.4-4.5
+1e097150f328f9c266fec3214d0dd4484842d049	2026-10-09T16:08:33+02:00	docs: plan approved physical loss design implementation
+0b3ad55099bd0b28a637d8334e0775aea28beb16	2026-10-09T16:11:00+02:00	docs: record current CPU baseline before physical loss implementation
+5215fe78154cef6c2b3335c3f8e28d70066280e7	2026-10-09T16:21:53+02:00	feat: validate physical matrix references and periodic targets
+1719d6a014da0d0a479cf8668145ec890348a1c1	2026-10-09T16:35:44+02:00	fix: contract opposite periodic partners without changing archived matrices
+ae04e79cf264d18aabb7cbc1ee04c8e5553c029b	2026-10-09T16:54:56+02:00	feat: prepare optional physical labels and atomic layouts
+78606d58c84c6e0dd4b4eee03b1e038bae3b3d49	2026-10-09T20:07:56+02:00	feat: add optional charge Mulliken and energy perturbation losses
+8cfbc857e4a88b482b206cd058c0d22fcfabd0be	2026-10-09T20:24:07+02:00	feat: integrate physical objectives with Lightning stages and metrics
+ba9ea018745767e6905625beebed3cc83c3bfb3a	2026-10-09T20:33:06+02:00	test: add read-only physical CPU smokes and paired cost evidence
+371f5a2b38db06f7d787f49901914550671acb18	2026-10-09T20:44:37+02:00	fix: validate physical model output contract before training
+2759800b12d66d76f473b09e238c986642b51c03	2026-10-09T20:47:46+02:00	docs: record physical loss CPU evidence and precision protocol
+8c8dc3e9b4f91b6b9791b585c82171d4ba32b440	2026-10-09T21:01:49+02:00	docs: close verified physical CPU implementation goal
+8d49845a3a5832b7ad87ea3c961e4d5849ffb43e	2026-10-09T21:21:24+02:00	docs: propose optional Slater-Koster readout for roadmap 7.4
+3981be9e3dcdeac4714283633e101c6e2dfd22aa	2026-10-09T21:31:11+02:00	docs: plan approved Slater-Koster readout CPU implementation
+92e1ad3f396c7d6b9bc5b8363a0f100c9e975a3c	2026-10-10T01:46:14+02:00	feat: calibrate Slater-Koster shell-pair maps with angular oracles
+80f3cf5a2e8628c34018abfb92a32b769b92ee4f	2026-10-10T01:53:58+02:00	feat(e3nn): add optional neural Slater-Koster residual readout
+9c50ee597e8af56f378f8ef21c560ca38d6e5e75	2026-10-10T02:03:24+02:00	feat(mace): integrate and verify Slater-Koster edge readout
+f72a96a212e6b722155b61a611bd5488d422b3dd	2026-10-10T02:07:27+02:00	bench: compare CPU baseline low-rank and Slater-Koster readouts
+f0acdadccacab38d4f596d39f14953db564b9f33	2026-10-10T02:11:03+02:00	fix(bench): spawn RSS workers before allocating timing models
+8a5cc7ceb780bbc6a847849b5252727cd664d9ba	2026-10-10T02:13:33+02:00	test: record paired SK CPU evidence and invariant source routing
+d782b4d2b12a4f3638c81211106ff20874ba4ebc	2026-10-10T02:29:48+02:00	docs: close Slater-Koster CPU validation and retain experiment scope
+db5372f8db368519690eae15c5cb4ec470bafe38	2026-10-10T02:32:28+02:00	docs: archive complete Slater-Koster CPU proof and execution ledger
+a4fce4d647aac012f9b66ee5302b6aba41fc9f61	2026-10-10T03:50:12+02:00	feat(experiments): prepare paired w90 and 6x6 readout campaign
+4444ff706d8a6f1564f494346cfda1def5adec63	2026-10-10T10:44:18+02:00	docs(experiments): record queued campaign and CPU verification
+eb05ec77f109db454bde9ab2240a7dbf01490191	2026-10-10T17:51:49+02:00	perf(losses): skip NaN row mask when collate proves labels complete (2.6)
+8c153860c5f71e4f6290ad99061fff81a2d3c10e	2026-10-10T18:20:11+02:00	perf(processing): build irreps_from_data RTPs with the fast decomposition, once (3.7)
+477de7cf80b5062354c7b86334f92b7710c05964	2026-10-10T18:20:53+02:00	fix(basis): reject qe_spherical d/f shells; pin conventions to independent harmonics (3.10)
+928dee0495e1500f0eb79ed30400f77007055a6f	2026-10-10T18:22:56+02:00	fix(configuration): remap matrix images to the default sc_off order (3.11, CRIT-04)
+de43c1a2f59ddfb7b7c0479a32f6da15de4381ed	2026-10-10T18:37:13+02:00	fix(processing): reject same-Z species whose basis differs from the table (8.3)
+e585e0f60117e5cf8fb1447fd210ad02472b25ba	2026-10-10T18:41:10+02:00	fix(node_feats): make WaterDipole a true vector and WaterDipoleInv a true scalar (3.8)
+54d54b0e2d6b38e7b7d0dc4887b6e2ab952af1c8	2026-10-10T19:11:11+02:00	docs(roadmap): record 2.6, 3.7, 3.8, 3.10, 3.11, 8.3 and the 1.15/6.5/6.6 decisions
+b5e9d51f82f853c66d74bf35d82642ed7ea6b542	2026-10-10T19:16:55+02:00	fix(sparse): read only the first ncol entries of each sisl CSR row (3.11, DATA_PIPE-28)
+498d0c2d92e8ae49f887c1fe3904a2a498f3baea	2026-10-10T19:32:44+02:00	fix(neighborhood): refuse periodic directions without a lattice vector (3.11, PHYS_H-17)
+26bdbedebbc43fe2f3152564968f91afe98febb1	2026-10-10T19:32:44+02:00	test(mace): pin equivariance of the species-shared readout (basis_grouping=max) (7.5)
+f4dc35d4baf774b3b126c679c10040703ce42e40	2026-10-10T19:32:57+02:00	docs(roadmap): close 0.6 and 3.11 on CPU; record that 7.5 and 7.6 largely exist
+da6a45f8797c9d2b52341881d3a1c53bb1189c47	2026-10-10T20:59:02+02:00	docs(roadmap): 7.7 NO_GO from the CPU DM-error pilot
+babafabeec7cd96a81296c0ee8824b69a092f39f	2026-10-10T21:36:03+02:00	feat(experiments): GPU speed/VRAM probe (2.2, 2.6, 2.8) and 4.5 energy-loss experiment
+1e97957f19c05e653311aaae81eded960a04adda	2026-10-10T21:36:23+02:00	fix(experiments): run the energy-loss experiment after the speed probe
+53173e845c589e86cfb64001940e2938345b286e	2026-10-10T21:36:34+02:00	docs(roadmap): queued GPU probe and 4.5 experiment; 5.3 falls back under the gauge loss
+0ef7ca970e25917447c5e01422797c3cda776ed0	2026-10-10T22:53:42+02:00	perf(data): share metadata processor and geometry in InMemoryData accesses (6.1 regression)
+f2ced0aa4917207ceeefe94e082674e578cb24a2	2026-10-11T00:17:50+02:00	docs(roadmap): queue the 7.5 shared-readout bench (max grouping) on TMD, ZnO and BaTiO3
+6bf057210b431a12ecb078f5183c920672171b10	2026-10-11T00:38:29+02:00	docs(roadmap): queue TMD re-measurement of 1.3/1.9/1.11 and the a-SiO2 v5 chain at the end of the queue
+4dc3983379c2fba85d61d351f51fd8dead727498	2026-10-11T01:27:04+02:00	perf(experiments): train the 4.5 arms three at a time under autorun's guard rails
+049abd08aae4ea19ced67b427c9f75c7e0b09252	2026-10-11T19:57:40+02:00	docs: readout campaign and GPU speed probe results (7.1/7.4 not promoted)
+bf8a4801e723aaa651e3c529c16cf1bdeea54aa0	2026-10-12T15:04:50+02:00	docs(roadmap): 4.5 energy loss, 7.5 max grouping and TMD re-measurement results (nodemix wins on TMD)
+5950dd1ce9cd6aa8ba037ed553708388bade96a6	2026-10-12T15:08:33+02:00	docs(roadmap): a-SiO2 v6 with a 5x slower quench for the 216-atom test glass
+ed6585551de0f76f775292d7f0f09ca6cfc52106	2026-10-12T18:51:53+02:00	docs(roadmap): nodemix confirmed on BaTiO3 and ZnO (H better everywhere; ZnO slab bands worse)
+ae65fbcc6047545669426d70be5077b61f1d17b2	2026-10-12T19:02:56+02:00	docs(roadmap): OOD band error attribution — interlayer coupling dominates
+270d17d1f204293a059baa09e8f1b3756981e2bf	2026-10-13T10:48:26+02:00	docs: agent handoff (queue rules, state, results, pending decisions)
+3b47e34a1f9c837e969dc15750c43d3e6dc52af4	2026-10-19T15:59:59+02:00	perf(data): resolve CSR duplicates globally and validate coefficient labels once per kind
+edd27ff96e4d260c28a38299d061409a0e5724b9	2026-10-19T15:59:59+02:00	test(lightning): CUDA coefficient-training coverage (roadmap 3.14)
+2eda3204b53a63bcbc279acfc71636c192c26dd2	2026-10-19T15:59:59+02:00	feat(e3nn): opt-in homonuclear weight fusion for LinearEdge readouts (roadmap 6.7)
+f89adf715274062ca0c07088c7a316a05ba3e99c	2026-10-19T16:00:08+02:00	test(nonorthogonal): pin the H/S reconstruction contract with analytic generalized levels (roadmap 4.1)
+cbe697a8e578d4cdae3da84e40381201dc809fc1	2026-10-19T16:00:16+02:00	feat(lightning): warning-only train/val/test split guardrail (roadmap 3.12)
+65d2253de8d2e045cd8af6a882367124c1e8e416	2026-10-19T16:00:23+02:00	feat(multitarget): opt-in joint H/S/DM/EDM matrix targets on one MACE backbone (roadmap 7.6)
+714e68feaabef2013a7ff2e5512ae37f6c680e81	2026-10-19T16:00:29+02:00	docs: document the split guardrail, nonorthogonal reconstruction and joint targets
+c624fda61ed92a6f4049cd58051426f7089d80f4	2026-10-19T16:00:44+02:00	chore: ignore heavy experiment run directories (checkpoints, per-sample predictions)
+9d2f9230c79a5cb392fceed797e6534d1503598b	2026-10-19T16:00:44+02:00	docs(experiments): GPU pipeline, setup and homonuclear-fusion measurements (roadmap 6.1, 6.2, 6.7)
+6b0da7f29663c0a1e25453b1e370e3c7ec291ddf	2026-10-19T16:00:44+02:00	feat(experiments): bilayer edge-update comparison campaign (roadmap 7.2)
+69f2aa6ca9b8b70ccbb4acb5b0d7de71efd03dec	2026-10-19T16:00:44+02:00	feat(experiments): certified training recovery for interrupted h2oclu fits
+cbe3eb16f0a75b39268fe13ed5c234c1f948b253	2026-10-19T16:00:44+02:00	feat(experiments): h2oclu batching cost and science comparisons (roadmap 6.4)
+051f9ca71b0d91312f4cef605dca3fe8f9f3cba6	2026-10-19T16:00:44+02:00	feat(experiments): h2oclu level/gap diagnosis and nullspace validation campaign
+75c48618eb38ba5c2b17f2c7e1b100dd83400d17	2026-10-19T16:00:44+02:00	feat(experiments): joint multitarget w90 pilot, six-fit campaign and closure (roadmap 7.6)
+c301ce987059b1f549a5077ed8288578b8ccfea7	2026-10-19T16:00:51+02:00	docs(roadmap): record results and decisions from 2026-10-13 to 2026-10-19
+1a0160f8c1fe3370592c1680053137346920d458	2026-10-19T16:27:55+02:00	feat(lightning): loss-independent val_matrix_rmse and opt-in selection_metric (roadmap 1.15)
+f416e0d45263ebae937a27d291361b41a9983e3c	2026-10-19T18:06:03+02:00	docs(soc): draft SOC design and phase F0 SIESTA feasibility on Bi2Se3 (roadmap 8.1)
+d104d3efd58256c52280c28a0c433dd69802a57a	2026-10-19T18:16:49+02:00	docs(soc): approve SOC design for planning and add the F1-F3 implementation plan
+ee2f89a0ccb8417d5e00456b066450209790064b	2026-10-19T18:50:56+02:00	feat(spin-orbit): SIESTA 8-component <-> TRS channel conversion (roadmap 8.1)
+463f1a8caa3b73f3eaa2a53e31e3f5a7269a8cd9	2026-10-19T18:54:52+02:00	feat(spin-orbit): load SIESTA spin-orbit Hamiltonians as TRS channels
+db9411278b40f1078293dbdcb0779487b2110bb5	2026-10-19T18:56:39+02:00	test(spin-orbit): compare symmetric edge labels to the fixture
+9f87f063bbc25687f46bbde19bc5c62df477bae9	2026-10-19T19:05:23+02:00	feat(spin-orbit): reconstruct spin-orbit sisl Hamiltonians with signed transposes
+15130b28edc04c4eab6eaf707f9f28a5d041446a	2026-10-19T19:08:32+02:00	fix(spin-orbit): bound symmetric roundtrip eigenvalue gate by the stored-matrix Hermiticity defect
+3c31d442313941aed48c69ec6e950407bcebcdad	2026-10-19T19:18:49+02:00	feat(e3nn): spin-orbit matrix block with an axial-vector channel
+6df9fa825704bf3b342604d339e290d288f244db	2026-10-19T19:36:18+02:00	feat(lightning): opt-in spin_orbit MACE model with fail-closed options
+e120ec64d29f5ee61a2c50554d9b469ec54f82cf	2026-10-19T20:04:52+02:00	feat(spin-orbit): reject uncertified data, writer and server paths
+65feb05bcce178d713e1c3ae438a164bc2107336	2026-10-19T20:27:32+02:00	fix(spin-orbit): plot error maps with h_only policy; run server rejection test without fastapi
+802409d78e21cbf3c8245de77a9ea6d18b21fe91	2026-10-19T21:17:42+02:00	docs(spin-orbit): document SOC loading, model option and limits
+43b52b2e82aa5e51fc1e60aa7796aa066007d8af	2026-10-19T21:54:15+02:00	fix(spin-orbit): require symmetric matrices, check data/model agreement in every stage, tighten docs
+d43c15168b09bc6e0ec6414b61531a0beb5a4e10	2026-10-19T22:56:13+02:00	docs(soc): C3 spin-frame check on real Bi2Se3 data and the F4/F5 plan (roadmap 8.1)
+86e4414619b558a0ace7c4cfea3f2756487e2f3f	2026-10-20T03:23:30+02:00	docs(soc): record the Bi2Se3 SOC dataset (F4) results (roadmap 8.1)
+88c344ede95e4e94d6428d1bad8e821b9841d9d8	2026-10-20T15:45:18+02:00	fix(spin-orbit): disable e3nn TorchScript codegen for SOC models; add the F5 SOC campaign runner
+744be37360662883adc14b9a9440ca2b5b68d8a2	2026-10-20T16:32:19+02:00	docs(roadmap): SOC F5 Delta arm on Bi2Se3 — SOC improves canonical bands x7-20 (roadmap 8.1)
+3b4387515a629fd7915ac12097350ae7fb29884f	2026-10-20T16:34:25+02:00	docs(plan): 8.2 long readout edges via edge_cutoff_padding
+a279b4535231ab8edd2f9998d6a1bfedea914bb2	2026-10-20T16:38:45+02:00	feat(data): edge_cutoff_padding to extend the matrix graph beyond R_i + R_j (roadmap 8.2)
+542659e346887dd0a03235eef25e769a3188d1e2	2026-10-20T17:02:31+02:00	feat(lightning): readout radial range follows edge_cutoff_padding (roadmap 8.2)
+fd626902bfc727468db0eb4768865295617b0c2a	2026-10-20T17:04:18+02:00	docs(lightning): note the MACE range cost of edge_cutoff_padding
+cd73e38ff9e65b6becf3a3d6cb143c94e558a85a	2026-10-20T17:26:33+02:00	feat(experiments): SOC campaign direct arm with long readout edges (roadmap 8.1/8.2)
+e62fd48435cacc38180437dbbebf706319ffc4cb	2026-10-20T18:11:27+02:00	docs(roadmap): SOC F5 direct arm and 8.2 status — Delta stays the practical SOC recipe
+d1c22838dce5d67bebd90f4ecb71fdc5ca76496c	2026-10-20T20:06:29+02:00	docs(roadmap): 8.2 ablation on the SOC direct arm — long readout edges give no measurable gain
+e328e29192b0180139c4a9377e720316d02dc450	2026-10-21T01:02:07+02:00	docs(magnetism): goal plan for magnetic moments as input and full spinor SOC (roadmap 8.1)
+37a5589f137de6429a13da62674bad45d84682a9	2026-10-21T01:08:03+02:00	test(data): checkpoint fixture gives the model the data's edge_cutoff_padding
+6a35231102a288bc8945e0b8fbdbdbef52f6da0c	2026-10-21T01:08:03+02:00	docs(magnetism): implementation plan for spin_orbit_full, moment data and the magnetic model
+4d8b56e27566c61a5c7d60c9254398b07383bb7b	2026-10-21T01:13:43+02:00	feat(spin-orbit): spin_orbit_full policy with the eight real spinor channels (roadmap 8.1, magnetism)
+ec87d85daa2f96afc1b982038c4c5a81c1fe1e3f	2026-10-21T01:37:28+02:00	feat(data): nominal per-atom magnetic moments as node data (roadmap 8.1, magnetism)
+83fefa62c130f3e497f4ff1d22009e7f7cd187e7	2026-10-21T04:19:15+02:00	feat(models): magnetic moment layer, eight-channel spin-orbit block and exact time reversal (roadmap 8.1, magnetism)
+3388ab2a452f8a10a90bc045e970d5174728f677	2026-10-21T05:40:40+02:00	feat(lightning): magnetic moments as model input with exact time reversal (roadmap 8.1, magnetism)
+864a6ab0c47ea60cbf1aa4114ddd74018fb1c3ad	2026-10-21T06:12:35+02:00	docs(magnetism): F0 on bcc Fe — conventions, symmetry checks, SCF behaviour and the F4 recipe
+e1cb3170c887305304098037ca7a3bcb25e9eb0f	2026-10-21T06:22:28+02:00	fix(lightning): restore the derived magnetic neighbour normalisation when loading checkpoints
+da478db71fd88e8b6252b563ada337fad90dcc9f	2026-10-21T10:01:06+02:00	fix(magnetism): per-structure moment files, named moment errors, readout_fp32 and torch_predict moments (final review)
+d9b5904d44bd0002379afd1c72c7d20d3a394386	2026-10-21T10:06:26+02:00	docs(magnetism): code closed after the final review; F5 campaign runner for bcc Fe
+d957ffd2c492a4b9090d5dc24dc53909ed3a7eb2	2026-10-21T11:08:17+02:00	docs(roadmap): magnetic phase of 8.1 paused by the user after the Fe datasets
+c714e32bda12ac07f64a3cb112d4e3db94f7b499	2026-10-21T12:10:41+02:00	Merge upstream/main (BIG-MAP/graph2mat) into main
+f70513b067693fa6d48f0ce342dccd673eb99cb1	2026-10-21T12:10:47+02:00	Merge main (with upstream/main) into hamiltonian-spin-colineal-support
+1640c79c3e1056b4a6c6710d0155f41b969b6ec8	2026-10-21T12:29:49+02:00	fix(sparse): restore multicomponent guard in nodes_and_edges_to_coo
+5d17cc54e4a1e3bb77b76058c3dbbf4fd8e94d19	2026-10-21T12:52:30+02:00	chore(agents): track the project agent skills
+775cb902245a48f31599f705b66103cae8b64d62	2026-10-21T12:52:30+02:00	docs(roadmap): MgO and GaAs chosen for 8.4
+5143e096384c2dd434b1daac668efb246802eddb	2026-10-21T13:07:53+02:00	chore(agents): track AGENTS.md
+d28c65ba499be872a813705ca89d0bc92f87ac7d	2026-10-21T13:12:21+02:00	feat(siesta): shared SIESTA runner for the H0 and label tools
+a6f2222437f46568446c70090f108127a6bb1851	2026-10-21T13:14:09+02:00	feat(siesta): delta learning on the non-self-consistent H0 (roadmap 5.1)
+7d417974daeb30490175919f9669defc1174f772	2026-10-21T13:15:24+02:00	feat(tools): writers of the spectral window and S null-space projections (4.4, 4.7)
+041e0ad7887454144beb80786c1b89fe67455db2	2026-10-21T14:31:55+02:00	feat(analysis): evaluation metrics, error breakdown, OOD band attribution and KB-tail control
+ba0871128286f44d577950affba698974cf9ce4b	2026-10-21T14:31:55+02:00	feat(siesta): label noise floor (5.4) and DM-to-H pilot (7.7)
+7ee73f23370263e5aff2e9338322dfea267ba5a9	2026-10-21T14:31:55+02:00	feat(cli): graph2mat siesta delta commands and the benchmark example
+48d9bdc0b50c655785b1a27bd890893a853b7090	2026-10-21T14:50:06+02:00	docs(roadmap): MD_vs_AtomicDisplacement functions migrated into graph2mat
+0734d9f5ce89cf4fc6c2681010751b01ca424c2d	2026-10-21T14:59:51+02:00	chore: portable paths and anonymised user in docs and scripts
+a3a7945640bd5a23486d2fefe416d42eab57d026	2026-10-21T15:56:55+02:00	Merge hamiltonian-spin-colineal-support (with upstream BIG-MAP/graph2mat main) into g2m-v2
+a420c26b67623e3a6041f42435dfbbead6053a96	2026-10-21T15:59:25+02:00	fix(labels_resort): count labels per block type with edge_type
+3d1fe716ed903aebd12fcae624738a0524464110	2026-10-21T15:59:32+02:00	Merge main (labels resort fix) into hamiltonian-spin-colineal-support
+a9b011c06f2a335865912e5954b13908b6ed4ce2	2026-10-21T15:59:43+02:00	test(labels_resort): resorting with two block types
+40ea5be26060b16b2c75cf569aa9a36421f757f7	2026-10-21T16:00:03+02:00	Merge branch 'main' into hamiltonian-spin-colineal-support
+a66b46cb0955ca344693d50737c5e9952fc257fc	2026-10-21T16:00:19+02:00	Merge hamiltonian-spin-colineal-support (labels resort regression test) into g2m-v2

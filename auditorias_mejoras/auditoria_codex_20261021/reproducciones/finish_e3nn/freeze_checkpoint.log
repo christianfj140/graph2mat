@@ -1,0 +1,4 @@
+frozen MACE; gradient_checkpointing = False loss requires_grad = True loss = 0.010253462009131908
+readout_nonzero_grad_tensors = 11
+frozen MACE; gradient_checkpointing = True loss requires_grad = False loss = 0.010253462009131908
+backward error = element 0 of tensors does not require grad and does not have a grad_fn

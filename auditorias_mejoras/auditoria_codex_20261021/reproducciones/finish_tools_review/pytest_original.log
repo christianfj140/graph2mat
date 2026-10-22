@@ -1,0 +1,100 @@
+..............................                                           [100%]
+=============================== warnings summary ===============================
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch_geometric/llm/utils/backend_utils.py:26
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch_geometric/llm/utils/backend_utils.py:26: DeprecationWarning: `torch_geometric.distributed` has been deprecated since 2.7.0 and will no longer be maintained. For distributed training, refer to our tutorials on distributed training at https://pytorch-geometric.readthedocs.io/en/latest/tutorial/distributed.html or cuGraph examples at https://github.com/rapidsai/cugraph-gnn/tree/main/python/cugraph-pyg/cugraph_pyg/examples
+    from torch_geometric.distributed import (
+
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../../home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/tools/analysis/metrics.py:162: RuntimeWarning: Mean of empty slice
+    "H_MAE_inter_meV": 1e3 * float(error[inter].mean()),
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /home/christian/repositorios/MD_vs_AtomicDisplacement/.venv/lib/python3.12/site-packages/numpy/_core/_methods.py:142: RuntimeWarning: invalid value encountered in scalar divide
+    ret = ret.dtype.type(ret / rcount)
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/tools/analysis/metrics.py:165: RuntimeWarning: Mean of empty slice
+    "H_MAE_gauge_inter_meV": 1e3 * float(aligned[inter].mean()),
+
+src/graph2mat/tools/analysis/tests/test_breakdown_attribution.py::test_attribution_shares_add_up
+src/graph2mat/tools/analysis/tests/test_breakdown_attribution.py::test_without_kb_tail_cuts_only_far_pairs
+  warn:0: SislWarning: Geometry.close_sc has been passed an 'atoms' argument together with an R value larger than the orbital ranges. If used together with 'sparse-matrix.construct' this can result in wrong couplings.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+30 passed, 55 warnings in 0.72s

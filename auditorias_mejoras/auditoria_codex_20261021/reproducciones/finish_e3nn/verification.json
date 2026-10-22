@@ -1,0 +1,15 @@
+{
+  "commit": "a66b46cb0955ca344693d50737c5e9952fc257fc",
+  "source_equal_to_git": {
+    "src/graph2mat/models/mace.py": "a45f56e0fd9167ba39d7d965b2a3fa0d092a727d3e5f7a978784c281e6939bad",
+    "src/graph2mat/models/long_range.py": "14b59fbc2f079e9abfa10d6afd0ac80af2f3dddffbbbd460cea158e6fefc2c4d",
+    "src/graph2mat/tools/lightning/models/mace.py": "a19fd168cf6fb40b790fead4c8b0b897c72790aa82db1c402d41c9226ab466e3",
+    "src/graph2mat/tools/lightning/model.py": "736cfb725ad6249e618c7265036650560df52f9a815b05034baf67c2e9414198",
+    "src/graph2mat/tools/lightning/tests/test_long_range.py": "e51627dde6f5f4061a53bd78b8f1f1966ca9418e5a772819b327ea8ce7e052e5",
+    "src/graph2mat/tools/lightning/tests/test_training_stages.py": "681d6d4fb0f7384b2e1371344f5cc18eb4fbbf4a3ffad83498d99ba08044a84d",
+    "src/graph2mat/bindings/e3nn/modules/tests/test_edge_pairing_and_safety.py": "31612efbec089667e96d1f716a3f46a366e4c27e7fb1687602ed5ed762799f5d",
+    "docs/data_loading.rst": "74ea434c0d3620dd9e1e14b05324334d79ad6d77c415f03e21c7fd74bcbb1ebc"
+  },
+  "report_sha256": "4dc8b8ae55d5991c54273a3ad3c4c18c1da776134912dbc46838eb66e57ebb96",
+  "checks": "passed"
+}

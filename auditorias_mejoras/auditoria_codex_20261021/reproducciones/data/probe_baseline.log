@@ -1,0 +1,44 @@
+Traceback (most recent call last):
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/data/probe_baseline.py", line 16, in <module>
+    d=BasisMatrixData.new(dm,processor)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/processing.py", line 1955, in new
+    return cls.from_config(config, data_processor)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/processing.py", line 2050, in from_config
+    point_labels, edge_labels = data_processor.get_labels_from_types_and_edges(
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/processing.py", line 1159, in get_labels_from_types_and_edges
+    point_labels, edge_labels = config.matrix.to_flat_nodes_and_edges(
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/core/data/matrices/basis_matrix.py", line 105, in to_flat_nodes_and_edges
+    self._get_block(i, i, 0) - point_matrices[point_types[i]]
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ValueError: operands could not be broadcast together with shapes (4,4,2) (4,4) 
+
+norb 1 baseline [array([[2.]])]
+labels [[-1.6 -1.4]]
+ref [[[0.4 0.6]]]
+roundtrip [[[0.4 0.6]]]
+
+norb 2 baseline [array([[2., 0.],
+       [0., 1.]])]
+labels [[-1.6  0.6]
+ [ nan  nan]
+ [ nan  nan]
+ [ 1.4  0.6]]
+ref [[[0.4 0.6]
+  [0.  0. ]]
+
+ [[0.  0. ]
+  [1.4 1.6]]]
+roundtrip [[[0.4 2.6]
+  [0.  0. ]]
+
+ [[0.  0. ]
+  [2.4 1.6]]]
+
+norb 4 baseline [array([[2., 0., 0., 0.],
+       [0., 1., 0., 0.],
+       [0., 0., 1., 0.],
+       [0., 0., 0., 1.]])]

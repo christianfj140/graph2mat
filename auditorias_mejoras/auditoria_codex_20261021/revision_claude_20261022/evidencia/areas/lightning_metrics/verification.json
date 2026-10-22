@@ -1,0 +1,48 @@
+{
+  "source_frozen": true,
+  "source_files": [
+    "src/graph2mat/core/data/metrics.py",
+    "src/graph2mat/tools/lightning/model.py",
+    "src/graph2mat/tools/lightning/tests/test_ddp_cpu.py",
+    "src/graph2mat/tools/lightning/tests/test_physical_training.py",
+    "src/graph2mat/tools/lightning/tests/test_selection_metric.py",
+    "src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py",
+    "src/graph2mat/tools/lightning/tests/test_training_stages.py",
+    "src/graph2mat/core/data/tests/test_metrics.py",
+    "src/graph2mat/bindings/torch/tests/test_multitarget_loss.py"
+  ],
+  "report_sha256": "17f4d407abce14d61f30de821f23892b3cb6d65d78ec752b5cfcad10e8aa4cc0",
+  "verified_gates": [
+    {
+      "log": "focal-verified.log",
+      "passed": 798,
+      "skipped": 2,
+      "exit_code": 0,
+      "note": "Before final metadata rejection test and legacy fixture update"
+    },
+    {
+      "log": "L1-L4-final.log",
+      "passed": 44,
+      "skipped": 2,
+      "exit_code": 0,
+      "note": "Final source state"
+    },
+    {
+      "log": "DDP-gauge-final.log",
+      "passed": 4,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    {
+      "log": "ddp_callbacks.log",
+      "exit_code": 0,
+      "covered_samples": 4
+    },
+    {
+      "log": "spectral_pipeline.log",
+      "exit_code": 0
+    }
+  ],
+  "merge_requirement": "Remove both 2248f52 last-stage evaluation hooks and three tests that enforce them; preserve numeric early/final checkpoint and pre-fit default tests.",
+  "lint": "git diff --check passed; ruff unavailable, no package installed"
+}

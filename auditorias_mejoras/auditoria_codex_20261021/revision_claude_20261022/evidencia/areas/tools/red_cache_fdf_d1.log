@@ -1,0 +1,512 @@
+FFFFF..FFFFFFFFFFF                                                       [100%]
+=================================== FAILURES ===================================
+____________________ test_system_label_resolves_fdf_include ____________________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_system_label_resolves_fdf0')
+
+    def test_system_label_resolves_fdf_include(tmp_path):
+        (tmp_path / 'label.fdf').write_text('System.Label included\n')
+        fdf = tmp_path / 'RUN.fdf'
+        fdf.write_text('%include label.fdf\n')
+>       assert system_label(fdf) == 'included'
+E       AssertionError: assert 'siesta' == 'included'
+E         
+E         - included
+E         + siesta
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:16: AssertionError
+_ test_h0_rewrite_refuses_unresolved_external_settings[%include settings.fdf\n] _
+
+text = '%include settings.fdf\n'
+
+    @pytest.mark.parametrize('text', ['%include settings.fdf\n', 'Spin < settings.fdf\n'])
+    def test_h0_rewrite_refuses_unresolved_external_settings(text):
+>       with pytest.raises(ValueError, match='external|another file'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:21: Failed
+_ test_h0_rewrite_refuses_unresolved_external_settings[Spin < settings.fdf\n] __
+
+text = 'Spin < settings.fdf\n'
+
+    @pytest.mark.parametrize('text', ['%include settings.fdf\n', 'Spin < settings.fdf\n'])
+    def test_h0_rewrite_refuses_unresolved_external_settings(text):
+>       with pytest.raises(ValueError, match='external|another file'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:21: Failed
+_____________ test_h0_replaces_initspin_using_full_fdf_label_rules _____________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_h0_replaces_initspin_usin0')
+
+    def test_h0_replaces_initspin_using_full_fdf_label_rules(tmp_path):
+        text = ('Spin spin-orbit\n%block DM._InitSpin\n 1 +\n%endblock\n')
+        out = h0_fdf(text, n_atoms=1)
+        path = tmp_path / 'RUN.fdf'
+        path.write_text(out)
+>       assert sisl.get_sile(str(path)).get('DM.InitSpin') == ['1 0.0']
+E       AssertionError: assert ['1 +'] == ['1 0.0']
+E         
+E         At index 0 diff: '1 +' != '1 0.0'
+E         Use -v to get more diff
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:30: AssertionError
+_________________ test_noise_rewrite_refuses_external_settings _________________
+
+    def test_noise_rewrite_refuses_external_settings():
+>       with pytest.raises(ValueError, match='external|another file'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:34: Failed
+______________ test_dm_cache_rejects_changed_inputs_or_output[dm] ______________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_cache_rejects_changed_0')
+fake_siesta = '/tmp/g2m-python312-full.LHyni1/venv/bin/python /tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_cache_rejects_changed_0/fake_siesta.py'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3dec27c8c0>
+change = 'dm'
+
+    @pytest.mark.parametrize('change', ['dm', 'pseudo', 'fdf', 'output'])
+    def test_dm_cache_rejects_changed_inputs_or_output(tmp_path, fake_siesta, monkeypatch, change):
+        ref, dm = _reference(tmp_path, monkeypatch)
+        work = tmp_path / 'dm-run'
+        out = run_from_dm(ref, work, dm, siesta=fake_siesta)
+        if change == 'dm':
+            dm = dm.copy()
+            dm[0, 0] = (.7, 1.)
+        elif change == 'pseudo':
+            (ref / 'C.psf').write_text('different pseudo\n')
+        elif change == 'fdf':
+            fdf = ref / 'RUN.fdf'
+            fdf.write_text(fdf.read_text() + 'MeshCutoff 600 Ry\n')
+        else:
+            make_hamiltonian(onsite=4.).write(str(out))
+        preserved = out.read_bytes()
+>       with pytest.raises(ValueError, match='cache'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:81: Failed
+____________ test_dm_cache_rejects_changed_inputs_or_output[pseudo] ____________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_cache_rejects_changed_1')
+fake_siesta = '/tmp/g2m-python312-full.LHyni1/venv/bin/python /tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_cache_rejects_changed_1/fake_siesta.py'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3dec2f6330>
+change = 'pseudo'
+
+    @pytest.mark.parametrize('change', ['dm', 'pseudo', 'fdf', 'output'])
+    def test_dm_cache_rejects_changed_inputs_or_output(tmp_path, fake_siesta, monkeypatch, change):
+        ref, dm = _reference(tmp_path, monkeypatch)
+        work = tmp_path / 'dm-run'
+        out = run_from_dm(ref, work, dm, siesta=fake_siesta)
+        if change == 'dm':
+            dm = dm.copy()
+            dm[0, 0] = (.7, 1.)
+        elif change == 'pseudo':
+            (ref / 'C.psf').write_text('different pseudo\n')
+        elif change == 'fdf':
+            fdf = ref / 'RUN.fdf'
+            fdf.write_text(fdf.read_text() + 'MeshCutoff 600 Ry\n')
+        else:
+            make_hamiltonian(onsite=4.).write(str(out))
+        preserved = out.read_bytes()
+>       with pytest.raises(ValueError, match='cache'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:81: Failed
+_____________ test_dm_cache_rejects_changed_inputs_or_output[fdf] ______________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_cache_rejects_changed_2')
+fake_siesta = '/tmp/g2m-python312-full.LHyni1/venv/bin/python /tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_cache_rejects_changed_2/fake_siesta.py'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3dec2f6ed0>
+change = 'fdf'
+
+    @pytest.mark.parametrize('change', ['dm', 'pseudo', 'fdf', 'output'])
+    def test_dm_cache_rejects_changed_inputs_or_output(tmp_path, fake_siesta, monkeypatch, change):
+        ref, dm = _reference(tmp_path, monkeypatch)
+        work = tmp_path / 'dm-run'
+        out = run_from_dm(ref, work, dm, siesta=fake_siesta)
+        if change == 'dm':
+            dm = dm.copy()
+            dm[0, 0] = (.7, 1.)
+        elif change == 'pseudo':
+            (ref / 'C.psf').write_text('different pseudo\n')
+        elif change == 'fdf':
+            fdf = ref / 'RUN.fdf'
+            fdf.write_text(fdf.read_text() + 'MeshCutoff 600 Ry\n')
+        else:
+            make_hamiltonian(onsite=4.).write(str(out))
+        preserved = out.read_bytes()
+>       with pytest.raises(ValueError, match='cache'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:81: Failed
+____________ test_dm_cache_rejects_changed_inputs_or_output[output] ____________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_cache_rejects_changed_3')
+fake_siesta = '/tmp/g2m-python312-full.LHyni1/venv/bin/python /tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_cache_rejects_changed_3/fake_siesta.py'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3dec2f4b60>
+change = 'output'
+
+    @pytest.mark.parametrize('change', ['dm', 'pseudo', 'fdf', 'output'])
+    def test_dm_cache_rejects_changed_inputs_or_output(tmp_path, fake_siesta, monkeypatch, change):
+        ref, dm = _reference(tmp_path, monkeypatch)
+        work = tmp_path / 'dm-run'
+        out = run_from_dm(ref, work, dm, siesta=fake_siesta)
+        if change == 'dm':
+            dm = dm.copy()
+            dm[0, 0] = (.7, 1.)
+        elif change == 'pseudo':
+            (ref / 'C.psf').write_text('different pseudo\n')
+        elif change == 'fdf':
+            fdf = ref / 'RUN.fdf'
+            fdf.write_text(fdf.read_text() + 'MeshCutoff 600 Ry\n')
+        else:
+            make_hamiltonian(onsite=4.).write(str(out))
+        preserved = out.read_bytes()
+>       with pytest.raises(ValueError, match='cache'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:81: Failed
+_________________ test_h0_cache_refuses_unverified_legacy_file _________________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_h0_cache_refuses_unverifi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3dec2f7710>
+
+    def test_h0_cache_refuses_unverified_legacy_file(tmp_path, monkeypatch):
+        ref, _ = _reference(tmp_path, monkeypatch)
+        work = tmp_path / 'h0-run'
+        work.mkdir()
+        (work / 'sample.TSHS').write_bytes((ref / 'sample.TSHS').read_bytes())
+>       with pytest.raises(ValueError, match='cache'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:91: Failed
+________________ test_dm_result_with_wrong_geometry_never_lands ________________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_result_with_wrong_geom0')
+fake_siesta = '/tmp/g2m-python312-full.LHyni1/venv/bin/python /tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_dm_result_with_wrong_geom0/fake_siesta.py'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3dec2989b0>
+
+    def test_dm_result_with_wrong_geometry_never_lands(tmp_path, fake_siesta, monkeypatch):
+        ref, dm = _reference(tmp_path, monkeypatch)
+        moved = make_hamiltonian()
+        moved.geometry.xyz[0, 0] += .5
+        source = tmp_path / 'moved.TSHS'
+        moved.write(str(source))
+        monkeypatch.setenv('FAKE_SIESTA_TSHS', str(source))
+>       with pytest.raises(RuntimeError, match='geometry'):
+E       Failed: DID NOT RAISE RuntimeError
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:102: Failed
+______________________ test_corrupt_h0_result_never_lands ______________________
+
+tmp_path = PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_corrupt_h0_result_never_l0')
+fake_siesta = '/tmp/g2m-python312-full.LHyni1/venv/bin/python /tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_corrupt_h0_result_never_l0/fake_siesta.py'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3dec2f4b60>
+
+    def test_corrupt_h0_result_never_lands(tmp_path, fake_siesta, monkeypatch):
+        ref, _ = _reference(tmp_path, monkeypatch)
+        source = tmp_path / 'broken.TSHS'
+        source.write_bytes(b'not a matrix')
+        monkeypatch.setenv('FAKE_SIESTA_TSHS', str(source))
+        with pytest.raises(Exception):
+            compute_h0(ref, tmp_path / 'h0-run', siesta=fake_siesta)
+>       assert not (tmp_path / 'h0-run').exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = (PosixPath('/tmp/graph2mat-codex-review-20261022-f80m50ec/tools/artefactos/pytest-of-christian/pytest-2/test_corrupt_h0_result_never_l0') / 'h0-run').exists
+
+src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py:114: AssertionError
+________ test_model_info_serializes_real_processor_as_json[False-False] ________
+
+atomic = False, array_radius = False
+
+    @pytest.mark.parametrize("atomic", [False, True])
+    @pytest.mark.parametrize("array_radius", [False, True])
+    def test_model_info_serializes_real_processor_as_json(atomic, array_radius):
+        radius = np.array([2., 3., 3., 3.]) if array_radius else np.float64(2.)
+        if atomic:
+            atom = sisl.Atom("C", orbitals=[sisl.AtomicOrbital(l=0, R=2.), *[
+                sisl.AtomicOrbital(l=1, m=m, R=3. if array_radius else 2.) for m in (-1, 0, 1)
+            ]])
+            table = AtomicTableWithEdges([atom])
+            expected_radius = [2., 3., 3., 3.] if array_radius else [2., 2., 2., 2.]
+            convention = "siesta_spherical"
+        else:
+            table = BasisTableWithEdges([PointBasis(np.int64(6), R=radius, basis=[1, 1], basis_convention="cartesian")])
+            expected_radius = [2., 3., 3., 3.] if array_radius else 2.
+            convention = "cartesian"
+        processor = MatrixDataProcessor(
+            basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+            out_matrix="density_matrix", n_matrix_components=np.int64(2),
+            matrix_component_policy="raw_components", node_attr_getters=[OneHotZ, _extra_node_feature],
+        )
+        app = create_server_app({"dm": {
+            "data_processor": processor, "prediction_function": lambda data: data,
+            "description": "Two-component density matrix", "files": {},
+            "test_metrics_summary": "",
+        }})
+        response = TestClient(app).get("/api/models/dm/info")
+    
+        assert response.status_code == 200
+>       assert response.json() == {
+            "basis_table": {"basis": [{"type": 6, "R": expected_radius,
+                                       "basis": [[1, 0, 1], [1, 1, -1]], "basis_convention": convention}]},
+            "symmetric_matrix": True, "sub_point_matrix": False, "out_matrix": "density_matrix",
+            "n_matrix_components": 2, "matrix_component_policy": "raw_components",
+            "node_attr_getters": ["graph2mat.core.data.node_feats.OneHotZ", __name__ + "._extra_node_feature"],
+            "description": "Two-component density matrix",
+        }
+E       AssertionError: assert {'basis_table..._matrix', ...} == {'basis_table..._matrix', ...}
+E         
+E         Omitting 8 identical items, use -vv to show
+E         Left contains 2 more items:
+E         {'edge_cutoff_padding': 0.0, 'magnetic_moments': None}
+E         Use -v to get more diff
+
+src/graph2mat/tools/server/tests/test_server_app.py:50: AssertionError
+________ test_model_info_serializes_real_processor_as_json[False-True] _________
+
+atomic = True, array_radius = False
+
+    @pytest.mark.parametrize("atomic", [False, True])
+    @pytest.mark.parametrize("array_radius", [False, True])
+    def test_model_info_serializes_real_processor_as_json(atomic, array_radius):
+        radius = np.array([2., 3., 3., 3.]) if array_radius else np.float64(2.)
+        if atomic:
+            atom = sisl.Atom("C", orbitals=[sisl.AtomicOrbital(l=0, R=2.), *[
+                sisl.AtomicOrbital(l=1, m=m, R=3. if array_radius else 2.) for m in (-1, 0, 1)
+            ]])
+            table = AtomicTableWithEdges([atom])
+            expected_radius = [2., 3., 3., 3.] if array_radius else [2., 2., 2., 2.]
+            convention = "siesta_spherical"
+        else:
+            table = BasisTableWithEdges([PointBasis(np.int64(6), R=radius, basis=[1, 1], basis_convention="cartesian")])
+            expected_radius = [2., 3., 3., 3.] if array_radius else 2.
+            convention = "cartesian"
+        processor = MatrixDataProcessor(
+            basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+            out_matrix="density_matrix", n_matrix_components=np.int64(2),
+            matrix_component_policy="raw_components", node_attr_getters=[OneHotZ, _extra_node_feature],
+        )
+        app = create_server_app({"dm": {
+            "data_processor": processor, "prediction_function": lambda data: data,
+            "description": "Two-component density matrix", "files": {},
+            "test_metrics_summary": "",
+        }})
+        response = TestClient(app).get("/api/models/dm/info")
+    
+        assert response.status_code == 200
+>       assert response.json() == {
+            "basis_table": {"basis": [{"type": 6, "R": expected_radius,
+                                       "basis": [[1, 0, 1], [1, 1, -1]], "basis_convention": convention}]},
+            "symmetric_matrix": True, "sub_point_matrix": False, "out_matrix": "density_matrix",
+            "n_matrix_components": 2, "matrix_component_policy": "raw_components",
+            "node_attr_getters": ["graph2mat.core.data.node_feats.OneHotZ", __name__ + "._extra_node_feature"],
+            "description": "Two-component density matrix",
+        }
+E       AssertionError: assert {'basis_table..._matrix', ...} == {'basis_table..._matrix', ...}
+E         
+E         Omitting 8 identical items, use -vv to show
+E         Left contains 2 more items:
+E         {'edge_cutoff_padding': 0.0, 'magnetic_moments': None}
+E         Use -v to get more diff
+
+src/graph2mat/tools/server/tests/test_server_app.py:50: AssertionError
+________ test_model_info_serializes_real_processor_as_json[True-False] _________
+
+atomic = False, array_radius = True
+
+    @pytest.mark.parametrize("atomic", [False, True])
+    @pytest.mark.parametrize("array_radius", [False, True])
+    def test_model_info_serializes_real_processor_as_json(atomic, array_radius):
+        radius = np.array([2., 3., 3., 3.]) if array_radius else np.float64(2.)
+        if atomic:
+            atom = sisl.Atom("C", orbitals=[sisl.AtomicOrbital(l=0, R=2.), *[
+                sisl.AtomicOrbital(l=1, m=m, R=3. if array_radius else 2.) for m in (-1, 0, 1)
+            ]])
+            table = AtomicTableWithEdges([atom])
+            expected_radius = [2., 3., 3., 3.] if array_radius else [2., 2., 2., 2.]
+            convention = "siesta_spherical"
+        else:
+            table = BasisTableWithEdges([PointBasis(np.int64(6), R=radius, basis=[1, 1], basis_convention="cartesian")])
+            expected_radius = [2., 3., 3., 3.] if array_radius else 2.
+            convention = "cartesian"
+        processor = MatrixDataProcessor(
+            basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+            out_matrix="density_matrix", n_matrix_components=np.int64(2),
+            matrix_component_policy="raw_components", node_attr_getters=[OneHotZ, _extra_node_feature],
+        )
+        app = create_server_app({"dm": {
+            "data_processor": processor, "prediction_function": lambda data: data,
+            "description": "Two-component density matrix", "files": {},
+            "test_metrics_summary": "",
+        }})
+        response = TestClient(app).get("/api/models/dm/info")
+    
+        assert response.status_code == 200
+>       assert response.json() == {
+            "basis_table": {"basis": [{"type": 6, "R": expected_radius,
+                                       "basis": [[1, 0, 1], [1, 1, -1]], "basis_convention": convention}]},
+            "symmetric_matrix": True, "sub_point_matrix": False, "out_matrix": "density_matrix",
+            "n_matrix_components": 2, "matrix_component_policy": "raw_components",
+            "node_attr_getters": ["graph2mat.core.data.node_feats.OneHotZ", __name__ + "._extra_node_feature"],
+            "description": "Two-component density matrix",
+        }
+E       AssertionError: assert {'basis_table..._matrix', ...} == {'basis_table..._matrix', ...}
+E         
+E         Omitting 8 identical items, use -vv to show
+E         Left contains 2 more items:
+E         {'edge_cutoff_padding': 0.0, 'magnetic_moments': None}
+E         Use -v to get more diff
+
+src/graph2mat/tools/server/tests/test_server_app.py:50: AssertionError
+_________ test_model_info_serializes_real_processor_as_json[True-True] _________
+
+atomic = True, array_radius = True
+
+    @pytest.mark.parametrize("atomic", [False, True])
+    @pytest.mark.parametrize("array_radius", [False, True])
+    def test_model_info_serializes_real_processor_as_json(atomic, array_radius):
+        radius = np.array([2., 3., 3., 3.]) if array_radius else np.float64(2.)
+        if atomic:
+            atom = sisl.Atom("C", orbitals=[sisl.AtomicOrbital(l=0, R=2.), *[
+                sisl.AtomicOrbital(l=1, m=m, R=3. if array_radius else 2.) for m in (-1, 0, 1)
+            ]])
+            table = AtomicTableWithEdges([atom])
+            expected_radius = [2., 3., 3., 3.] if array_radius else [2., 2., 2., 2.]
+            convention = "siesta_spherical"
+        else:
+            table = BasisTableWithEdges([PointBasis(np.int64(6), R=radius, basis=[1, 1], basis_convention="cartesian")])
+            expected_radius = [2., 3., 3., 3.] if array_radius else 2.
+            convention = "cartesian"
+        processor = MatrixDataProcessor(
+            basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+            out_matrix="density_matrix", n_matrix_components=np.int64(2),
+            matrix_component_policy="raw_components", node_attr_getters=[OneHotZ, _extra_node_feature],
+        )
+        app = create_server_app({"dm": {
+            "data_processor": processor, "prediction_function": lambda data: data,
+            "description": "Two-component density matrix", "files": {},
+            "test_metrics_summary": "",
+        }})
+        response = TestClient(app).get("/api/models/dm/info")
+    
+        assert response.status_code == 200
+>       assert response.json() == {
+            "basis_table": {"basis": [{"type": 6, "R": expected_radius,
+                                       "basis": [[1, 0, 1], [1, 1, -1]], "basis_convention": convention}]},
+            "symmetric_matrix": True, "sub_point_matrix": False, "out_matrix": "density_matrix",
+            "n_matrix_components": 2, "matrix_component_policy": "raw_components",
+            "node_attr_getters": ["graph2mat.core.data.node_feats.OneHotZ", __name__ + "._extra_node_feature"],
+            "description": "Two-component density matrix",
+        }
+E       AssertionError: assert {'basis_table..._matrix', ...} == {'basis_table..._matrix', ...}
+E         
+E         Omitting 8 identical items, use -vv to show
+E         Left contains 2 more items:
+E         {'edge_cutoff_padding': 0.0, 'magnetic_moments': None}
+E         Use -v to get more diff
+
+src/graph2mat/tools/server/tests/test_server_app.py:50: AssertionError
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_system_label_resolves_fdf_include
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_h0_rewrite_refuses_unresolved_external_settings[%include settings.fdf\n]
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_h0_rewrite_refuses_unresolved_external_settings[Spin < settings.fdf\n]
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_h0_replaces_initspin_using_full_fdf_label_rules
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_noise_rewrite_refuses_external_settings
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_dm_cache_rejects_changed_inputs_or_output[dm]
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_dm_cache_rejects_changed_inputs_or_output[pseudo]
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_dm_cache_rejects_changed_inputs_or_output[fdf]
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_dm_cache_rejects_changed_inputs_or_output[output]
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_h0_cache_refuses_unverified_legacy_file
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_dm_result_with_wrong_geometry_never_lands
+FAILED src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py::test_corrupt_h0_result_never_lands
+FAILED src/graph2mat/tools/server/tests/test_server_app.py::test_model_info_serializes_real_processor_as_json[False-False]
+FAILED src/graph2mat/tools/server/tests/test_server_app.py::test_model_info_serializes_real_processor_as_json[False-True]
+FAILED src/graph2mat/tools/server/tests/test_server_app.py::test_model_info_serializes_real_processor_as_json[True-False]
+FAILED src/graph2mat/tools/server/tests/test_server_app.py::test_model_info_serializes_real_processor_as_json[True-True]
+16 failed, 2 passed, 52 warnings in 0.55s

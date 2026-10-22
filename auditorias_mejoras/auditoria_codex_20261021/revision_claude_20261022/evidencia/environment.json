@@ -1,0 +1,19 @@
+{
+  "head": "17e246f318174b8a6c743b6c31ea01c4b740ed4b",
+  "scratch": "/tmp/graph2mat-codex-review-20261022-f80m50ec",
+  "source": "/tmp/graph2mat-codex-review-20261022-f80m50ec/source",
+  "wrapper": "/tmp/graph2mat-codex-review-20261022-f80m50ec/review-python",
+  "python": "/tmp/g2m-python312-full.LHyni1/venv/bin/python",
+  "env": {
+    "CUDA_VISIBLE_DEVICES": "",
+    "OMP_NUM_THREADS": "2",
+    "OPENBLAS_NUM_THREADS": "2",
+    "MKL_NUM_THREADS": "2",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONNOUSERSITE": "1",
+    "PYTHONPATH": "/tmp/graph2mat-codex-review-20261022-f80m50ec/bootstrap:/tmp/graph2mat-codex-review-20261022-f80m50ec/source/src",
+    "MPLCONFIGDIR": "/tmp/graph2mat-codex-review-20261022-f80m50ec/mpl",
+    "NUMBA_CACHE_DIR": "/tmp/graph2mat-codex-review-20261022-f80m50ec/numba"
+  },
+  "preexisting_patch": "claude_uncommitted_initial.patch"
+}

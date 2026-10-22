@@ -1,0 +1,173 @@
+........................................................................ [ 28%]
+........................................................................ [ 57%]
+........................................................................ [ 85%]
+....................................                                     [100%]
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: 7 warnings
+src/graph2mat/tools/server/tests/test_server_app.py: 168 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/analysis/metrics.py:208: RuntimeWarning: Mean of empty slice
+    "H_MAE_inter_meV": 1e3 * float(error[:, inter].mean()),
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/numpy/_core/_methods.py:142: RuntimeWarning: invalid value encountered in scalar divide
+    ret = ret.dtype.type(ret / rcount)
+
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_gauge_shift_is_removed
+src/graph2mat/tools/analysis/tests/test_analysis_metrics.py::test_empty_energy_window_gives_nan
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/analysis/metrics.py:211: RuntimeWarning: Mean of empty slice
+    "H_MAE_gauge_inter_meV": 1e3 * float(aligned[:, inter].mean()),
+
+src/graph2mat/tools/analysis/tests/test_breakdown_attribution.py::test_attribution_shares_add_up
+src/graph2mat/tools/analysis/tests/test_breakdown_attribution.py::test_without_kb_tail_cuts_only_far_pairs
+src/graph2mat/tools/analysis/tests/test_breakdown_attribution.py::test_attribution_keeps_prediction_couplings_beyond_the_reference_supercell
+  warn:0: SislWarning: Geometry.close_sc has been passed an 'atoms' argument together with an R value larger than the orbital ranges. If used together with 'sparse-matrix.construct' this can result in wrong couplings.
+
+src/graph2mat/tools/siesta/tests/test_delta.py::test_spin_orbit_delta_label_is_time_reversal_projected
+  warn:0: SislWarning: Hamiltonian.create_construct got a non-Hermitian on-site term elements ([0.+0.0602j 0.+0.04j   0.+0.04j   0.-0.06j  ]). The code will continue like nothing happened...
+
+src/graph2mat/tools/siesta/tests/test_delta.py::test_spin_orbit_delta_label_is_time_reversal_projected
+src/graph2mat/tools/siesta/tests/test_delta.py::test_add_h0_takes_the_overlap_of_h0_when_the_prediction_has_none
+  warn:0: SislWarning: Hamiltonian.create_construct got a non-Hermitian on-site term elements ([0.+0.054j 0.+0.036j 0.+0.036j 0.-0.054j]). The code will continue like nothing happened...
+
+src/graph2mat/tools/siesta/tests/test_delta.py::test_add_h0_takes_the_overlap_of_h0_when_the_prediction_has_none
+  warn:0: SislWarning: Hamiltonian.create_construct got a non-Hermitian on-site term elements ([0.+0.02j 0.+0.02j 0.+0.02j 0.+0.02j]). The code will continue like nothing happened...
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/models.py:85: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    "atomic_numbers", torch.tensor(atomic_numbers, dtype=torch.int64)
+
+src/graph2mat/tools/server/tests/test_server_app.py: 124 warnings
+  /usr/lib/python3.12/ast.py:407: UserWarning: The TorchScript type system doesn't support instance-level annotations on empty non-base types in `__init__`. Instead, either 1) use a type annotation in the class body, or 2) wrap the type in `torch.jit.Attribute`.
+    return visitor(node)
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/blocks.py:316: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    torch.tensor(atomic_energies, dtype=torch.get_default_dtype()),
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/data.py:106: Total length of `DataLoader` across ranks is zero. Please make sure this was your intention.
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:378: You have overridden `transfer_batch_to_device` in `LightningModule` but have passed in a `LightningDataModule`. It will use the implementation from `LightningModule` instance.
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('train_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[checkpoint]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[minimal_spec]
+src/graph2mat/tools/server/tests/test_server_app.py::test_filesystem_checkpoint_info_accepts_optional_description[described_spec]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/lightning_fabric/utilities/cloud_io.py:73: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+252 passed, 389 warnings in 11.06s

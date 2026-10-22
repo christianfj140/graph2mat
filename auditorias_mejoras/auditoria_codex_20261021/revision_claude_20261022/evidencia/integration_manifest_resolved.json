@@ -1,0 +1,260 @@
+{
+  "upstream_head": "e1e7e4b9f4c516a5e9011b2273a4f6a7e829ac27",
+  "target": "/tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source",
+  "files": [
+    {
+      "path": "auditorias_mejoras/roadmap.md",
+      "method": "ours-only",
+      "base_sha256": "0eed71a756e820415994104f03cda7e42b62340599d396a981498ae11939cdd1",
+      "upstream_sha256": "0eed71a756e820415994104f03cda7e42b62340599d396a981498ae11939cdd1",
+      "ours_sha256": "f523f790cd9991b1b7c807d58a71a63548d951d86602be81f20a17d849d01b09",
+      "merged_sha256": "f523f790cd9991b1b7c807d58a71a63548d951d86602be81f20a17d849d01b09"
+    },
+    {
+      "path": "auditorias_mejoras/run_energy_loss_experiment.py",
+      "method": "ours-only",
+      "base_sha256": "e8d9465933166e73248bc5bcd7613aafe9895314e139e291c42480248b518dc4",
+      "upstream_sha256": "e8d9465933166e73248bc5bcd7613aafe9895314e139e291c42480248b518dc4",
+      "ours_sha256": "7b7a907cd1001590c434238f783deb33a1d801b7759e99da0d54ebf851dda7fd",
+      "merged_sha256": "7b7a907cd1001590c434238f783deb33a1d801b7759e99da0d54ebf851dda7fd"
+    },
+    {
+      "path": "auditorias_mejoras/run_lr_schedule_probe.py",
+      "method": "ours-only",
+      "base_sha256": "0484ffdebd1bf6f37e30c6e0fdc1220e209fc7f84c6a4f9558cecd7e82b83e87",
+      "upstream_sha256": "0484ffdebd1bf6f37e30c6e0fdc1220e209fc7f84c6a4f9558cecd7e82b83e87",
+      "ours_sha256": "112a7710dbf80cd989045a108db011c21db93c9798eef8fb1e93c2bd35024989",
+      "merged_sha256": "112a7710dbf80cd989045a108db011c21db93c9798eef8fb1e93c2bd35024989"
+    },
+    {
+      "path": "auditorias_mejoras/run_magnetic_campaign.py",
+      "method": "ours-only",
+      "base_sha256": "dbf892c093bacce1a690eef6633f362bc4b061329e02ebe9b91420090a587a2b",
+      "upstream_sha256": "dbf892c093bacce1a690eef6633f362bc4b061329e02ebe9b91420090a587a2b",
+      "ours_sha256": "7c48e86ccc0601a57846b908e06618cc291092ed72059a421bbfc5f4f7b8ecde",
+      "merged_sha256": "7c48e86ccc0601a57846b908e06618cc291092ed72059a421bbfc5f4f7b8ecde"
+    },
+    {
+      "path": "auditorias_mejoras/run_soc_campaign.py",
+      "method": "ours-only",
+      "base_sha256": "c4fd0a70b9b5ba417b847701f9925c36fa49ce775518b027118f189250bbbc99",
+      "upstream_sha256": "c4fd0a70b9b5ba417b847701f9925c36fa49ce775518b027118f189250bbbc99",
+      "ours_sha256": "8a3ce40e54c2426a8f132ba23ed0b94794845c431dfbb68f25317d6734364b66",
+      "merged_sha256": "8a3ce40e54c2426a8f132ba23ed0b94794845c431dfbb68f25317d6734364b66"
+    },
+    {
+      "path": "docs/examples/benchmarks/README.md",
+      "method": "ours-only",
+      "base_sha256": "1017eb02a5dc1c890bb53c3b389fc64a8684afbae3f52f85867ec14ec0383877",
+      "upstream_sha256": "1017eb02a5dc1c890bb53c3b389fc64a8684afbae3f52f85867ec14ec0383877",
+      "ours_sha256": "0fb1f28c7879c1bb32cefd046a16511d0c688a6d0d5897e925d5f9fb2c40843e",
+      "merged_sha256": "0fb1f28c7879c1bb32cefd046a16511d0c688a6d0d5897e925d5f9fb2c40843e"
+    },
+    {
+      "path": "src/graph2mat/bindings/torch/tests/test_multitarget_loss.py",
+      "method": "ours-only",
+      "base_sha256": "f8bf9a3907f1d0dd0a9bd427b83726177137802b6639d8ea98dd6c5833f95980",
+      "upstream_sha256": "f8bf9a3907f1d0dd0a9bd427b83726177137802b6639d8ea98dd6c5833f95980",
+      "ours_sha256": "bc697112f494629779de2ffe71893401bfe90d0c43c30631c17c33b9edf745eb",
+      "merged_sha256": "bc697112f494629779de2ffe71893401bfe90d0c43c30631c17c33b9edf745eb"
+    },
+    {
+      "path": "src/graph2mat/core/data/_sparse.py",
+      "method": "ours-only",
+      "base_sha256": "4dc33d4adc0e69d38e5f22e9fc5c8f03197ddde6d07818f01d9563f6e290fe46",
+      "upstream_sha256": "4dc33d4adc0e69d38e5f22e9fc5c8f03197ddde6d07818f01d9563f6e290fe46",
+      "ours_sha256": "70240c2a28de1c500e2f68eb0682fb83ea226b319d1c39732b5da7c518cc45fb",
+      "merged_sha256": "70240c2a28de1c500e2f68eb0682fb83ea226b319d1c39732b5da7c518cc45fb"
+    },
+    {
+      "path": "src/graph2mat/core/data/metrics.py",
+      "method": "ours-only",
+      "base_sha256": "5001db9523dbb49f56ccdc9660e0b8207db7948f52b66d004b38e87581dcbc0f",
+      "upstream_sha256": "5001db9523dbb49f56ccdc9660e0b8207db7948f52b66d004b38e87581dcbc0f",
+      "ours_sha256": "5799c0b253b3b41dfe9654c023a8ee4ce24a7c9af763e17816bfccd41fa91b47",
+      "merged_sha256": "5799c0b253b3b41dfe9654c023a8ee4ce24a7c9af763e17816bfccd41fa91b47"
+    },
+    {
+      "path": "src/graph2mat/core/data/processing.py",
+      "method": "three-way",
+      "base_sha256": "47a281ca97d4535595cf93f7db3418afa539ca6f6190a72e5d985eedf200101a",
+      "upstream_sha256": "3f32aa7c7950def19d67ab7c455864dd8ac2c6dd8b0cdd95295b2bcfadd12546",
+      "ours_sha256": "2745d73e0a2a77c29285051de6bc383dbbd9a9e57f0383814f8e9f2c796fc530",
+      "merged_sha256": "8ff4503c96bf017332da843d201c1f2d86e059c504efdc6c89fbf49e36e01aed"
+    },
+    {
+      "path": "src/graph2mat/core/data/tests/test_metrics.py",
+      "method": "ours-only",
+      "base_sha256": "dbbd6e8f58d7fc2547a83fbb6df9e7a0e77c75cbc612b666441bf69276c68276",
+      "upstream_sha256": "dbbd6e8f58d7fc2547a83fbb6df9e7a0e77c75cbc612b666441bf69276c68276",
+      "ours_sha256": "0318f79dbefdae7344d06032cbb30104126686630d652333b1196f1422dd7710",
+      "merged_sha256": "0318f79dbefdae7344d06032cbb30104126686630d652333b1196f1422dd7710"
+    },
+    {
+      "path": "src/graph2mat/core/data/tests/test_review_data_models_regressions.py",
+      "method": "ours-only",
+      "base_sha256": null,
+      "upstream_sha256": null,
+      "ours_sha256": "5f60a23b54179d5a963853a824405f34478a8d21864c0c01366c701ebf990fd9",
+      "merged_sha256": "5f60a23b54179d5a963853a824405f34478a8d21864c0c01366c701ebf990fd9"
+    },
+    {
+      "path": "src/graph2mat/tools/analysis/breakdown.py",
+      "method": "ours-only",
+      "base_sha256": "fbf3a9f6179e47e14524071de9c28e810da6c3c274a41facdac6201bbb2b41bd",
+      "upstream_sha256": "fbf3a9f6179e47e14524071de9c28e810da6c3c274a41facdac6201bbb2b41bd",
+      "ours_sha256": "ca7b7e97cfdcb042748ae7f9cbf2ef5dfda91bd78684ac66a694180bc7ec0098",
+      "merged_sha256": "ca7b7e97cfdcb042748ae7f9cbf2ef5dfda91bd78684ac66a694180bc7ec0098"
+    },
+    {
+      "path": "src/graph2mat/tools/analysis/metrics.py",
+      "method": "ours-only",
+      "base_sha256": "1449f194b95a7d6e592dcf0572e1ff7a37abb14595af70003bf8084a4e4a67ab",
+      "upstream_sha256": "1449f194b95a7d6e592dcf0572e1ff7a37abb14595af70003bf8084a4e4a67ab",
+      "ours_sha256": "313b6dd4a1150b00cde4669639dd1bcbf364ac5c4ae1c0a5e2a352c57c0b32aa",
+      "merged_sha256": "313b6dd4a1150b00cde4669639dd1bcbf364ac5c4ae1c0a5e2a352c57c0b32aa"
+    },
+    {
+      "path": "src/graph2mat/tools/analysis/tests/test_audit_regressions.py",
+      "method": "ours-only",
+      "base_sha256": null,
+      "upstream_sha256": null,
+      "ours_sha256": "100d1d73088f663e35d93d1533c1eebe46e7fa1041186dcf0b00e62ad0eac4f7",
+      "merged_sha256": "100d1d73088f663e35d93d1533c1eebe46e7fa1041186dcf0b00e62ad0eac4f7"
+    },
+    {
+      "path": "src/graph2mat/tools/lightning/model.py",
+      "method": "three-way",
+      "base_sha256": "7d984f1c8b0795432f52aec5155763bba0b70ea2accf8241719e07e282a30dc0",
+      "upstream_sha256": "782575ed58ba7de787d20b35c27121e087821393edeec23147d776a1757688f1",
+      "ours_sha256": "ed88bc1d5db1685c7b87744ae45d9fb8b48b7402af27a54e2e1d4d223c29a835",
+      "merged_sha256": "ed88bc1d5db1685c7b87744ae45d9fb8b48b7402af27a54e2e1d4d223c29a835"
+    },
+    {
+      "path": "src/graph2mat/tools/lightning/models/mace.py",
+      "method": "ours-only",
+      "base_sha256": "2f6753f05789d1b92e5d36308b84933de87ec8bc6a061c30111117881fc24f0d",
+      "upstream_sha256": "2f6753f05789d1b92e5d36308b84933de87ec8bc6a061c30111117881fc24f0d",
+      "ours_sha256": "185687135970c2fb19802c76a5fc65a197ef817b894ebc93fc67f279d77c1f7a",
+      "merged_sha256": "185687135970c2fb19802c76a5fc65a197ef817b894ebc93fc67f279d77c1f7a"
+    },
+    {
+      "path": "src/graph2mat/tools/lightning/tests/test_ddp_cpu.py",
+      "method": "ours-only",
+      "base_sha256": "d68bdb3e0a0eed700da2982460f148d550e63fe3bd983af8f6eae004fcdf264b",
+      "upstream_sha256": "d68bdb3e0a0eed700da2982460f148d550e63fe3bd983af8f6eae004fcdf264b",
+      "ours_sha256": "7f651e02dc628c07c0786f6880a35cb26a6e4847ffc8364a886593dfc94f3aeb",
+      "merged_sha256": "7f651e02dc628c07c0786f6880a35cb26a6e4847ffc8364a886593dfc94f3aeb"
+    },
+    {
+      "path": "src/graph2mat/tools/lightning/tests/test_gauge_epoch_metrics.py",
+      "method": "ours-only",
+      "base_sha256": "fcb5946838aef4b2714975ec2696f8a2b2d781b3d44f810d31cad952aa674c49",
+      "upstream_sha256": "fcb5946838aef4b2714975ec2696f8a2b2d781b3d44f810d31cad952aa674c49",
+      "ours_sha256": "6baa4570edaae2942a769b22271a0f44a5a2c8700e68f18911177609b8b97d1a",
+      "merged_sha256": "6baa4570edaae2942a769b22271a0f44a5a2c8700e68f18911177609b8b97d1a"
+    },
+    {
+      "path": "src/graph2mat/tools/lightning/tests/test_physical_training.py",
+      "method": "ours-only",
+      "base_sha256": "b428fc8872777d78393fb60c28cbc06d8351ee14e149a28877135b027662825f",
+      "upstream_sha256": "b428fc8872777d78393fb60c28cbc06d8351ee14e149a28877135b027662825f",
+      "ours_sha256": "daad7f121862750aa238ddcf79dd022bb3e3a9379dd2352a72b881107c8ce311",
+      "merged_sha256": "daad7f121862750aa238ddcf79dd022bb3e3a9379dd2352a72b881107c8ce311"
+    },
+    {
+      "path": "src/graph2mat/tools/lightning/tests/test_review_model_regressions.py",
+      "method": "ours-only",
+      "base_sha256": null,
+      "upstream_sha256": null,
+      "ours_sha256": "63a5e6144b39444757fc8a2c756cd291f048ca94277bd631c2984fbeec867e16",
+      "merged_sha256": "63a5e6144b39444757fc8a2c756cd291f048ca94277bd631c2984fbeec867e16"
+    },
+    {
+      "path": "src/graph2mat/tools/lightning/tests/test_selection_metric.py",
+      "method": "ours-only",
+      "base_sha256": "0791c10ce14a0f164ad655a7d70f5f0f77c15e94290d6ef31b189f528700b8a6",
+      "upstream_sha256": "0791c10ce14a0f164ad655a7d70f5f0f77c15e94290d6ef31b189f528700b8a6",
+      "ours_sha256": "ffac4c6fa2302f33062df0c1dbeefd3143f330eb9649ce913a694e8860c93f7e",
+      "merged_sha256": "ffac4c6fa2302f33062df0c1dbeefd3143f330eb9649ce913a694e8860c93f7e"
+    },
+    {
+      "path": "src/graph2mat/tools/lightning/tests/test_training_stages.py",
+      "method": "three-way",
+      "base_sha256": "63bd4c3967d0118ee58c55c08806a7bd57ffd2a4675f35d2e226d56ef73d216b",
+      "upstream_sha256": "c1cb93d39216ec200509e65fe81df7f4386420cb3da52d7ea8e953daa840e4ea",
+      "ours_sha256": "403c19a24a2e1f9069c457c221b644131ff6f402d3f7953273cd80f162228c41",
+      "merged_sha256": "403c19a24a2e1f9069c457c221b644131ff6f402d3f7953273cd80f162228c41"
+    },
+    {
+      "path": "src/graph2mat/tools/server/tests/test_server_app.py",
+      "method": "ours-only",
+      "base_sha256": "72c4ca5e664e46fc58646b0de0ab813bb3c9ef521623cb7eec8a20d88b2181ed",
+      "upstream_sha256": "72c4ca5e664e46fc58646b0de0ab813bb3c9ef521623cb7eec8a20d88b2181ed",
+      "ours_sha256": "3041e64963839555636955daacf15b4c93d7bc1440451b7df633c4a7545fc23c",
+      "merged_sha256": "3041e64963839555636955daacf15b4c93d7bc1440451b7df633c4a7545fc23c"
+    },
+    {
+      "path": "src/graph2mat/tools/siesta/delta.py",
+      "method": "ours-only",
+      "base_sha256": "6d5f1a51ac2cb045d3bc24263bae520354e774fb5b53217cc6342acb41274710",
+      "upstream_sha256": "6d5f1a51ac2cb045d3bc24263bae520354e774fb5b53217cc6342acb41274710",
+      "ours_sha256": "c458ae031d89fd37b506edd61dfd578143bb24d70cd4f226674536c8c5b30da4",
+      "merged_sha256": "c458ae031d89fd37b506edd61dfd578143bb24d70cd4f226674536c8c5b30da4"
+    },
+    {
+      "path": "src/graph2mat/tools/siesta/dm_pilot.py",
+      "method": "ours-only",
+      "base_sha256": "c6bf61ff3637d82ad7a3f294623617c47ccde7e276f905fb74e589f265bf96bb",
+      "upstream_sha256": "c6bf61ff3637d82ad7a3f294623617c47ccde7e276f905fb74e589f265bf96bb",
+      "ours_sha256": "8c8b5858a420f0a17681d5c30a0bd6208c039053a55d55e221968e6b1542efda",
+      "merged_sha256": "8c8b5858a420f0a17681d5c30a0bd6208c039053a55d55e221968e6b1542efda"
+    },
+    {
+      "path": "src/graph2mat/tools/siesta/label_noise.py",
+      "method": "ours-only",
+      "base_sha256": "030ca6ad622cd09252678e6eafda956a17ae574e9c0a5771822f6861a0530ce0",
+      "upstream_sha256": "030ca6ad622cd09252678e6eafda956a17ae574e9c0a5771822f6861a0530ce0",
+      "ours_sha256": "ac517f9f13323d0603a9980c5ee52b26387f4f8ef898c003aeb584ca6202da0a",
+      "merged_sha256": "ac517f9f13323d0603a9980c5ee52b26387f4f8ef898c003aeb584ca6202da0a"
+    },
+    {
+      "path": "src/graph2mat/tools/siesta/runner.py",
+      "method": "ours-only",
+      "base_sha256": "69f711df31e44ff637cbab03d00a722b079598852d65dc7befc3ccafb9a19b08",
+      "upstream_sha256": "69f711df31e44ff637cbab03d00a722b079598852d65dc7befc3ccafb9a19b08",
+      "ours_sha256": "afab2fb1c0ee019b03ef24711d0626301bdae780cc86d501aaab2bca6353999e",
+      "merged_sha256": "afab2fb1c0ee019b03ef24711d0626301bdae780cc86d501aaab2bca6353999e"
+    },
+    {
+      "path": "src/graph2mat/tools/siesta/tests/test_audit_cache_fdf.py",
+      "method": "ours-only",
+      "base_sha256": null,
+      "upstream_sha256": null,
+      "ours_sha256": "3580e370c145bd0318bf04ed5ea22a2ebe0150f48e24e054525df6f03923d061",
+      "merged_sha256": "3580e370c145bd0318bf04ed5ea22a2ebe0150f48e24e054525df6f03923d061"
+    },
+    {
+      "path": "src/graph2mat/tools/siesta/tests/test_audit_soc_physics.py",
+      "method": "ours-only",
+      "base_sha256": null,
+      "upstream_sha256": null,
+      "ours_sha256": "ec8dde1bb16643f7fb2735e61c1a98089991ef577a208f77baa95d4e6ab249c5",
+      "merged_sha256": "ec8dde1bb16643f7fb2735e61c1a98089991ef577a208f77baa95d4e6ab249c5"
+    },
+    {
+      "path": "tests/test_campaign_launch_contracts.py",
+      "method": "ours-only",
+      "base_sha256": null,
+      "upstream_sha256": null,
+      "ours_sha256": "65c136cdb591b409c988dea8550d087ae615fbcf5c10679fabff271a48020838",
+      "merged_sha256": "65c136cdb591b409c988dea8550d087ae615fbcf5c10679fabff271a48020838"
+    }
+  ],
+  "conflicts": [],
+  "manual_resolutions": {
+    "src/graph2mat/tools/lightning/tests/test_training_stages.py": "Preserve DDP/scaleshift tests; replace last-stage mocks with numeric saved-stage/default/legacy regressions.",
+    "src/graph2mat/tools/lightning/model.py": "Remove incorrect last-stage evaluation hooks from 2248f52; preserve DDP/scaleshift guard and restore saved loss on checkpoint load."
+  },
+  "additional_review": "T8 strongly skewed full-PBC cell: general_find_mic required; 1 failed before, 26 analysis tests pass after."
+}

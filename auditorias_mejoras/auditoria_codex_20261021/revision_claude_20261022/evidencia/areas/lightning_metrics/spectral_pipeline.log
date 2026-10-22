@@ -1,0 +1,5 @@
+diag_S = [1.0, 1.0, 1.0, 1.0]
+C.T S C = [[0.2, 0.0], [0.0, 1.0]]
+pure_gauge_base_mse = 3.4666738998970245e-33
+pure_gauge_total_mse = 8.106631183039924e-28 spectral_rmse = 2.847208548087218e-14 expected = 0
+max_abs_gradient = 7.804105207100576e-12

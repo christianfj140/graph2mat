@@ -1,0 +1,37 @@
+
+COMMAND metrics/repro_gauge.py
+/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/metrics/repro_gauge.py:19: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  print('gauge_mse =',float(loss),'gradient =',grad.tolist(),'common_gauge_oracle_mse = 1')
+spin_ref_levels = [0.0, 0.0]
+spin_pred_levels = [1.0, -1.0]
+ref_splitting_eV = 0; pred_splitting_eV = 2
+gauge_mse = 0.0 gradient = [[0.0, 0.0]] common_gauge_oracle_mse = 1
+C.T S C = [[0.2, 0.0], [0.0, 1.0]]
+nullspace_pure_cS_spectral_mse = 0.07999999999999999 count = 4.0 expected = 0
+nullspace_gradient = [40.0, 0.0, 0.0, -200.00000000000003]
+EXIT 0
+
+COMMAND metrics/repro_spin_multitarget.py
+/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+  """Extension of `TorchGraph2Mat` to deal with irreps.
+reference_eigenvalues_both_spins_eV = [0.16666666666666666, 1.0]
+pred_up_eV = [1.1666666666666667, 2.0] pred_down_eV = [-0.8333333333333334, 5.551115123125783e-17]
+pred_spin_splitting_eV = [2.0, 2.0]
+multitarget_H_gauge_mse = 0.0 max_abs_gradient = 0.0
+EXIT 0
+
+COMMAND metrics/repro_spectral_pipeline.py
+diag_S = [1.0, 1.0, 1.0, 1.0]
+C.T S C = [[0.2, 0.0], [0.0, 1.0]]
+pure_gauge_base_mse = 3.4666738998970245e-33
+pure_gauge_total_mse = 0.08000000000001876 spectral_rmse = 0.2828427124746522 expected = 0
+max_abs_gradient = 60.000000000007816
+EXIT 0
+
+COMMAND metrics/repro_pair_cell.py
+orthogonal pairs = [(0, 1)] loss = 5.0 stats = {'node_rmse': tensor(1., dtype=torch.float64), 'edge_rmse': tensor(0., dtype=torch.float64), 'n_pairs': 1, 'pair_rmse': tensor(2., dtype=torch.float64)}
+same_lattice_skew pairs = [] loss = 1.0 stats = {'node_rmse': tensor(1., dtype=torch.float64), 'edge_rmse': tensor(0., dtype=torch.float64), 'n_pairs': 0, 'pair_rmse': 0.0}
+expected_pairs=1 error = found 0 +/- pairs in the batch, expected 1
+same physical nearest-image separation = 0.04 Ang; expected both [(0,1)], loss5
+EXIT 0

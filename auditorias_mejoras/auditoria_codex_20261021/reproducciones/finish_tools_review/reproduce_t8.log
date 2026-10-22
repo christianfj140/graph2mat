@@ -1,0 +1,12 @@
+{
+  "unwrapped_distance_Ang": 21.0,
+  "oracle_sisl_image_minus3_Ang": 1.0,
+  "wrapped_distance_Ang": 1.0,
+  "wrong_classification": {
+    "total_sum": 0.19999999999999996,
+    "beyond_range_sum": 0.19999999999999996,
+    "beyond_range_n": 2,
+    "shell_6.0-99.0_sum": 0.19999999999999996,
+    "shell_0.1-1.6_sum": 0.0
+  }
+}

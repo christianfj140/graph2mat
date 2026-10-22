@@ -1,0 +1,224 @@
+FFFFFF.F.                                                                [100%]
+=================================== FAILURES ===================================
+__________ test_combine_matches_physical_kspace_with_permuted_images ___________
+
+    def test_combine_matches_physical_kspace_with_permuted_images():
+        a, b = _chain([0, 1, 2]), _chain([0, 2, 1])
+        result = combine_hamiltonians(a, b, -1.)
+        for k in ([0., 0., 0.], [.23, 0., 0.]):
+>           np.testing.assert_allclose(result.Hk(k=k, format='array'), 0., atol=1e-12)
+E           AssertionError: 
+E           Not equal to tolerance rtol=1e-07, atol=1e-12
+E           
+E           Mismatched elements: 2 / 4 (50%)
+E           Mismatch at indices:
+E            [0, 1]: 3.9684588052579115j (ACTUAL), 0.0 (DESIRED)
+E            [1, 0]: -3.9684588052579115j (ACTUAL), 0.0 (DESIRED)
+E           Max absolute difference among violations: 3.96845881
+E           Max relative difference among violations: inf
+E            ACTUAL: array([[0.+0.j      , 0.+3.968459j],
+E                  [0.-3.968459j, 0.+0.j      ]])
+E            DESIRED: array(0.)
+
+src/graph2mat/tools/analysis/tests/test_audit_regressions.py:33: AssertionError
+__________________ test_combine_rejects_different_structures ___________________
+
+    def test_combine_rejects_different_structures():
+        a, b = _chain([0, 1, 2]), _chain([0, 1, 2])
+        b.geometry.xyz[1, 0] += .5
+>       with pytest.raises(ValueError, match='geometry'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/analysis/tests/test_audit_regressions.py:41: Failed
+______ test_aligned_error_uses_fixed_union_support_for_offdiagonal_error _______
+
+    def test_aligned_error_uses_fixed_union_support_for_offdiagonal_error():
+        geometry = _two_atoms()
+        ref = sisl.Hamiltonian.fromsp(geometry, sp.csr_matrix([[1., .2], [.2, 2.]]),
+                                      S=sp.eye(2, format='csr'))
+        pred = sisl.Hamiltonian.fromsp(geometry, sp.csr_matrix([[1., .3], [.3, 2.]]),
+                                       S=sp.eye(2, format='csr'))
+>       assert aligned_error(pred, ref) == pytest.approx(np.sqrt(.02 / 4))
+E       assert nan == 0.07071067811865475 ± 7.1e-08
+E         
+E         comparison failed
+E         Obtained: nan
+E         Expected: 0.07071067811865475 ± 7.1e-08
+
+src/graph2mat/tools/analysis/tests/test_audit_regressions.py:51: AssertionError
+_____________ test_canonical_bands_rejects_empty_overlap_subspace ______________
+
+    def test_canonical_bands_rejects_empty_overlap_subspace():
+        h = sisl.Hamiltonian.fromsp(_two_atoms(), sp.diags([-.5, .5]), S=sp.eye(2, format='csr'))
+>       with pytest.raises(ValueError, match='subspace'):
+E       Failed: DID NOT RAISE ValueError
+
+src/graph2mat/tools/analysis/tests/test_audit_regressions.py:56: Failed
+_______________ test_summarize_exact_prediction_has_zero_shares ________________
+
+    def test_summarize_exact_prediction_has_zero_shares():
+        row = dict(total_sum=0., total_n=4, raw_sum=0., gauge_c_meV=0., onsite_sum=0., onsite_n=2)
+>       summary = summarize_breakdown([row])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/graph2mat/tools/analysis/tests/test_audit_regressions.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rows = [{'total_sum': 0.0, 'total_n': 4, 'raw_sum': 0.0, 'gauge_c_meV': 0.0, ...}]
+
+    def summarize_breakdown(rows: Sequence[Dict[str, float]]) -> Dict:
+        """Aggregate ``structure_breakdown`` rows of several structures."""
+        total = sum(p["total_sum"] for p in rows)  # aligned
+        n_total = sum(p["total_n"] for p in rows)
+        cats = [k[:-4] for k in rows[0] if k.endswith("_sum") and k != "raw_sum"]
+        return {
+            "n_structures": len(rows),
+            "H_MAE_meV": 1e3 * sum(p["raw_sum"] for p in rows) / n_total,
+            "H_MAE_gauge_aligned_meV": 1e3 * total / n_total,
+            "gauge_c_meV_mean_abs": float(np.mean([abs(p["gauge_c_meV"]) for p in rows])),
+            "categories": {
+                k: {
+>                   "share_of_error": round(sum(p[f"{k}_sum"] for p in rows) / total, 4),
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    "share_of_elements": round(sum(p[f"{k}_n"] for p in rows) / n_total, 4),
+                    "mean_error_meV": round(
+                        1e3 * sum(p[f"{k}_sum"] for p in rows) / max(1, sum(p[f"{k}_n"] for p in rows)), 4
+                    ),
+                }
+                for k in cats
+            },
+        }
+E       ZeroDivisionError: float division by zero
+
+src/graph2mat/tools/analysis/breakdown.py:134: ZeroDivisionError
+_ test_minimum_image_handles_unwrapped_and_nonreduced_cells[cell0-xyz0-pbc0-1.0] _
+
+cell = [10.0, 10.0, 10.0], xyz = [31.0, 0.0, 0.0], pbc = [True, False, False]
+want = 1.0
+
+    @pytest.mark.parametrize('cell,xyz,pbc,want', [
+        ([10., 10., 10.], [31., 0., 0.], [True, False, False], 1.),
+        ([10., 10., 10.], [31., 0., 0.], [False, False, False], 31.),
+        ([[10., 0., 0.], [51., 1., 0.], [0., 0., 10.]], [30.5, .5, 0.], [True, True, False], np.sqrt(.5)),
+    ])
+    def test_minimum_image_handles_unwrapped_and_nonreduced_cells(cell, xyz, pbc, want):
+        geometry = sisl.Geometry([[0., 0., 0.], xyz], atoms=sisl.Atom(1), lattice=cell)
+        geometry.lattice.pbc = pbc
+>       assert min_image_distances(geometry)[0, 1] == pytest.approx(want)
+E       assert np.float64(21.0) == 1.0 ± 1.0e-06
+E         
+E         comparison failed
+E         Obtained: 21.0
+E         Expected: 1.0 ± 1.0e-06
+
+src/graph2mat/tools/analysis/tests/test_audit_regressions.py:75: AssertionError
+_ test_minimum_image_handles_unwrapped_and_nonreduced_cells[cell2-xyz2-pbc2-0.7071067811865476] _
+
+cell = [[10.0, 0.0, 0.0], [51.0, 1.0, 0.0], [0.0, 0.0, 10.0]]
+xyz = [30.5, 0.5, 0.0], pbc = [True, True, False]
+want = np.float64(0.7071067811865476)
+
+    @pytest.mark.parametrize('cell,xyz,pbc,want', [
+        ([10., 10., 10.], [31., 0., 0.], [True, False, False], 1.),
+        ([10., 10., 10.], [31., 0., 0.], [False, False, False], 31.),
+        ([[10., 0., 0.], [51., 1., 0.], [0., 0., 10.]], [30.5, .5, 0.], [True, True, False], np.sqrt(.5)),
+    ])
+    def test_minimum_image_handles_unwrapped_and_nonreduced_cells(cell, xyz, pbc, want):
+        geometry = sisl.Geometry([[0., 0., 0.], xyz], atoms=sisl.Atom(1), lattice=cell)
+        geometry.lattice.pbc = pbc
+>       assert min_image_distances(geometry)[0, 1] == pytest.approx(want)
+E       assert np.float64(10.51189802081432) == 0.7071067811865476 ± 7.1e-07
+E         
+E         comparison failed
+E         Obtained: 10.51189802081432
+E         Expected: 0.7071067811865476 ± 7.1e-07
+
+src/graph2mat/tools/analysis/tests/test_audit_regressions.py:75: AssertionError
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/tools/analysis/tests/test_audit_regressions.py::test_aligned_error_uses_fixed_union_support_for_offdiagonal_error
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/tools/siesta/dm_pilot.py:70: RuntimeWarning: invalid value encountered in scalar divide
+    c = (diff.data @ s_vals) / (s_vals @ s_vals)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/analysis/tests/test_audit_regressions.py::test_combine_matches_physical_kspace_with_permuted_images
+FAILED src/graph2mat/tools/analysis/tests/test_audit_regressions.py::test_combine_rejects_different_structures
+FAILED src/graph2mat/tools/analysis/tests/test_audit_regressions.py::test_aligned_error_uses_fixed_union_support_for_offdiagonal_error
+FAILED src/graph2mat/tools/analysis/tests/test_audit_regressions.py::test_canonical_bands_rejects_empty_overlap_subspace
+FAILED src/graph2mat/tools/analysis/tests/test_audit_regressions.py::test_summarize_exact_prediction_has_zero_shares
+FAILED src/graph2mat/tools/analysis/tests/test_audit_regressions.py::test_minimum_image_handles_unwrapped_and_nonreduced_cells[cell0-xyz0-pbc0-1.0]
+FAILED src/graph2mat/tools/analysis/tests/test_audit_regressions.py::test_minimum_image_handles_unwrapped_and_nonreduced_cells[cell2-xyz2-pbc2-0.7071067811865476]
+7 failed, 2 passed, 47 warnings in 0.08s

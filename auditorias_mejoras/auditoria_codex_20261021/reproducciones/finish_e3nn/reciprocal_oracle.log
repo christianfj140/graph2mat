@@ -1,0 +1,6 @@
+/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+  """Extension of `TorchGraph2Mat` to deal with irreps.
+identity current_vectors 1356 complete_vectors 1356 matrix_error_eV 0.0 potential_eV [-5.782316365157627, 5.782316365157627] potential_error_eV 1.7763568394002505e-15
+moderate_shear current_vectors 1204 complete_vectors 1356 matrix_error_eV 6.191667747401652e-07 potential_eV [-5.782316910673607, 5.782316910673607] potential_error_eV 5.455159808320786e-07
+strong_shear current_vectors 38 complete_vectors 1356 matrix_error_eV 2.462968901702652 potential_eV [-7.8501006145799, 7.8501006145799] potential_error_eV 2.067784249422262
+oracle_passed: same lattice, same full reciprocal sphere, same analytic matrix

@@ -1,0 +1,30 @@
+{
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "executable": "/tmp/g2m-python312-full.LHyni1/venv/bin/python",
+  "graph2mat": "/tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/__init__.py",
+  "cuda_available": false,
+  "versions": {
+    "torch": "2.11.0+cpu",
+    "pytorch-lightning": "2.6.1",
+    "torchmetrics": "1.9.0",
+    "numpy": "2.4.4",
+    "scipy": "1.17.1",
+    "sisl": "0.16.4",
+    "ase": "3.29.0",
+    "e3nn": "0.4.4",
+    "mace-torch": "0.3.15",
+    "fastapi": "0.142.4",
+    "dscribe": "2.1.2",
+    "Cython": "3.3.0"
+  },
+  "extensions": {
+    "graph2mat.core.data._sparse": {
+      "path": "/tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/core/data/_sparse.cpython-312-x86_64-linux-gnu.so",
+      "sha256": "da5ee5627560adb893854f61b13b2f54defff638c60169983b814def15af85e6"
+    },
+    "graph2mat.core.modules._labels_resort": {
+      "path": "/tmp/graph2mat-codex-review-20261022-f80m50ec/integrated-source/src/graph2mat/core/modules/_labels_resort.cpython-312-x86_64-linux-gnu.so",
+      "sha256": "7226e25d09eeed79ae91be04fb43a32000145182cfb04a2eee0bc91b214ad90b"
+    }
+  }
+}

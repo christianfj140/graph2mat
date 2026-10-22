@@ -1,0 +1,65 @@
+....FF......                                                             [100%]
+=================================== FAILURES ===================================
+_______ test_requested_update_budget_is_enforced[2-run_soc_campaign.py] ________
+tests/test_campaign_launch_contracts.py:95: in test_requested_update_budget_is_enforced
+    run(*args)
+auditorias_mejoras/run_soc_campaign.py:285: in run
+    checkpoint, seconds, peak = c.run_training(config, run_dir)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_campaign_launch_contracts.py:68: in train
+    assert checkpoint.best_model_path and Path(checkpoint.best_model_path).is_file()
+E   AssertionError: assert ('')
+E    +  where '' = <pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint object at 0x7bf507d87410>.best_model_path
+------------------------------ Captured log call -------------------------------
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+INFO     pytorch_lightning.utilities.rank_zero:fit_loop.py:182 `Trainer.fit` stopped: `max_steps=2` reached.
+_____ test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py] _____
+tests/test_campaign_launch_contracts.py:95: in test_requested_update_budget_is_enforced
+    run(*args)
+auditorias_mejoras/run_magnetic_campaign.py:394: in run
+    checkpoint, seconds, peak = c.run_training(config, run_dir)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_campaign_launch_contracts.py:68: in train
+    assert checkpoint.best_model_path and Path(checkpoint.best_model_path).is_file()
+E   AssertionError: assert ('')
+E    +  where '' = <pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint object at 0x7bf4d788ffb0>.best_model_path
+------------------------------ Captured log call -------------------------------
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+INFO     pytorch_lightning.utilities.rank_zero:fit_loop.py:182 `Trainer.fit` stopped: `max_steps=2` reached.
+=============================== warnings summary ===============================
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_magnetic_campaign.py]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_magnetic_campaign.py]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[7-run_magnetic_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_soc_campaign.py]
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[10-run_magnetic_campaign.py]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/callbacks/model_checkpoint.py:588: `ModelCheckpoint(monitor='val_loss')` could not find the monitored key in the returned metrics: ['epoch', 'step']. HINT: Did you call `log('val_loss', value)` in the `LightningModule`?
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_soc_campaign.py]
+FAILED tests/test_campaign_launch_contracts.py::test_requested_update_budget_is_enforced[2-run_magnetic_campaign.py]
+2 failed, 10 passed, 19 warnings in 1.67s

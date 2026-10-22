@@ -1,0 +1,7 @@
+{
+  "matrix_component_policy": "h_and_overlap",
+  "n_matrix_components": 2,
+  "out_matrix": "hamiltonian",
+  "serialized_orthogonal": false,
+  "serialized_spin_polarized": false
+}

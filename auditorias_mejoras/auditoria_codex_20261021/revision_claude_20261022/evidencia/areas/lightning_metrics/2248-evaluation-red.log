@@ -1,0 +1,289 @@
+F.FF                                                                     [100%]
+=================================== FAILURES ===================================
+_______ test_checkpoint_stage_loss_matches_live_validate_and_test[early] _______
+
+tmp_path = PosixPath('/tmp/pytest-of-christian/pytest-1303/test_checkpoint_stage_loss_mat0')
+checkpoint_stage = 'early'
+
+    @pytest.mark.parametrize("checkpoint_stage", ["early", "last"])
+    def test_checkpoint_stage_loss_matches_live_validate_and_test(tmp_path, checkpoint_stage):
+        import numpy as np
+        import pytorch_lightning as pl
+        from graph2mat import BasisConfiguration
+        from graph2mat.bindings.torch.load import load_from_lit_ckpt
+        from graph2mat.tools.lightning import MatrixDataModule
+        from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+    
+        table = _basis_table()
+        config = BasisConfiguration(
+            point_types=["H", "H"], positions=np.array([[0., 0., 0.], [.7, 0., 0.]]),
+            basis=table, cell=np.eye(3) * 10, pbc=(False, False, False), matrix=np.array([[4., 3.], [3., 5.]]),
+        )
+        data = MatrixDataModule(basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+            train_runs=[config], val_runs=[config], test_runs=[config], loader_threads=0)
+        model = LitMACEMatrixModel(basis_table=table, symmetric_matrix=True,
+            hidden_irreps="2x0e+2x1o", edge_hidden_irreps="2x0e+2x1o", num_bessel=2, max_ell=1,
+            optim_lr=0., training_stages=[{"name": "mae", "max_epochs": 1, "loss": "elementwise_mae"},
+                                       {"name": "mse", "max_epochs": 1, "loss": "elementwise_mse"}])
+        steps = 1 if checkpoint_stage == "early" else 2
+    
+        def trainer():
+            return pl.Trainer(accelerator="cpu", devices=1, max_steps=steps, max_epochs=steps, logger=False,
+                enable_checkpointing=False, enable_progress_bar=False, enable_model_summary=False,
+                num_sanity_val_steps=0, default_root_dir=tmp_path)
+    
+        fit = trainer()
+        fit.fit(model, datamodule=data)
+        path = tmp_path / "stage.ckpt"
+        fit.save_checkpoint(path)
+        restored, _ = load_from_lit_ckpt(path)
+        assert type(restored.loss_fn) is type(model.loss_fn)
+        for key, value in model.state_dict().items():
+            torch.testing.assert_close(restored.state_dict()[key], value, rtol=0, atol=0)
+        model.eval()
+        batch = next(iter(data.val_dataloader()))
+        with torch.no_grad():
+            prediction = model(batch)
+            error = torch.cat((prediction["node_labels"] - batch.point_labels,
+                               prediction["edge_labels"] - batch.edge_labels))
+            expected = float(error.abs().mean() if checkpoint_stage == "early" else error.square().mean())
+        for method, key in (("validate", "val_loss"), ("test", "test_loss")):
+            live = getattr(trainer(), method)(model, datamodule=data, verbose=False)[0][key]
+            reloaded = getattr(trainer(), method)(restored, datamodule=data, verbose=False)[0][key]
+>           assert live == pytest.approx(expected)
+E           assert 24.353024500801457 == 4.606046676635742 ± 4.6e-06
+E             
+E             comparison failed
+E             Obtained: 24.353024500801457
+E             Expected: 4.606046676635742 ± 4.6e-06
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py:203: AssertionError
+----------------------------- Captured stdout call -----------------------------
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+------------------------------ Captured log call -------------------------------
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+WARNING  root:split_guardrail.py:142 Split guardrail: shared source between train/val (1 shared identities; examples ['<same in-memory input>']). Alarm only; partitions unchanged.
+WARNING  root:split_guardrail.py:148 Split guardrail: independence not evaluable from available group metadata (coverage {'train': {'known': 0, 'total': 1}, 'val': {'known': 0, 'total': 1}}; metadata issues 0; unavailable splits []). This is not proof of leakage; no geometric similarity threshold is applied. Partitions unchanged.
+INFO     pytorch_lightning.utilities.rank_zero:fit_loop.py:182 `Trainer.fit` stopped: `max_steps=1` reached.
+INFO     pytorch_lightning.trainer.connectors.checkpoint_connector:checkpoint_connector.py:455 `weights_only` was not set, defaulting to `False`.
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+___ test_evaluation_before_fit_preserves_the_default_loss[validate-val_loss] ___
+
+method = 'validate', key = 'val_loss'
+
+    @pytest.mark.parametrize("method,key", [("validate", "val_loss"), ("test", "test_loss")])
+    def test_evaluation_before_fit_preserves_the_default_loss(method, key):
+        import pytorch_lightning as pl
+        from torch_geometric.data import Data
+        from torch_geometric.loader import DataLoader
+    
+        model = _lit_model([{"name": "future", "max_epochs": 1, "loss": "block_type_huber"}])
+        with torch.no_grad():
+            model.model.matrix_readouts.weight.fill_(2.)
+            model.model.mace.weight.fill_(3.)
+        data = Data(num_nodes=1, x=torch.ones(1, 1), point_types=torch.tensor([0]),
+            point_labels=torch.zeros(1), edge_labels=torch.zeros(1), edge_types=torch.tensor([0]),
+            edge_index=torch.zeros(2, 1, dtype=torch.long))
+        trainer = pl.Trainer(accelerator="cpu", devices=1, logger=False, enable_checkpointing=False,
+            enable_progress_bar=False, enable_model_summary=False)
+        result = getattr(trainer, method)(model, dataloaders=DataLoader([data]), verbose=False)[0]
+>       assert result[key] == pytest.approx(13.)  # default block MSE: 2**2 + 3**2
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 4.0 == 13.0 ± 1.3e-05
+E         
+E         comparison failed
+E         Obtained: 4.0
+E         Expected: 13.0 ± 1.3e-05
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py:224: AssertionError
+------------------------------ Captured log call -------------------------------
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+____ test_evaluation_before_fit_preserves_the_default_loss[test-test_loss] _____
+
+method = 'test', key = 'test_loss'
+
+    @pytest.mark.parametrize("method,key", [("validate", "val_loss"), ("test", "test_loss")])
+    def test_evaluation_before_fit_preserves_the_default_loss(method, key):
+        import pytorch_lightning as pl
+        from torch_geometric.data import Data
+        from torch_geometric.loader import DataLoader
+    
+        model = _lit_model([{"name": "future", "max_epochs": 1, "loss": "block_type_huber"}])
+        with torch.no_grad():
+            model.model.matrix_readouts.weight.fill_(2.)
+            model.model.mace.weight.fill_(3.)
+        data = Data(num_nodes=1, x=torch.ones(1, 1), point_types=torch.tensor([0]),
+            point_labels=torch.zeros(1), edge_labels=torch.zeros(1), edge_types=torch.tensor([0]),
+            edge_index=torch.zeros(2, 1, dtype=torch.long))
+        trainer = pl.Trainer(accelerator="cpu", devices=1, logger=False, enable_checkpointing=False,
+            enable_progress_bar=False, enable_model_summary=False)
+        result = getattr(trainer, method)(model, dataloaders=DataLoader([data]), verbose=False)[0]
+>       assert result[key] == pytest.approx(13.)  # default block MSE: 2**2 + 3**2
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 4.0 == 13.0 ± 1.3e-05
+E         
+E         comparison failed
+E         Obtained: 4.0
+E         Expected: 13.0 ± 1.3e-05
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py:224: AssertionError
+------------------------------ Captured log call -------------------------------
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:164 GPU available: False, used: False
+INFO     pytorch_lightning.utilities.rank_zero:setup.py:167 TPU available: False, using: 0 TPU cores
+INFO     pytorch_lightning.utilities.rank_zero:logger_connector.py:91 💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+=============================== warnings summary ===============================
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:391: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    unit = pp.Word(pp.alphas).setParseAction(_value)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:394: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    plusorminus = pp.oneOf("+ -")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:410: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    ).setParseAction(_float)
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:425: PyparsingDeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    pow_op = pp.oneOf("^ **").setParseAction(lambda t: "^")
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:481: PyparsingDeprecationWarning: 'infixNotation' deprecated - use 'infix_notation'
+    parser = pp.infixNotation(
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:504: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_A = self._p_left.parseString(A)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/sisl/unit/base.py:505: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    conv_B = self._p_right.parseString(B)[0]
+
+../../g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: 7 warnings
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 114 warnings
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+src/graph2mat/bindings/e3nn/modules/graph2mat.py:18
+  /tmp/graph2mat-codex-review-20261022-f80m50ec/source/src/graph2mat/bindings/e3nn/modules/graph2mat.py:18: SyntaxWarning: invalid escape sequence '\e'
+    """Extension of `TorchGraph2Mat` to deal with irreps.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/models.py:85: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    "atomic_numbers", torch.tensor(atomic_numbers, dtype=torch.int64)
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py: 84 warnings
+  /usr/lib/python3.12/ast.py:407: UserWarning: The TorchScript type system doesn't support instance-level annotations on empty non-base types in `__init__`. Instead, either 1) use a type annotation in the class body, or 2) wrap the type in `torch.jit.Attribute`.
+    return visitor(node)
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/mace/modules/blocks.py:316: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    torch.tensor(atomic_energies, dtype=torch.get_default_dtype()),
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_evaluation_before_fit_preserves_the_default_loss[validate-val_loss]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_evaluation_before_fit_preserves_the_default_loss[test-test_loss]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_evaluation_before_fit_preserves_the_default_loss[validate-val_loss]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:378: You have overridden `transfer_batch_to_device` in `LightningModule` but have passed in a `LightningDataModule`. It will use the implementation from `LightningModule` instance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('train_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_evaluation_before_fit_preserves_the_default_loss[validate-val_loss]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('val_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/lightning_fabric/utilities/cloud_io.py:73: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_evaluation_before_fit_preserves_the_default_loss[test-test_loss]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:434: The 'test_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=23` in the `DataLoader` to improve performance.
+
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[last]
+src/graph2mat/tools/lightning/tests/test_training_stages.py::test_evaluation_before_fit_preserves_the_default_loss[test-test_loss]
+  /tmp/g2m-python312-full.LHyni1/venv/lib/python3.12/site-packages/pytorch_lightning/core/module.py:522: You called `self.log('test_loss', ..., logger=True)` but have no logger configured. You can enable one by doing `Trainer(logger=ALogger(...))`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/graph2mat/tools/lightning/tests/test_training_stages.py::test_checkpoint_stage_loss_matches_live_validate_and_test[early]
+FAILED src/graph2mat/tools/lightning/tests/test_training_stages.py::test_evaluation_before_fit_preserves_the_default_loss[validate-val_loss]
+FAILED src/graph2mat/tools/lightning/tests/test_training_stages.py::test_evaluation_before_fit_preserves_the_default_loss[test-test_loss]
+3 failed, 1 passed, 10 deselected, 285 warnings in 2.94s

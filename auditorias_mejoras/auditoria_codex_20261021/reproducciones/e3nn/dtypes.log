@@ -1,0 +1,10 @@
+model autocast False readout_fp32 False RuntimeError both inputs should have same dtype
+model autocast False readout_fp32 True RuntimeError both inputs should have same dtype
+model autocast True readout_fp32 False RuntimeError both inputs should have same dtype
+model autocast True readout_fp32 True RuntimeError both inputs should have same dtype
+direct_long_range True success
+model autocast qeq readout_fp32 False RuntimeError both inputs should have same dtype
+model autocast qeq readout_fp32 True RuntimeError both inputs should have same dtype
+direct_long_range qeq success
+float64 False success torch.float64
+float64 True RuntimeError The following operation failed in the TorchScript interpreter.

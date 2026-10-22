@@ -1,0 +1,5 @@
+{
+  "best_model_path": "/tmp/graph2mat-codex-audit-20261021-1n6tqn2d/finish_lightning/selection_ckpt/epoch=0.ckpt",
+  "best_model_score": 2.3665695190429688,
+  "checkpoint_epoch": 0
+}
