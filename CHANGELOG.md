@@ -80,6 +80,7 @@ recipe (fp32, `num_polynomial_cutoff=6`, correlation 3, lmax 3, 3 interactions,
 - Model options that would be silently ignored in the requested combination
   (for example `mp_cutoff` without a radial embedding for the readout).
 - `torch_compile_mode="reduce-overhead"`.
+- A `geometry_path` whose atoms (count and species order) differ from the matrix's.
 - `lr_scheduler` in a CLI config with `optimizer: null` is now applied to the model's
   optimizer (it was dropped). Resuming a checkpoint trained without a scheduler with
   one in the config raises.
@@ -106,8 +107,6 @@ recipe (fp32, `num_polynomial_cutoff=6`, correlation 3, lmax 3, 3 interactions,
 ### Known limitations
 
 - The full test suite takes about 45 min on CPU; CI has not run on GitHub for this branch.
-- A DM/EDM read from a `.DM` file without coordinates is not checked against the
-  label geometry.
 - Per-structure losses average structures that have no labels in the batch.
 - Band/eigenvalue metrics are offline tools; they are not part of Lightning validation.
 - Two species with the same Z and different basis are rejected, not supported.

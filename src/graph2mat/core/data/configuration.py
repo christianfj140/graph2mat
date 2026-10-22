@@ -680,6 +680,13 @@ def _sisl_run_to_orbitalconfiguration(
             # from ase.io import read
 
             kwargs["geometry"] = sisl.Geometry.read(geometry_path)
+            # Positions may differ (e.g. the final MD step), the atoms may not: the labels are
+            # indexed by the matrix's atoms (roadmap 3.11).
+            if not np.array_equal(kwargs["geometry"].atoms.Z, matrix.geometry.atoms.Z):
+                raise ValueError(
+                    f"geometry_path {geometry_path} has atoms {kwargs['geometry'].atoms.Z.tolist()} but "
+                    f"the {out_matrix} has {matrix.geometry.atoms.Z.tolist()}: they must match one to one."
+                )
             kwargs["geometry"] = _copy_basis(
                 matrix.geometry, kwargs["geometry"], notfound_ok=True
             )
