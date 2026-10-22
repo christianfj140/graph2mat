@@ -52,15 +52,20 @@ jobs:
     strategy:
       matrix:
         include:
+          # Quick runs skip the tests above 1 s (src/graph2mat/_slow_tests.py);
+          # the pinned 3.12 run keeps the full suite.
           - python: "3.9"
             pins: py39
             profile: pinned
+            select: "not slow"
           - python: "3.12"
             pins: py312
             profile: pinned
+            select: ""
           - python: "3.12"
             pins: py312
             profile: latest
+            select: "not slow"
     env:
       CUDA_VISIBLE_DEVICES: ""
       OMP_NUM_THREADS: "2"
@@ -87,5 +92,5 @@ jobs:
           python -m pip check
       - name: Run tests
         run: |
-          pytest --pyargs graph2mat -q -p no:cacheprovider -W ignore::DeprecationWarning
-          pytest -q tests
+          pytest --pyargs graph2mat -q -p no:cacheprovider -W ignore::DeprecationWarning -m "${{ matrix.select }}"
+          pytest -q tests -m "${{ matrix.select }}"

@@ -109,7 +109,9 @@ recipe (fp32, `num_polynomial_cutoff=6`, correlation 3, lmax 3, 3 interactions,
 
 ### Known limitations
 
-- The full test suite takes about 45 min on CPU; CI has not run on GitHub for this branch.
+- The full test suite takes 15–45 min on CPU; `pytest -m "not slow"` skips the 251 tests
+  above 1 s and takes about 6 min. CI runs the quick selection on two profiles and the full
+  suite on one.
 - Per-structure losses average structures that have no labels in the batch.
 - Band/eigenvalue metrics are offline tools; they are not part of Lightning validation.
 - Two species with the same Z and different basis are rejected, not supported.
