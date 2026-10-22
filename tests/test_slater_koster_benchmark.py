@@ -31,7 +31,8 @@ def test_three_variant_cpu_benchmark_contract():
     root = Path(__file__).resolve().parents[1]
     script = root / "auditorias_mejoras/bench_slater_koster_cpu.py"
     assert script.exists(), "7.4 paired benchmark missing"
-    env = dict(os.environ, CUDA_VISIBLE_DEVICES="", PYTHONPATH=str(root / "src"),
+    # The installed graph2mat (compiled extensions), not the uncompiled src tree.
+    env = dict(os.environ, CUDA_VISIBLE_DEVICES="",
                OMP_NUM_THREADS="2", OPENBLAS_NUM_THREADS="2", MKL_NUM_THREADS="2")
     run = subprocess.run([sys.executable, str(script), "--points", "4", "--rank", "1",
                           "--rounds", "1", "--warmup", "1"],

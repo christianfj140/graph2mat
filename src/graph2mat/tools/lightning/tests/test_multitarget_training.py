@@ -345,9 +345,13 @@ def test_real_cli_multitarget_checkpoint_predict_without_labels(tmp_path):
     torch.save(checkpoint, path)
     geometry_path = tmp_path / "geometry.xyz"
     bundle(2, 2)["overlap"].geometry.write(geometry_path)
+    # The documented example lives in the repository, not in an installed package.
+    example = next((root / "docs/examples/multitarget_predict.yaml" for root in Path(__file__).resolve().parents
+                    if (root / "docs/examples/multitarget_predict.yaml").is_file()), None)
+    if example is None:
+        pytest.skip("docs/examples is not available outside a source checkout")
     cli = OrbitalMatrixCLI(model_class=LitMACEMatrixModel, datamodule_class=MatrixDataModule,
-        save_config_callback=None, args=["predict", "--config",
-            str(Path(__file__).resolve().parents[5] / "docs/examples/multitarget_predict.yaml"),
+        save_config_callback=None, args=["predict", "--config", str(example),
             "--ckpt_path", str(path),
             "--data.root_dir", str(tmp_path), "--data.predict_structs", geometry_path.name,
             "--trainer.accelerator=cpu",
