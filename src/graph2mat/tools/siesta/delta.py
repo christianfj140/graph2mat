@@ -17,9 +17,12 @@ Workflow::
 ``stage_h0_overlap`` puts H0 next to a structure without labels: a ``long_range`` model
 (roadmap 8.4) needs S at inference, and S depends only on geometry and basis.
 """
+import json
+import os
+import re
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
@@ -54,9 +57,40 @@ H0_KEYS = {
 }
 
 
-def h0_fdf(text: str) -> str:
-    """The fdf of a converged calculation turned into the fdf of its H0."""
-    return replace_fdf_keys(text, H0_KEYS)
+def _fdf_value(text: str, key: str) -> Optional[str]:
+    """Value of the first fdf line that sets ``key`` (fdf label rules), if any."""
+    wanted = re.sub(r"[._-]", "", key).lower()
+    for line in text.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) == 2 and re.sub(r"[._-]", "", parts[0]).lower() == wanted:
+            return parts[1].split("#")[0].strip()
+    return None
+
+
+def _non_collinear(text: str) -> bool:
+    """Whether the fdf asks for non-collinear or spin-orbit spin."""
+    spin = re.sub(r"[\s._-]", "", (_fdf_value(text, "Spin") or "").lower())
+    if spin.startswith(("spinorbit", "so", "noncolinear", "noncollinear", "nc")):
+        return True
+    legacy = [(_fdf_value(text, key) or "").lower() for key in ("SpinOrbit", "NonCollinearSpin")]
+    return any(value in ("t", "true", ".true.", "yes") for value in legacy)
+
+
+def h0_fdf(text: str, n_atoms: Optional[int] = None) -> str:
+    """The fdf of a converged calculation turned into the fdf of its H0.
+
+    Non-collinear and spin-orbit runs start from a spin-polarized density in SIESTA
+    (ferromagnetic by default): their H0 gets ``DM.InitSpin`` with zero moment on all
+    ``n_atoms`` atoms (any previous ``DM.InitSpin`` block is replaced), so that H0 is the
+    H of the superposition of non-magnetic atomic densities (roadmap 8.1, F0).
+    """
+    out = replace_fdf_keys(text, H0_KEYS)
+    if _non_collinear(text):
+        if n_atoms is None:
+            raise ValueError("h0_fdf needs n_atoms for a non-collinear or spin-orbit fdf.")
+        out = re.sub(r"(?ims)^\s*%block\s+dm[._-]?init[._-]?spin\b.*?^\s*%endblock[^\n]*\n?", "", out)
+        out += "%block DM.InitSpin\n" + "".join(f" {i + 1} 0.0\n" for i in range(n_atoms)) + "%endblock DM.InitSpin\n"
+    return out
 
 
 def _read(path):
@@ -89,9 +123,10 @@ def compute_h0(
     if reference_matrix is None and (reference_dir / f"{label}.TSHS").exists():
         reference_matrix = reference_dir / f"{label}.TSHS"
     cached = (out_dir / f"{label}.TSHS").exists()
+    n_atoms = sisl.get_sile(str(reference_dir / "RUN.fdf")).read_geometry().na
     out = run_siesta_into(
         out_dir,
-        h0_fdf((reference_dir / "RUN.fdf").read_text()),
+        h0_fdf((reference_dir / "RUN.fdf").read_text(), n_atoms),
         find_pseudos(reference_dir),
         f"{label}.TSHS",
         siesta=siesta,
@@ -134,24 +169,74 @@ def combine_hamiltonians(a, b, sign: float):
     return sisl.Hamiltonian.fromsp(a.geometry, h, S=S, spin=a.spin)
 
 
+def project_time_reversal(h) -> Tuple[Any, float]:
+    """Spin-orbit ``h`` projected onto its time-reversal-symmetric channels ``[h0, gx, gy, gz]``
+    (overlap kept), and the relative TRS residual that the projection removed.
+
+    SCF noise makes SIESTA's spin-orbit H break time reversal by ~1e-5 eV, which is of the
+    order of ``SOC_TRS_RTOL`` relative to the much smaller H - H0: the data loader would
+    reject such labels. The residual is returned so that it is recorded, not hidden.
+    """
+    import sisl
+    from scipy.sparse import csr_array
+
+    from graph2mat.core.data.spin_orbit import siesta_to_soc_full_channels, soc_channels_to_siesta, soc_trs_residual
+
+    if not h.spin.is_spinorbit:
+        raise ValueError(f"time-reversal projection needs a spin-orbit H, not {h.spin}")
+    stacked = np.stack([h.tocsr(i).toarray() for i in range(8)], -1)
+    residual = float(soc_trs_residual(stacked))
+    projected = soc_channels_to_siesta(siesta_to_soc_full_channels(stacked)[..., :4])
+    support = np.abs(stacked).sum(-1) != 0
+    components = [csr_array(projected[..., i] * support) for i in range(8)]
+    S = None if h.orthogonal else h.tocsr(h.S_idx)
+    return sisl.Hamiltonian.fromsp(h.geometry, components, S=S, spin=sisl.Spin("spin-orbit")), residual
+
+
 def write_delta_sample(
-    reference_dir: Path, reference_matrix: Path, h0: Path, out_dir: Path
+    reference_dir: Path, reference_matrix: Path, h0: Path, out_dir: Path, project_trs: bool = False
 ) -> Path:
     """Copy of a sample whose label is H - H0: ``RUN.fdf`` of ``reference_dir`` and the
-    difference, with the overlap of the reference, under the reference matrix's name."""
+    difference, with the overlap of the reference, under the reference matrix's name.
+
+    ``project_trs``: for time-reversal-symmetric spin-orbit labels (policy ``spin_orbit``),
+    project H - H0 onto the TRS channels (``project_time_reversal``) and record the removed
+    residual in ``trs_residual.json``.
+    """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(Path(reference_dir) / "RUN.fdf", out_dir / "RUN.fdf")
     label = out_dir / Path(reference_matrix).name
-    combine_hamiltonians(_read(reference_matrix), _read(h0), -1.0).write(str(label))
+    delta = combine_hamiltonians(_read(reference_matrix), _read(h0), -1.0)
+    if project_trs:
+        delta, residual = project_time_reversal(delta)
+        (out_dir / "trs_residual.json").write_text(json.dumps({"relative_trs_residual": residual}))
+    delta.write(str(label))
     return label
 
 
 def add_h0(predicted: Path, h0: Path, out: Optional[Path] = None) -> Path:
-    """Prediction of H - H0 to prediction of H (in place unless ``out`` is given). The
-    overlap stays the prediction's."""
+    """Prediction of H - H0 to prediction of H (in place unless ``out`` is given, written to
+    a temporary file first). The overlap is the prediction's, or H0's when the prediction
+    has none (H-only and spin-orbit predictions are written without S; S depends only on
+    geometry and basis, so H0's is the reference S)."""
+    import sisl
+
     out = Path(predicted) if out is None else Path(out)
-    combine_hamiltonians(_read(predicted), _read(h0), 1.0).write(str(out))
+    prediction, base = _read(predicted), _read(h0)
+    result = combine_hamiltonians(prediction, base, 1.0)
+    if result.orthogonal and not base.orthogonal:
+        n_spin = result.spin.size(result.dtype)
+        values = [result.tocsr(i) for i in range(n_spin)]
+        overlap = base.copy()
+        overlap.set_nsc(result.nsc)
+        result = sisl.Hamiltonian.fromsp(
+            result.geometry, values[0] if n_spin == 1 else values, S=overlap.tocsr(overlap.S_idx),
+            **({} if n_spin == 1 else {"spin": result.spin}),
+        )
+    tmp = out.with_name(f".{out.stem}.tmp-{os.getpid()}{out.suffix}")
+    result.write(str(tmp))
+    os.replace(tmp, out)
     return out
 
 

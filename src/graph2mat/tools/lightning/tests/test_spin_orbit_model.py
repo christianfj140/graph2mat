@@ -266,17 +266,28 @@ def test_non_sisl_formats_rejected_for_spin_orbit(out_format):
         processor.labels_to(out_format, data)
 
 
-def test_writer_rejects_spin_orbit(tmp_path):
+def test_writer_writes_spin_orbit_predictions_without_overlap(tmp_path):
+    """Roadmap 8.1: spin-orbit predictions are written as an orthogonal spin-orbit H (labels
+    carry no S), with a note on how to attach S; they used to be refused."""
+    import json
     from types import SimpleNamespace
+
+    import sisl
+
     from graph2mat.tools.lightning.callbacks import MatrixWriter
 
     H, atoms, _, _ = make_soc_system()
     processor = soc_processor(atoms, symmetric=True)
+    sample = TorchBasisMatrixData.new(H, data_processor=processor)
+    batch = Batch.from_data_list([sample])
     trainer = SimpleNamespace(datamodule=SimpleNamespace(data_processor=processor, out_matrix="hamiltonian"))
-    writer = MatrixWriter(str(tmp_path / "out.HSX"))
-    with pytest.raises(ValueError, match=r"MatrixWriter.*(spin_orbit|spin-orbit).*not supported"):
-        writer._on_batch_end("predict", trainer, None, {}, None, 0, 0)
-    assert not list(tmp_path.iterdir())
+    writer = MatrixWriter(str(tmp_path / "out.TSHS"))
+    writer._on_batch_end("predict", trainer, None,
+                         {"node_labels": sample.point_labels, "edge_labels": sample.edge_labels}, batch, 0, 0)
+    written = sisl.get_sile(tmp_path / "out.TSHS").read_hamiltonian()
+    assert written.spin.is_spinorbit and written.orthogonal
+    metadata = json.loads((tmp_path / "out.TSHS.metadata.json").read_text())
+    assert "attach S" in metadata["overlap_source"]
 
 
 def test_plot_matrix_error_runs_with_spin_orbit_data(monkeypatch):

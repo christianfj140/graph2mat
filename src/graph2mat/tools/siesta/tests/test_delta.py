@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 import sisl
@@ -54,17 +56,16 @@ def test_delta_label_round_trip(tmp_path, spin):
         np.testing.assert_allclose((restored.tocsr(i) - H.tocsr(i)).toarray(), 0, atol=1e-12)
 
 
-def test_add_h0_in_place_keeps_prediction_overlap(tmp_path):
-    make_hamiltonian(overlap=0.0).write(str(tmp_path / "ML_prediction.TSHS"))  # h_only: S = 1
+def test_add_h0_in_place_gives_an_h_only_prediction_the_overlap_of_h0(tmp_path):
+    make_hamiltonian(overlap=0.0).write(str(tmp_path / "ML_prediction.TSHS"))  # h_only: no S
     pred = _read(tmp_path / "ML_prediction.TSHS")
-    make_hamiltonian(onsite=1.0).write(str(tmp_path / "h0.TSHS"))
+    H0 = make_hamiltonian(onsite=1.0)
+    H0.write(str(tmp_path / "h0.TSHS"))
     out = add_h0(tmp_path / "ML_prediction.TSHS", tmp_path / "h0.TSHS")
     assert out == tmp_path / "ML_prediction.TSHS"
     result = _read(out)
-    np.testing.assert_allclose(result.Sk().toarray(), pred.Sk().toarray())
-    np.testing.assert_allclose(
-        result.Hk().toarray(), pred.Hk().toarray() + make_hamiltonian(onsite=1.0).Hk().toarray(), atol=1e-12
-    )
+    np.testing.assert_allclose(result.Sk().toarray(), H0.Sk().toarray())
+    np.testing.assert_allclose(result.tocsr(0).toarray(), pred.tocsr(0).toarray() + H0.tocsr(0).toarray(), atol=1e-12)
 
 
 def test_combine_uses_the_larger_supercell():
@@ -210,3 +211,64 @@ def test_a_reused_h0_is_checked_against_the_label_geometry(tmp_path):
     with pytest.raises(RuntimeError, match="geometry differs"):
         compute_h0(ref_dir, tmp_path / "h0run")
     assert (tmp_path / "h0run" / "sample.TSHS").exists()  # not ours to delete
+
+
+SOC_FDF = """SystemLabel soc
+Spin spin-orbit
+%block DM.InitSpin
+ 1 +
+%endblock DM.InitSpin
+NumberOfAtoms 2
+"""
+
+
+def test_h0_fdf_starts_spin_orbit_runs_without_moments():
+    """Roadmap 8.1 F0: SIESTA starts non-collinear runs ferromagnetic; H0 must start from
+    non-magnetic atomic densities."""
+    out = h0_fdf(SOC_FDF, n_atoms=2)
+    assert out.count("%block DM.InitSpin") == 1 and " 1 +" not in out
+    assert " 1 0.0\n 2 0.0\n%endblock DM.InitSpin" in out
+    with pytest.raises(ValueError, match="n_atoms"):
+        h0_fdf(SOC_FDF)
+    plain = "SystemLabel x\nSpin polarized\n"
+    assert h0_fdf(plain) == h0_fdf(plain, n_atoms=2) and "InitSpin" not in h0_fdf(plain)
+
+
+def _soc_hamiltonian(scale=1.0, break_trs=0.0):
+    H = sisl.Hamiltonian(sisl.geom.graphene(atoms=sisl.Atom(6, R=1.6)), spin="spin-orbit", orthogonal=False)
+    on = (0.1, 0.1, 0.01, 0.02, 0.03 + break_trs, -0.03, 0.01, 0.02)
+    hop = (-2.7, -2.7, 0.002, 0.003, 0.004, -0.004, 0.002, 0.003)
+    H.construct([(0.1, 1.6), ((*(scale * v for v in on), 1.0), (*(scale * v for v in hop), 0.15))])
+    return H
+
+
+def test_spin_orbit_delta_label_is_time_reversal_projected(tmp_path):
+    from graph2mat.core.data.spin_orbit import soc_trs_residual
+    from graph2mat.tools.siesta.delta import project_time_reversal
+
+    H, H0 = _soc_hamiltonian(break_trs=1e-4), _soc_hamiltonian(scale=0.9)
+    ref_dir = tmp_path / "sample"
+    write_fdf(ref_dir, H.geometry)
+    H.write(str(ref_dir / "sample.TSHS"))
+    H0.write(str(tmp_path / "h0.TSHS"))
+    label = write_delta_sample(ref_dir, ref_dir / "sample.TSHS", tmp_path / "h0.TSHS", tmp_path / "d", project_trs=True)
+    delta = _read(label)
+    stacked = np.stack([delta.tocsr(i).toarray() for i in range(8)], -1)
+    assert soc_trs_residual(stacked) < 1e-12
+    assert json.loads((tmp_path / "d" / "trs_residual.json").read_text())["relative_trs_residual"] > 0
+    np.testing.assert_allclose(delta.tocsr(delta.S_idx).toarray(), H.tocsr(H.S_idx).toarray())
+    with pytest.raises(ValueError, match="spin-orbit"):
+        project_time_reversal(make_hamiltonian())
+
+
+def test_add_h0_takes_the_overlap_of_h0_when_the_prediction_has_none(tmp_path):
+    H0 = _soc_hamiltonian(scale=0.9)
+    pred = sisl.Hamiltonian(H0.geometry, spin="spin-orbit")  # spin-orbit predictions carry no S
+    pred.construct([(0.1, 1.6), ((0.01,) * 8, (0.02,) * 8)])
+    pred.write(str(tmp_path / "pred.TSHS"))
+    H0.write(str(tmp_path / "h0.TSHS"))
+    out = _read(add_h0(tmp_path / "pred.TSHS", tmp_path / "h0.TSHS"))
+    assert out.spin.is_spinorbit and not out.orthogonal
+    np.testing.assert_allclose(out.tocsr(out.S_idx).toarray(), H0.tocsr(H0.S_idx).toarray())
+    np.testing.assert_allclose(out.tocsr(3).toarray(), pred.tocsr(3).toarray() + H0.tocsr(3).toarray(), atol=1e-12)
+    assert not list(tmp_path.glob(".*tmp*"))

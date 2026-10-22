@@ -122,9 +122,6 @@ class MatrixWriter(Callback):
         # Get the data processor that the datamodule uses.
         data_processor: MatrixDataProcessor = trainer.datamodule.data_processor
         policy = getattr(data_processor, "matrix_component_policy", None)
-        if policy in ("spin_orbit", "spin_orbit_full"):
-            raise ValueError(f"MatrixWriter does not support matrix_component_policy={policy!r} (spin-orbit "
-                             "writing is not supported); reconstruct with sisl_H and attach_overlap instead.")
         if getattr(data_processor, "matrix_target_layout", None) is not None:
             self._write_multitarget(data_processor, trainer, prediction, batch)
             return
@@ -148,7 +145,12 @@ class MatrixWriter(Callback):
         # component fewer than the labels: the written H takes the reference S, not S = 1.
         overlap_items = None
         overlap_source = None
-        if policy == "h_and_overlap" and _n_columns(prediction["node_labels"]) < getattr(
+        if policy in ("spin_orbit", "spin_orbit_full"):
+            # Spin-orbit labels carry no overlap: written as an orthogonal spin-orbit H.
+            overlap_source = ("not available (spin-orbit labels carry no overlap: attach S, e.g. "
+                              "H0's with graph2mat.tools.siesta.delta.add_h0, or "
+                              "graph2mat.core.data.spin_orbit.attach_overlap)")
+        elif policy == "h_and_overlap" and _n_columns(prediction["node_labels"]) < getattr(
             data_processor, "n_matrix_components", 1
         ):
             overlap_source = "not available (H-only prediction without overlap labels)"

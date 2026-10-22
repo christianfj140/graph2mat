@@ -33,10 +33,11 @@ def label_command(
     reference_dir: Path = typer.Argument(..., help="Converged SIESTA run whose <SystemLabel>.TSHS is the label."),
     h0: Path = typer.Argument(..., help="Its H0 (TSHS)."),
     out_dir: Path = typer.Argument(..., help="Directory of the delta sample (RUN.fdf + H - H0)."),
+    trs: bool = typer.Option(False, help="Project spin-orbit H - H0 onto time-reversal channels (policy spin_orbit)."),
 ):
     """Write a copy of a sample whose label is H - H0."""
     matrix = reference_dir / f"{system_label(reference_dir / 'RUN.fdf')}.TSHS"
-    typer.echo(write_delta_sample(reference_dir, matrix, h0, out_dir))
+    typer.echo(write_delta_sample(reference_dir, matrix, h0, out_dir, project_trs=trs))
 
 
 @app.command("add-h0")
