@@ -46,7 +46,7 @@ def type_layout(point_types, edge_types, basis_table: BasisTableWithEdges) -> di
     (``basis_grouping="point_type"``); ``forward`` ignores it otherwise. Edges must follow the
     ``BasisMatrixData`` order (both directions consecutive, the positive type first).
 
-    Returns a dict with ``node_index`` {type: indices}, ``edge_index`` {|type|: (indices of
+    Returns a dict with ``node_index`` {type: indices}, ``edge_index`` {abs(type): (indices of
     the direction each block is computed from, indices of the reverse direction)},
     ``node_sort`` and ``edge_sort`` (the resorting indices of the concatenated outputs).
     """

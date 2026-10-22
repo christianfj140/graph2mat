@@ -81,7 +81,7 @@ def structure_breakdown(
     basis_files: BasisFiles,
     shells: Sequence[float] = SHELLS_ANG,
 ) -> Dict[str, float]:
-    """Per-category sums of the aligned |error| (``<cat>_sum``, eV) and element counts
+    """Per-category sums of the aligned absolute error (``<cat>_sum``, eV) and element counts
     (``<cat>_n``) of one structure, plus ``gauge_c_meV`` and the raw error sum."""
     import sisl
 

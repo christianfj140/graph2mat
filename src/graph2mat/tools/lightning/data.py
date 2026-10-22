@@ -353,7 +353,21 @@ class MatrixDataModule(pl.LightningDataModule):
                 density matrix, False otherwise.
             sub_point_matrix : bool
             matrix_component_policy : str
-                Component policy for multi-component Hamiltonian matrices.
+                Component policy for multi-component Hamiltonian matrices: ``"h_only"``,
+                ``"spin_h_only"`` (collinear spin), ``"h_and_overlap"`` (H with S as the last
+                column), ``"raw_components"``, ``"spin_orbit"`` or ``"spin_orbit_full"``.
+            n_matrix_components : int
+                Number of label components the policy produces (e.g. 2 for ``spin_h_only``,
+                n_H + 1 for ``h_and_overlap``).
+            no_basis : dict, optional
+                Atoms without basis functions, passed to the basis table.
+            initial_node_feats : str
+                Space-separated node feature names (default ``"OneHotZ"``).
+            matrix_targets : list of str, optional
+                Joint targets (e.g. ``["hamiltonian", "overlap", "density_matrix"]``) read into
+                one multi-component label; the model must use the same list.
+            matrix_target_spin : int, optional
+                Spin components (1 or 2) of the joint targets.
             batch_size : int
             loader_threads : int
             copy_root_to_tmp: bool

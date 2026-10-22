@@ -329,7 +329,7 @@ def band_window_metrics(
 
 
 def species_pair_errors(predicted: Path, reference: Path, structure_fdf: Path) -> Dict[str, float]:
-    """Gauge-aligned Gamma |dH| averaged per species pair (meV), over every spin channel.
+    """Gauge-aligned Gamma abs(dH) averaged per species pair (meV), over every spin channel.
     Species come from the structure's fdf (TSHS files do not carry them)."""
     import sisl
 

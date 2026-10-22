@@ -98,7 +98,7 @@ demonstrate model accuracy, certify every k point of a learned S, or turn an
 H-only output into a self-contained nonorthogonal Hamiltonian.
 
 Extrapolation and SIESTA Lua
----------------------------
+----------------------------
 
 Standalone ``/api/extrapolation/extrapolate`` uses the same writer checks and
 accepts ``fermi_level``/``orthogonal_basis`` explicitly. Matrix references must

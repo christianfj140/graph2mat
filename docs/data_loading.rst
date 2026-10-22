@@ -33,7 +33,7 @@ explicit validation runs from separate trajectories rather than a random split
 of adjacent frames.
 
 Warning-only split guardrail
----------------------------
+----------------------------
 
 Roadmap 3.12 adds a lightweight check during ``setup`` of labelled stages.
 It compares only already-loaded/resolved train/val/test inputs, never loads
@@ -771,7 +771,7 @@ atoms-only checkpoint that already lost a cutoff cannot recover that missing
 information: use the original basis rather than guessing a radius.
 
 Joint H/S/DM/EDM targets (opt-in)
---------------------------------
+---------------------------------
 
 ``matrix_targets=None`` retains the single-target path, parameter keys and old
 checkpoint loading. Selecting ``hamiltonian`` and ``overlap`` enables joint

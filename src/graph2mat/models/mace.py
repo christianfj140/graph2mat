@@ -187,6 +187,13 @@ class MatrixMACE(torch.nn.Module):
         ``-total_charge``), so they respond to the whole structure.
     long_range_smearing :
         Width (Angstrom) of the Gaussian charges: the potential is that of erf(r/s)/r.
+    pair_envelope_radii :
+        Orbital radius of each point type. If given, the readout radial features are
+        multiplied by a polynomial envelope that vanishes at R_i + R_j of each pair.
+    pair_envelope_p :
+        Order of that envelope.
+    matrix_target_spin :
+        Spin components (1 or 2) of joint ``matrix_targets``.
     magnetic_moments :
         ``None`` (default), ``"collinear"`` or ``"vector"`` (roadmap 8.1, magnetism): per-atom
         magnetic moments (``data.magnetic_moments``) become an input. MACE still only sees the

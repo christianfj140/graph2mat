@@ -70,6 +70,7 @@ powerful applications that take full advantage of the properties of these matric
    tutorials/cli/index
    tutorials/python_api/index
    data_loading
+   model_options
 
 .. toctree::
    :maxdepth: 3

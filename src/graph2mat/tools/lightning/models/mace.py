@@ -45,10 +45,134 @@ def _cueq_config():
 class LitMACEMatrixModel(LitBasisMatrixModel):
     """Wrapper to use MACEMatrix in pytorch_lightning.
 
-    ``edge_block_readout`` selects the edge operation; the optional
-    ``edge_block_readout_kwargs`` forwards its constructor arguments (e.g.
-    ``{"rank": 4}`` for ``E3nnLowRankEdgeBlock`` or the experimental
-    ``E3nnSlaterKosterEdgeBlock``). The default stays unchanged.
+    Every option below is opt-in unless stated; the defaults reproduce the plain model.
+    The recommended recipe and the measured effect of each option are in
+    ``docs/model_options.rst``.
+
+    Parameters
+    ----------
+    root_dir :
+        Directory that relative paths (``basis_files``) are resolved against.
+    basis_files :
+        Glob of the basis files (e.g. ``"*.ion.nc"``) used to build the basis table.
+    basis_table :
+        Basis table, instead of ``basis_files``. Its point types must match the data's.
+    no_basis :
+        Atoms without basis functions, passed to ``AtomicTableWithEdges.from_basis_glob``.
+    num_bessel :
+        Number of Bessel functions of MACE's radial embedding.
+    num_polynomial_cutoff :
+        Order p of MACE's polynomial cutoff envelope (recipe: 6; 3 extrapolates better).
+    max_ell :
+        Maximum l of the spherical harmonics of the edges.
+    interaction_cls, interaction_cls_first :
+        MACE interaction blocks (all but the first, and the first).
+    num_interactions :
+        Number of MACE message-passing interactions (recipe: 3).
+    keep_last_layer_irreps :
+        Keep l > 0 features in MACE's last layer (by default it keeps scalars only).
+    mp_cutoff :
+        Message-passing radius of MACE (Å). The readout still sees every matrix edge; this only
+        shortens the graph that MACE uses. Required with a long ``edge_cutoff_padding``.
+    hidden_irreps :
+        Irreps of MACE's node features.
+    edge_hidden_irreps :
+        Irreps of the edge messages fed to the edge readout.
+    edge_message_mid_irreps :
+        If given, node features are projected to these irreps (an int: that multiplicity for
+        every irrep) before being copied to every edge: the main VRAM knob of the edge readout.
+    edge_update_layers, edge_update_node_irreps :
+        Residual edge-update layers so that edge messages depend jointly on both atoms, and
+        the irreps (or multiplicity, default 8) of the receiver features they use.
+    pair_envelope :
+        Multiply the readout radial features by an envelope that vanishes at each pair's
+        R_i + R_j (orbital radii), instead of only at the global cutoff.
+    long_range :
+        ``"charges"`` (or ``True``) or ``"qeq"``: learned charges (neutral per structure) or
+        charge equilibration, and their Ewald potential added to H as
+        ``(V_i + V_j) / 2 * S_ij``. Needs ``matrix_component_policy="h_and_overlap"`` data.
+    long_range_smearing :
+        Width (Å) of the Gaussian charges of ``long_range``.
+    avg_num_neighbors :
+        MACE's normalization of the message sums.
+    correlation :
+        MACE's body order of the node features (recipe: 3).
+    symmetric_matrix :
+        The matrix is symmetric (H, S, DM, EDM). The CLI and the data module infer it.
+    basis_grouping :
+        ``"point_type"`` (one readout per species), ``"basis_shape"`` (one per basis shape)
+        or ``"max"`` (one shared readout with padding).
+    preprocessing_nodes, preprocessing_edges, preprocessing_edges_reuse_nodes :
+        Preprocessing blocks of node and edge features before the readout.
+    node_block_readout, edge_block_readout :
+        Readout operations. Default edge readout: ``E3nnLinearEdgeBlock`` (tensor product plus
+        a linear term). Others: ``E3nnSimpleEdgeBlock``, ``E3nnLowRankEdgeBlock``,
+        ``E3nnSlaterKosterEdgeBlock``, ``E3nnEdgeBlockNodeMix``.
+    edge_block_readout_kwargs :
+        Constructor arguments of the edge operation (e.g. ``{"rank": 4}`` for
+        ``E3nnLowRankEdgeBlock``, ``{"fuse_homonuclear": True}``).
+    readout_per_interaction, readout_interaction_aggregation :
+        One readout per MACE interaction, combined with ``"sum"`` or ``"mean"``, instead of a
+        single readout of the concatenated features.
+    return_coefficients :
+        Also return the irreducible coefficients of each operation.
+    coefficient_training :
+        Compute the loss on irreducible coefficients instead of matrix elements (falls back
+        to the matrix loss, with a warning, where it does not apply).
+    hamiltonian_local_context, hamiltonian_local_context_kwargs :
+        Append scalar local-Hamiltonian context channels to the readout features.
+    readout_fp32 :
+        Run the readout in fp32 under mixed precision.
+    lean_mace :
+        MACE computes node features only (no energy readouts or position gradients). Default
+        ``True``: same matrices, less memory and fewer kernels.
+    gradient_checkpointing :
+        Recompute MACE interactions and the readout in the backward pass (less VRAM).
+    simplify_node_irreps :
+        Reorder concatenated node features so equal irreps are contiguous (fewer tensor-product
+        instructions, more memory; helps small, launch-bound systems).
+    cueq :
+        Use cuEquivariance kernels for MACE (needs ``cuequivariance-torch``).
+    torch_compile, torch_compile_mode :
+        Compile the model with ``torch.compile`` at the start of fit; mode ``None`` or
+        ``"max-autotune-no-cudagraphs"`` (``"reduce-overhead"`` is rejected).
+    output_scaleshift :
+        Equivariant per-block-type scale and shift of the output, fitted to the training labels.
+    n_matrix_components :
+        Number of matrix components in the labels (e.g. 2 for spin-polarized H, H + S
+        counts S).
+    n_output_components :
+        Components the readout predicts when fewer than the labels carry: 1 with (H, S)
+        labels and ``gauge_invariant_mse`` predicts H only.
+    optim_wdecay, optim_amsgrad, optim_lr :
+        Adam weight decay, AMSGrad and learning rate. A ``lr_scheduler`` in the CLI config is
+        attached to this optimizer.
+    loss, loss_kwargs :
+        Loss class (e.g. ``graph2mat.metrics.gauge_invariant_mse``) and its arguments.
+    training_stages :
+        List of stages, each a dict with ``name``, ``max_epochs`` and optionally ``loss``,
+        ``loss_kwargs``, ``optim_lr``, ``freeze`` and ``train`` (parameter groups: ``mace``,
+        ``readout``, ``context``, ``model``). Checkpoints restore the active stage's loss.
+    initial_node_feats :
+        Space-separated node feature names (default ``"OneHotZ"``).
+    version :
+        Only ``"new"`` is supported.
+    matrix_targets, matrix_target_spin, matrix_target_weights, matrix_target_losses :
+        Joint prediction of several matrices (e.g. ``["hamiltonian", "overlap"]``), their spin
+        components (1 or 2), and per-target loss weights and losses.
+    selection_metric :
+        Epoch validation metric used as ``hp_metric`` and by the CLI's best checkpoint
+        (e.g. ``val_matrix_rmse``); ``None`` uses ``val_loss``.
+    spin_orbit :
+        Spin-orbit readout of the 4 time-reversal-symmetric channels ``[h0, gx, gy, gz]``.
+        Needs ``matrix_component_policy="spin_orbit"`` data and ``symmetric_matrix=True``.
+    magnetic_moments :
+        ``"collinear"`` (with ``spin_h_only`` data) or ``"vector"`` (with ``spin_orbit=True``
+        and ``spin_orbit_full`` data): per-atom magnetic moments as input, with exact time
+        reversal. Untrained on real data.
+    edge_cutoff_padding :
+        Extra readout range (Å) beyond R_i + R_j, to reach KB-projector blocks. Must equal the
+        data's; the CLI links them.
     """
 
     model: MACE

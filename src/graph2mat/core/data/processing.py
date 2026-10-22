@@ -158,8 +158,20 @@ class MatrixDataProcessor:
         case where all points are isolated.
     out_matrix :
         Type of matrix to output. If None, the matrix is output as a `scipy` CSR matrix.
+    n_matrix_components :
+        Number of components of the labels (e.g. 2 for collinear spin, n_H + 1 with
+        ``matrix_component_policy="h_and_overlap"``).
     matrix_component_policy :
-        Component policy for multi-component Hamiltonian matrices.
+        Component policy for multi-component Hamiltonian matrices: ``"h_only"``,
+        ``"spin_h_only"``, ``"h_and_overlap"``, ``"raw_components"``, ``"spin_orbit"``
+        or ``"spin_orbit_full"``.
+    node_attr_getters :
+        Extra node attribute getters, appended to the node features.
+    matrix_targets :
+        Joint targets (e.g. ``["hamiltonian", "overlap"]``) stored as one multi-component
+        label; ``None`` (default) keeps a single matrix.
+    matrix_target_spin :
+        Spin components (1 or 2) of the joint targets; required with ``matrix_targets``.
     edge_cutoff_padding :
         Extra radius (Å) added to the basis radius of every point when searching
         for edges, so that two points are neighbours if

@@ -5,7 +5,7 @@ from e3nn import nn, o3
 __all__ = ["MagneticMomentLayer"]
 
 #: Irreps of one moment: a signed scalar (collinear) or an axial vector (with spin-orbit).
-MOMENT_IRREPS = {"collinear": o3.Irreps("1x0e"), "vector": o3.Irreps("1x1e")}
+MOMENT_IRREPS = {"collinear": "1x0e", "vector": "1x1e"}
 
 
 class MagneticMomentLayer(torch.nn.Module):
@@ -28,7 +28,7 @@ class MagneticMomentLayer(torch.nn.Module):
         if kind not in MOMENT_IRREPS:
             raise ValueError(f"magnetic_moments must be one of {sorted(MOMENT_IRREPS)}, got {kind!r}.")
         self.kind = kind
-        moment = MOMENT_IRREPS[kind]
+        moment = o3.Irreps(MOMENT_IRREPS[kind])
         node_feats_irreps = o3.Irreps(node_feats_irreps)
         irreps = sorted({ir for _, node_ir in node_feats_irreps for ir in node_ir * moment[0].ir})
         self.irreps_out = o3.Irreps([(max(mul for mul, _ in node_feats_irreps), ir) for ir in irreps])
