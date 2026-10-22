@@ -241,9 +241,11 @@ training: magnetic spin-orbit, density and energy-density matrices,
 ``coefficient_training``, ``return_coefficients``, ``output_scaleshift``,
 ``long_range``, ``hamiltonian_local_context``, ``fuse_homonuclear``,
 ``basis_grouping`` other than ``"point_type"``, SK and low-rank readouts,
-``n_output_components`` and ``symmetric_matrix=False``. ``MatrixWriter`` and the
-HTTP server are not supported yet and raise; ``PlotMatrixError`` works (it plots
-the channels as plain components).
+``n_output_components`` and ``symmetric_matrix=False``. ``MatrixWriter`` writes
+the prediction as an orthogonal spin-orbit Hamiltonian (the labels carry no S;
+its metadata says how to attach one, e.g. H0's with
+``graph2mat.tools.siesta.delta.add_h0``). The HTTP server is not supported yet
+and raises; ``PlotMatrixError`` works (it plots the channels as plain components).
 
 Known limits, measured on a real Bi2Se3 SIESTA Hamiltonian
 (``auditorias_mejoras/soc_roundtrip_check.py``). The code is tested on CPU and
@@ -402,10 +404,10 @@ an explicit model option that disagrees raises.
 ``n_output_components``, losses other than ``elementwise_mse``,
 ``elementwise_mae``, ``block_type_mse`` and ``block_type_mae`` (without physical
 weights) and, for ``spin_orbit_full``, ``symmetric_matrix=False``.
-``MatrixWriter`` and the HTTP server raise for ``spin_orbit_full``, and the
-server also for any processor with moments (its extrapolation path rebuilds
-the configurations without them); ``MatrixWriter`` still writes ``spin_h_only``
-predictions. ``PlotMatrixError`` plots the 8 channels as plain components.
+The HTTP server raises for ``spin_orbit_full`` and for any processor with
+moments (its extrapolation path rebuilds the configurations without them).
+``MatrixWriter`` writes ``spin_h_only`` predictions, and ``spin_orbit_full``
+ones as an orthogonal spin-orbit Hamiltonian, as for ``spin_orbit``. ``PlotMatrixError`` plots the 8 channels as plain components.
 ``readout_fp32`` is accepted: the double pass of the time reversal runs inside
 the readout that it keeps in fp32 under mixed precision (``bf16-mixed``), so
 the odd channels stay exactly negated.
