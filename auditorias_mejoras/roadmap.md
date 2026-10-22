@@ -34,14 +34,14 @@ Resumen:
   base disperso), 7.3-radial (base radial normalizada por par y máscara orbital), 8.3 (dos especies con la misma Z).
 - **Limitaciones conocidas:** pérdidas
   por estructura que promedian estructuras sin etiquetas, campañas no reproducibles solo con el repositorio (datos y
-  ejecutores privados fuera de Git), CI nunca ejecutada en GitHub (rama sin subir).
+  ejecutores privados fuera de Git).
 - **Learning rate:** las recetas de la CLI anteriores al 2026-10-21 entrenaron con LR constante (ver sección
   siguiente); los runners con scheduler propio (6.4/4.7, 7.6) no.
 
 | Punto | Código | Estado vigente |
 |---|---|---|
 | 0.1–0.4, 0.6, 0.7, 0.9 | sí | Corrección hecha, con test. |
-| 0.5 | sí | CI configurada (`.github/workflows/tests.yaml`); no se ha ejecutado en GitHub. |
+| 0.5 | sí | CI en GitHub (`.github/workflows/tests.yaml`): estática, instalación mínima y tests CPU en Python 3.9 y 3.12; en verde desde `c20608d` (2026-10-22). |
 | 0.8 | sí | Guardas de `initial_node_feats` y `version`, con test (2026-10-21). |
 | 0.10 | parcial | Perfil hecho (2.9). El ejecutor de benchmarks queda en MD_vs; en el repositorio, ejemplo en `docs/examples/benchmarks/`. |
 | 1.1 | sí | Receta: precisión del Trainer `32-true`. `readout_fp32` es opción sin beneficio medido. |
