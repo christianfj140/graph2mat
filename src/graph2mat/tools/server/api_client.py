@@ -126,6 +126,9 @@ class ServerClient:
                 response.raise_for_status()
                 output_path.write_bytes(response.content)
 
-            # DM binary files omit coordinates/basis: use the supplied geometry.
-            read_kwargs = {"geometry": geometry} if isinstance(geometry, sisl.Geometry) else {}
+            # DM binary files omit coordinates/basis: use the supplied geometry (read from
+            # its file when a path was given), or sisl would invent one.
+            if not isinstance(geometry, sisl.Geometry):
+                geometry = sisl.get_sile(str(geometry_path)).read_geometry()
+            read_kwargs = {"geometry": geometry}
             return output.read(output_path, **read_kwargs) if as_matrix else output_path

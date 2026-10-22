@@ -104,3 +104,12 @@ def test_pilot_runs_of_random_errors_are_named_by_seed(tmp_path, monkeypatch):
     random_runs = [n for n in names if n.startswith(("rel_", "abs_", "relq_", "absq_"))]
     assert len(set(random_runs)) == len(random_runs) == 2 * 16
     assert names.count("exact_0.0") == 2  # deterministic runs keep their name (reused)
+
+
+def test_noise_fdf_keeps_comments_and_refuses_included_coordinates():
+    text = FDF.replace(" 0.0 0.0 0.0 1\n", "# first atom\n 0.0 0.0 0.0 1\n\n").replace("DM.Tolerance 1.d-4", "DM_Tolerance 1.d-4")
+    out = noise_fdf(text, True, "1.d-6", np.array([0.1, 0.0, 0.0]))
+    assert "# first atom" in out and out.count("Tolerance") == 1 and "DM.Tolerance           1.d-6" in out
+    assert "0.100000000000 0.000000000000 0.000000000000 1" in out
+    with pytest.raises(ValueError, match="another file"):
+        noise_fdf("%block AtomicCoordinatesAndAtomicSpecies < coords.fdf\n", True, "1.d-6")

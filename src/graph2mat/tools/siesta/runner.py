@@ -40,8 +40,11 @@ def replace_fdf_keys(text: str, keys: Mapping[str, str]) -> str:
 
 def system_label(fdf: Path) -> str:
     """``SystemLabel`` of an fdf file (``"siesta"``, SIESTA's default, if not set)."""
-    match = re.search(r"(?im)^\s*SystemLabel\s+(\S+)", Path(fdf).read_text())
-    return match.group(1) if match else "siesta"
+    for line in Path(fdf).read_text().splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and _fdf_label(parts[0]) == "systemlabel":
+            return parts[1]
+    return "siesta"
 
 
 def find_pseudos(directory: Path) -> List[Path]:

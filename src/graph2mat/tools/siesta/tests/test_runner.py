@@ -66,3 +66,9 @@ def test_run_siesta_refuses_to_empty_an_unrelated_directory(tmp_path, fake_siest
     with pytest.raises(FileExistsError, match="not a previous SIESTA run"):
         run_siesta(tmp_path, "SystemLabel g\n", [], siesta=fake_siesta)
     assert (tmp_path / "data.txt").read_text() == "keep"
+
+
+def test_system_label_follows_fdf_label_rules(tmp_path):
+    (tmp_path / "a.fdf").write_text("System.Label graphene\n")
+    (tmp_path / "b.fdf").write_text("system_label  bn\n")
+    assert system_label(tmp_path / "a.fdf") == "graphene" and system_label(tmp_path / "b.fdf") == "bn"

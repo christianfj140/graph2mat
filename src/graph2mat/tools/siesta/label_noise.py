@@ -32,26 +32,38 @@ VARIANTS: Dict[str, Tuple[bool, str]] = {
 
 def noise_fdf(text: str, shift: bool, tolerance: str, shift_ang: np.ndarray = SHIFT_ANG) -> str:
     """fdf with every atom of ``AtomicCoordinatesAndAtomicSpecies`` moved by ``shift_ang``
-    (Ang coordinates) if ``shift``, and ``DM.Tolerance`` set to ``tolerance`` (appended when
-    the fdf does not set it)."""
+    (Ang coordinates) if ``shift``, and ``DM.Tolerance`` set to ``tolerance`` (any spelling of
+    the label replaced, appended at the end). Blank and comment lines of the block are kept;
+    coordinates included from another file are refused."""
+    block = r"atomic[._-]?coordinates[._-]?and[._-]?atomic[._-]?species"
     lines = text.splitlines()
     inside = False
-    tolerance_set = False
     for i, line in enumerate(lines):
-        if re.match(r"\s*%block AtomicCoordinatesAndAtomicSpecies", line, re.I):
+        if re.match(rf"\s*%block\s+{block}", line, re.I):
+            if "<" in line:
+                raise ValueError("noise_fdf cannot shift coordinates read from another file (%block ... <).")
             inside = True
             continue
-        if re.match(r"\s*%endblock AtomicCoordinatesAndAtomicSpecies", line, re.I):
+        if re.match(rf"\s*%endblock\s+{block}", line, re.I):
             inside = False
         elif inside and shift:
             parts = line.split()
-            xyz = np.array([float(x) for x in parts[:3]]) + shift_ang
+            try:
+                xyz = np.array([float(x) for x in parts[:3]]) + shift_ang
+            except ValueError:  # comment line inside the block
+                continue
+            if len(parts) < 4:  # blank or incomplete line
+                continue
             lines[i] = " ".join(f"{x:.12f}" for x in xyz) + " " + " ".join(parts[3:])
-        elif re.match(r"\s*DM\.Tolerance", line, re.I):
-            lines[i] = f"DM.Tolerance           {tolerance}"
-            tolerance_set = True
-    if not tolerance_set:
-        lines.append(f"DM.Tolerance           {tolerance}")
+    # DM.Tolerance in place of its first setting (any label spelling), other settings dropped.
+    is_tolerance = [bool(line.split()) and re.sub(r"[._-]", "", line.split()[0]).lower() == "dmtolerance"
+                    for line in lines]
+    setting = f"DM.Tolerance           {tolerance}"
+    if any(is_tolerance):
+        first = is_tolerance.index(True)
+        lines = [setting if i == first else line for i, line in enumerate(lines) if i == first or not is_tolerance[i]]
+    else:
+        lines.append(setting)
     return "\n".join(lines) + "\n"
 
 

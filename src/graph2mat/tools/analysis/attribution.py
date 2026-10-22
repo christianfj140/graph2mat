@@ -93,7 +93,10 @@ def attribute(
     h_pred = sisl.get_sile(str(predicted)).read_hamiltonian()
     _unpolarized(h_ref, h_pred)
     pred_nsc = h_pred.nsc.copy()
-    h_pred.set_nsc(h_ref.nsc)
+    # Both on the larger supercell: no coupling of either is dropped.
+    nsc = np.maximum(h_ref.nsc, h_pred.nsc)
+    h_ref.set_nsc(nsc)
+    h_pred.set_nsc(nsc)
     g, no = h_ref.geometry, h_ref.no
     sc_off = g.lattice.sc_off
     ref_pat, cls = element_classes(h_ref, pred_nsc)
@@ -162,8 +165,9 @@ def counterfactuals(
     h_0 = sisl.get_sile(str(h0)).read_hamiltonian()
     _unpolarized(h_ref, h_pred, h_0)
     pred_nsc = h_pred.nsc.copy()
-    for h in (h_pred, h_0):
-        h.set_nsc(h_ref.nsc)
+    nsc = np.maximum.reduce([h_ref.nsc, h_pred.nsc, h_0.nsc])
+    for h in (h_ref, h_pred, h_0):
+        h.set_nsc(nsc)
     g, no = h_ref.geometry, h_ref.no
     ref, pred, zero = (h.tocsr(0).tocsr() for h in (h_ref, h_pred, h_0))
     pattern = sisl.Hamiltonian.fromsp(g, (abs(ref) + abs(pred) + abs(zero)).tocsr())

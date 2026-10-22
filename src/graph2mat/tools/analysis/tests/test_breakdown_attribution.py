@@ -109,3 +109,19 @@ def test_without_kb_tail_cuts_every_spin_channel():
     assert restored.spin.is_polarized
     for spin in range(2):
         np.testing.assert_allclose(restored.tocsr(spin).toarray(), H.tocsr(spin).toarray(), atol=1e-12)
+
+
+def test_attribution_keeps_prediction_couplings_beyond_the_reference_supercell(tmp_path, rng):
+    """Couplings the prediction has in images the reference does not reach are errors too."""
+    H = _bilayer()
+    H.write(str(tmp_path / "ref.TSHS"))
+    pred = _noisy(H, rng)
+    pred.set_nsc([5, 5, 1])
+    far = pred.geometry.sc_index([2, 0, 0])
+    pred[0, far * pred.no] = (0.05, 0.0)  # a coupling only the prediction has
+    pred.write(str(tmp_path / "pred.TSHS"))
+    with_far = attribute(tmp_path / "pred.TSHS", tmp_path / "ref.TSHS", n_per_segment=6)
+    pred[0, far * pred.no] = (0.0, 0.0)
+    pred.write(str(tmp_path / "pred.TSHS"))
+    without = attribute(tmp_path / "pred.TSHS", tmp_path / "ref.TSHS", n_per_segment=6)
+    assert with_far["band_aligned_exact_meV"] != pytest.approx(without["band_aligned_exact_meV"])

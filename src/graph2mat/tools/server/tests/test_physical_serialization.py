@@ -547,3 +547,15 @@ def test_local_no_clobber_is_atomic_if_destination_appears_during_prediction(tmp
     assert response.status_code == 409
     assert output.read_bytes() == b"created concurrently"
     assert not list(tmp_path.glob(".g2m-*"))
+
+
+def test_requests_client_reads_a_density_matrix_with_the_geometry_of_a_path(tmp_path):
+    """Audit: with the geometry given as a file path, the .DM (no coordinates) was read
+    without geometry and sisl invented one."""
+    geometry, _, model = _model(tmp_path, "density_matrix", spin=True, fermi_level=0.)
+    path = tmp_path / "structure.xyz"
+    geometry.write(path)
+    with _http_server(create_server_app({"m": model}, local=True)) as url:
+        matrix = ServerClient(url=url).predict(str(path), sisl.DensityMatrix, "m")
+    np.testing.assert_allclose(matrix.geometry.xyz, geometry.xyz, atol=1e-6)
+    np.testing.assert_allclose(matrix.geometry.cell, geometry.cell, atol=1e-6)
