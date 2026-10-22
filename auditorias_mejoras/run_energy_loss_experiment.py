@@ -114,7 +114,7 @@ def train_all(root, jobs):
         busy_seeds = {job["seed"] for job, _ in running.values()}
         startable = next((j for j in pending if j["seed"] not in busy_seeds
                           or (root / "shared" / f"seed{j['seed']}.pt").exists()), None)
-        if startable is not None and (not running or _room(len(running), parallel)):
+        if startable is not None and _room(len(running), parallel):
             pending.remove(startable)
             proc, run = start(root, startable)
             running[proc.pid] = (startable, (proc, run))

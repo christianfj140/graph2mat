@@ -340,6 +340,8 @@ def check(material: str) -> None:
 # --- training --------------------------------------------------------------------------------
 
 def run(material: str, arm: str, seed: int, updates: int | None) -> Path:
+    if updates is not None and updates <= 0:
+        raise ValueError("updates must be positive")
     if arm not in ARMS[material]:
         raise ValueError(f"{material}: arm {arm!r} not in {ARMS[material]}")
     soc = material == "fe_soc"
@@ -362,8 +364,9 @@ def run(material: str, arm: str, seed: int, updates: int | None) -> Path:
     else:
         train = [arm_sample(material, s, arm) for s in samples(material, "train")]
         val = [arm_sample(material, s, arm) for s in samples(material, "validation")]
-    n_updates = updates or UPDATES
-    epochs = max(1, n_updates // -(-len(train) // BATCH))
+    n_updates = UPDATES if updates is None else updates
+    steps_per_epoch = -(-len(train) // BATCH)
+    epochs = -(-n_updates // steps_per_epoch)
     done = run_dir / "train_done.json"
     if done.exists():
         info = c.read_json(done)
@@ -381,7 +384,9 @@ def run(material: str, arm: str, seed: int, updates: int | None) -> Path:
             "model": {**MODEL, "loss": "graph2mat.metrics.elementwise_mse", "hidden_irreps": HIDDEN,
                       "edge_hidden_irreps": EDGE_HIDDEN, "spin_orbit": soc, "magnetic_moments": kind,
                       "symmetric_matrix": True},
-            "trainer": {"max_epochs": epochs, "check_val_every_n_epoch": max(1, epochs // 200),
+            "trainer": {"max_epochs": epochs, "max_steps": n_updates,
+                        "check_val_every_n_epoch": None,
+                        "val_check_interval": min(n_updates, steps_per_epoch * max(1, epochs // 200)),
                         "precision": "32-true", "callbacks": [
                             {"class_path": "ModelCheckpoint", "init_args": {
                                 "monitor": "val_loss", "mode": "min", "save_top_k": 1,

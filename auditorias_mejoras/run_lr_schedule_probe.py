@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Cheap check: constant learning rate (what every historical run used) vs cosine.
+"""Cheap check: constant learning rate of a historical CLI recipe vs cosine.
 
 Until 2026-10-21 the CLI dropped ``lr_scheduler`` when the config had ``optimizer: null``,
-so all benchmark recipes trained at constant ``optim_lr`` (see the roadmap). This probe
+so affected CLI recipes trained at constant ``optim_lr`` (see the roadmap). Dedicated
+runners that installed a scheduler explicitly are outside that finding. This probe
 retrains one historical recipe (w90 graphene, ``fp32_lin``, N=64, from an existing run
 directory) with both schedules, same data, same epochs, paired by seed, and compares the
 best validation loss. Test data are not touched.

@@ -234,6 +234,8 @@ def evaluate(model_ckpt: Path, delta: bool) -> dict:
 # --- training --------------------------------------------------------------------------------
 
 def run(arm: str, seed: int, updates: int | None) -> Path:
+    if updates is not None and updates <= 0:
+        raise ValueError("updates must be positive")
     if arm not in ("delta", "direct", "direct_nopad"):  # direct_nopad: 8.2 ablation, R_i + R_j graph
         raise ValueError(arm)
     delta = arm == "delta"
@@ -253,8 +255,9 @@ def run(arm: str, seed: int, updates: int | None) -> Path:
 
         max_r = AtomicTableWithEdges.from_basis_glob(sorted(glob.glob(BASIS_GLOB))).maxR()
         long_edges = {"data": {"edge_cutoff_padding": PADDING}, "model": {"mp_cutoff": float(2 * max_r)}}
-    n_updates = updates or UPDATES
-    epochs = max(1, n_updates // -(-len(train) // BATCH))
+    n_updates = UPDATES if updates is None else updates
+    steps_per_epoch = -(-len(train) // BATCH)
+    epochs = -(-n_updates // steps_per_epoch)
     done = run_dir / "train_done.json"
     if done.exists():
         info = c.read_json(done)
@@ -270,7 +273,9 @@ def run(arm: str, seed: int, updates: int | None) -> Path:
                      "n_matrix_components": 4},
             "model": {**MODEL, "loss": "graph2mat.metrics.elementwise_mse", "hidden_irreps": HIDDEN,
                       "edge_hidden_irreps": EDGE_HIDDEN, "spin_orbit": True, "symmetric_matrix": True},
-            "trainer": {"max_epochs": epochs, "check_val_every_n_epoch": max(1, epochs // 200),
+            "trainer": {"max_epochs": epochs, "max_steps": n_updates,
+                        "check_val_every_n_epoch": None,
+                        "val_check_interval": min(n_updates, steps_per_epoch * max(1, epochs // 200)),
                         "precision": "32-true", "callbacks": [
                             {"class_path": "ModelCheckpoint", "init_args": {
                                 "monitor": "val_loss", "mode": "min", "save_top_k": 1,
