@@ -924,10 +924,25 @@ class LitBasisMatrixModel(pl.LightningModule):
                      metric_attribute=attribute, sync_dist=attribute is None)
 
     def on_fit_start(self) -> None:
+        self._check_stages_under_ddp()
         self._preflight_physical_objectives()
         self._apply_training_stage_for_epoch(getattr(self, "current_epoch", 0))
         self._fit_output_scaleshift()
         self._configure_coefficient_training()
+
+    def _check_stages_under_ddp(self) -> None:
+        """Stages that freeze parameters change which ones DDP sees used: DDP registers them
+        before the stage freezes any, so without ``find_unused_parameters=True`` the first
+        step fails with "parameters that were not used in producing the loss"."""
+        trainer = getattr(self, "_trainer", None)
+        strategy = getattr(trainer, "strategy", None)
+        if strategy is None or getattr(trainer, "world_size", 1) <= 1:
+            return
+        freezes = any(stage.get("freeze") or stage.get("train") is not None
+                      for stage in self._validated_training_stages)
+        if freezes and not getattr(strategy, "_ddp_kwargs", {}).get("find_unused_parameters", False):
+            raise ValueError("training stages that freeze or select parameters need "
+                             "DDPStrategy(find_unused_parameters=True) with several processes.")
 
     @staticmethod
     def _physical_weights(loss_fn):
@@ -1066,13 +1081,28 @@ class LitBasisMatrixModel(pl.LightningModule):
             return
         if bool(readout.output_scaleshift_fitted):
             return  # e.g. resuming from a checkpoint
-        loader = self.trainer.datamodule.train_dataloader()
+        datamodule = getattr(self.trainer, "datamodule", None)
+        if datamodule is None:
+            raise ValueError("output_scaleshift fits its scale/shift on the training data: fit with a "
+                             "datamodule (Trainer.fit(model, datamodule=...)), not bare dataloaders.")
+        loader = datamodule.train_dataloader()
         readout.fit_output_scaleshift(
             (batch.to(self.device) for batch in loader), self.basis_table
         )
 
     def on_train_epoch_start(self) -> None:
         self._apply_training_stage_for_epoch(self.current_epoch)
+
+    def on_validation_start(self) -> None:
+        # Standalone validate/test (e.g. from a checkpoint) never apply a stage: use the last
+        # one's loss, as validation right after fit does, so the same weights report the
+        # same loss either way.
+        if self._validated_training_stages and getattr(getattr(self.trainer, "state", None), "fn", None) != "fit":
+            self._apply_stage_loss(self._validated_training_stages[-1])
+
+    def on_test_start(self) -> None:
+        if self._validated_training_stages and getattr(getattr(self.trainer, "state", None), "fn", None) != "fit":
+            self._apply_stage_loss(self._validated_training_stages[-1])
 
     def validation_step(self, batch, batch_idx):
         out = self.model(batch)

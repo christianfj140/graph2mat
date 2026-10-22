@@ -99,3 +99,50 @@ def test_training_stage_freezes_and_unfreezes_parameter_groups():
 def test_training_stage_config_validation(stage, match):
     with pytest.raises((TypeError, ValueError), match=match):
         _lit_model(training_stages=[stage])
+
+
+def test_freezing_stages_need_find_unused_parameters_under_ddp():
+    """Audit: a stage that freezes MACE crashed the first DDP step; it now fails early."""
+    from types import SimpleNamespace
+
+    from graph2mat.tools.lightning.model import LitBasisMatrixModel
+
+    def check(stages, ddp_kwargs, world_size=2):
+        fake = SimpleNamespace(_validated_training_stages=stages, _trainer=SimpleNamespace(
+            world_size=world_size, strategy=SimpleNamespace(_ddp_kwargs=ddp_kwargs)))
+        LitBasisMatrixModel._check_stages_under_ddp(fake)
+
+    freezing = [{"name": "a", "freeze": ["mace"], "train": None}]
+    with pytest.raises(ValueError, match="find_unused_parameters"):
+        check(freezing, {})
+    check(freezing, {"find_unused_parameters": True})
+    check(freezing, {}, world_size=1)
+    check([{"name": "a", "freeze": [], "train": None}], {})
+
+
+@pytest.mark.parametrize("hook, fn, applied", [("on_test_start", "test", True), ("on_validation_start", "validate", True),
+                                               ("on_validation_start", "fit", False)])
+def test_standalone_evaluation_uses_the_last_stage_loss(hook, fn, applied):
+    """Audit: validate/test from a checkpoint used the default loss while the same evaluation
+    right after fit used the last stage's, so the same weights reported different losses."""
+    from types import SimpleNamespace
+
+    from graph2mat.tools.lightning.model import LitBasisMatrixModel
+
+    calls = []
+    fake = SimpleNamespace(_validated_training_stages=[{"name": "a"}, {"name": "b", "loss": "x"}],
+                           trainer=SimpleNamespace(state=SimpleNamespace(fn=fn)),
+                           _apply_stage_loss=calls.append)
+    getattr(LitBasisMatrixModel, hook)(fake)
+    assert calls == ([{"name": "b", "loss": "x"}] if applied else [])
+
+
+def test_output_scaleshift_without_datamodule_has_a_clear_error():
+    from types import SimpleNamespace
+
+    from graph2mat.tools.lightning.model import LitBasisMatrixModel
+
+    readout = SimpleNamespace(output_scaleshift=True, output_scaleshift_fitted=False)
+    fake = SimpleNamespace(model=SimpleNamespace(matrix_readouts=readout), trainer=SimpleNamespace(datamodule=None))
+    with pytest.raises(ValueError, match="datamodule"):
+        LitBasisMatrixModel._fit_output_scaleshift(fake)
