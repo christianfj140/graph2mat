@@ -1812,8 +1812,10 @@ def find_displacement_pairs(batch, max_displacement: float, min_displacement: fl
             if cell is not None and np.allclose(cell[a], cell[b]):
                 periodic = np.abs(np.linalg.det(cell[a])) > 1e-12
                 if periodic:
-                    frac = np.linalg.solve(cell[a].T, delta.T).T
-                    delta = (frac - np.round(frac)) @ cell[a]
+                    from ase.geometry.geometry import general_find_mic
+
+                    # Avoid the naive shortcut, which assumes a reduced cell.
+                    delta, _ = general_find_mic(delta, cell[a], pbc=(True, True, True))
             moved = np.linalg.norm(delta, axis=1).max()
             if max(min_displacement, 0.0) < moved <= max_displacement:
                 if a in used or b in used:
@@ -1915,8 +1917,9 @@ def gauge_invariant_mse(
     The energy zero of a structure (E_F, mean electrostatic potential) cannot be
     inferred by a local model (roadmap 4.2, audit PHYS_H-03). Labels must carry the
     overlap as their last component (``matrix_component_policy="h_and_overlap"``).
-    For each structure and H component, ``c = sum(w dH S) / sum(w S^2)`` (closed form,
-    differentiable) and the H loss is the MSE of ``dH - c S``. The model may predict
+    Each structure has one common shift for all H spin components:
+    ``c = sum(w dH S) / (n_h sum(w S^2))`` (closed form, differentiable).
+    The H loss is the MSE of ``dH - c S``, preserving physical spin splitting. The model may predict
     (H, S), and then the predicted overlap is fitted with a plain MSE weighted by
     ``overlap_weight``, or only H (one component fewer than the labels): S is then just
     the label that defines the shift, and the readout is half the size.
@@ -1958,7 +1961,7 @@ def gauge_invariant_mse(
         d_edges * s_edges, edge_struct
     )
     den = per_structure(s_nodes**2, node_struct) + edge_weight * per_structure(s_edges**2, edge_struct)
-    shift = num / den.clamp_min(1e-12)  # (n_structures, n_h)
+    shift = num.sum(dim=1, keepdim=True) / (n_h * den).clamp_min(1e-12)
 
     aligned_nodes = d_nodes - shift[node_struct] * s_nodes
     aligned_edges = d_edges - shift[edge_struct] * s_edges

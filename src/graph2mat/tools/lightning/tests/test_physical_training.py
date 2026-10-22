@@ -416,6 +416,7 @@ def test_two_steps_checkpoint_and_future_stage(tmp_path):
     checkpoint = torch.load(path, weights_only=False)
     checkpoint["hyper_parameters"].pop("loss_kwargs", None)
     checkpoint["hyper_parameters"].pop("training_stages", None)
+    checkpoint.pop("active_training_stage", None)
     legacy_path = tmp_path / "legacy.ckpt"
     torch.save(checkpoint, legacy_path)
     legacy = LitMACEMatrixModel.load_from_checkpoint(legacy_path, weights_only=False).double().eval()

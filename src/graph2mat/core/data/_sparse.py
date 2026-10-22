@@ -24,6 +24,7 @@ def _csr_to_block_dict(
 ):
     # Match Cython's argument coercion: an integer fill must not truncate labels.
     fill_value = float(fill_value)
+    block_dtype = np.result_type(np.asarray(data).dtype, np.float64)
     # --- Cython annotations for increased performance (ignored if not compiled with cython)
     atom_i: cython.int
     atomi_firsto: cython.int
@@ -89,7 +90,7 @@ def _csr_to_block_dict(
                     block_dict[atom_i, atom_j, i_sc][orbital_i, orbital_j] = val
                 except KeyError:
                     block_dict[atom_i, atom_j, i_sc] = np.full(
-                        (orbitals[atom_i], orbitals[atom_j]), fill_value
+                        (orbitals[atom_i], orbitals[atom_j]), fill_value, dtype=block_dtype
                     )
                     block_dict[atom_i, atom_j, i_sc][orbital_i, orbital_j] = val
 

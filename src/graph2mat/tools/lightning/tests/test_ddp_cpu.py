@@ -562,7 +562,7 @@ def test_two_cpu_ranks_reduce_gauge_and_spectral_denominators(tmp_path, gauge):
         assert result["world_size"] == 2
         expected = {"val_loss": loss, "hp_metric": loss, "val_gauge_h_rmse": h ** .5,
                     "val_overlap_rmse": s ** .5,
-                    "val_gauge_shift_mean_abs": 10. if gauge == "missing_rank" else 22.5 if gauge == "spin" else 15.}
+                    "val_gauge_shift_mean_abs": 10. if gauge == "missing_rank" else 15.}
         if gauge in ("h_only", "h_s"):
             expected.update(val_spectral_rmse=(19 / 10) ** .5, val_spectral_elements=20)
         for name, value in expected.items():

@@ -10,6 +10,7 @@ from mace.modules.blocks import RadialEmbeddingBlock
 from mace.tools.compile import disable_e3nn_codegen
 
 from graph2mat import BasisTableWithEdges
+from graph2mat.core.data.table import _shell_sequence
 from graph2mat.bindings.e3nn import (
     E3nnEdgeMessageBlock,
     E3nnLinearEdgeBlock,
@@ -372,6 +373,11 @@ class LitMACEMatrixModel(LitBasisMatrixModel):
         if model_table is not None and data_table is not None and list(model_table.types) != list(data_table.types):
             raise ValueError(f"model basis types {list(model_table.types)} differ from data basis types "
                              f"{list(data_table.types)}.")
+        if model_table is not None and data_table is not None:
+            if (any(_shell_sequence(model_basis) != _shell_sequence(data_basis)
+                    for model_basis, data_basis in zip(model_table.basis, data_table.basis))
+                    or not np.array_equal(model_table.change_of_basis, data_table.change_of_basis)):
+                raise ValueError("model and data basis angular shells, shell order or conventions differ.")
         policy = getattr(module, "matrix_component_policy", None)
         # long_range reads S from the labels' last column: only h_and_overlap has it there.
         if self.hparams.get("long_range") and module is not None and policy != "h_and_overlap":

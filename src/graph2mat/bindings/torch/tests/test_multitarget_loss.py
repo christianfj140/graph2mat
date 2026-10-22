@@ -120,6 +120,26 @@ def test_h_gauge_uses_reference_s():
     assert float(value) > 0.
 
 
+def test_spin_gauge_keeps_opposite_spin_shifts_in_multitarget_loss():
+    data, p = sample(spin=2)
+    nodes, edges = data.point_labels.clone(), data.edge_labels.clone()
+    h = p.matrix_target_layout.slices["hamiltonian"]
+    s = p.matrix_target_layout.slices["overlap"]
+    signs = nodes.new_tensor([1., -1.])
+    nodes[:, h] += nodes[:, s] * signs
+    edges[:, h] += edges[:, s] * signs
+    nodes.requires_grad_()
+    edges.requires_grad_()
+    weights = {target: float(target == "hamiltonian") for target in TARGETS}
+    value, stats = evaluate(objective(p, "gauge_invariant_mse", weights=weights), data, p, nodes, edges)
+    expected = (data.point_labels[:, s].square().sum() + data.edge_labels[:, s].square().sum()
+                ) / (len(nodes) + len(edges))
+    torch.testing.assert_close(value, expected)
+    assert float(stats["target/hamiltonian/gauge_shift_mean_abs"]) < 1e-14
+    gradients = torch.autograd.grad(value, (nodes, edges))
+    assert any(gradient[:, h].abs().max() > 0 for gradient in gradients)
+
+
 @pytest.mark.parametrize("weights", [[0., 0., 0., 0.], [-1., 1., 1., 1.],
                                     [float("nan"), 1., 1., 1.], [1., float("inf"), 1., 1.]])
 def test_invalid_weights_rejected(weights):

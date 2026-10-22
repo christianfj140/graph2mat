@@ -24,7 +24,7 @@ from __future__ import annotations
 import dataclasses
 import warnings
 import zipfile
-from copy import copy
+from copy import copy, deepcopy
 from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import (
@@ -77,10 +77,11 @@ from .configuration import (
     OrbitalConfiguration,
     PhysicsMatrixType,
 )
+from .basis import PointBasis
 from .formats import Formats, conversions
 from .neighborhood import get_neighborhood
 from .node_feats import OneHotZ
-from .table import AtomicTableWithEdges, BasisTableWithEdges
+from .table import AtomicTableWithEdges, BasisTableWithEdges, _shell_sequence
 
 __all__ = ["MatrixDataProcessor", "BasisMatrixData"]
 
@@ -1922,9 +1923,17 @@ class BasisMatrixDataBase(Generic[ArrayType]):
             The method called to initialize the basis matrix data object.
         """
         if isinstance(obj, cls):
+            if not labels:
+                data = deepcopy(obj)
+                for key in ("point_labels", "edge_labels", "labels_point_filter", "labels_edge_filter"):
+                    setattr(data, key, None)
+                    data._data[key] = None
+                return data
             return obj
         elif isinstance(obj, BasisConfiguration):
-            config = obj
+            config = obj if labels else copy(obj)
+            if not labels:
+                config.matrix = None
         else:
             config_kwargs = data_processor.get_config_kwargs(obj)
             config_kwargs.update(kwargs)
@@ -1963,6 +1972,21 @@ class BasisMatrixDataBase(Generic[ArrayType]):
                     f"matrix but the basis table gives {expected[wrong[:5]].tolist()} for their type: "
                     "species with the same Z and different basis are not supported."
                 )
+            actual_bases = (
+                (PointBasis.from_sisl_atom(atom) for atom in config.basis.atom)
+                if isinstance(config.basis, sisl.Atoms) else config.basis
+            )
+            expected_bases = dict(zip(data_processor.basis_table.types, data_processor.basis_table.basis))
+            active_types = set(config.point_types)
+            for actual in actual_bases:
+                if actual.basis_size and actual.type in active_types:
+                    expected_basis = expected_bases[actual.type]
+                    if _shell_sequence(actual) != _shell_sequence(expected_basis):
+                        raise ValueError(
+                            f"Type {actual.type!r} has angular shells {actual.basis} but the basis table "
+                            f"gives {expected_basis.basis}: species with the same Z and different basis "
+                            "or shell order are not supported."
+                        )
 
         # Search for the neighbors. We use the max radius of each atom as cutoff for looking over neighbors.
         # This means that two atoms ij are neighbors if they have some overlap between their orbitals. That is

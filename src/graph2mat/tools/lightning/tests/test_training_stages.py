@@ -120,27 +120,119 @@ def test_freezing_stages_need_find_unused_parameters_under_ddp():
     check([{"name": "a", "freeze": [], "train": None}], {})
 
 
-@pytest.mark.parametrize("hook, fn, applied", [("on_test_start", "test", True), ("on_validation_start", "validate", True),
-                                               ("on_validation_start", "fit", False)])
-def test_standalone_evaluation_uses_the_last_stage_loss(hook, fn, applied):
-    """Audit: validate/test from a checkpoint used the default loss while the same evaluation
-    right after fit used the last stage's, so the same weights reported different losses."""
-    from types import SimpleNamespace
+def test_checkpoint_restores_stage_loss_without_freezing_before_fit():
+    stages = [{"name": "warmup", "freeze": ["mace"], "max_epochs": 2,
+               "loss": "block_type_huber", "loss_kwargs": {"beta": .2}}]
+    original = _lit_model(stages)
+    original._apply_training_stage_for_epoch(0)
+    checkpoint = {"hyper_parameters": {}}
+    original.on_save_checkpoint(checkpoint)
 
-    from graph2mat.tools.lightning.model import LitBasisMatrixModel
+    restored = _lit_model(stages)
+    restored.on_load_checkpoint(checkpoint)
+    assert isinstance(restored.loss_fn, block_type_huber)
+    assert restored.loss_fn.beta == .2
+    # DDP must register all parameters before a stage changes requires_grad.
+    assert all(_requires_grad(restored.model.mace))
+    # Restoring the loss must not make the fit hook skip the parameter policy.
+    restored._apply_training_stage_for_epoch(0)
+    assert not any(_requires_grad(restored.model.mace))
 
-    calls = []
-    fake = SimpleNamespace(_validated_training_stages=[{"name": "a"}, {"name": "b", "loss": "x"}],
-                           trainer=SimpleNamespace(state=SimpleNamespace(fn=fn)),
-                           _apply_stage_loss=calls.append)
-    getattr(LitBasisMatrixModel, hook)(fake)
-    assert calls == ([{"name": "b", "loss": "x"}] if applied else [])
+
+def test_loading_into_a_used_model_reapplies_the_resumed_stage_policy():
+    stages = [{"name": "warmup", "max_epochs": 1, "freeze": ["mace"], "loss": "block_type_huber"},
+              {"name": "finetune", "max_epochs": 2}]
+    original = _lit_model(stages)
+    original._apply_training_stage_for_epoch(0)
+    checkpoint = {"hyper_parameters": {}}
+    original.on_save_checkpoint(checkpoint)
+    restored = _lit_model(stages)
+    restored._apply_training_stage_for_epoch(1)
+    restored.on_load_checkpoint(checkpoint)
+    assert isinstance(restored.loss_fn, block_type_huber)
+    restored._apply_training_stage_for_epoch(1)
+    assert isinstance(restored.loss_fn, block_type_mse)
+    assert all(_requires_grad(restored.model.mace))
+
+
+def test_checkpoint_rejects_active_stage_without_matching_recipe():
+    checkpoint = {"hyper_parameters": {}, "active_training_stage": "missing"}
+    with pytest.raises(ValueError, match="active training stage 'missing'.*missing or ambiguous"):
+        _lit_model().on_load_checkpoint(checkpoint)
+
+
+@pytest.mark.parametrize("checkpoint_stage", ["early", "last"])
+def test_checkpoint_stage_loss_matches_live_validate_and_test(tmp_path, checkpoint_stage):
+    import numpy as np
+    import pytorch_lightning as pl
+    from graph2mat import BasisConfiguration
+    from graph2mat.bindings.torch.load import load_from_lit_ckpt
+    from graph2mat.tools.lightning import MatrixDataModule
+    from graph2mat.tools.lightning.models.mace import LitMACEMatrixModel
+
+    table = _basis_table()
+    config = BasisConfiguration(
+        point_types=["H", "H"], positions=np.array([[0., 0., 0.], [.7, 0., 0.]]),
+        basis=table, cell=np.eye(3) * 10, pbc=(False, False, False), matrix=np.array([[4., 3.], [3., 5.]]),
+    )
+    data = MatrixDataModule(basis_table=table, symmetric_matrix=True, sub_point_matrix=False,
+        train_runs=[config], val_runs=[config], test_runs=[config], loader_threads=0)
+    model = LitMACEMatrixModel(basis_table=table, symmetric_matrix=True,
+        hidden_irreps="2x0e+2x1o", edge_hidden_irreps="2x0e+2x1o", num_bessel=2, max_ell=1,
+        optim_lr=0., training_stages=[{"name": "mae", "max_epochs": 1, "loss": "elementwise_mae"},
+                                   {"name": "mse", "max_epochs": 1, "loss": "elementwise_mse"}])
+    steps = 1 if checkpoint_stage == "early" else 2
+
+    def trainer():
+        return pl.Trainer(accelerator="cpu", devices=1, max_steps=steps, max_epochs=steps, logger=False,
+            enable_checkpointing=False, enable_progress_bar=False, enable_model_summary=False,
+            num_sanity_val_steps=0, default_root_dir=tmp_path)
+
+    fit = trainer()
+    fit.fit(model, datamodule=data)
+    path = tmp_path / "stage.ckpt"
+    fit.save_checkpoint(path)
+    restored, _ = load_from_lit_ckpt(path)
+    assert type(restored.loss_fn) is type(model.loss_fn)
+    for key, value in model.state_dict().items():
+        torch.testing.assert_close(restored.state_dict()[key], value, rtol=0, atol=0)
+    model.eval()
+    batch = next(iter(data.val_dataloader()))
+    with torch.no_grad():
+        prediction = model(batch)
+        error = torch.cat((prediction["node_labels"] - batch.point_labels,
+                           prediction["edge_labels"] - batch.edge_labels))
+        expected = float(error.abs().mean() if checkpoint_stage == "early" else error.square().mean())
+    for method, key in (("validate", "val_loss"), ("test", "test_loss")):
+        live = getattr(trainer(), method)(model, datamodule=data, verbose=False)[0][key]
+        reloaded = getattr(trainer(), method)(restored, datamodule=data, verbose=False)[0][key]
+        assert live == pytest.approx(expected)
+        assert reloaded == pytest.approx(expected)
+    data.teardown(None)
+
+
+@pytest.mark.parametrize("method,key", [("validate", "val_loss"), ("test", "test_loss")])
+def test_evaluation_before_fit_preserves_the_default_loss(method, key):
+    import pytorch_lightning as pl
+    from torch_geometric.data import Data
+    from torch_geometric.loader import DataLoader
+
+    model = _lit_model([{"name": "future", "max_epochs": 1, "loss": "block_type_huber"}])
+    with torch.no_grad():
+        model.model.matrix_readouts.weight.fill_(2.)
+        model.model.mace.weight.fill_(3.)
+    data = Data(num_nodes=1, x=torch.ones(1, 1), point_types=torch.tensor([0]),
+        point_labels=torch.zeros(1), edge_labels=torch.zeros(1), edge_types=torch.tensor([0]),
+        edge_index=torch.zeros(2, 1, dtype=torch.long))
+    trainer = pl.Trainer(accelerator="cpu", devices=1, logger=False, enable_checkpointing=False,
+        enable_progress_bar=False, enable_model_summary=False)
+    result = getattr(trainer, method)(model, dataloaders=DataLoader([data]), verbose=False)[0]
+    assert result[key] == pytest.approx(13.)  # default block MSE: 2**2 + 3**2
+    assert isinstance(model.loss_fn, block_type_mse)
 
 
 def test_output_scaleshift_without_datamodule_has_a_clear_error():
     from types import SimpleNamespace
-
-    from graph2mat.tools.lightning.model import LitBasisMatrixModel
 
     readout = SimpleNamespace(output_scaleshift=True, output_scaleshift_fitted=False)
     fake = SimpleNamespace(model=SimpleNamespace(matrix_readouts=readout), trainer=SimpleNamespace(datamodule=None))

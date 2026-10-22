@@ -651,12 +651,13 @@ class LitBasisMatrixModel(pl.LightningModule):
                   "_epoch_errors": self._epoch_errors}
         for key in (name, "multitarget_" + name.replace("/", "__")):
             for attribute, store in stores.items():
-                if key in store:
+                if key in store and store[key].update_called:
                     self.log("hp_metric", store[key], batch_size=batch.num_graphs,
                              metric_attribute=f"{attribute}.{key}")
                     return
-        available = sorted(key for store in stores.values() for key in store if key.startswith("val"))
-        raise ValueError(f"selection_metric {name!r} is not an epoch-aggregated validation metric; "
+        available = sorted(key for store in stores.values() for key in store
+                           if key.startswith("val") and store[key].update_called)
+        raise ValueError(f"selection_metric {name!r} is not an epoch-aggregated metric in the current validation; "
                          f"available: {available}")
 
     def _physical_epoch_loss(self, key, batch, stats):
@@ -847,7 +848,7 @@ class LitBasisMatrixModel(pl.LightningModule):
                 if key not in self._epoch_losses:
                     self._epoch_losses[key] = _EpochWeightedLoss(1).to(self.device)
                 value = self._epoch_losses[key]
-                value(stats[name].reshape(1), [batch.num_graphs * (batch.point_labels.shape[1] - 1)], (1.,))
+                value(stats[name].reshape(1), [batch.num_graphs], (1.,))
                 attribute = f"_epoch_losses.{key}"
             elif (type(self.loss_fn) is metrics_module.normalized_density_error
                     and name in ("avg_per_config_error_percent", "avg_error_percent")):
@@ -1093,17 +1094,6 @@ class LitBasisMatrixModel(pl.LightningModule):
     def on_train_epoch_start(self) -> None:
         self._apply_training_stage_for_epoch(self.current_epoch)
 
-    def on_validation_start(self) -> None:
-        # Standalone validate/test (e.g. from a checkpoint) never apply a stage: use the last
-        # one's loss, as validation right after fit does, so the same weights report the
-        # same loss either way.
-        if self._validated_training_stages and getattr(getattr(self.trainer, "state", None), "fn", None) != "fit":
-            self._apply_stage_loss(self._validated_training_stages[-1])
-
-    def on_test_start(self) -> None:
-        if self._validated_training_stages and getattr(getattr(self.trainer, "state", None), "fn", None) != "fit":
-            self._apply_stage_loss(self._validated_training_stages[-1])
-
     def validation_step(self, batch, batch_idx):
         out = self.model(batch)
         self._validate_pred_ref_shapes(
@@ -1175,6 +1165,17 @@ class LitBasisMatrixModel(pl.LightningModule):
         "Objects to retrieve from checkpoint file"
         san_checkpoint = sanitize_checkpoint(checkpoint)
         checkpoint.update(san_checkpoint)
+
+        active_stage = checkpoint.get("active_training_stage")
+        if active_stage is not None:
+            stages = [stage for stage in self._validated_training_stages if stage["name"] == active_stage]
+            if len(stages) != 1:
+                raise ValueError(f"checkpoint active training stage {active_stage!r} is missing or ambiguous")
+            # Evaluation needs the saved loss; parameter/optimizer policies belong to fit,
+            # after DDP registers parameters. Leave the active index unset for that hook.
+            self._apply_stage_loss(stages[0])
+            self._active_training_stage_name = active_stage
+            self._active_training_stage_index = None
 
         descriptor = checkpoint.get("matrix_target_descriptor")
         layout = getattr(self, "matrix_target_layout", None)

@@ -101,6 +101,20 @@ def test_unknown_selection_metric_fails_before_training_continues():
         _evaluate(_model(selection_metric="val_nope"), _samples(1))
 
 
+@pytest.mark.parametrize("name", ["val_node_rmse", "val_edge_rmse"])
+def test_selection_rejects_a_metric_that_disappears_after_a_stage_change(name):
+    model = _model(selection_metric=name, training_stages=[
+        {"name": "mse", "max_epochs": 1},
+        {"name": "mae", "max_epochs": 1, "loss": "block_type_mae"},
+    ])
+    model._apply_training_stage_for_epoch(0)
+    result = _evaluate(model, _samples(1))
+    assert result["hp_metric"] == pytest.approx(result[name])
+    model._apply_training_stage_for_epoch(1)
+    with pytest.raises(ValueError, match=f"selection_metric '{name}'.*current validation"):
+        _evaluate(model, _samples(1))
+
+
 def test_cli_moves_only_the_default_best_checkpoint_monitor():
     def checkpoint(monitor):
         return Namespace(class_path="ModelCheckpoint", init_args=Namespace(monitor=monitor))

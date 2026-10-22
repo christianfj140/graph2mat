@@ -52,6 +52,7 @@ def test_model_info_serializes_real_processor_as_json(atomic, array_radius):
                                    "basis": [[1, 0, 1], [1, 1, -1]], "basis_convention": convention}]},
         "symmetric_matrix": True, "sub_point_matrix": False, "out_matrix": "density_matrix",
         "n_matrix_components": 2, "matrix_component_policy": "raw_components",
+        "edge_cutoff_padding": 0., "magnetic_moments": None,
         "node_attr_getters": ["graph2mat.core.data.node_feats.OneHotZ", __name__ + "._extra_node_feature"],
         "description": "Two-component density matrix",
     }

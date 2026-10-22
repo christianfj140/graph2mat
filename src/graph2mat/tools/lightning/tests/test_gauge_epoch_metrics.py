@@ -18,7 +18,7 @@ def gauge_samples(components=1, predicts_overlap=False):
         h = torch.tensor(errors, dtype=torch.float64)
         ref = torch.zeros(n, components + 1, dtype=torch.float64)
         ref[:, -1] = 1.
-        pred = torch.stack([(i + 1) * (h + shift) for i in range(components)], dim=1)
+        pred = torch.stack([(i + 1) * h + shift for i in range(components)], dim=1)
         edge_ref = torch.zeros(int(n == 2), components + 1, dtype=torch.float64)
         edge_pred = torch.zeros(len(edge_ref), components, dtype=torch.float64)
         if predicts_overlap:
@@ -62,7 +62,7 @@ def test_gauge_epoch_objective_uses_each_physical_denominator(split, edge_weight
         assert result[f"{split}_loss"] == pytest.approx(want)
         assert result[f"{split}_gauge_h_rmse"] == pytest.approx(h_mean ** .5)
         assert result[f"{split}_overlap_rmse"] == pytest.approx(s_mean ** .5)
-        assert result[f"{split}_gauge_shift_mean_abs"] == pytest.approx(20. if components == 1 else 30.)
+        assert result[f"{split}_gauge_shift_mean_abs"] == pytest.approx(20.)
         if spectral_weight:
             assert result[f"{split}_spectral_rmse"] == pytest.approx((38 / 21) ** .5)
             assert result[f"{split}_spectral_elements"] == 21
@@ -88,6 +88,9 @@ def test_gauge_missing_rows_are_masked_before_alignment_and_backward(components,
     loss, stats = model.loss_fn(nodes_pred=nodes, nodes_ref=batch.point_labels, edges_pred=edges,
                                 edges_ref=batch.edge_labels, batch=batch, basis_table=model.basis_table)
     h_mean = 0. if missing == "all" else (36. if missing == "node" else 38.) / 7 * (1 if components == 1 else 2.5)
+    if missing == "node" and components == 2:
+        # The remaining spin errors [1, 2] align to [-.5, .5] with one common shift.
+        h_mean += .5 / 14
     s_mean = 8.5 / 7 if predicts_overlap and missing != "all" else 0.
     assert float(loss) == pytest.approx(h_mean + .3 * s_mean)
     assert float(stats["gauge_h_rmse"]) == pytest.approx(h_mean ** .5)

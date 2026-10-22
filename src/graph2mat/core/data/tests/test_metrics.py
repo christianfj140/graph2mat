@@ -176,6 +176,31 @@ def test_gauge_invariant_mse_ignores_a_per_structure_shift():
                              [wrong["nodes_pred"], nodes_ref[:, 1]], dim=1)))[0])
 
 
+def test_collinear_gauge_preserves_spin_splitting():
+    """Only a common energy zero is free: (+S, -S) must retain loss and gradient."""
+    import torch
+    from torch_geometric.data import Batch, Data
+    from graph2mat import BasisTableWithEdges, PointBasis
+    from graph2mat.core.data.metrics import gauge_invariant_mse
+
+    table = BasisTableWithEdges([PointBasis("A", R=1, basis=[1])])
+    batch = Batch.from_data_list([Data(
+        num_nodes=1, point_types=torch.tensor([0]), point_labels=torch.tensor([[0., 0., 1.]]),
+        edge_labels=torch.empty(0, 3), edge_types=torch.empty(0, dtype=torch.long),
+        edge_index=torch.empty(2, 0, dtype=torch.long),
+    )])
+    for values, expected, shift in (([1., -1.], 1., 0.), ([3., -1.], 4., 1.), ([2., 2.], 0., 2.)):
+        prediction = torch.tensor([values], requires_grad=True)
+        loss, stats = gauge_invariant_mse(
+            nodes_pred=prediction, nodes_ref=batch.point_labels,
+            edges_pred=torch.empty(0, 2), edges_ref=batch.edge_labels, batch=batch, basis_table=table,
+        )
+        torch.testing.assert_close(loss, prediction.new_tensor(expected))
+        torch.testing.assert_close(stats["gauge_shift_mean_abs"], prediction.new_tensor(shift))
+        gradient, = torch.autograd.grad(loss, prediction)
+        torch.testing.assert_close(gradient, prediction.new_tensor([[values[0] - shift, values[1] - shift]]))
+
+
 def test_spectral_window_loss_matches_gamma_point_matrices():
     """Roadmap 4.4: the label elements land on the right Gamma-point orbitals (homo- and
     heteronuclear blocks, periodic images, a batch of two structures), the window loss
@@ -316,6 +341,21 @@ def test_find_displacement_pairs_uses_minimum_image():
     assert find_displacement_pairs(batch, 0.03) == []  # partners differ by 2 x 0.02
     assert find_displacement_pairs(batch, 0.05, 0.035) == [(0, 1), (2, 3)]  # window around 2 delta
     assert find_displacement_pairs(batch, 0.05, 0.045) == []
+
+
+def test_find_displacement_pairs_is_invariant_under_a_lattice_basis_change():
+    import numpy as np
+    from graph2mat.core.data.metrics import find_displacement_pairs
+
+    cell = np.diag([1., 1., 10.])
+    # Unimodular integer change: the lattice and Cartesian positions stay identical.
+    basis_change = np.array([[100, 1, 0], [99, 1, 0], [0, 0, 1]])
+    batch = {"point_types": np.zeros(2, dtype=int), "batch": np.array([0, 1]),
+             "positions": np.array([[0., .02, 0.], [0., -.02, 0.]])}
+    for equivalent_cell in (cell, basis_change @ cell):
+        batch["cell"] = np.repeat(equivalent_cell[None], 2, axis=0)
+        assert find_displacement_pairs(batch, .05) == [(0, 1)]
+        assert find_displacement_pairs(batch, .03) == []
 
 
 def test_pair_difference_mse_penalises_only_the_antisymmetric_error():
