@@ -46,6 +46,9 @@ recipe (fp32, `num_polynomial_cutoff=6`, correlation 3, lmax 3, 3 interactions,
 - Physics losses and labels: first-order spectral term (`spectral_weight`,
   `MatrixDataModule(spectral_window=...)`), S null-space term, electron count,
   Mulliken and energy consistency (`physical_labels`).
+- Loss and metric fixes: epoch-level aggregation (true epoch RMSE, valid denominators,
+  DDP-reduced), NaN-free masked losses, per-structure losses, `pair_difference_mse`,
+  loss-independent `val_matrix_rmse`.
 - Performance options: `gradient_checkpointing`, `torch_compile`, `cueq`,
   `max_batch_cost`, `fuse_homonuclear`, tensor caching, vectorized CSR/COO
   reconstruction.
