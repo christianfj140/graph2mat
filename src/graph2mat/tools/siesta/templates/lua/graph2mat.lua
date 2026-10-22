@@ -102,6 +102,14 @@ end
 --           SERVER FUNCTIONALITY
 -- ----------------------------------------------------
 
+-- Query values are percent-encoded: paths with '+', '&', '#', spaces or quotes would
+-- otherwise be read wrongly by the server or break the shell command.
+function url_encode(value)
+    return (tostring(value):gsub("[^%w%-%._~/]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+
 function server_get(path)
     if not siesta.IONode then
         -- only IO node communicates with the server
@@ -115,23 +123,23 @@ function server_get(path)
  end
 
  function init_history(len, matrix_ref)
-    server_get("init?history_len=" .. len .. "&data_processor=" .. matrix_ref .. "&matrix_type=density_matrix")
+    server_get("init?history_len=" .. url_encode(len) .. "&data_processor=" .. url_encode(matrix_ref) .. "&matrix_type=density_matrix")
  end
 
  function add_step(path, matrix_ref)
-    server_get("add_step?path=" .. path .. "&matrix_ref=" .. matrix_ref)
+    server_get("add_step?path=" .. url_encode(path) .. "&matrix_ref=" .. url_encode(matrix_ref))
  end
 
  function add_matrix(path)
-    server_get("add_matrix?path=" .. path)
+    server_get("add_matrix?path=" .. url_encode(path))
  end
 
  function setup_processor(basis_dir, matrix)
-    server_get("setup_processor?basis_dir=" .. basis_dir .. "&matrix=" .. matrix)
+    server_get("setup_processor?basis_dir=" .. url_encode(basis_dir) .. "&matrix=" .. url_encode(matrix))
  end
 
  function predict_next(out)
-    server_get("extrapolate?out=" .. out .. "&allow_overwrite=true")
+    server_get("extrapolate?out=" .. url_encode(out) .. "&allow_overwrite=true")
  end
 
 {% endif %}
