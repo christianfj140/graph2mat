@@ -466,16 +466,21 @@ def test_cli_parser_takes_the_options_and_derives_them():
 # Writers and servers
 # ---------------------------------------------------------------------------
 
-def test_writer_rejects_spin_orbit_full(tmp_path):
+def test_writer_writes_spin_orbit_full_predictions(tmp_path):
+    # spin_orbit_full predictions are written as an orthogonal spin-orbit H (the labels carry no S).
     from graph2mat.tools.lightning.callbacks import MatrixWriter
 
-    _, _, atoms = make_magnetic_system()
+    H, _, atoms = make_magnetic_system()
     processor = full_processor(atoms, True).copy(magnetic_moments="vector")
+    sample = TorchBasisMatrixData.new(H, data_processor=processor, magnetic_moments=np.zeros((H.geometry.na, 3)))
     trainer = SimpleNamespace(datamodule=SimpleNamespace(data_processor=processor, out_matrix="hamiltonian"))
-    writer = MatrixWriter(str(tmp_path / "out.HSX"))
-    with pytest.raises(ValueError, match=r"MatrixWriter.*spin_orbit_full.*not supported"):
-        writer._on_batch_end("predict", trainer, None, {}, None, 0, 0)
-    assert not list(tmp_path.iterdir())
+    MatrixWriter(str(tmp_path / "out.TSHS"))._on_batch_end(
+        "predict", trainer, None, {"node_labels": sample.point_labels, "edge_labels": sample.edge_labels},
+        Batch.from_data_list([sample]), 0, 0)
+    written = sisl.get_sile(tmp_path / "out.TSHS").read_hamiltonian()
+    assert written.spin.is_spinorbit and written.orthogonal
+    for i in range(8):
+        np.testing.assert_allclose(written.tocsr(i).toarray(), H.tocsr(i).toarray(), atol=1e-10)
 
 
 def test_writer_still_writes_collinear_predictions(models, tmp_path):
