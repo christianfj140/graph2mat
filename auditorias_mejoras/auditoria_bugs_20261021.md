@@ -107,3 +107,42 @@ Tabla completa del roadmap: [auditoria_roadmap_vs_codigo_20261021.md](auditoria_
 
 Arreglar G2 y G3 cambia el comportamiento respecto a los entrenamientos históricos (scheduler activo, otra
 partición): conviene anotarlo en el roadmap al hacerlo.
+
+## Estado de los arreglos (2026-10-22)
+
+Cada arreglo lleva un test que falla sin él (salvo donde se indica) y se comprobó con los tests focalizados de su
+zona; la suite completa se pasa al final. Los arreglos de las herramientas migradas se volvieron a comparar con el
+código original de MD_vs_AtomicDisplacement sobre datos reales: sin cambios para matrices sin espín (0,0).
+
+| Hallazgo | Estado | Commit |
+|---|---|---|
+| G1 referencia atómica en bloques multicomponente | arreglado | `ba9b440` |
+| G2 `lr_scheduler` ignorado con `optimizer: null` | arreglado; efecto histórico anotado en el roadmap; sonda coseno vs constante | `81b18ca`, `69af9aa`, `d2082af` |
+| G3 + M17 orden del glob y tipos de base | arreglado | `2caeb69` |
+| G4 + M7 + M8 `MatrixWriter` y `SamplewiseMetricsLogger` con predicciones solo H | arreglado | `6509fad` |
+| G5 + G6 + M5 claves y caché de SIESTA | arreglado | `eca05a8` |
+| M1 pérdida 4.7 no invariante de gauge | arreglado; efecto en 4.7 anotado | `75e75d2` |
+| M2 + M3 + M4 supercelda de H0 y espín en herramientas | arreglado | `2c3b840` |
+| M6 `HistoryCopy` | arreglado (dos tests fijaban el valor erróneo) | `1e12f10` |
+| M9 métricas por muestra bajo DDP | arreglado | `b52c73b` |
+| M10 `long_range` y la columna S | arreglado | `5a4d900` |
+| M11 contexto Hamiltoniano y envolvente | arreglado | `4b5194b` |
+| M12 checkpointing con partes congeladas | arreglado | `624101e` |
+| M13 + `group("max")` de tablas atómicas | arreglado | `4dd8f9c` |
+| M14 `from_config(nsc=X)` | arreglado (error explícito) | `f4fe6f7` |
+| M15 coeficientes con aristas de la misma especie | arreglado | `67aa8e0` |
+| M16 `NetCharge` | arreglado | `fb236ca` |
+| M18 signo de QEq con carga neta | arreglado (convención documentada) | `a492fbf` |
+| 8.1 SOC con Δ sin MD_vs | implementado | `c6c4850` |
+| 6.8 `reduce-overhead` | rechazado explícitamente | `55dbbde` |
+| Tests que faltaban (1.9, 4.7, 0.8, 6.9, ejemplo) | añadidos | `f3b4d29` |
+| Menores de herramientas (etiqueta fdf, `noise_fdf`, cliente, atribución) | arreglado | `17e246f` |
+| `add_h0` en sitio no atómico | arreglado (escritura temporal + `os.replace`) | `c6c4850` |
+| Etapas con `freeze` bajo DDP, etapa activa fuera de `fit`, `output_scaleshift` sin datamodule | arreglado | `2248f52` |
+| Respaldo por suma de subconjuntos en aristas simétricas | eliminado: ahora lanza error | `d3d7fe5` |
+| Parámetros de la URL en `graph2mat.lua` | codificados (`url_encode`); comprobado con lupa, sin test en la suite | `2df88f8` |
+| `mp_cutoff` sin embedding radial, opciones ignoradas en `mace.py` y `E3nnGraph2Mat`, vectores k en celdas oblicuas | arreglado | `e2d204a` |
+| Test de autocast dependiente del orden (visto al pasar los tests) | arreglado | `90361cc` |
+| Texto del roadmap (2.8, 1.12, 4.2, 8.2, tablas, primera línea suelta) | arreglado | commit de este informe |
+| Casillas sin marcar en los planes (6.7, 7.6, 8.1, 8.2, migración) | **no cambiado**: los planes son historia; el estado vigente está en el roadmap | — |
+| Pérdidas por estructura promedian estructuras sin etiquetas | **no cambiado**: es un diseño coherente y probado en el paso, la época y DDP (tests explícitos); cambiarlo exige rehacer la agregación por época. Limitación conocida: un lote con estructuras sin ninguna etiqueta diluye la pérdida. | — |
