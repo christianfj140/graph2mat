@@ -48,7 +48,15 @@ def test_configuration_shell_order_must_match_the_table():
 def test_scalar_csr_blocks_preserve_complex_values(compiled, dtype):
     module = _sparse
     if not compiled:
-        spec = importlib.util.spec_from_file_location("review_sparse_python", Path(_sparse.__file__).with_name("_sparse.py"))
+        # The compiled extension may live elsewhere (scikit-build editable installs): find the
+        # pure-Python source next to its sibling module instead.
+        from graph2mat.core.data import sparse as sparse_wrapper
+
+        source = Path(sparse_wrapper.__file__).with_name("_sparse.py")
+        if not source.is_file():
+            pytest.skip("pure-Python _sparse.py is not installed")
+        pytest.importorskip("cython")  # pure mode imports the cython shim
+        spec = importlib.util.spec_from_file_location("review_sparse_python", source)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
     blocks = module._csr_to_block_dict(
