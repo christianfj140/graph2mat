@@ -36,8 +36,9 @@ def _record(item, root, declared, original_root=None):
     if isinstance(path, (str, Path, zipfile.Path)):
         try:
             if isinstance(path, zipfile.Path) and path.root.filename is None:
-                # A BytesIO archive has no filesystem name or safe str(Path).
-                result["source"] = ("zip-memory", id(path.root), path.at)
+                # A BytesIO archive has no filesystem name or safe str(Path). Python 3.9 wraps
+                # the archive anew for every zipfile.Path: the shared buffer identifies it.
+                result["source"] = ("zip-memory", id(path.root.fp), path.at)
             else:
                 lexical = Path(str(path)).absolute()
                 source = lexical.resolve()

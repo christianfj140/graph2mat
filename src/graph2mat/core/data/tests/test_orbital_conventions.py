@@ -32,7 +32,7 @@ def test_siesta_spherical_is_siesta_harmonics(l):
 
     v = _directions()
     theta = np.arctan2(v[:, 1], v[:, 0])
-    ref = np.stack([_rspherical_harm(l, m, theta, v[:, 2]) for m in range(-l, l + 1)], 1)
+    ref = np.stack([_rspherical_harm(l=l, m=m, theta=theta, cos_phi=v[:, 2]) for m in range(-l, l + 1)], 1)
     np.testing.assert_allclose(_e3nn("siesta_spherical", l, v), ref, atol=1e-12)
 
 
