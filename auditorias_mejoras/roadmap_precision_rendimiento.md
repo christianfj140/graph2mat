@@ -1,5 +1,7 @@
 # Graph2Mat — plan de precisión, velocidad y VRAM
 
+> **Estado (2026-10-22):** las tareas experimentales que siguen abiertas aquí se ejecutaron o cerraron después. Las casillas no se marcaron durante la ejecución; el estado vigente está en la sección «Estado vigente» de [`roadmap.md`](roadmap.md).
+
 > **For agentic workers:** Use `superpowers:executing-plans` para ejecución
 > directa, tarea por tarea. Preparar el diseño y los pasos concretos de cada
 > subproyecto antes de escribir su código; este documento fija el alcance,

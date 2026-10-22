@@ -1,5 +1,7 @@
 # Migración a graph2mat de las funciones del roadmap que viven en MD_vs_AtomicDisplacement — Implementation Plan
 
+> **Estado (2026-10-22):** ejecutado; migración terminada el 2026-10-21 (`auditorias_mejoras/informe_migracion_mdvs_20261021.md`). Las casillas no se marcaron durante la ejecución; el estado vigente está en la sección «Estado vigente» de [`roadmap.md`](../../../auditorias_mejoras/roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** que todas las funciones del roadmap se puedan usar clonando solo graph2mat: Δ-learning (5.1), generadores de

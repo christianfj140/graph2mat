@@ -1,5 +1,7 @@
 # Piloto multitarget w90 — Implementation Plan
 
+> **Estado (2026-10-22):** ejecutado; piloto v2 completo el 2026-10-19 (fila 7.6). Las casillas no se marcaron durante la ejecución; el estado vigente está en la sección «Estado vigente» de [`roadmap.md`](../../../auditorias_mejoras/roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Método preservado: Native, no implementación por subagentes; una revisión independiente final antes de GPU.
 
 **Goal:** Medir la viabilidad CUDA, coste y memoria de H-only frente a H/S/DM/EDM mediante una pareja de pilotos acotada, no entrenar la campaña definitiva.

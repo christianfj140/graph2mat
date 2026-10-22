@@ -1,5 +1,7 @@
 # 8.2 Aristas de readout largas (edge_cutoff_padding) — Implementation Plan
 
+> **Estado (2026-10-22):** ejecutado; `edge_cutoff_padding` implementado el 2026-10-20 (fila 8.2). Las casillas no se marcaron durante la ejecución; el estado vigente está en la sección «Estado vigente» de [`roadmap.md`](../../../auditorias_mejoras/roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Graph2Mat predice los bloques de H más allá de R_i + R_j (colas de proyectores KB) alargando solo el grafo del readout.

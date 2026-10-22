@@ -1,5 +1,7 @@
 # Magnetismo (8.1): representación de 8 canales, momentos en los datos y modelo — Implementation Plan
 
+> **Estado (2026-10-22):** ejecutado; código cerrado el 2026-10-21, sin entrenamientos (fila 8.1; fase pausada por el usuario). Las casillas no se marcaron durante la ejecución; el estado vigente está en la sección «Estado vigente» de [`roadmap.md`](../../../auditorias_mejoras/roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Graph2Mat carga, aprende y reconstruye Hamiltonianos magnéticos con momentos magnéticos nominales por átomo como entrada: spinor completo con SOC (8 canales reales, sin imponer inversión temporal) y spin colineal (`spin_h_only`) con momentos.

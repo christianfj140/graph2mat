@@ -1,5 +1,7 @@
 # 6.7 — Homonuclear Weight Fusion Implementation Plan
 
+> **Estado (2026-10-22):** ejecutado; cerrado opt-in el 2026-10-15 (fila 6.7). Las casillas no se marcaron durante la ejecución; el estado vigente está en la sección «Estado vigente» de [`roadmap.md`](../../../auditorias_mejoras/roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for Native execution, or superpowers:subagent-driven-development if explicitly chosen by the user. Execute task-by-task; steps use checkbox syntax.
 
 **Goal:** Evaluar una orientación en los bloques homonucleares certificados sin cambiar la función, los parámetros originales ni los checkpoints.

@@ -1,5 +1,7 @@
 # Graph2Mat — magnetismo: momentos magnéticos como entrada y SOC sin inversión temporal
 
+> **Estado (2026-10-22):** código cerrado; F4 a medias y F5 sin lanzar; fase pausada por el usuario el 2026-10-21. Las casillas no se marcaron durante la ejecución; el estado vigente está en la sección «Estado vigente» de [`roadmap.md`](roadmap.md).
+
 > **For agentic workers:** usa `superpowers:subagent-driven-development` si está
 > disponible; si no, `superpowers:executing-plans`. Este documento fija alcance,
 > orden, contratos y criterios de cierre. Antes de tocar el código de cada
