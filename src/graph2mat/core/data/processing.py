@@ -1290,37 +1290,8 @@ class MatrixDataProcessor:
         if even_nlabels == expected_nlabels:
             return even_mask
 
-        if edge_index is not None and point_types is not None:
-            basis_sizes = np.array(
-                [point.basis_size for point in self.basis_table.basis], dtype=np.int64
-            )
-            edge_point_types = point_types[edge_index]
-            edge_sizes = basis_sizes[edge_point_types[0]] * basis_sizes[edge_point_types[1]]
-        else:
-            edge_sizes = self.basis_table.edge_block_size[np.abs(edge_types)]
-        reachable = np.zeros(expected_nlabels + 1, dtype=bool)
-        prev_sum = np.full(expected_nlabels + 1, -1, dtype=np.int32)
-        prev_edge = np.full(expected_nlabels + 1, -1, dtype=np.int32)
-        reachable[0] = True
-
-        for i, size in enumerate(edge_sizes):
-            size = int(size)
-            for total in range(expected_nlabels, size - 1, -1):
-                if reachable[total] or not reachable[total - size]:
-                    continue
-                reachable[total] = True
-                prev_sum[total] = total - size
-                prev_edge[total] = i
-
-        if reachable[expected_nlabels]:
-            subset_mask = np.zeros(n_edges, dtype=bool)
-            total = expected_nlabels
-            while total > 0:
-                edge_i = prev_edge[total]
-                subset_mask[edge_i] = True
-                total = prev_sum[total]
-            return subset_mask
-
+        # No subset of edges is picked just because its sizes add up: that could put labels
+        # on the wrong edges without any error (audit).
         raise ValueError(
             "Could not match symmetric edge labels to edge representatives. "
             f"Expected {expected_nlabels} labels, but edge_types>=0 gives "

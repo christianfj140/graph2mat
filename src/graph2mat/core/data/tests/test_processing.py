@@ -283,7 +283,9 @@ def test_yield_from_batch_with_symmetric_matrix_handles_odd_edges_per_graph():
     np.testing.assert_array_equal(outputs[1].edge_labels, np.array([3.0, 4.0]))
 
 
-def test_symmetric_unique_edge_mask_matches_label_count_not_only_position():
+def test_symmetric_unique_edge_mask_refuses_to_guess_the_edges():
+    """Neither convention matches the label count: [T, T, F] and [F, T, T] both add up to 3
+    labels, so any choice could put labels on the wrong edges. It raises (audit)."""
     basis_table = BasisTableWithEdges(
         [
             PointBasis("A", R=2, basis=[1]),
@@ -296,12 +298,8 @@ def test_symmetric_unique_edge_mask_matches_label_count_not_only_position():
         sub_point_matrix=False,
     )
 
-    mask = processor._get_symmetric_unique_edge_mask(
-        edge_types=np.array([0, 1, 0]),
-        expected_nlabels=3,
-    )
-
-    np.testing.assert_array_equal(mask, np.array([True, True, False]))
+    with pytest.raises(ValueError, match="Could not match symmetric edge labels"):
+        processor._get_symmetric_unique_edge_mask(edge_types=np.array([0, 1, 0]), expected_nlabels=3)
 
 
 def test_symmetric_unique_edge_mask_handles_same_species_by_label_length():
